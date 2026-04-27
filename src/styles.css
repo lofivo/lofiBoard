@@ -361,7 +361,8 @@ button {
     transform 160ms ease;
 }
 
-.style-panel[hidden] {
+.style-panel[hidden],
+.layer-panel[hidden] {
   display: none;
 }
 

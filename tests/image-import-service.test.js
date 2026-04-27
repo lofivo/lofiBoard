@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   getImageFileFromDropEvent,
   getImageInsertPoint,
+  getTextFromDropEvent,
+  getTextFromPasteEvent,
   isImageFile,
   shouldLetPasteEventHandleImages,
 } from "../src/image-import-service.js";
@@ -37,5 +39,11 @@ describe("image import service", () => {
   it("lets the browser paste event handle clipboard images", () => {
     expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: true, hasInternalClipboard: true })).toBe(true);
     expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: false, hasInternalClipboard: true })).toBe(false);
+  });
+
+  it("extracts plain text from paste and drop events", () => {
+    expect(getTextFromPasteEvent({ clipboardData: { getData: () => "  hello  " } })).toBe("hello");
+    expect(getTextFromDropEvent({ dataTransfer: { getData: () => "  world  " } })).toBe("world");
+    expect(getTextFromPasteEvent({ clipboardData: { getData: () => "   " } })).toBe("");
   });
 });

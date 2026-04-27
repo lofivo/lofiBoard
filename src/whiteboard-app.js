@@ -34,6 +34,8 @@ import {
   getImageFileFromDropEvent,
   getImageFileFromPasteEvent,
   getImageInsertPoint,
+  getTextFromDropEvent,
+  getTextFromPasteEvent,
   readFileAsDataUrl,
   readImageSize,
 } from "./image-import-service.js";
@@ -1648,6 +1650,12 @@ export function createWhiteboardApp(root) {
     if (event.target instanceof HTMLTextAreaElement) return;
     const file = getImageFileFromPasteEvent(event);
     if (!file) {
+      const text = getTextFromPasteEvent(event);
+      if (text) {
+        event.preventDefault();
+        insertTextElement(text, "已粘贴文字");
+        return;
+      }
       if (clipboardSnapshot.length === 0) return;
       event.preventDefault();
       pasteClipboard();
@@ -1663,17 +1671,41 @@ export function createWhiteboardApp(root) {
 
   async function handleImageDrop(event) {
     const file = getImageFileFromDropEvent(event);
+    const text = getTextFromDropEvent(event);
     event.preventDefault();
-    if (!file) {
-      setStatus("只支持拖入图片文件");
-      return;
-    }
     stage.setPointersPositions(event);
     const worldPoint = getWorldPointer(stage);
     if (worldPoint) {
       lastPointerWorldPoint = worldPoint;
     }
+    if (!file) {
+      if (text) {
+        insertTextElement(text, "已拖入文字");
+        return;
+      }
+      setStatus("只支持拖入图片文件");
+      return;
+    }
     await insertImageFile(file, "已拖入图片");
+  }
+
+  function insertTextElement(text, message) {
+    const point = lastPointerWorldPoint ?? {
+      x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
+      y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
+    };
+    const element = {
+      ...buildTextElement({
+        point,
+        color: colorInput.value,
+        fontSize: Number(fontSizeInput.value),
+        zIndex: board.elements.length,
+      }),
+      text,
+    };
+    addElement(element, message);
+    setTool(TOOLS.SELECT);
+    selectIds([element.id]);
   }
 
   async function insertImageFile(file, message) {

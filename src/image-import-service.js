@@ -23,6 +23,14 @@ export function getImageFileFromDropEvent(event) {
   return [...(event.dataTransfer?.files ?? [])].find(isImageFile) ?? null;
 }
 
+export function getTextFromPasteEvent(event) {
+  return (event.clipboardData?.getData?.("text/plain") ?? "").trim();
+}
+
+export function getTextFromDropEvent(event) {
+  return (event.dataTransfer?.getData?.("text/plain") ?? "").trim();
+}
+
 export function shouldLetPasteEventHandleImages({ hasImageOnClipboard, hasInternalClipboard }) {
   return Boolean(hasImageOnClipboard || !hasInternalClipboard);
 }
