@@ -37,8 +37,10 @@ function interiorDistanceToSegment(point, segmentStart, segmentEnd) {
 export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   const points = stroke.points ?? [];
   if (points.length < 2) return [];
+  const localEraserPoint = toElementLocalPoint(stroke, eraserPoint);
+  const localRadius = getLocalRadius(stroke, radius);
 
-  if (points.every((point) => distance(point, eraserPoint) <= radius)) {
+  if (points.every((point) => distance(point, localEraserPoint) <= localRadius)) {
     return [];
   }
 
@@ -49,7 +51,7 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
     const previous = points[index - 1];
     const point = points[index];
     const cutsSegment =
-      interiorDistanceToSegment(eraserPoint, previous, point) <= radius;
+      interiorDistanceToSegment(localEraserPoint, previous, point) <= localRadius;
 
     if (cutsSegment) {
       if (current.length >= 2) {
@@ -70,6 +72,31 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
     id: index === 0 ? stroke.id : createId("stroke"),
     points: points.map((point) => ({ ...point })),
   }));
+}
+
+function toElementLocalPoint(element, worldPoint) {
+  const x = worldPoint.x - (element.x ?? 0);
+  const y = worldPoint.y - (element.y ?? 0);
+  const rotation = -((element.rotation ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const rotatedX = x * cos - y * sin;
+  const rotatedY = x * sin + y * cos;
+
+  return {
+    x: rotatedX / getSafeScale(element.scaleX),
+    y: rotatedY / getSafeScale(element.scaleY),
+  };
+}
+
+function getLocalRadius(element, radius) {
+  const scaleX = Math.abs(getSafeScale(element.scaleX));
+  const scaleY = Math.abs(getSafeScale(element.scaleY));
+  return radius / Math.max(scaleX, scaleY);
+}
+
+function getSafeScale(scale) {
+  return scale || 1;
 }
 
 export function getWorldPointer(stage) {
