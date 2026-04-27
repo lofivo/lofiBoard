@@ -40,6 +40,56 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       lineHeight: 1.25,
     });
     node.on("dblclick dbltap", () => onEditText(element.id));
+  } else if (element.type === "sticky") {
+    node = new Konva.Group({
+      ...common,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    });
+    node.add(new Konva.Rect({
+      width: element.width,
+      height: element.height,
+      fill: element.fill,
+      stroke: "#facc15",
+      strokeWidth: 1,
+      shadowColor: "rgba(15,23,42,0.18)",
+      shadowBlur: 12,
+      shadowOffset: { x: 0, y: 6 },
+      shadowOpacity: 0.35,
+      cornerRadius: 3,
+    }));
+    node.add(new Konva.Text({
+      x: 14,
+      y: 12,
+      width: Math.max(40, element.width - 28),
+      height: Math.max(32, element.height - 24),
+      text: element.text,
+      fontSize: element.fontSize,
+      fontFamily: element.fontFamily,
+      fill: element.textFill ?? "#1f2937",
+      lineHeight: 1.25,
+    }));
+    node.on("dblclick dbltap", () => onEditText(element.id));
+  } else if (element.type === "image") {
+    node = new Konva.Image({
+      ...common,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      stroke: "#cbd5e1",
+      strokeWidth: 1,
+    });
+    if (element.src && typeof window !== "undefined") {
+      const image = new window.Image();
+      image.onload = () => {
+        node.image(image);
+        node.getLayer()?.batchDraw();
+      };
+      image.src = element.src;
+    }
   } else if (element.type === "rect") {
     node = new Konva.Rect({
       ...common,
@@ -108,6 +158,22 @@ export function createNodeAttrs(element) {
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       fill: resolveFill(element.fill),
+    };
+  }
+  if (element.type === "sticky") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  if (element.type === "image") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
     };
   }
   if (element.type === "ellipse") {

@@ -21,6 +21,44 @@ export function createTextElement({ point, color, fontSize, zIndex }) {
   };
 }
 
+export function createStickyElement({ point, zIndex }) {
+  return {
+    id: createId("sticky"),
+    type: "sticky",
+    x: point.x,
+    y: point.y,
+    width: 220,
+    height: 160,
+    text: "",
+    fontSize: 22,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fill: "#fef08a",
+    textFill: "#1f2937",
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    zIndex,
+  };
+}
+
+export function createImageElement({ point, src, width, height, zIndex }) {
+  const maxWidth = 420;
+  const scale = width > maxWidth ? maxWidth / width : 1;
+  return {
+    id: createId("image"),
+    type: "image",
+    x: point.x,
+    y: point.y,
+    width: Math.max(40, Math.round(width * scale)),
+    height: Math.max(40, Math.round(height * scale)),
+    src,
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    zIndex,
+  };
+}
+
 export function createShapeElement({ type, start, end, existingId, stroke, strokeWidth, fillColor, transparentFill, zIndex }) {
   const rect = normalizeRect(start, end);
   const common = {

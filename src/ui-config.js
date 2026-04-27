@@ -9,9 +9,14 @@ import {
   FilePlus,
   FolderOpen,
   Grid2X2,
+  Hand,
   LocateFixed,
+  Lock,
   Minus,
   MousePointer2,
+  Image,
+  Group,
+  Ungroup,
   PanelTop,
   PenLine,
   Plus,
@@ -21,6 +26,7 @@ import {
   Scissors,
   Square,
   Shapes,
+  StickyNote,
   Trash2,
   Type,
   Undo2,
@@ -29,10 +35,12 @@ import {
 
 export const TOOLS = {
   SELECT: "select",
+  PAN: "pan",
   PEN: "pen",
   ERASER_STROKE: "eraser-stroke",
   ERASER_OBJECT: "eraser-object",
   TEXT: "text",
+  STICKY: "sticky",
   SHAPE: "shape",
   RECT: "rect",
   ELLIPSE: "ellipse",
@@ -45,10 +53,12 @@ export const DEFAULT_SHAPE_TOOL = TOOLS.RECT;
 
 export const TOOL_ITEMS = [
   { id: TOOLS.SELECT, label: "选择", shortcut: "V", icon: MousePointer2 },
+  { id: TOOLS.PAN, label: "平移", shortcut: "H", icon: Hand },
   { id: TOOLS.PEN, label: "画笔", shortcut: "B", icon: PenLine },
   { id: TOOLS.ERASER_STROKE, label: "片段橡皮", shortcut: "E", icon: Eraser },
   { id: TOOLS.ERASER_OBJECT, label: "对象橡皮", shortcut: "O", icon: Trash2 },
   { id: TOOLS.TEXT, label: "文字", shortcut: "T", icon: Type },
+  { id: TOOLS.STICKY, label: "便签", shortcut: "N", icon: StickyNote },
   { id: TOOLS.SHAPE, label: "图形", shortcut: "R / L / A", icon: Shapes },
 ];
 
@@ -65,8 +75,12 @@ export const MAIN_MENU_ITEMS = [
   { action: "save", label: "保存", icon: Save },
   { action: "save-as", label: "另存为", icon: SaveAll },
   { action: "export", label: "导出 PNG", icon: Download },
+  { action: "import-image", label: "导入图片", icon: Image },
   { action: "undo", label: "撤销", icon: Undo2 },
   { action: "redo", label: "重做", icon: Redo2 },
+  { action: "group", label: "分组", icon: Group },
+  { action: "ungroup", label: "取消分组", icon: Ungroup },
+  { action: "toggle-lock", label: "锁定/解锁", icon: Lock },
   { action: "fit-content", label: "适配内容", icon: LocateFixed },
   { action: "clear", label: "清空画布", icon: Trash2 },
   { action: "reset-view", label: "重置视图", icon: RotateCcw },
@@ -82,6 +96,9 @@ export const CONTEXT_MENU_ITEMS = [
   { action: "copy", label: "复制", icon: Copy },
   { action: "cut", label: "剪切", icon: Scissors },
   { action: "paste", label: "粘贴", icon: Clipboard },
+  { action: "group", label: "分组", icon: Group },
+  { action: "ungroup", label: "取消分组", icon: Ungroup },
+  { action: "toggle-lock", label: "锁定/解锁", icon: Lock },
   { action: "delete", label: "删除", icon: Trash2 },
 ];
 
@@ -92,6 +109,7 @@ export const ZOOM_LEVELS = [
   { value: 0.66, label: "66%" },
   { value: 0.33, label: "33%" },
 ];
+
 
 export function icon(svg, className = "icon") {
   return svg.replace("<svg", `<svg class="${className}" aria-hidden="true" focusable="false"`);

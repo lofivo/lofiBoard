@@ -46,4 +46,17 @@ describe("clipboard service", () => {
   it("removes selected elements for cut", () => {
     expect(removeElementsById([{ id: "a" }, { id: "b" }], ["a"])).toEqual([{ id: "b", zIndex: 0 }]);
   });
+
+  it("creates a new group id when pasting grouped elements", () => {
+    const pasted = createPastedElements(
+      [
+        { id: "a", type: "rect", x: 0, y: 0, groupId: "group_1" },
+        { id: "b", type: "rect", x: 10, y: 0, groupId: "group_1" },
+      ],
+      { zIndexStart: 0 },
+    );
+
+    expect(pasted[0].groupId).toBe(pasted[1].groupId);
+    expect(pasted[0].groupId).not.toBe("group_1");
+  });
 });

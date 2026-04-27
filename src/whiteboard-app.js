@@ -12,7 +12,9 @@ import {
   serializeBoard,
 } from "./board-model.js";
 import {
+  createImageElement as buildImageElement,
   createShapeElement as buildShapeElement,
+  createStickyElement as buildStickyElement,
   createTextElement as buildTextElement,
   isTinyElement,
 } from "./element-factory.js";
@@ -28,6 +30,12 @@ import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rec
 import { createHistory } from "./history.js";
 import { createId } from "./ids.js";
 import { createElementNode, createNodeAttrs } from "./konva-elements.js";
+import {
+  getImageFileFromPasteEvent,
+  getImageInsertPoint,
+  readFileAsDataUrl,
+  readImageSize,
+} from "./image-import-service.js";
 import {
   getSelectionHitRadius,
   nextToolAfterTextPlacement,
@@ -52,6 +60,7 @@ import {
   SHAPE_TOOLS,
   TOOLS,
 } from "./ui-config.js";
+import { getNextPanelCollapsedState } from "./panel-state.js";
 import { computeFitViewport } from "./viewport-service.js";
 
 export function createWhiteboardApp(root) {
@@ -67,6 +76,7 @@ export function createWhiteboardApp(root) {
   const stylePanel = root.querySelector("[data-style-panel]");
   const shapePopover = root.querySelector("[data-shape-popover]");
   const contextMenu = root.querySelector("[data-context-menu]");
+  const layerPanel = root.querySelector("[data-layer-panel]");
   const colorInput = root.querySelector("[data-control='color']");
   const fillInput = root.querySelector("[data-control='fill']");
   const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
@@ -77,6 +87,8 @@ export function createWhiteboardApp(root) {
   const zoomMenu = root.querySelector("[data-zoom-menu]");
   const zoomOutButton = root.querySelector("[data-zoom-out]");
   const zoomInButton = root.querySelector("[data-zoom-in]");
+  const imageInput = root.querySelector("[data-image-input]");
+  const layerList = root.querySelector("[data-layer-list]");
 
   let board = createEmptyBoard();
   let history = createHistory(board);
@@ -100,6 +112,7 @@ export function createWhiteboardApp(root) {
   let isEditingText = false;
   let clipboardSnapshot = [];
   let lastPointerWorldPoint = null;
+  let panelCollapsedState = { style: false, layers: false };
   let statusTimer = null;
   let dirty = false;
 
@@ -108,6 +121,17 @@ export function createWhiteboardApp(root) {
     width: container.clientWidth,
     height: container.clientHeight,
   });
+
+  const transformerAnchors = [
+    "top-left",
+    "top-center",
+    "top-right",
+    "middle-left",
+    "middle-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right",
+  ];
 
   const contentLayer = new Konva.Layer();
   const overlayLayer = new Konva.Layer();
@@ -150,6 +174,7 @@ export function createWhiteboardApp(root) {
   applyBackground();
   renderBoard();
   setTool(TOOLS.PEN);
+  applyPanelState();
   updateChrome();
   bindStageEvents();
   bindUiEvents();
@@ -202,6 +227,16 @@ export function createWhiteboardApp(root) {
     zoomButton.addEventListener("click", toggleZoomMenu);
     zoomOutButton.addEventListener("click", () => zoomBy(1 / 1.25));
     zoomInButton.addEventListener("click", () => zoomBy(1.25));
+    imageInput.addEventListener("change", importSelectedImage);
+    for (const button of root.querySelectorAll("[data-panel-toggle]")) {
+      button.addEventListener("click", () => togglePanel(button.dataset.panelToggle));
+    }
+    layerList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-layer-id]");
+      if (!button) return;
+      setTool(TOOLS.SELECT);
+      selectElementById(button.dataset.layerId, event.shiftKey);
+    });
   }
 
   function bindStageEvents() {
@@ -225,9 +260,13 @@ export function createWhiteboardApp(root) {
       save: saveBoardFile,
       "save-as": saveBoardFileAs,
       export: exportPng,
+      "import-image": () => imageInput.click(),
       undo: undoHistory,
       redo: redoHistory,
       "fit-content": fitContent,
+      group: groupSelection,
+      ungroup: ungroupSelection,
+      "toggle-lock": toggleSelectionLock,
       clear: clearBoard,
       "reset-view": resetView,
       "bring-front": bringSelectionToFront,
@@ -244,6 +283,9 @@ export function createWhiteboardApp(root) {
       copy: copySelection,
       cut: cutSelection,
       paste: pasteClipboard,
+      group: groupSelection,
+      ungroup: ungroupSelection,
+      "toggle-lock": toggleSelectionLock,
       delete: deleteSelection,
     };
 
@@ -282,6 +324,20 @@ export function createWhiteboardApp(root) {
 
   function hideContextMenu() {
     contextMenu.hidden = true;
+  }
+
+  function togglePanel(panelName) {
+    panelCollapsedState = getNextPanelCollapsedState(panelCollapsedState, panelName);
+    applyPanelState();
+  }
+
+  function applyPanelState() {
+    stylePanel.classList.toggle("is-collapsed", panelCollapsedState.style);
+    layerPanel.classList.toggle("is-collapsed", panelCollapsedState.layers);
+    root.querySelector("[data-panel-toggle='style']").textContent = panelCollapsedState.style ? "›" : "‹";
+    root.querySelector("[data-panel-toggle='layers']").textContent = panelCollapsedState.layers ? "‹" : "›";
+    root.querySelector("[data-panel-edge='style']").classList.toggle("is-visible", panelCollapsedState.style);
+    root.querySelector("[data-panel-edge='layers']").classList.toggle("is-visible", panelCollapsedState.layers);
   }
 
   function bindUiEvents() {
@@ -332,6 +388,8 @@ export function createWhiteboardApp(root) {
       }
       hideContextMenu();
     });
+
+    window.addEventListener("paste", handlePaste);
   }
 
   function bindKeyboard() {
@@ -436,6 +494,8 @@ export function createWhiteboardApp(root) {
         e: TOOLS.ERASER_STROKE,
         o: TOOLS.ERASER_OBJECT,
         t: TOOLS.TEXT,
+        n: TOOLS.STICKY,
+        h: TOOLS.PAN,
         r: TOOLS.SHAPE,
         l: TOOLS.SHAPE,
         a: TOOLS.SHAPE,
@@ -522,7 +582,7 @@ export function createWhiteboardApp(root) {
     if (!worldPoint) return;
     lastPointerWorldPoint = worldPoint;
 
-    if (isSpaceDown || event.evt.button === 1) {
+    if (isSpaceDown || currentTool === TOOLS.PAN || event.evt.button === 1) {
       isPanning = true;
       panStart = {
         pointer: stage.getPointerPosition(),
@@ -573,6 +633,18 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    if (currentTool === TOOLS.STICKY) {
+      const element = buildStickyElement({
+        point: worldPoint,
+        zIndex: board.elements.length,
+      });
+      addElement(element, "已添加便签");
+      selectIds([element.id]);
+      setTool(TOOLS.SELECT);
+      requestAnimationFrame(() => editTextElement(element.id));
+      return;
+    }
+
     const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
     if (isShapeTool(drawingTool)) {
       startShape(worldPoint);
@@ -615,6 +687,7 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+
     if (currentTool === TOOLS.ERASER_STROKE && eraseSnapshot) {
       const radius = updateEraserRadius(worldPoint);
       eraseStrokeAt(worldPoint, radius);
@@ -655,6 +728,7 @@ export function createWhiteboardApp(root) {
       finishSelectionDrag();
       return;
     }
+
 
     if (eraseSnapshot) {
       eraserCursor.visible(false);
@@ -701,25 +775,24 @@ export function createWhiteboardApp(root) {
 
   function updateContextMenuActions() {
     root.querySelectorAll("[data-context-action]").forEach((button) => {
-      const needsSelection = ["copy", "cut", "delete"].includes(button.dataset.contextAction);
+      const needsSelection = ["copy", "cut", "delete", "group", "ungroup", "toggle-lock"].includes(button.dataset.contextAction);
       const needsClipboard = button.dataset.contextAction === "paste";
-      button.disabled = (needsSelection && selectedIds.length === 0) || (needsClipboard && clipboardSnapshot.length === 0);
+      const needsMultiple = button.dataset.contextAction === "group";
+      button.disabled = (needsSelection && selectedIds.length === 0)
+        || (needsMultiple && selectedIds.length < 2)
+        || (needsClipboard && clipboardSnapshot.length === 0);
     });
   }
 
   function handleSelectPointerDown(event, worldPoint) {
     const targetElement = getElementIdFromNode(event.target);
     if (targetElement) {
-      if (event.evt.shiftKey) {
-        toggleSelection(targetElement);
-      } else if (!selectedIds.includes(targetElement)) {
-        selectIds([targetElement]);
-      }
+      selectElementById(targetElement, event.evt.shiftKey);
       return;
     }
 
     const nearbySelectedId = getNearbySelectedElementId(worldPoint);
-    if (nearbySelectedId) {
+    if (nearbySelectedId && selectedIds.some((id) => !isElementLocked(id))) {
       beginSelectionDrag(worldPoint);
       return;
     }
@@ -737,7 +810,7 @@ export function createWhiteboardApp(root) {
     selectionDrag = {
       start: worldPoint,
       moved: false,
-      originals: selectedIds.map((id) => {
+      originals: selectedIds.filter((id) => !isElementLocked(id)).map((id) => {
         const element = board.elements.find((item) => item.id === id);
         return {
           id,
@@ -867,7 +940,7 @@ export function createWhiteboardApp(root) {
 
     selectionRect.visible(false);
     selectionDraft = null;
-    selectIds(ids);
+    selectIds(expandGroupedIds(ids));
   }
 
   function eraseStrokeAt(worldPoint, radius) {
@@ -896,7 +969,9 @@ export function createWhiteboardApp(root) {
   function eraseObjectAt(target) {
     const id = getElementIdAtPointer(target);
     if (!id) return;
-    board.elements = reorderElements(board.elements.filter((element) => element.id !== id));
+    const element = board.elements.find((item) => item.id === id);
+    if (element?.locked) return;
+    board.elements = reorderElements(board.elements.filter((item) => item.id !== id));
     selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
     renderBoard();
   }
@@ -943,9 +1018,11 @@ export function createWhiteboardApp(root) {
 
   function createNode(element) {
     return createElementNode(element, {
-      draggable: currentTool === TOOLS.SELECT,
+      draggable: currentTool === TOOLS.SELECT && !element.locked,
       onEditText: editTextElement,
       onMove: (node) => {
+        if (isElementLocked(getElementIdFromNode(node))) return;
+        snapNodeToAlignment(node);
         syncNodeToElement(node);
         pushHistory("已移动对象");
       },
@@ -953,11 +1030,7 @@ export function createWhiteboardApp(root) {
         if (currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
         const id = getElementIdFromNode(node);
-        if (event.evt.shiftKey) {
-          toggleSelection(id);
-        } else {
-          selectIds([id]);
-        }
+        selectElementById(id, event.evt.shiftKey);
       },
     });
   }
@@ -978,9 +1051,21 @@ export function createWhiteboardApp(root) {
   }
 
   function selectIds(ids) {
-    selectedIds = ids;
+    selectedIds = [...new Set(ids)];
     syncSelectionNodes();
     updateChrome();
+  }
+
+  function selectElementById(id, additive = false) {
+    const ids = expandGroupedIds([id]);
+    if (additive) {
+      const next = selectedIds.some((selectedId) => ids.includes(selectedId))
+        ? selectedIds.filter((selectedId) => !ids.includes(selectedId))
+        : [...selectedIds, ...ids];
+      selectIds(next);
+      return;
+    }
+    selectIds(ids);
   }
 
   function toggleSelection(id) {
@@ -1000,11 +1085,18 @@ export function createWhiteboardApp(root) {
       .map((id) => contentLayer.findOne(`#${id}`))
       .filter(Boolean);
     transformer.nodes(nodes);
+    const hasSelection = nodes.length > 0;
+    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
+    const canTransform = currentTool === TOOLS.SELECT && selectedElements.length > 0 && selectedElements.every((element) => !element.locked);
+    transformer.visible(hasSelection);
+    transformer.resizeEnabled(canTransform);
+    transformer.rotateEnabled(canTransform);
+    transformer.enabledAnchors(canTransform ? transformerAnchors : []);
   }
 
   function updateDraggableState() {
     contentLayer.find(".element").forEach((node) => {
-      node.draggable(currentTool === TOOLS.SELECT);
+      node.draggable(currentTool === TOOLS.SELECT && !isElementLocked(getElementIdFromNode(node)));
     });
   }
 
@@ -1059,6 +1151,77 @@ export function createWhiteboardApp(root) {
     return pointHitsSelectionBounds(worldPoint, boxes, padding) ? selectedIds[0] : null;
   }
 
+  function expandGroupedIds(ids) {
+    const requested = new Set(ids.filter(Boolean));
+    const groupIds = new Set(
+      board.elements
+        .filter((element) => requested.has(element.id) && element.groupId)
+        .map((element) => element.groupId),
+    );
+    if (groupIds.size === 0) return [...requested];
+    return board.elements
+      .filter((element) => requested.has(element.id) || groupIds.has(element.groupId))
+      .map((element) => element.id);
+  }
+
+  function isElementLocked(id) {
+    return Boolean(board.elements.find((element) => element.id === id)?.locked);
+  }
+
+  function snapNodeToAlignment(node) {
+    const threshold = 8 / stage.scaleX();
+    const movingBox = node.getClientRect({ relativeTo: contentLayer });
+    const movingGuides = {
+      left: movingBox.x,
+      centerX: movingBox.x + movingBox.width / 2,
+      right: movingBox.x + movingBox.width,
+      top: movingBox.y,
+      centerY: movingBox.y + movingBox.height / 2,
+      bottom: movingBox.y + movingBox.height,
+    };
+    let dx = 0;
+    let dy = 0;
+    let bestX = threshold;
+    let bestY = threshold;
+
+    contentLayer.find(".element").forEach((other) => {
+      if (other === node) return;
+      const otherBox = other.getClientRect({ relativeTo: contentLayer });
+      const otherGuides = {
+        left: otherBox.x,
+        centerX: otherBox.x + otherBox.width / 2,
+        right: otherBox.x + otherBox.width,
+        top: otherBox.y,
+        centerY: otherBox.y + otherBox.height / 2,
+        bottom: otherBox.y + otherBox.height,
+      };
+
+      for (const movingKey of ["left", "centerX", "right"]) {
+        for (const otherKey of ["left", "centerX", "right"]) {
+          const delta = otherGuides[otherKey] - movingGuides[movingKey];
+          if (Math.abs(delta) < bestX) {
+            bestX = Math.abs(delta);
+            dx = delta;
+          }
+        }
+      }
+
+      for (const movingKey of ["top", "centerY", "bottom"]) {
+        for (const otherKey of ["top", "centerY", "bottom"]) {
+          const delta = otherGuides[otherKey] - movingGuides[movingKey];
+          if (Math.abs(delta) < bestY) {
+            bestY = Math.abs(delta);
+            dy = delta;
+          }
+        }
+      }
+    });
+
+    if (dx || dy) {
+      node.position({ x: node.x() + dx, y: node.y() + dy });
+    }
+  }
+
   function applyStyleToSelection() {
     if (selectedIds.length === 0) {
       updateContextPanel();
@@ -1067,10 +1230,19 @@ export function createWhiteboardApp(root) {
 
     board.elements = board.elements.map((element) => {
       if (!selectedIds.includes(element.id)) return element;
+      if (element.locked) return element;
       if (element.type === "text") {
         return {
           ...element,
           fill: colorInput.value,
+          fontSize: Number(fontSizeInput.value),
+        };
+      }
+      if (element.type === "sticky") {
+        return {
+          ...element,
+          textFill: colorInput.value,
+          fill: getFillValue({ transparent: false, color: fillInput.value }),
           fontSize: Number(fontSizeInput.value),
         };
       }
@@ -1112,8 +1284,10 @@ export function createWhiteboardApp(root) {
 
   function cutSelection() {
     if (selectedIds.length === 0) return;
-    clipboardSnapshot = createClipboardSnapshot(board.elements, selectedIds);
-    board.elements = removeElementsById(board.elements, selectedIds);
+    const editableIds = selectedIds.filter((id) => !isElementLocked(id));
+    if (editableIds.length === 0) return;
+    clipboardSnapshot = createClipboardSnapshot(board.elements, editableIds);
+    board.elements = removeElementsById(board.elements, editableIds);
     clearSelection();
     renderBoard();
     updateContextMenuActions();
@@ -1137,7 +1311,9 @@ export function createWhiteboardApp(root) {
 
   function deleteSelection() {
     if (selectedIds.length === 0) return;
-    board.elements = removeElementsById(board.elements, selectedIds);
+    const editableIds = selectedIds.filter((id) => !isElementLocked(id));
+    if (editableIds.length === 0) return;
+    board.elements = removeElementsById(board.elements, editableIds);
     clearSelection();
     renderBoard();
     pushHistory("已删除对象");
@@ -1153,6 +1329,42 @@ export function createWhiteboardApp(root) {
     board.elements = reorderElements([...rest, ...selected]);
     renderBoard();
     pushHistory("已置顶对象");
+  }
+
+  function groupSelection() {
+    if (selectedIds.length < 2) return;
+    const groupId = createId("group");
+    board.elements = board.elements.map((element) => (
+      selectedIds.includes(element.id) && !element.locked ? { ...element, groupId } : element
+    ));
+    renderBoard();
+    pushHistory("已分组对象");
+  }
+
+  function ungroupSelection() {
+    if (selectedIds.length === 0) return;
+    const groupIds = new Set(
+      board.elements
+        .filter((element) => selectedIds.includes(element.id) && element.groupId)
+        .map((element) => element.groupId),
+    );
+    if (groupIds.size === 0) return;
+    board.elements = board.elements.map((element) => (
+      groupIds.has(element.groupId) && !element.locked ? { ...element, groupId: undefined } : element
+    ));
+    renderBoard();
+    pushHistory("已取消分组");
+  }
+
+  function toggleSelectionLock() {
+    if (selectedIds.length === 0) return;
+    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
+    const shouldLock = selectedElements.some((element) => !element.locked);
+    board.elements = board.elements.map((element) => (
+      selectedIds.includes(element.id) ? { ...element, locked: shouldLock } : element
+    ));
+    renderBoard();
+    pushHistory(shouldLock ? "已锁定对象" : "已解锁对象");
   }
 
   function sendSelectionToBack() {
@@ -1269,13 +1481,13 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
     });
-    transformer.visible(tool === TOOLS.SELECT);
     eraserCursor.visible(false);
     stage.container().classList.remove("is-erasing");
-    if (tool !== TOOLS.SELECT) {
+    if (![TOOLS.SELECT, TOOLS.PAN].includes(tool)) {
       clearSelection();
     }
     updateDraggableState();
+    syncSelectionNodes();
     stage.container().dataset.tool = tool;
     updateChrome();
     setStatus(getToolStatus(tool));
@@ -1284,10 +1496,12 @@ export function createWhiteboardApp(root) {
   function getToolStatus(tool) {
     return {
       [TOOLS.SELECT]: "选择：拖动框选，Shift 多选，Delete 删除",
+      [TOOLS.PAN]: "平移：拖动画布",
       [TOOLS.PEN]: "画笔：拖动画出可编辑笔触",
       [TOOLS.ERASER_STROKE]: "片段橡皮：擦除笔触的一部分",
       [TOOLS.ERASER_OBJECT]: "对象橡皮：碰到对象即删除",
       [TOOLS.TEXT]: "文字：点击画布添加文字",
+      [TOOLS.STICKY]: "便签：点击画布添加便签",
       [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、线段或箭头",
       [TOOLS.RECT]: "矩形：拖动创建",
       [TOOLS.ELLIPSE]: "椭圆：拖动创建",
@@ -1319,8 +1533,13 @@ export function createWhiteboardApp(root) {
     textarea.style.left = `${box.left + absolute.x}px`;
     textarea.style.top = `${box.top + absolute.y}px`;
     textarea.style.width = `${Math.max(160, node.width() * scale)}px`;
+    textarea.style.height = `${Math.max(80, (node.height?.() || element.height || 42) * scale)}px`;
     textarea.style.fontSize = `${element.fontSize * scale}px`;
-    textarea.style.color = element.fill;
+    textarea.style.color = element.type === "sticky" ? element.textFill : element.fill;
+    if (element.type === "sticky") {
+      textarea.style.background = element.fill;
+      textarea.style.padding = "10px";
+    }
     textarea.style.fontFamily = element.fontFamily;
     textarea.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
     textarea.focus();
@@ -1335,7 +1554,7 @@ export function createWhiteboardApp(root) {
       const nextText = textarea.value.trim();
       textarea.remove();
 
-      if (!nextText) {
+      if (!nextText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
         selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
         transformer.show();
@@ -1344,9 +1563,7 @@ export function createWhiteboardApp(root) {
         return;
       }
 
-      board.elements = board.elements.map((item) => (
-        item.id === id ? { ...item, text: nextText } : item
-      ));
+      board.elements = board.elements.map((item) => (item.id === id ? { ...item, text: nextText } : item));
       transformer.show();
       renderBoard();
       pushHistory("已编辑文字");
@@ -1358,7 +1575,7 @@ export function createWhiteboardApp(root) {
       isEditingText = false;
       textarea.remove();
 
-      if (!originalText) {
+      if (!originalText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
         selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
         transformer.show();
@@ -1408,6 +1625,48 @@ export function createWhiteboardApp(root) {
       if (error?.name !== "AbortError") {
         setStatus(`打开失败：${error.message}`);
       }
+    }
+  }
+
+  async function importSelectedImage() {
+    const file = imageInput.files?.[0];
+    imageInput.value = "";
+    if (!file) return;
+    await insertImageFile(file, "已导入图片");
+  }
+
+  async function handlePaste(event) {
+    if (event.target instanceof HTMLTextAreaElement) return;
+    const file = getImageFileFromPasteEvent(event);
+    if (!file) return;
+    event.preventDefault();
+    await insertImageFile(file, "已粘贴图片");
+  }
+
+  async function insertImageFile(file, message) {
+    try {
+      const src = await readFileAsDataUrl(file);
+      const size = await readImageSize(src);
+      const point = getImageInsertPoint(lastPointerWorldPoint, {
+        width: stage.width(),
+        height: stage.height(),
+      }, {
+        x: stage.x(),
+        y: stage.y(),
+        scale: stage.scaleX(),
+      });
+      const element = buildImageElement({
+        point,
+        src,
+        width: size.width,
+        height: size.height,
+        zIndex: board.elements.length,
+      });
+      addElement(element, message);
+      setTool(TOOLS.SELECT);
+      selectIds([element.id]);
+    } catch (error) {
+      setStatus(`图片处理失败：${error.message}`);
     }
   }
 
@@ -1473,7 +1732,7 @@ export function createWhiteboardApp(root) {
       mimeType: "image/png",
     });
     backgroundNodes.forEach((node) => node.destroy());
-    transformer.visible(currentTool === TOOLS.SELECT);
+    syncSelectionNodes();
     syncSelectionNodes();
     contentLayer.draw();
     overlayLayer.draw();
@@ -1553,7 +1812,49 @@ export function createWhiteboardApp(root) {
         Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
       );
     });
+    renderLayerPanel();
     updateContextPanel();
+  }
+
+  function renderLayerPanel() {
+    const elements = reorderElements(board.elements).slice().reverse();
+    layerList.innerHTML = elements.map((element) => {
+      const active = selectedIds.includes(element.id) ? " active" : "";
+      const label = getElementLabel(element);
+      const meta = [
+        element.locked ? "锁定" : "",
+        element.groupId ? "分组" : "",
+      ].filter(Boolean).join(" · ");
+      return `
+        <button type="button" class="layer-item${active}" data-layer-id="${element.id}" title="${escapeHtml(label)}">
+          <span>${escapeHtml(label)}</span>
+          <span class="layer-meta">${escapeHtml(meta)}</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function getElementLabel(element) {
+    const labels = {
+      stroke: "笔触",
+      text: element.text ? `文字：${element.text.slice(0, 10)}` : "文字",
+      sticky: element.text ? `便签：${element.text.slice(0, 10)}` : "便签",
+      image: "图片",
+      rect: "矩形",
+      ellipse: "椭圆",
+      line: "线段",
+      arrow: "箭头",
+    };
+    return labels[element.type] ?? element.type;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
   function updateContextPanel() {
@@ -1572,10 +1873,10 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if ([TOOLS.PEN, TOOLS.TEXT, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
+    if ([TOOLS.PEN, TOOLS.TEXT, TOOLS.STICKY, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
       stylePanel.hidden = false;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
-      root.dataset.panelMode = currentTool === TOOLS.TEXT
+      root.dataset.panelMode = [TOOLS.TEXT, TOOLS.STICKY].includes(currentTool)
         ? "tool-text"
         : ["line", "arrow", "pen"].includes(drawingTool) || currentTool === TOOLS.PEN
           ? "linear-tool"
@@ -1589,6 +1890,7 @@ export function createWhiteboardApp(root) {
 
   function hydrateControlsFromElement(element) {
     if (element.stroke) colorInput.value = element.stroke;
+    if (element.textFill) colorInput.value = element.textFill;
     if (element.fill && element.fill !== "transparent") fillInput.value = element.fill;
     fillTransparentInput.checked = !element.fill || element.fill === "transparent";
     if (element.fill && element.type === "text") colorInput.value = element.fill;

@@ -11,7 +11,9 @@ describe("ui config", () => {
     const markup = toolButtonsMarkup();
 
     expect(markup).toContain("选择 (V)");
+    expect(markup).toContain("平移 (H)");
     expect(markup).toContain("画笔 (B)");
     expect(markup).toContain("图形 (R / L / A)");
+    expect(markup).not.toContain("套索");
   });
 });

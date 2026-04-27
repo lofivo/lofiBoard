@@ -41,7 +41,10 @@ export function renderShell() {
       </header>
 
       <aside class="style-panel" data-style-panel aria-label="属性">
-        <div class="panel-title">${icon(PANEL_ICON)}<span>属性</span></div>
+        <div class="panel-title">
+          ${icon(PANEL_ICON)}<span>属性</span>
+          <button type="button" class="panel-toggle" data-panel-toggle="style" title="收起/展开属性" aria-label="收起/展开属性">‹</button>
+        </div>
         <label class="control-line">
           线条
           <input data-control="color" type="color" value="#111827" />
@@ -65,11 +68,26 @@ export function renderShell() {
         <div class="quick-actions">
           <button type="button" data-action="bring-front">置顶</button>
           <button type="button" data-action="send-back">置底</button>
+          <button type="button" data-action="toggle-lock">锁定</button>
+          <button type="button" data-action="group">分组</button>
+          <button type="button" data-action="ungroup">取消组</button>
           <button type="button" data-action="delete-selection">删除</button>
         </div>
       </aside>
 
+      <aside class="layer-panel" data-layer-panel aria-label="图层">
+        <div class="panel-title">
+          ${icon(PANEL_ICON)}<span>图层</span>
+          <button type="button" class="panel-toggle" data-panel-toggle="layers" title="收起/展开图层" aria-label="收起/展开图层">›</button>
+        </div>
+        <div class="layer-list" data-layer-list></div>
+      </aside>
+
+      <button type="button" class="edge-panel-toggle edge-panel-toggle-left" data-panel-edge="style" data-panel-toggle="style" title="展开属性" aria-label="展开属性">›</button>
+      <button type="button" class="edge-panel-toggle edge-panel-toggle-right" data-panel-edge="layers" data-panel-toggle="layers" title="展开图层" aria-label="展开图层">‹</button>
+
       <main id="stage-container" class="stage-container"></main>
+      <input data-image-input type="file" accept="image/*" hidden />
 
       <div class="shape-popover" data-shape-popover hidden>
         ${shapePopoverMarkup()}

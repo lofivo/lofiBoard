@@ -9,11 +9,20 @@ export function createPastedElements(snapshot, { offset = 24, targetPoint = null
   const anchor = targetPoint ? getElementsAnchor(snapshot) : null;
   const dx = targetPoint ? targetPoint.x - anchor.x : offset;
   const dy = targetPoint ? targetPoint.y - anchor.y : offset;
+  const groupIdMap = new Map();
   return snapshot.map((element, index) => ({
     ...translateElement(clone(element), dx, dy),
     id: createId(element.type || "el"),
+    groupId: element.groupId ? getMappedGroupId(groupIdMap, element.groupId) : undefined,
     zIndex: zIndexStart + index,
   }));
+}
+
+function getMappedGroupId(groupIdMap, groupId) {
+  if (!groupIdMap.has(groupId)) {
+    groupIdMap.set(groupId, createId("group"));
+  }
+  return groupIdMap.get(groupId);
 }
 
 function getElementsAnchor(elements) {
