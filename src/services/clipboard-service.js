@@ -1,5 +1,5 @@
-import { clone, reorderElements } from "./board-model.js";
-import { createId } from "./ids.js";
+import { clone, reorderElements } from "../board/board-model.js";
+import { createId } from "../board/ids.js";
 
 export function createClipboardSnapshot(elements, selectedIds) {
   return clone(elements.filter((element) => selectedIds.includes(element.id)));

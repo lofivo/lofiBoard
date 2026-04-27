@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldShowPanelEdgeToggle } from "../src/panel-state.js";
+import { shouldShowPanelEdgeToggle } from "../../src/ui/panel-state.js";
 
 describe("panel visibility", () => {
   it("shows edge toggle only when the panel is collapsed and available", () => {

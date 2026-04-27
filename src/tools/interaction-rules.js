@@ -1,4 +1,4 @@
-import { TOOLS } from "./ui-config.js";
+import { TOOLS } from "../ui/ui-config.js";
 
 export function isTransformerTarget(target) {
   let node = target;

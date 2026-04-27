@@ -31,20 +31,6 @@ export function getTextFromDropEvent(event) {
   return (event.dataTransfer?.getData?.("text/plain") ?? "").trim();
 }
 
-export function shouldLetPasteEventHandleImages({ hasImageOnClipboard, hasInternalClipboard }) {
-  return Boolean(hasImageOnClipboard || !hasInternalClipboard);
-}
-
-export async function hasClipboardImage(navigatorRef = navigator) {
-  if (!navigatorRef?.clipboard?.read) return false;
-  try {
-    const items = await navigatorRef.clipboard.read();
-    return items.some((item) => item.types?.some((type) => type.startsWith("image/")));
-  } catch {
-    return false;
-  }
-}
-
 export function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

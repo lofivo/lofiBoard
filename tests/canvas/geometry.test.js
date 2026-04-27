@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitStrokeByEraser } from "../src/geometry.js";
+import { splitStrokeByEraser } from "../../src/canvas/geometry.js";
 
 describe("geometry", () => {
   it("splits a stroke into editable fragments when the eraser crosses it", () => {

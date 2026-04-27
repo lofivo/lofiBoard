@@ -3,7 +3,7 @@ import {
   normalizePressure,
   shouldAppendStrokePoint,
   smoothStrokePoint,
-} from "../src/stroke-engine.js";
+} from "../../src/tools/stroke-engine.js";
 
 describe("stroke engine", () => {
   it("skips points that are too close to improve pen stability", () => {

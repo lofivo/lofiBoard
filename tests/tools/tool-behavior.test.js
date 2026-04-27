@@ -4,8 +4,8 @@ import {
   getFillValue,
   isShapeTool,
   resolveActiveDrawingTool,
-} from "../src/tool-behavior.js";
-import { TOOLS } from "../src/ui-config.js";
+} from "../../src/tools/tool-behavior.js";
+import { TOOLS } from "../../src/ui/ui-config.js";
 
 describe("tool behavior", () => {
   it("expands eraser radius with pointer speed and shrinks back at rest", () => {

@@ -10,7 +10,7 @@ import {
   shapePopoverMarkup,
   toolButtonsMarkup,
   zoomMenuMarkup,
-} from "./ui-config.js";
+} from "../ui/ui-config.js";
 
 export function renderShell() {
   return `

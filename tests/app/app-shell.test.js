@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderShell } from "../src/app-shell.js";
+import { renderShell } from "../../src/app/app-shell.js";
 
 describe("app shell", () => {
   it("renders edge expand buttons for collapsed side panels", () => {

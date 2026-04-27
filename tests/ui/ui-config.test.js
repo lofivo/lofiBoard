@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatShortcutLabel, toolButtonsMarkup } from "../src/ui-config.js";
+import { formatShortcutLabel, toolButtonsMarkup } from "../../src/ui/ui-config.js";
 
 describe("ui config", () => {
   it("formats tooltip labels with shortcuts", () => {

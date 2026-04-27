@@ -4,7 +4,7 @@ import {
   createEmptyBoard,
   normalizeBoard,
   serializeBoard,
-} from "../src/board-model.js";
+} from "../../src/board/board-model.js";
 
 describe("board model", () => {
   it("creates a versioned offline whiteboard document", () => {

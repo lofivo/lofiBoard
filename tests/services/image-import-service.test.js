@@ -5,8 +5,7 @@ import {
   getTextFromDropEvent,
   getTextFromPasteEvent,
   isImageFile,
-  shouldLetPasteEventHandleImages,
-} from "../src/image-import-service.js";
+} from "../../src/services/image-import-service.js";
 
 describe("image import service", () => {
   it("recognizes image files", () => {
@@ -34,11 +33,6 @@ describe("image import service", () => {
     const text = { type: "text/plain" };
 
     expect(getImageFileFromDropEvent({ dataTransfer: { files: [text, image] } })).toBe(image);
-  });
-
-  it("lets the browser paste event handle clipboard images", () => {
-    expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: true, hasInternalClipboard: true })).toBe(true);
-    expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: false, hasInternalClipboard: true })).toBe(false);
   });
 
   it("extracts plain text from paste and drop events", () => {

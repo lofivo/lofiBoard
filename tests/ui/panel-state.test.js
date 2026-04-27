@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNextPanelCollapsedState } from "../src/panel-state.js";
+import { getNextPanelCollapsedState } from "../../src/ui/panel-state.js";
 
 describe("panel state", () => {
   it("toggles a named panel without affecting the other panel", () => {

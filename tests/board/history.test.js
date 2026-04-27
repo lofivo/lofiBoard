@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHistory } from "../src/history.js";
+import { createHistory } from "../../src/board/history.js";
 
 describe("history", () => {
   it("undoes and redoes immutable board snapshots", () => {

@@ -1,7 +1,7 @@
-import { normalizeRect } from "./geometry.js";
+import { normalizeRect } from "../canvas/geometry.js";
 import { createId } from "./ids.js";
-import { getFillValue } from "./tool-behavior.js";
-import { TOOLS } from "./ui-config.js";
+import { getFillValue } from "../tools/tool-behavior.js";
+import { TOOLS } from "../ui/ui-config.js";
 
 export function createTextElement({ point, color, fontSize, zIndex }) {
   return {

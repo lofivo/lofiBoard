@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFitViewport } from "../src/viewport-service.js";
+import { computeFitViewport } from "../../src/canvas/viewport-service.js";
 
 describe("viewport service", () => {
   it("fits content bounds into the viewport with padding", () => {

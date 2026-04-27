@@ -4,32 +4,32 @@ import {
   createClipboardSnapshot,
   createPastedElements,
   removeElementsById,
-} from "./clipboard-service.js";
+} from "../services/clipboard-service.js";
 import {
   createEmptyBoard,
   normalizeBoard,
   reorderElements,
   serializeBoard,
-} from "./board-model.js";
+} from "../board/board-model.js";
 import {
   createImageElement as buildImageElement,
   createShapeElement as buildShapeElement,
   createStickyElement as buildStickyElement,
   createTextElement as buildTextElement,
   isTinyElement,
-} from "./element-factory.js";
-import { createExportBackground } from "./export-renderer.js";
+} from "../board/element-factory.js";
+import { createExportBackground } from "../canvas/export-renderer.js";
 import {
   chooseWhiteboardSaveFile,
   downloadDataUrl,
   openWhiteboardFile,
   supportsFileSystemAccess,
   writeWhiteboardFile,
-} from "./file-service.js";
-import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "./geometry.js";
-import { createHistory } from "./history.js";
-import { createId } from "./ids.js";
-import { createElementNode, createNodeAttrs } from "./konva-elements.js";
+} from "../services/file-service.js";
+import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
+import { createHistory } from "../board/history.js";
+import { createId } from "../board/ids.js";
+import { createElementNode, createNodeAttrs } from "../canvas/konva-elements.js";
 import {
   getImageFileFromDropEvent,
   getImageFileFromPasteEvent,
@@ -38,7 +38,7 @@ import {
   getTextFromPasteEvent,
   readFileAsDataUrl,
   readImageSize,
-} from "./image-import-service.js";
+} from "../services/image-import-service.js";
 import {
   getSelectionHitRadius,
   nextToolAfterTextPlacement,
@@ -46,25 +46,25 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
-} from "./interaction-rules.js";
+} from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
   getFillValue,
   isShapeTool,
   resolveActiveDrawingTool,
-} from "./tool-behavior.js";
+} from "../tools/tool-behavior.js";
 import {
   normalizePressure,
   shouldAppendStrokePoint,
   smoothStrokePoint,
-} from "./stroke-engine.js";
+} from "../tools/stroke-engine.js";
 import {
   DEFAULT_SHAPE_TOOL,
   SHAPE_TOOLS,
   TOOLS,
-} from "./ui-config.js";
-import { getNextPanelCollapsedState, shouldShowPanelEdgeToggle } from "./panel-state.js";
-import { computeFitViewport } from "./viewport-service.js";
+} from "../ui/ui-config.js";
+import { getNextPanelCollapsedState, shouldShowPanelEdgeToggle } from "../ui/panel-state.js";
+import { computeFitViewport } from "../canvas/viewport-service.js";
 
 export function createWhiteboardApp(root) {
   if (!root) return null;

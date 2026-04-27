@@ -1,4 +1,4 @@
-import { createId } from "./ids.js";
+import { createId } from "../board/ids.js";
 
 export function flattenPoints(points) {
   return points.flatMap((point) => [point.x, point.y]);

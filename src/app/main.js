@@ -1,4 +1,4 @@
 import { createWhiteboardApp } from "./whiteboard-app.js";
-import "./styles.css";
+import "../styles.css";
 
 createWhiteboardApp(document.querySelector("#app"));

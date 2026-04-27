@@ -3,7 +3,7 @@ import {
   createClipboardSnapshot,
   createPastedElements,
   removeElementsById,
-} from "../src/clipboard-service.js";
+} from "../../src/services/clipboard-service.js";
 
 describe("clipboard service", () => {
   it("copies selected elements without mutating originals", () => {

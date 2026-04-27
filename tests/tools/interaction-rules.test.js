@@ -7,8 +7,8 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
-} from "../src/interaction-rules.js";
-import { TOOLS } from "../src/ui-config.js";
+} from "../../src/tools/interaction-rules.js";
+import { TOOLS } from "../../src/ui/ui-config.js";
 
 function makeNode(className, parent = null) {
   return {
