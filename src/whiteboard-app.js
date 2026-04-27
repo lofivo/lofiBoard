@@ -1,29 +1,50 @@
 import Konva from "konva";
+import { renderShell } from "./app-shell.js";
+import {
+  createClipboardSnapshot,
+  createPastedElements,
+  removeElementsById,
+} from "./clipboard-service.js";
 import {
   createEmptyBoard,
   normalizeBoard,
   reorderElements,
   serializeBoard,
 } from "./board-model.js";
+import {
+  createShapeElement as buildShapeElement,
+  createTextElement as buildTextElement,
+  isTinyElement,
+} from "./element-factory.js";
+import { createExportBackground } from "./export-renderer.js";
+import {
+  chooseWhiteboardSaveFile,
+  downloadDataUrl,
+  openWhiteboardFile,
+  supportsFileSystemAccess,
+  writeWhiteboardFile,
+} from "./file-service.js";
 import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "./geometry.js";
 import { createHistory } from "./history.js";
 import { createId } from "./ids.js";
+import { createElementNode, createNodeAttrs } from "./konva-elements.js";
 import {
-  BACKGROUND_ICON,
-  MENU_ICON,
-  PANEL_ICON,
+  getSelectionHitRadius,
+  nextToolAfterTextPlacement,
+  shouldIgnoreCanvasPointerDown,
+  shouldSelectAll,
+} from "./interaction-rules.js";
+import {
+  computeEraserRadius,
+  getFillValue,
+  isShapeTool,
+  resolveActiveDrawingTool,
+} from "./tool-behavior.js";
+import {
+  DEFAULT_SHAPE_TOOL,
   SHAPE_TOOLS,
   TOOLS,
-  icon,
-  menuItemsMarkup,
-  toolButtonsMarkup,
 } from "./ui-config.js";
-const FILE_TYPES = [
-  {
-    description: "lofiBoard 白板文件",
-    accept: { "application/json": [".lofibrd", ".json"] },
-  },
-];
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -34,18 +55,25 @@ export function createWhiteboardApp(root) {
   const status = root.querySelector("[data-status]");
   const activeFileLabel = root.querySelector("[data-file-name]");
   const menuButton = root.querySelector("[data-menu-trigger]");
-  const settingsButton = root.querySelector("[data-settings-trigger]");
   const mainMenu = root.querySelector("[data-main-menu]");
   const stylePanel = root.querySelector("[data-style-panel]");
+  const shapePopover = root.querySelector("[data-shape-popover]");
+  const contextMenu = root.querySelector("[data-context-menu]");
   const colorInput = root.querySelector("[data-control='color']");
   const fillInput = root.querySelector("[data-control='fill']");
+  const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
   const widthInput = root.querySelector("[data-control='width']");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
   const zoomLabel = root.querySelector("[data-zoom]");
+  const zoomButton = root.querySelector("[data-zoom-trigger]");
+  const zoomMenu = root.querySelector("[data-zoom-menu]");
+  const zoomOutButton = root.querySelector("[data-zoom-out]");
+  const zoomInButton = root.querySelector("[data-zoom-in]");
 
   let board = createEmptyBoard();
   let history = createHistory(board);
   let currentTool = TOOLS.PEN;
+  let activeShapeTool = DEFAULT_SHAPE_TOOL;
   let selectedIds = [];
   let fileHandle = null;
   let activeFileName = "未命名白板";
@@ -55,8 +83,15 @@ export function createWhiteboardApp(root) {
   let strokeDraft = null;
   let shapeDraft = null;
   let selectionDraft = null;
+  let selectionDrag = null;
   let eraseSnapshot = null;
+  let lastEraserPoint = null;
+  let activeEraserRadius = 24;
   let isMainMenuOpen = false;
+  let isZoomMenuOpen = false;
+  let isEditingText = false;
+  let clipboardSnapshot = [];
+  let statusTimer = null;
   let dirty = false;
 
   const stage = new Konva.Stage({
@@ -116,82 +151,15 @@ export function createWhiteboardApp(root) {
     destroy: () => stage.destroy(),
   };
 
-  function renderShell() {
-    return `
-      <div class="app-shell">
-        <header class="topbar">
-          <div class="brand-menu">
-            <button type="button" class="board-trigger" data-menu-trigger aria-haspopup="true" aria-expanded="false">
-              <span class="brand-mark"></span>
-              <span class="board-title">
-                <strong>lofiBoard</strong>
-                <span data-file-name>未命名白板</span>
-              </span>
-            </button>
-            <button type="button" class="settings-trigger" data-settings-trigger title="白板菜单" aria-label="白板菜单">
-              ${icon(MENU_ICON)}
-            </button>
-            <div class="main-menu" data-main-menu hidden>
-              <div class="menu-section">
-                ${menuItemsMarkup()}
-              </div>
-              <div class="menu-section">
-                <div class="menu-heading">${icon(BACKGROUND_ICON)}<span>画布背景</span></div>
-                <div class="segmented-control" role="group" aria-label="画布背景">
-                  <button type="button" data-background-mode="dots">点阵</button>
-                  <button type="button" data-background-mode="plain">纯白</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <aside class="style-panel" data-style-panel aria-label="属性">
-          <div class="panel-title">${icon(PANEL_ICON)}<span>属性</span></div>
-          <label class="control-line">
-            线条
-            <input data-control="color" type="color" value="#111827" />
-          </label>
-          <label class="control-fill">
-            填充
-            <input data-control="fill" type="color" value="#ffffff" />
-          </label>
-          <label class="control-width">
-            粗细
-            <input data-control="width" type="range" min="1" max="28" value="6" />
-          </label>
-          <label class="control-font">
-            字号
-            <input data-control="font-size" type="range" min="12" max="96" value="28" />
-          </label>
-          <div class="quick-actions">
-            <button type="button" data-action="bring-front">置顶</button>
-            <button type="button" data-action="send-back">置底</button>
-            <button type="button" data-action="delete-selection">删除</button>
-          </div>
-        </aside>
-
-        <main id="stage-container" class="stage-container"></main>
-
-        <nav class="tool-dock" aria-label="白板工具">
-          ${toolButtonsMarkup()}
-        </nav>
-
-        <footer class="statusbar">
-          <span data-status>就绪</span>
-          <span data-zoom>100%</span>
-        </footer>
-      </div>
-    `;
-  }
-
   function hydrateControls() {
     for (const button of root.querySelectorAll("[data-tool]")) {
-      button.addEventListener("click", () => setTool(button.dataset.tool));
+      button.addEventListener("click", () => {
+        setTool(button.dataset.tool);
+        setShapePopoverOpen(button.dataset.tool === TOOLS.SHAPE);
+      });
     }
 
     menuButton.addEventListener("click", toggleMainMenu);
-    settingsButton.addEventListener("click", toggleMainMenu);
 
     for (const button of root.querySelectorAll("[data-action]")) {
       button.addEventListener("click", () => runAction(button.dataset.action));
@@ -201,10 +169,30 @@ export function createWhiteboardApp(root) {
       button.addEventListener("click", () => setBackgroundMode(button.dataset.backgroundMode));
     }
 
+    for (const button of root.querySelectorAll("[data-context-action]")) {
+      button.addEventListener("click", () => runContextAction(button.dataset.contextAction));
+    }
+
+    for (const button of root.querySelectorAll("[data-zoom-level]")) {
+      button.addEventListener("click", () => setZoomAtCenter(Number(button.dataset.zoomLevel)));
+    }
+
+    for (const button of root.querySelectorAll("[data-shape-tool]")) {
+      button.addEventListener("click", () => {
+        activeShapeTool = button.dataset.shapeTool;
+        setTool(TOOLS.SHAPE);
+        setShapePopoverOpen(false);
+      });
+    }
+
     colorInput.addEventListener("input", applyStyleToSelection);
     fillInput.addEventListener("input", applyStyleToSelection);
+    fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
     fontSizeInput.addEventListener("input", applyStyleToSelection);
+    zoomButton.addEventListener("click", toggleZoomMenu);
+    zoomOutButton.addEventListener("click", () => zoomBy(1 / 1.25));
+    zoomInButton.addEventListener("click", () => zoomBy(1.25));
   }
 
   function bindStageEvents() {
@@ -212,7 +200,7 @@ export function createWhiteboardApp(root) {
     stage.on("pointerdown", handlePointerDown);
     stage.on("pointermove", handlePointerMove);
     stage.on("pointerup pointercancel", handlePointerUp);
-    stage.container().addEventListener("contextmenu", (event) => event.preventDefault());
+    stage.container().addEventListener("contextmenu", handleContextMenu);
 
     transformer.on("dragend transformend", () => {
       syncSelectedNodes();
@@ -238,6 +226,18 @@ export function createWhiteboardApp(root) {
     actions[action]?.();
   }
 
+  function runContextAction(action) {
+    hideContextMenu();
+    const actions = {
+      copy: copySelection,
+      cut: cutSelection,
+      paste: pasteClipboard,
+      delete: deleteSelection,
+    };
+
+    actions[action]?.();
+  }
+
   function toggleMainMenu() {
     setMainMenuOpen(!isMainMenuOpen);
   }
@@ -250,7 +250,26 @@ export function createWhiteboardApp(root) {
     isMainMenuOpen = nextOpen;
     mainMenu.hidden = !nextOpen;
     menuButton.setAttribute("aria-expanded", String(nextOpen));
-    settingsButton.classList.toggle("active", nextOpen);
+    menuButton.classList.toggle("active", nextOpen);
+  }
+
+  function setShapePopoverOpen(nextOpen) {
+    shapePopover.hidden = !nextOpen;
+  }
+
+  function toggleZoomMenu() {
+    setZoomMenuOpen(!isZoomMenuOpen);
+  }
+
+  function setZoomMenuOpen(nextOpen) {
+    isZoomMenuOpen = nextOpen;
+    zoomMenu.hidden = !nextOpen;
+    zoomButton.setAttribute("aria-expanded", String(nextOpen));
+    zoomButton.classList.toggle("active", nextOpen);
+  }
+
+  function hideContextMenu() {
+    contextMenu.hidden = true;
   }
 
   function bindUiEvents() {
@@ -262,10 +281,34 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (!isMainMenuOpen) return;
-      if (event.target.closest("[data-main-menu], [data-menu-trigger], [data-settings-trigger]")) {
+      if (event.target.closest("[data-main-menu], [data-menu-trigger]")) {
         return;
       }
       closeMainMenu();
+    });
+
+    window.addEventListener("pointerdown", (event) => {
+      if (shapePopover.hidden) return;
+      if (event.target.closest("[data-shape-popover], [data-tool='shape']")) {
+        return;
+      }
+      setShapePopoverOpen(false);
+    });
+
+    window.addEventListener("pointerdown", (event) => {
+      if (!isZoomMenuOpen) return;
+      if (event.target.closest("[data-zoom-menu], [data-zoom-trigger]")) {
+        return;
+      }
+      setZoomMenuOpen(false);
+    });
+
+    window.addEventListener("pointerdown", (event) => {
+      if (contextMenu.hidden) return;
+      if (event.target.closest("[data-context-menu]")) {
+        return;
+      }
+      hideContextMenu();
     });
   }
 
@@ -273,10 +316,34 @@ export function createWhiteboardApp(root) {
     window.addEventListener("keydown", (event) => {
       if (event.target instanceof HTMLTextAreaElement) return;
 
+      if (shouldSelectAll(event)) {
+        event.preventDefault();
+        selectAllElements();
+        return;
+      }
+
       if (event.code === "Space") {
         isSpaceDown = true;
         stage.container().classList.add("is-panning");
         event.preventDefault();
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        copySelection();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
+        event.preventDefault();
+        cutSelection();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        pasteClipboard();
+        return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -313,12 +380,15 @@ export function createWhiteboardApp(root) {
         e: TOOLS.ERASER_STROKE,
         o: TOOLS.ERASER_OBJECT,
         t: TOOLS.TEXT,
-        r: TOOLS.RECT,
-        l: TOOLS.LINE,
-        a: TOOLS.ARROW,
+        r: TOOLS.SHAPE,
+        l: TOOLS.SHAPE,
+        a: TOOLS.SHAPE,
       };
 
       if (!event.ctrlKey && !event.metaKey && shortcutMap[event.key.toLowerCase()]) {
+        if (event.key.toLowerCase() === "r") activeShapeTool = TOOLS.RECT;
+        if (event.key.toLowerCase() === "l") activeShapeTool = TOOLS.LINE;
+        if (event.key.toLowerCase() === "a") activeShapeTool = TOOLS.ARROW;
         setTool(shortcutMap[event.key.toLowerCase()]);
       }
     });
@@ -358,7 +428,40 @@ export function createWhiteboardApp(root) {
     updateChrome();
   }
 
+  function zoomBy(multiplier) {
+    setZoomAtCenter(stage.scaleX() * multiplier);
+  }
+
+  function setZoomAtCenter(requestedScale) {
+    const oldScale = stage.scaleX();
+    const newScale = clamp(requestedScale, 0.12, 4);
+    const center = {
+      x: stage.width() / 2,
+      y: stage.height() / 2,
+    };
+    const worldCenter = {
+      x: (center.x - stage.x()) / oldScale,
+      y: (center.y - stage.y()) / oldScale,
+    };
+
+    stage.scale({ x: newScale, y: newScale });
+    stage.position({
+      x: center.x - worldCenter.x * newScale,
+      y: center.y - worldCenter.y * newScale,
+    });
+    setZoomMenuOpen(false);
+    updateGrid();
+    updateChrome();
+  }
+
   function handlePointerDown(event) {
+    hideContextMenu();
+    setZoomMenuOpen(false);
+
+    if (shouldIgnoreCanvasPointerDown({ target: event.target, isEditingText })) {
+      return;
+    }
+
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
 
@@ -385,27 +488,36 @@ export function createWhiteboardApp(root) {
 
     if (currentTool === TOOLS.ERASER_STROKE) {
       eraseSnapshot = snapshotBoard();
-      eraseStrokeAt(worldPoint);
-      showEraser(worldPoint);
+      beginEraser(worldPoint);
+      eraseStrokeAt(worldPoint, activeEraserRadius);
+      showEraser(worldPoint, activeEraserRadius);
       return;
     }
 
     if (currentTool === TOOLS.ERASER_OBJECT) {
       eraseSnapshot = snapshotBoard();
+      beginEraser(worldPoint);
       eraseObjectAt(event.target);
-      showEraser(worldPoint);
+      showEraser(worldPoint, activeEraserRadius);
       return;
     }
 
     if (currentTool === TOOLS.TEXT) {
-      const element = createTextElement(worldPoint);
+      const element = buildTextElement({
+        point: worldPoint,
+        color: colorInput.value,
+        fontSize: Number(fontSizeInput.value),
+        zIndex: board.elements.length,
+      });
       addElement(element, "已添加文字");
       selectIds([element.id]);
+      setTool(nextToolAfterTextPlacement(currentTool));
       requestAnimationFrame(() => editTextElement(element.id));
       return;
     }
 
-    if (SHAPE_TOOLS.has(currentTool)) {
+    const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
+    if (isShapeTool(drawingTool)) {
       startShape(worldPoint);
     }
   }
@@ -440,15 +552,22 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    if (selectionDrag) {
+      updateSelectionDrag(worldPoint);
+      return;
+    }
+
     if (currentTool === TOOLS.ERASER_STROKE && eraseSnapshot) {
-      eraseStrokeAt(worldPoint);
-      showEraser(worldPoint);
+      const radius = updateEraserRadius(worldPoint);
+      eraseStrokeAt(worldPoint, radius);
+      showEraser(worldPoint, radius);
       return;
     }
 
     if (currentTool === TOOLS.ERASER_OBJECT && eraseSnapshot) {
+      const radius = updateEraserRadius(worldPoint);
       eraseObjectAt(event.target);
-      showEraser(worldPoint);
+      showEraser(worldPoint, radius);
     }
   }
 
@@ -474,14 +593,56 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    if (selectionDrag) {
+      finishSelectionDrag();
+      return;
+    }
+
     if (eraseSnapshot) {
       eraserCursor.visible(false);
+      stage.container().classList.remove("is-erasing");
       overlayLayer.batchDraw();
       if (JSON.stringify(eraseSnapshot.elements) !== JSON.stringify(board.elements)) {
         pushHistory("已擦除内容");
       }
       eraseSnapshot = null;
+      lastEraserPoint = null;
     }
+  }
+
+  function handleContextMenu(event) {
+    event.preventDefault();
+    stage.setPointersPositions(event);
+    const pointer = stage.getPointerPosition();
+    const targetId = pointer ? getElementIdFromNode(stage.getIntersection(pointer)) : null;
+
+    if (targetId && !selectedIds.includes(targetId)) {
+      selectIds([targetId]);
+    }
+
+    if (!targetId && selectedIds.length === 0 && clipboardSnapshot.length === 0) {
+      return;
+    }
+
+    showContextMenu(event.clientX, event.clientY);
+  }
+
+  function showContextMenu(clientX, clientY) {
+    updateContextMenuActions();
+    contextMenu.hidden = false;
+    const box = contextMenu.getBoundingClientRect();
+    const left = clamp(clientX, 8, window.innerWidth - box.width - 8);
+    const top = clamp(clientY, 8, window.innerHeight - box.height - 8);
+    contextMenu.style.left = `${left}px`;
+    contextMenu.style.top = `${top}px`;
+  }
+
+  function updateContextMenuActions() {
+    root.querySelectorAll("[data-context-action]").forEach((button) => {
+      const needsSelection = ["copy", "cut", "delete"].includes(button.dataset.contextAction);
+      const needsClipboard = button.dataset.contextAction === "paste";
+      button.disabled = (needsSelection && selectedIds.length === 0) || (needsClipboard && clipboardSnapshot.length === 0);
+    });
   }
 
   function handleSelectPointerDown(event, worldPoint) {
@@ -495,6 +656,12 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    const nearbySelectedId = getNearbySelectedElementId(worldPoint);
+    if (nearbySelectedId) {
+      beginSelectionDrag(worldPoint);
+      return;
+    }
+
     clearSelection();
     selectionDraft = { start: worldPoint };
     selectionRect.setAttrs({
@@ -502,6 +669,46 @@ export function createWhiteboardApp(root) {
       visible: true,
     });
     contentLayer.batchDraw();
+  }
+
+  function beginSelectionDrag(worldPoint) {
+    selectionDrag = {
+      start: worldPoint,
+      moved: false,
+      originals: selectedIds.map((id) => {
+        const element = board.elements.find((item) => item.id === id);
+        return {
+          id,
+          x: Number(element?.x ?? 0),
+          y: Number(element?.y ?? 0),
+        };
+      }),
+    };
+  }
+
+  function updateSelectionDrag(worldPoint) {
+    const dx = worldPoint.x - selectionDrag.start.x;
+    const dy = worldPoint.y - selectionDrag.start.y;
+    selectionDrag.moved = selectionDrag.moved || Math.hypot(dx, dy) > 0.5;
+    const originals = new Map(selectionDrag.originals.map((item) => [item.id, item]));
+    board.elements = board.elements.map((element) => {
+      const original = originals.get(element.id);
+      if (!original) return element;
+      return {
+        ...element,
+        x: original.x + dx,
+        y: original.y + dy,
+      };
+    });
+    renderBoard();
+  }
+
+  function finishSelectionDrag() {
+    const didMove = selectionDrag.moved;
+    selectionDrag = null;
+    if (didMove) {
+      pushHistory("已移动对象");
+    }
   }
 
   function startStroke(worldPoint, pressure = 0.5) {
@@ -539,7 +746,7 @@ export function createWhiteboardApp(root) {
   }
 
   function startShape(worldPoint) {
-    const element = createShapeElement(currentTool, worldPoint, worldPoint);
+    const element = buildShapeElement(getShapeElementOptions(worldPoint, worldPoint));
     const node = createNode(element);
     node.listening(false);
     contentLayer.add(node);
@@ -547,7 +754,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateShapeDraft(worldPoint) {
-    const updated = createShapeElement(currentTool, shapeDraft.start, worldPoint);
+    const updated = buildShapeElement(getShapeElementOptions(shapeDraft.start, worldPoint, shapeDraft.element.id));
     shapeDraft.element = { ...shapeDraft.element, ...updated };
     applyElementToNode(shapeDraft.element, shapeDraft.node);
     contentLayer.batchDraw();
@@ -561,6 +768,20 @@ export function createWhiteboardApp(root) {
     if (isTinyElement(element)) return;
     addElement(element, "已添加形状");
     selectIds([element.id]);
+  }
+
+  function getShapeElementOptions(start, end, existingId = null) {
+    return {
+      type: resolveActiveDrawingTool(currentTool, activeShapeTool),
+      start,
+      end,
+      existingId,
+      stroke: colorInput.value,
+      strokeWidth: Number(widthInput.value),
+      fillColor: fillInput.value,
+      transparentFill: fillTransparentInput.checked,
+      zIndex: board.elements.length,
+    };
   }
 
   function updateSelectionDraft(worldPoint) {
@@ -582,7 +803,7 @@ export function createWhiteboardApp(root) {
     selectIds(ids);
   }
 
-  function eraseStrokeAt(worldPoint) {
+  function eraseStrokeAt(worldPoint, radius) {
     let changed = false;
     const nextElements = [];
 
@@ -592,7 +813,7 @@ export function createWhiteboardApp(root) {
         continue;
       }
 
-      const fragments = splitStrokeByEraser(element, worldPoint, Number(widthInput.value) * 1.7);
+      const fragments = splitStrokeByEraser(element, worldPoint, radius);
       if (fragments.length !== 1 || fragments[0].points.length !== element.points.length) {
         changed = true;
       }
@@ -613,78 +834,38 @@ export function createWhiteboardApp(root) {
     renderBoard();
   }
 
-  function showEraser(worldPoint) {
+  function beginEraser(worldPoint) {
+    activeEraserRadius = getBaseEraserRadius();
+    lastEraserPoint = { ...worldPoint, time: performance.now() };
+    stage.container().classList.add("is-erasing");
+  }
+
+  function updateEraserRadius(worldPoint) {
+    const now = performance.now();
+    if (!lastEraserPoint) {
+      lastEraserPoint = { ...worldPoint, time: now };
+      return activeEraserRadius;
+    }
+
+    const elapsed = Math.max(16, now - lastEraserPoint.time);
+    const speed = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) / elapsed;
+    activeEraserRadius = computeEraserRadius({
+      baseRadius: getBaseEraserRadius(),
+      speed,
+    });
+    lastEraserPoint = { ...worldPoint, time: now };
+    return activeEraserRadius;
+  }
+
+  function getBaseEraserRadius() {
+    return Math.max(18, Number(widthInput.value) * 1.7);
+  }
+
+  function showEraser(worldPoint, radius = activeEraserRadius) {
     eraserCursor.position(worldPoint);
-    eraserCursor.radius(Number(widthInput.value) * 1.7);
+    eraserCursor.radius(radius);
     eraserCursor.visible(true);
     overlayLayer.batchDraw();
-  }
-
-  function createTextElement(worldPoint) {
-    return {
-      id: createId("text"),
-      type: "text",
-      x: worldPoint.x,
-      y: worldPoint.y,
-      text: "双击编辑文字",
-      width: 280,
-      fontSize: Number(fontSizeInput.value),
-      fontFamily: "Inter, system-ui, sans-serif",
-      fill: colorInput.value,
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-      zIndex: board.elements.length,
-    };
-  }
-
-  function createShapeElement(type, start, end) {
-    const rect = normalizeRect(start, end);
-    const common = {
-      id: shapeDraft?.element?.id ?? createId(type),
-      type,
-      stroke: colorInput.value,
-      strokeWidth: Number(widthInput.value),
-      fill: fillInput.value,
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-      zIndex: board.elements.length,
-    };
-
-    if (type === TOOLS.RECT) {
-      return { ...common, type: "rect", ...rect };
-    }
-
-    if (type === TOOLS.ELLIPSE) {
-      return {
-        ...common,
-        type: "ellipse",
-        x: rect.x + rect.width / 2,
-        y: rect.y + rect.height / 2,
-        radiusX: rect.width / 2,
-        radiusY: rect.height / 2,
-      };
-    }
-
-    const points = [start.x, start.y, end.x, end.y];
-    return {
-      ...common,
-      type,
-      x: 0,
-      y: 0,
-      points,
-      fill: colorInput.value,
-    };
-  }
-
-  function isTinyElement(element) {
-    if (element.type === "rect") return element.width < 4 || element.height < 4;
-    if (element.type === "ellipse") return element.radiusX < 3 || element.radiusY < 3;
-    if (element.type === "line" || element.type === "arrow") {
-      return Math.hypot(element.points[2] - element.points[0], element.points[3] - element.points[1]) < 4;
-    }
-    return false;
   }
 
   function addElement(element, message) {
@@ -694,144 +875,28 @@ export function createWhiteboardApp(root) {
   }
 
   function createNode(element) {
-    let node;
-    const common = {
-      id: element.id,
-      name: "element",
+    return createElementNode(element, {
       draggable: currentTool === TOOLS.SELECT,
-      rotation: element.rotation ?? 0,
-      scaleX: element.scaleX ?? 1,
-      scaleY: element.scaleY ?? 1,
-    };
-
-    if (element.type === "stroke") {
-      node = new Konva.Line({
-        ...common,
-        x: element.x ?? 0,
-        y: element.y ?? 0,
-        points: flattenPoints(element.points ?? []),
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        lineCap: "round",
-        lineJoin: "round",
-        tension: 0.45,
-      });
-    } else if (element.type === "text") {
-      node = new Konva.Text({
-        ...common,
-        x: element.x,
-        y: element.y,
-        text: element.text,
-        width: element.width,
-        fontSize: element.fontSize,
-        fontFamily: element.fontFamily,
-        fill: element.fill,
-        lineHeight: 1.25,
-      });
-      node.on("dblclick dbltap", () => editTextElement(element.id));
-    } else if (element.type === "rect") {
-      node = new Konva.Rect({
-        ...common,
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        fill: resolveFill(element.fill),
-      });
-    } else if (element.type === "ellipse") {
-      node = new Konva.Ellipse({
-        ...common,
-        x: element.x,
-        y: element.y,
-        radiusX: element.radiusX,
-        radiusY: element.radiusY,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        fill: resolveFill(element.fill),
-      });
-    } else if (element.type === "line") {
-      node = new Konva.Line({
-        ...common,
-        x: element.x ?? 0,
-        y: element.y ?? 0,
-        points: element.points,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        lineCap: "round",
-        lineJoin: "round",
-      });
-    } else if (element.type === "arrow") {
-      node = new Konva.Arrow({
-        ...common,
-        x: element.x ?? 0,
-        y: element.y ?? 0,
-        points: element.points,
-        stroke: element.stroke,
-        fill: element.fill ?? element.stroke,
-        strokeWidth: element.strokeWidth,
-        pointerLength: 18,
-        pointerWidth: 18,
-        lineCap: "round",
-        lineJoin: "round",
-      });
-    }
-
-    node.on("dragend", () => {
-      syncNodeToElement(node);
-      pushHistory("已移动对象");
+      onEditText: editTextElement,
+      onMove: (node) => {
+        syncNodeToElement(node);
+        pushHistory("已移动对象");
+      },
+      onSelect: (event, node) => {
+        if (currentTool !== TOOLS.SELECT) return;
+        event.cancelBubble = true;
+        const id = getElementIdFromNode(node);
+        if (event.evt.shiftKey) {
+          toggleSelection(id);
+        } else {
+          selectIds([id]);
+        }
+      },
     });
-    node.on("click tap", (event) => {
-      if (currentTool !== TOOLS.SELECT) return;
-      event.cancelBubble = true;
-      const id = getElementIdFromNode(node);
-      if (event.evt.shiftKey) {
-        toggleSelection(id);
-      } else {
-        selectIds([id]);
-      }
-    });
-
-    return node;
   }
 
   function applyElementToNode(element, node) {
     node.setAttrs(createNodeAttrs(element));
-  }
-
-  function createNodeAttrs(element) {
-    if (element.type === "rect") {
-      return {
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        fill: resolveFill(element.fill),
-      };
-    }
-    if (element.type === "ellipse") {
-      return {
-        x: element.x,
-        y: element.y,
-        radiusX: element.radiusX,
-        radiusY: element.radiusY,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        fill: resolveFill(element.fill),
-      };
-    }
-    if (element.type === "line" || element.type === "arrow") {
-      return {
-        points: element.points,
-        stroke: element.stroke,
-        strokeWidth: element.strokeWidth,
-        fill: element.fill ?? element.stroke,
-      };
-    }
-    return {};
   }
 
   function renderBoard() {
@@ -916,6 +981,25 @@ export function createWhiteboardApp(root) {
     return getElementIdFromNode(stage.getIntersection(pointer));
   }
 
+  function getNearbySelectedElementId(worldPoint) {
+    if (selectedIds.length === 0) return null;
+    const padding = getSelectionHitRadius(stage.scaleX());
+    for (const id of selectedIds) {
+      const node = contentLayer.findOne(`#${id}`);
+      if (!node) continue;
+      const box = node.getClientRect({ relativeTo: contentLayer });
+      if (
+        worldPoint.x >= box.x - padding &&
+        worldPoint.x <= box.x + box.width + padding &&
+        worldPoint.y >= box.y - padding &&
+        worldPoint.y <= box.y + box.height + padding
+      ) {
+        return id;
+      }
+    }
+    return null;
+  }
+
   function applyStyleToSelection() {
     if (selectedIds.length === 0) {
       updateContextPanel();
@@ -945,7 +1029,7 @@ export function createWhiteboardApp(root) {
       return {
         ...element,
         stroke: colorInput.value,
-        fill: fillInput.value,
+        fill: getFillValue({ transparent: fillTransparentInput.checked, color: fillInput.value }),
         strokeWidth: Number(widthInput.value),
       };
     });
@@ -954,11 +1038,46 @@ export function createWhiteboardApp(root) {
     pushHistory("已更新样式");
   }
 
+  function selectAllElements() {
+    if (board.elements.length === 0) return;
+    setTool(TOOLS.SELECT);
+    selectIds(board.elements.map((element) => element.id));
+    setStatus("已选择全部元素");
+  }
+
+  function copySelection() {
+    if (selectedIds.length === 0) return;
+    clipboardSnapshot = createClipboardSnapshot(board.elements, selectedIds);
+    updateContextMenuActions();
+    setStatus("已复制对象");
+  }
+
+  function cutSelection() {
+    if (selectedIds.length === 0) return;
+    clipboardSnapshot = createClipboardSnapshot(board.elements, selectedIds);
+    board.elements = removeElementsById(board.elements, selectedIds);
+    clearSelection();
+    renderBoard();
+    updateContextMenuActions();
+    pushHistory("已剪切对象");
+  }
+
+  function pasteClipboard() {
+    if (clipboardSnapshot.length === 0) return;
+    const pasted = createPastedElements(clipboardSnapshot, {
+      offset: 24,
+      zIndexStart: board.elements.length,
+    });
+    board.elements = reorderElements([...board.elements, ...pasted]);
+    renderBoard();
+    setTool(TOOLS.SELECT);
+    selectIds(pasted.map((element) => element.id));
+    pushHistory("已粘贴对象");
+  }
+
   function deleteSelection() {
     if (selectedIds.length === 0) return;
-    board.elements = reorderElements(
-      board.elements.filter((element) => !selectedIds.includes(element.id)),
-    );
+    board.elements = removeElementsById(board.elements, selectedIds);
     clearSelection();
     renderBoard();
     pushHistory("已删除对象");
@@ -1039,6 +1158,7 @@ export function createWhiteboardApp(root) {
     });
     transformer.visible(tool === TOOLS.SELECT);
     eraserCursor.visible(false);
+    stage.container().classList.remove("is-erasing");
     if (tool !== TOOLS.SELECT) {
       clearSelection();
     }
@@ -1055,6 +1175,7 @@ export function createWhiteboardApp(root) {
       [TOOLS.ERASER_STROKE]: "片段橡皮：擦除笔触的一部分",
       [TOOLS.ERASER_OBJECT]: "对象橡皮：碰到对象即删除",
       [TOOLS.TEXT]: "文字：点击画布添加文字",
+      [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、线段或箭头",
       [TOOLS.RECT]: "矩形：拖动创建",
       [TOOLS.ELLIPSE]: "椭圆：拖动创建",
       [TOOLS.LINE]: "线段：拖动创建",
@@ -1067,6 +1188,7 @@ export function createWhiteboardApp(root) {
     const node = contentLayer.findOne(`#${id}`);
     if (!element || !node) return;
 
+    isEditingText = true;
     transformer.hide();
     node.hide();
     contentLayer.draw();
@@ -1074,6 +1196,7 @@ export function createWhiteboardApp(root) {
     const textarea = document.createElement("textarea");
     textarea.className = "text-editor";
     textarea.value = element.text;
+    const originalText = element.text;
     document.body.appendChild(textarea);
 
     const box = stage.container().getBoundingClientRect();
@@ -1095,12 +1218,45 @@ export function createWhiteboardApp(root) {
     const commit = () => {
       if (editorClosed) return;
       editorClosed = true;
-      element.text = textarea.value.trim() || "双击编辑文字";
+      isEditingText = false;
+      const nextText = textarea.value.trim();
       textarea.remove();
-      node.show();
+
+      if (!nextText) {
+        board.elements = removeElementsById(board.elements, [id]);
+        selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
+        transformer.show();
+        renderBoard();
+        pushHistory("已删除空文字");
+        return;
+      }
+
+      board.elements = board.elements.map((item) => (
+        item.id === id ? { ...item, text: nextText } : item
+      ));
       transformer.show();
       renderBoard();
       pushHistory("已编辑文字");
+    };
+
+    const cancel = () => {
+      if (editorClosed) return;
+      editorClosed = true;
+      isEditingText = false;
+      textarea.remove();
+
+      if (!originalText) {
+        board.elements = removeElementsById(board.elements, [id]);
+        selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
+        transformer.show();
+        renderBoard();
+        pushHistory("已取消空文字");
+        return;
+      }
+
+      node.show();
+      transformer.show();
+      renderBoard();
     };
 
     textarea.addEventListener("keydown", (event) => {
@@ -1110,11 +1266,7 @@ export function createWhiteboardApp(root) {
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        editorClosed = true;
-        textarea.remove();
-        node.show();
-        transformer.show();
-        renderBoard();
+        cancel();
       }
     });
     textarea.addEventListener("blur", commit, { once: true });
@@ -1127,15 +1279,10 @@ export function createWhiteboardApp(root) {
     }
 
     try {
-      const [handle] = await window.showOpenFilePicker({
-        types: FILE_TYPES,
-        excludeAcceptAllOption: false,
-      });
-      const file = await handle.getFile();
-      const text = await file.text();
-      board = normalizeBoard(JSON.parse(text));
+      const { handle, name, contents } = await openWhiteboardFile();
+      board = normalizeBoard(contents);
       fileHandle = handle;
-      activeFileName = file.name;
+      activeFileName = name;
       history = createHistory(board);
       selectedIds = [];
       applyViewport(board.viewport);
@@ -1179,10 +1326,7 @@ export function createWhiteboardApp(root) {
     }
 
     try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: `${activeFileName.replace(/\.lofibrd$/i, "") || "untitled"}.lofibrd`,
-        types: FILE_TYPES,
-      });
+      const handle = await chooseWhiteboardSaveFile(activeFileName);
       fileHandle = handle;
       activeFileName = handle.name;
       await writeToHandle(handle);
@@ -1197,13 +1341,15 @@ export function createWhiteboardApp(root) {
   }
 
   async function writeToHandle(handle) {
-    const writable = await handle.createWritable();
-    await writable.write(JSON.stringify(serializeCurrentBoard(), null, 2));
-    await writable.close();
+    await writeWhiteboardFile(handle, serializeCurrentBoard());
   }
 
   function exportPng() {
-    const backgroundNodes = createExportBackground();
+    const backgroundNodes = createExportBackground({
+      stage,
+      contentLayer,
+      backgroundMode: board.canvas.backgroundMode,
+    });
     selectionRect.visible(false);
     transformer.visible(false);
     contentLayer.draw();
@@ -1219,63 +1365,11 @@ export function createWhiteboardApp(root) {
     contentLayer.draw();
     overlayLayer.draw();
 
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = `${activeFileName.replace(/\.lofibrd$/i, "") || "lofiBoard"}.png`;
-    link.click();
-    link.remove();
-    setStatus("已导出当前视图 PNG");
-  }
-
-  function createExportBackground() {
-    const scale = stage.scaleX();
-    const viewport = {
-      x: -stage.x() / scale,
-      y: -stage.y() / scale,
-      width: stage.width() / scale,
-      height: stage.height() / scale,
-    };
-    const background = new Konva.Rect({
-      ...viewport,
-      fill: "#ffffff",
-      listening: false,
+    downloadDataUrl({
+      dataUrl,
+      fileName: `${activeFileName.replace(/\.lofibrd$/i, "") || "lofiBoard"}.png`,
     });
-    contentLayer.add(background);
-    background.moveToBottom();
-
-    if (board.canvas.backgroundMode !== "dots") {
-      return [background];
-    }
-
-    const dotGroup = new Konva.Group({ listening: false });
-    const spacing = 32;
-    const startX = Math.floor(viewport.x / spacing) * spacing;
-    const endX = viewport.x + viewport.width;
-    const startY = Math.floor(viewport.y / spacing) * spacing;
-    const endY = viewport.y + viewport.height;
-
-    for (let x = startX; x <= endX; x += spacing) {
-      for (let y = startY; y <= endY; y += spacing) {
-        dotGroup.add(
-          new Konva.Circle({
-            x,
-            y,
-            radius: 1,
-            fill: "rgba(100, 116, 139, 0.38)",
-            listening: false,
-          }),
-        );
-      }
-    }
-
-    contentLayer.add(dotGroup);
-    dotGroup.moveToBottom();
-    background.moveToBottom();
-    return [background, dotGroup];
-  }
-
-  function supportsFileSystemAccess() {
-    return "showOpenFilePicker" in window && "showSaveFilePicker" in window;
+    setStatus("已导出当前视图 PNG");
   }
 
   function serializeCurrentBoard() {
@@ -1337,6 +1431,15 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-background-mode]").forEach((button) => {
       button.classList.toggle("active", button.dataset.backgroundMode === board.canvas.backgroundMode);
     });
+    root.querySelectorAll("[data-shape-tool]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.shapeTool === activeShapeTool);
+    });
+    root.querySelectorAll("[data-zoom-level]").forEach((button) => {
+      button.classList.toggle(
+        "active",
+        Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
+      );
+    });
     updateContextPanel();
   }
 
@@ -1346,15 +1449,24 @@ export function createWhiteboardApp(root) {
 
     if (first) {
       hydrateControlsFromElement(first);
-      const mode = selectedElements.every((element) => element.type === "text") ? "text" : "element";
+      const mode = selectedElements.every((element) => element.type === "text")
+        ? "text"
+        : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
+          ? "linear"
+          : "element";
       stylePanel.hidden = false;
       root.dataset.panelMode = mode;
       return;
     }
 
-    if ([TOOLS.PEN, TOOLS.TEXT, ...SHAPE_TOOLS].includes(currentTool)) {
+    if ([TOOLS.PEN, TOOLS.TEXT, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
       stylePanel.hidden = false;
-      root.dataset.panelMode = currentTool === TOOLS.TEXT ? "tool-text" : "tool";
+      const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
+      root.dataset.panelMode = currentTool === TOOLS.TEXT
+        ? "tool-text"
+        : ["line", "arrow", "pen"].includes(drawingTool) || currentTool === TOOLS.PEN
+          ? "linear-tool"
+          : "tool";
       return;
     }
 
@@ -1365,18 +1477,21 @@ export function createWhiteboardApp(root) {
   function hydrateControlsFromElement(element) {
     if (element.stroke) colorInput.value = element.stroke;
     if (element.fill && element.fill !== "transparent") fillInput.value = element.fill;
+    fillTransparentInput.checked = !element.fill || element.fill === "transparent";
     if (element.fill && element.type === "text") colorInput.value = element.fill;
     if (element.strokeWidth) widthInput.value = String(element.strokeWidth);
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
   }
 
   function setStatus(message) {
+    window.clearTimeout(statusTimer);
     status.textContent = message;
+    status.classList.add("is-visible");
+    statusTimer = window.setTimeout(() => {
+      status.classList.remove("is-visible");
+    }, 5000);
   }
 
-  function resolveFill(fill) {
-    return fill === "transparent" ? undefined : fill;
-  }
 }
 
 function clamp(value, min, max) {
