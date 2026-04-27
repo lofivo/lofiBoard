@@ -9,6 +9,7 @@ import {
   FilePlus,
   FolderOpen,
   Grid2X2,
+  LocateFixed,
   Minus,
   MousePointer2,
   PanelTop,
@@ -22,6 +23,8 @@ import {
   Shapes,
   Trash2,
   Type,
+  Undo2,
+  Redo2,
 } from "lucide-static";
 
 export const TOOLS = {
@@ -41,19 +44,19 @@ export const SHAPE_TOOLS = new Set([TOOLS.RECT, TOOLS.ELLIPSE, TOOLS.LINE, TOOLS
 export const DEFAULT_SHAPE_TOOL = TOOLS.RECT;
 
 export const TOOL_ITEMS = [
-  { id: TOOLS.SELECT, label: "选择", icon: MousePointer2 },
-  { id: TOOLS.PEN, label: "画笔", icon: PenLine },
-  { id: TOOLS.ERASER_STROKE, label: "片段橡皮", icon: Eraser },
-  { id: TOOLS.ERASER_OBJECT, label: "对象橡皮", icon: Trash2 },
-  { id: TOOLS.TEXT, label: "文字", icon: Type },
-  { id: TOOLS.SHAPE, label: "图形", icon: Shapes },
+  { id: TOOLS.SELECT, label: "选择", shortcut: "V", icon: MousePointer2 },
+  { id: TOOLS.PEN, label: "画笔", shortcut: "B", icon: PenLine },
+  { id: TOOLS.ERASER_STROKE, label: "片段橡皮", shortcut: "E", icon: Eraser },
+  { id: TOOLS.ERASER_OBJECT, label: "对象橡皮", shortcut: "O", icon: Trash2 },
+  { id: TOOLS.TEXT, label: "文字", shortcut: "T", icon: Type },
+  { id: TOOLS.SHAPE, label: "图形", shortcut: "R / L / A", icon: Shapes },
 ];
 
 export const SHAPE_ITEMS = [
-  { id: TOOLS.RECT, label: "矩形", icon: Square },
+  { id: TOOLS.RECT, label: "矩形", shortcut: "R", icon: Square },
   { id: TOOLS.ELLIPSE, label: "椭圆", icon: Circle },
-  { id: TOOLS.LINE, label: "线段", icon: Minus },
-  { id: TOOLS.ARROW, label: "箭头", icon: ArrowRight },
+  { id: TOOLS.LINE, label: "线段", shortcut: "L", icon: Minus },
+  { id: TOOLS.ARROW, label: "箭头", shortcut: "A", icon: ArrowRight },
 ];
 
 export const MAIN_MENU_ITEMS = [
@@ -62,6 +65,9 @@ export const MAIN_MENU_ITEMS = [
   { action: "save", label: "保存", icon: Save },
   { action: "save-as", label: "另存为", icon: SaveAll },
   { action: "export", label: "导出 PNG", icon: Download },
+  { action: "undo", label: "撤销", icon: Undo2 },
+  { action: "redo", label: "重做", icon: Redo2 },
+  { action: "fit-content", label: "适配内容", icon: LocateFixed },
   { action: "clear", label: "清空画布", icon: Trash2 },
   { action: "reset-view", label: "重置视图", icon: RotateCcw },
 ];
@@ -93,24 +99,34 @@ export function icon(svg, className = "icon") {
 
 export function toolButtonsMarkup() {
   return TOOL_ITEMS.map(
-    (tool) => `
-      <button type="button" class="tool-button" data-tool="${tool.id}" title="${tool.label}" aria-label="${tool.label}">
+    (tool) => {
+      const label = formatShortcutLabel(tool);
+      return `
+      <button type="button" class="tool-button" data-tool="${tool.id}" title="${label}" aria-label="${label}">
         ${icon(tool.icon)}
-        <span class="tooltip" role="tooltip">${tool.label}</span>
+        <span class="tooltip" role="tooltip">${label}</span>
       </button>
-    `,
+    `;
+    },
   ).join("");
 }
 
 export function shapePopoverMarkup() {
   return SHAPE_ITEMS.map(
-    (shape) => `
-      <button type="button" class="shape-option" data-shape-tool="${shape.id}" title="${shape.label}" aria-label="${shape.label}">
+    (shape) => {
+      const label = formatShortcutLabel(shape);
+      return `
+      <button type="button" class="shape-option" data-shape-tool="${shape.id}" title="${label}" aria-label="${label}">
         ${icon(shape.icon)}
         <span>${shape.label}</span>
       </button>
-    `,
+    `;
+    },
   ).join("");
+}
+
+export function formatShortcutLabel(item) {
+  return item.shortcut ? `${item.label} (${item.shortcut})` : item.label;
 }
 
 export function menuItemsMarkup() {

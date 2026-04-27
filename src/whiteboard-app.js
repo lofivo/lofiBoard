@@ -31,6 +31,8 @@ import { createElementNode, createNodeAttrs } from "./konva-elements.js";
 import {
   getSelectionHitRadius,
   nextToolAfterTextPlacement,
+  pointHitsSelectionBounds,
+  shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
 } from "./interaction-rules.js";
@@ -41,10 +43,16 @@ import {
   resolveActiveDrawingTool,
 } from "./tool-behavior.js";
 import {
+  normalizePressure,
+  shouldAppendStrokePoint,
+  smoothStrokePoint,
+} from "./stroke-engine.js";
+import {
   DEFAULT_SHAPE_TOOL,
   SHAPE_TOOLS,
   TOOLS,
 } from "./ui-config.js";
+import { computeFitViewport } from "./viewport-service.js";
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -91,6 +99,7 @@ export function createWhiteboardApp(root) {
   let isZoomMenuOpen = false;
   let isEditingText = false;
   let clipboardSnapshot = [];
+  let lastPointerWorldPoint = null;
   let statusTimer = null;
   let dirty = false;
 
@@ -216,6 +225,9 @@ export function createWhiteboardApp(root) {
       save: saveBoardFile,
       "save-as": saveBoardFileAs,
       export: exportPng,
+      undo: undoHistory,
+      redo: redoHistory,
+      "fit-content": fitContent,
       clear: clearBoard,
       "reset-view": resetView,
       "bring-front": bringSelectionToFront,
@@ -279,6 +291,16 @@ export function createWhiteboardApp(root) {
       updateGrid();
     });
 
+    root.addEventListener("selectstart", (event) => {
+      event.preventDefault();
+    });
+
+    window.addEventListener("wheel", (event) => {
+      if (shouldPreventBrowserZoom(event)) {
+        event.preventDefault();
+      }
+    }, { capture: true, passive: false });
+
     window.addEventListener("pointerdown", (event) => {
       if (!isMainMenuOpen) return;
       if (event.target.closest("[data-main-menu], [data-menu-trigger]")) {
@@ -318,6 +340,7 @@ export function createWhiteboardApp(root) {
 
       if (shouldSelectAll(event)) {
         event.preventDefault();
+        event.stopPropagation();
         selectAllElements();
         return;
       }
@@ -330,24 +353,28 @@ export function createWhiteboardApp(root) {
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
         event.preventDefault();
+        event.stopPropagation();
         copySelection();
         return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
         event.preventDefault();
+        event.stopPropagation();
         cutSelection();
         return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
         event.preventDefault();
+        event.stopPropagation();
         pasteClipboard();
         return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
+        event.stopPropagation();
         if (event.shiftKey) {
           saveBoardFileAs();
         } else {
@@ -357,21 +384,50 @@ export function createWhiteboardApp(root) {
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
         event.preventDefault();
+        event.stopPropagation();
         openBoardFile();
+        return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
-        restoreFromHistory(history.undo(), "已撤销");
+        event.stopPropagation();
+        if (event.shiftKey) {
+          redoHistory();
+        } else {
+          undoHistory();
+        }
+        return;
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
         event.preventDefault();
-        restoreFromHistory(history.redo(), "已重做");
+        event.stopPropagation();
+        redoHistory();
+        return;
       }
 
       if (event.key === "Delete" || event.key === "Backspace") {
+        if (selectedIds.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         deleteSelection();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMainMenu();
+        setShapePopoverOpen(false);
+        setZoomMenuOpen(false);
+        hideContextMenu();
+        if (currentTool !== TOOLS.SELECT) {
+          setTool(TOOLS.SELECT);
+        } else {
+          clearSelection();
+        }
+        return;
       }
 
       const shortcutMap = {
@@ -391,14 +447,14 @@ export function createWhiteboardApp(root) {
         if (event.key.toLowerCase() === "a") activeShapeTool = TOOLS.ARROW;
         setTool(shortcutMap[event.key.toLowerCase()]);
       }
-    });
+    }, { capture: true });
 
     window.addEventListener("keyup", (event) => {
       if (event.code === "Space") {
         isSpaceDown = false;
         stage.container().classList.remove("is-panning");
       }
-    });
+    }, { capture: true });
   }
 
   function handleWheel(event) {
@@ -464,6 +520,7 @@ export function createWhiteboardApp(root) {
 
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
+    lastPointerWorldPoint = worldPoint;
 
     if (isSpaceDown || event.evt.button === 1) {
       isPanning = true;
@@ -525,6 +582,7 @@ export function createWhiteboardApp(root) {
   function handlePointerMove(event) {
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
+    lastPointerWorldPoint = worldPoint;
 
     if (isPanning && panStart) {
       const pointer = stage.getPointerPosition();
@@ -614,6 +672,10 @@ export function createWhiteboardApp(root) {
     event.preventDefault();
     stage.setPointersPositions(event);
     const pointer = stage.getPointerPosition();
+    const worldPoint = getWorldPointer(stage);
+    if (worldPoint) {
+      lastPointerWorldPoint = worldPoint;
+    }
     const targetId = pointer ? getElementIdFromNode(stage.getIntersection(pointer)) : null;
 
     if (targetId && !selectedIds.includes(targetId)) {
@@ -712,7 +774,7 @@ export function createWhiteboardApp(root) {
   }
 
   function startStroke(worldPoint, pressure = 0.5) {
-    const points = [{ ...worldPoint, pressure: pressure || 0.5 }];
+    const points = [{ ...worldPoint, pressure: normalizePressure(pressure) }];
     const element = {
       id: createId("stroke"),
       type: "stroke",
@@ -731,7 +793,12 @@ export function createWhiteboardApp(root) {
   }
 
   function appendStroke(worldPoint, pressure = 0.5) {
-    strokeDraft.element.points.push({ ...worldPoint, pressure: pressure || 0.5 });
+    const previousPoint = strokeDraft.element.points.at(-1);
+    const nextPoint = { ...worldPoint, pressure: normalizePressure(pressure) };
+    const minDistance = Math.max(0.7, Number(widthInput.value) * 0.08) / stage.scaleX();
+    if (!shouldAppendStrokePoint(previousPoint, nextPoint, minDistance)) return;
+
+    strokeDraft.element.points.push(smoothStrokePoint(previousPoint, nextPoint, 0.28));
     strokeDraft.node.points(flattenPoints(strokeDraft.element.points));
     contentLayer.batchDraw();
   }
@@ -984,20 +1051,12 @@ export function createWhiteboardApp(root) {
   function getNearbySelectedElementId(worldPoint) {
     if (selectedIds.length === 0) return null;
     const padding = getSelectionHitRadius(stage.scaleX());
-    for (const id of selectedIds) {
-      const node = contentLayer.findOne(`#${id}`);
-      if (!node) continue;
-      const box = node.getClientRect({ relativeTo: contentLayer });
-      if (
-        worldPoint.x >= box.x - padding &&
-        worldPoint.x <= box.x + box.width + padding &&
-        worldPoint.y >= box.y - padding &&
-        worldPoint.y <= box.y + box.height + padding
-      ) {
-        return id;
-      }
-    }
-    return null;
+    const boxes = selectedIds
+      .map((id) => contentLayer.findOne(`#${id}`))
+      .filter(Boolean)
+      .map((node) => node.getClientRect({ relativeTo: contentLayer }));
+
+    return pointHitsSelectionBounds(worldPoint, boxes, padding) ? selectedIds[0] : null;
   }
 
   function applyStyleToSelection() {
@@ -1040,7 +1099,6 @@ export function createWhiteboardApp(root) {
 
   function selectAllElements() {
     if (board.elements.length === 0) return;
-    setTool(TOOLS.SELECT);
     selectIds(board.elements.map((element) => element.id));
     setStatus("已选择全部元素");
   }
@@ -1066,9 +1124,11 @@ export function createWhiteboardApp(root) {
     if (clipboardSnapshot.length === 0) return;
     const pasted = createPastedElements(clipboardSnapshot, {
       offset: 24,
+      targetPoint: lastPointerWorldPoint,
       zIndexStart: board.elements.length,
     });
     board.elements = reorderElements([...board.elements, ...pasted]);
+    clipboardSnapshot = createClipboardSnapshot(pasted, pasted.map((element) => element.id));
     renderBoard();
     setTool(TOOLS.SELECT);
     selectIds(pasted.map((element) => element.id));
@@ -1113,6 +1173,59 @@ export function createWhiteboardApp(root) {
     clearSelection();
     renderBoard();
     pushHistory("已清空白板");
+  }
+
+  function undoHistory() {
+    restoreFromHistory(history.undo(), "已撤销");
+  }
+
+  function redoHistory() {
+    restoreFromHistory(history.redo(), "已重做");
+  }
+
+  function fitContent() {
+    if (board.elements.length === 0) {
+      setStatus("当前白板没有可适配的内容");
+      return;
+    }
+
+    const bounds = getContentBounds();
+    if (!bounds) return;
+
+    applyViewport(computeFitViewport({
+      bounds,
+      stageSize: {
+        width: stage.width(),
+        height: stage.height(),
+      },
+      padding: 96,
+    }));
+    board = serializeCurrentBoard();
+    history.push(board);
+    dirty = true;
+    updateChrome();
+    setStatus("已适配全部内容");
+  }
+
+  function getContentBounds() {
+    const boxes = contentLayer
+      .find(".element")
+      .map((node) => node.getClientRect({ relativeTo: contentLayer }))
+      .filter((box) => Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0);
+
+    if (boxes.length === 0) return null;
+
+    const minX = Math.min(...boxes.map((box) => box.x));
+    const minY = Math.min(...boxes.map((box) => box.y));
+    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
   }
 
   function newBoard() {

@@ -30,6 +30,19 @@ describe("clipboard service", () => {
     expect(pasted[0].id).not.toBe("a");
   });
 
+  it("pastes copies at the requested pointer target", () => {
+    const pasted = createPastedElements(
+      [
+        { id: "a", type: "rect", x: 10, y: 20, zIndex: 0 },
+        { id: "b", type: "text", x: 40, y: 70, zIndex: 1 },
+      ],
+      { targetPoint: { x: 200, y: 300 }, zIndexStart: 5 },
+    );
+
+    expect(pasted[0]).toMatchObject({ type: "rect", x: 200, y: 300, zIndex: 5 });
+    expect(pasted[1]).toMatchObject({ type: "text", x: 230, y: 350, zIndex: 6 });
+  });
+
   it("removes selected elements for cut", () => {
     expect(removeElementsById([{ id: "a" }, { id: "b" }], ["a"])).toEqual([{ id: "b", zIndex: 0 }]);
   });

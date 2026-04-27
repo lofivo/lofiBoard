@@ -37,6 +37,7 @@ button {
   width: 100%;
   height: 100%;
   background: #f8fafc;
+  user-select: none;
 }
 
 .icon {
@@ -206,12 +207,17 @@ button {
   bottom: 18px;
   left: 50%;
   display: flex;
-  max-width: calc(100vw - 172px);
+  max-width: calc(100vw - 96px);
   gap: 4px;
   overflow-x: auto;
   padding: 6px;
   border-radius: 8px;
   transform: translateX(-50%);
+  scrollbar-width: none;
+}
+
+.tool-dock::-webkit-scrollbar {
+  display: none;
 }
 
 .shape-popover {

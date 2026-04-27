@@ -3,6 +3,8 @@ import {
   getSelectionHitRadius,
   isTransformerTarget,
   nextToolAfterTextPlacement,
+  pointHitsSelectionBounds,
+  shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
 } from "../src/interaction-rules.js";
@@ -39,9 +41,28 @@ describe("interaction rules", () => {
     expect(getSelectionHitRadius(3)).toBe(6);
   });
 
-  it("treats Alt+A and Ctrl+A as whiteboard select all", () => {
-    expect(shouldSelectAll({ key: "a", altKey: true, ctrlKey: false, metaKey: false })).toBe(true);
+  it("treats Ctrl+A and Cmd+A as whiteboard select all", () => {
+    expect(shouldSelectAll({ key: "a", altKey: true, ctrlKey: false, metaKey: false })).toBe(false);
+    expect(shouldSelectAll({ key: "å", code: "KeyA", altKey: true, ctrlKey: false, metaKey: false })).toBe(false);
     expect(shouldSelectAll({ key: "a", altKey: false, ctrlKey: true, metaKey: false })).toBe(true);
-    expect(shouldSelectAll({ key: "b", altKey: true, ctrlKey: false, metaKey: false })).toBe(false);
+    expect(shouldSelectAll({ key: "a", altKey: false, ctrlKey: false, metaKey: true })).toBe(true);
+    expect(shouldSelectAll({ key: "b", code: "KeyB", altKey: true, ctrlKey: false, metaKey: false })).toBe(false);
+  });
+
+  it("treats the whole selected bounds as a draggable hit area", () => {
+    const boxes = [
+      { x: 100, y: 100, width: 80, height: 50 },
+      { x: 260, y: 160, width: 40, height: 40 },
+    ];
+
+    expect(pointHitsSelectionBounds({ x: 220, y: 140 }, boxes, 0)).toBe(true);
+    expect(pointHitsSelectionBounds({ x: 95, y: 96 }, boxes, 8)).toBe(true);
+    expect(pointHitsSelectionBounds({ x: 80, y: 80 }, boxes, 8)).toBe(false);
+  });
+
+  it("prevents browser page zoom gestures globally", () => {
+    expect(shouldPreventBrowserZoom({ ctrlKey: true, metaKey: false })).toBe(true);
+    expect(shouldPreventBrowserZoom({ ctrlKey: false, metaKey: true })).toBe(true);
+    expect(shouldPreventBrowserZoom({ ctrlKey: false, metaKey: false })).toBe(false);
   });
 });

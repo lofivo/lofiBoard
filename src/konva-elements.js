@@ -23,6 +23,9 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       lineCap: "round",
       lineJoin: "round",
       tension: 0.45,
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
+      perfectDrawEnabled: false,
+      shadowForStrokeEnabled: false,
     });
   } else if (element.type === "text") {
     node = new Konva.Text({
@@ -47,6 +50,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       fill: resolveFill(element.fill),
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 8, 14),
     });
   } else if (element.type === "ellipse") {
     node = new Konva.Ellipse({
@@ -58,6 +62,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       fill: resolveFill(element.fill),
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 8, 14),
     });
   } else if (element.type === "line") {
     node = new Konva.Line({
@@ -69,6 +74,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       strokeWidth: element.strokeWidth,
       lineCap: "round",
       lineJoin: "round",
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
   } else if (element.type === "arrow") {
     node = new Konva.Arrow({
@@ -83,6 +89,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       pointerWidth: 18,
       lineCap: "round",
       lineJoin: "round",
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
   }
 
@@ -126,5 +133,5 @@ export function createNodeAttrs(element) {
 }
 
 function resolveFill(fill) {
-  return fill === "transparent" ? undefined : fill;
+  return fill === "transparent" ? "rgba(0,0,0,0)" : fill;
 }
