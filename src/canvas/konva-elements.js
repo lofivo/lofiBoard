@@ -1,6 +1,8 @@
 import Konva from "konva";
 import { flattenPoints } from "./geometry.js";
 
+const imageCache = new Map();
+
 export function createElementNode(element, { draggable, onMove, onSelect, onEditText }) {
   let node;
   const common = {
@@ -83,12 +85,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       strokeWidth: 1,
     });
     if (element.src && typeof window !== "undefined") {
-      const image = new window.Image();
-      image.onload = () => {
-        node.image(image);
-        node.getLayer()?.batchDraw();
-      };
-      image.src = element.src;
+      attachCachedImage(node, element.src);
     }
   } else if (element.type === "rect") {
     node = new Konva.Rect({
@@ -200,4 +197,37 @@ export function createNodeAttrs(element) {
 
 function resolveFill(fill) {
   return fill === "transparent" ? "rgba(0,0,0,0)" : fill;
+}
+
+function attachCachedImage(node, src) {
+  const entry = getCachedImage(src);
+  node.image(entry.image);
+
+  if (entry.loaded) return;
+  entry.waitingNodes.add(node);
+}
+
+function getCachedImage(src) {
+  const cached = imageCache.get(src);
+  if (cached) return cached;
+
+  const image = new window.Image();
+  const entry = {
+    image,
+    loaded: false,
+    waitingNodes: new Set(),
+  };
+
+  image.onload = () => {
+    entry.loaded = true;
+    for (const node of entry.waitingNodes) {
+      node.image(image);
+      node.getLayer()?.batchDraw();
+    }
+    entry.waitingNodes.clear();
+  };
+  image.src = src;
+  imageCache.set(src, entry);
+
+  return entry;
 }
