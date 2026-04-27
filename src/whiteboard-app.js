@@ -31,6 +31,7 @@ import { createHistory } from "./history.js";
 import { createId } from "./ids.js";
 import { createElementNode, createNodeAttrs } from "./konva-elements.js";
 import {
+  getImageFileFromDropEvent,
   getImageFileFromPasteEvent,
   getImageInsertPoint,
   readFileAsDataUrl,
@@ -60,7 +61,7 @@ import {
   SHAPE_TOOLS,
   TOOLS,
 } from "./ui-config.js";
-import { getNextPanelCollapsedState } from "./panel-state.js";
+import { getNextPanelCollapsedState, shouldShowPanelEdgeToggle } from "./panel-state.js";
 import { computeFitViewport } from "./viewport-service.js";
 
 export function createWhiteboardApp(root) {
@@ -113,6 +114,8 @@ export function createWhiteboardApp(root) {
   let clipboardSnapshot = [];
   let lastPointerWorldPoint = null;
   let panelCollapsedState = { style: false, layers: false };
+  let stylePanelAvailable = true;
+  let layerPanelAvailable = false;
   let statusTimer = null;
   let dirty = false;
 
@@ -336,8 +339,14 @@ export function createWhiteboardApp(root) {
     layerPanel.classList.toggle("is-collapsed", panelCollapsedState.layers);
     root.querySelector("[data-panel-toggle='style']").textContent = panelCollapsedState.style ? "›" : "‹";
     root.querySelector("[data-panel-toggle='layers']").textContent = panelCollapsedState.layers ? "‹" : "›";
-    root.querySelector("[data-panel-edge='style']").classList.toggle("is-visible", panelCollapsedState.style);
-    root.querySelector("[data-panel-edge='layers']").classList.toggle("is-visible", panelCollapsedState.layers);
+    root.querySelector("[data-panel-edge='style']").classList.toggle(
+      "is-visible",
+      shouldShowPanelEdgeToggle({ collapsed: panelCollapsedState.style, available: stylePanelAvailable }),
+    );
+    root.querySelector("[data-panel-edge='layers']").classList.toggle(
+      "is-visible",
+      shouldShowPanelEdgeToggle({ collapsed: panelCollapsedState.layers, available: layerPanelAvailable }),
+    );
   }
 
   function bindUiEvents() {
@@ -390,6 +399,8 @@ export function createWhiteboardApp(root) {
     });
 
     window.addEventListener("paste", handlePaste);
+    container.addEventListener("dragover", handleImageDragOver);
+    container.addEventListener("drop", handleImageDrop);
   }
 
   function bindKeyboard() {
@@ -424,9 +435,7 @@ export function createWhiteboardApp(root) {
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-        event.preventDefault();
         event.stopPropagation();
-        pasteClipboard();
         return;
       }
 
@@ -1638,9 +1647,33 @@ export function createWhiteboardApp(root) {
   async function handlePaste(event) {
     if (event.target instanceof HTMLTextAreaElement) return;
     const file = getImageFileFromPasteEvent(event);
-    if (!file) return;
+    if (!file) {
+      if (clipboardSnapshot.length === 0) return;
+      event.preventDefault();
+      pasteClipboard();
+      return;
+    }
     event.preventDefault();
     await insertImageFile(file, "已粘贴图片");
+  }
+
+  function handleImageDragOver(event) {
+    event.preventDefault();
+  }
+
+  async function handleImageDrop(event) {
+    const file = getImageFileFromDropEvent(event);
+    event.preventDefault();
+    if (!file) {
+      setStatus("只支持拖入图片文件");
+      return;
+    }
+    stage.setPointersPositions(event);
+    const worldPoint = getWorldPointer(stage);
+    if (worldPoint) {
+      lastPointerWorldPoint = worldPoint;
+    }
+    await insertImageFile(file, "已拖入图片");
   }
 
   async function insertImageFile(file, message) {
@@ -1812,8 +1845,15 @@ export function createWhiteboardApp(root) {
         Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
       );
     });
+    updateLayerPanelAvailability();
     renderLayerPanel();
     updateContextPanel();
+  }
+
+  function updateLayerPanelAvailability() {
+    layerPanelAvailable = currentTool === TOOLS.SELECT;
+    layerPanel.hidden = !layerPanelAvailable;
+    applyPanelState();
   }
 
   function renderLayerPanel() {
@@ -1869,23 +1909,29 @@ export function createWhiteboardApp(root) {
           ? "linear"
           : "element";
       stylePanel.hidden = false;
+      stylePanelAvailable = true;
       root.dataset.panelMode = mode;
+      applyPanelState();
       return;
     }
 
     if ([TOOLS.PEN, TOOLS.TEXT, TOOLS.STICKY, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
       stylePanel.hidden = false;
+      stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
       root.dataset.panelMode = [TOOLS.TEXT, TOOLS.STICKY].includes(currentTool)
         ? "tool-text"
         : ["line", "arrow", "pen"].includes(drawingTool) || currentTool === TOOLS.PEN
           ? "linear-tool"
           : "tool";
+      applyPanelState();
       return;
     }
 
     stylePanel.hidden = true;
+    stylePanelAvailable = false;
     root.dataset.panelMode = "hidden";
+    applyPanelState();
   }
 
   function hydrateControlsFromElement(element) {
@@ -1904,7 +1950,7 @@ export function createWhiteboardApp(root) {
     status.classList.add("is-visible");
     statusTimer = window.setTimeout(() => {
       status.classList.remove("is-visible");
-    }, 5000);
+    }, 3000);
   }
 
 }

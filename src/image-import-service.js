@@ -19,6 +19,24 @@ export function getImageFileFromPasteEvent(event) {
   return items.find((item) => item.kind === "file" && item.type?.startsWith("image/"))?.getAsFile() ?? null;
 }
 
+export function getImageFileFromDropEvent(event) {
+  return [...(event.dataTransfer?.files ?? [])].find(isImageFile) ?? null;
+}
+
+export function shouldLetPasteEventHandleImages({ hasImageOnClipboard, hasInternalClipboard }) {
+  return Boolean(hasImageOnClipboard || !hasInternalClipboard);
+}
+
+export async function hasClipboardImage(navigatorRef = navigator) {
+  if (!navigatorRef?.clipboard?.read) return false;
+  try {
+    const items = await navigatorRef.clipboard.read();
+    return items.some((item) => item.types?.some((type) => type.startsWith("image/")));
+  } catch {
+    return false;
+  }
+}
+
 export function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getImageInsertPoint, isImageFile } from "../src/image-import-service.js";
+import {
+  getImageFileFromDropEvent,
+  getImageInsertPoint,
+  isImageFile,
+  shouldLetPasteEventHandleImages,
+} from "../src/image-import-service.js";
 
 describe("image import service", () => {
   it("recognizes image files", () => {
@@ -20,5 +25,17 @@ describe("image import service", () => {
       x: 150,
       y: 125,
     });
+  });
+
+  it("extracts an image file from a drop event", () => {
+    const image = { type: "image/jpeg" };
+    const text = { type: "text/plain" };
+
+    expect(getImageFileFromDropEvent({ dataTransfer: { files: [text, image] } })).toBe(image);
+  });
+
+  it("lets the browser paste event handle clipboard images", () => {
+    expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: true, hasInternalClipboard: true })).toBe(true);
+    expect(shouldLetPasteEventHandleImages({ hasImageOnClipboard: false, hasInternalClipboard: true })).toBe(false);
   });
 });

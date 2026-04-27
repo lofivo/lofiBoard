@@ -368,7 +368,7 @@ button {
 .layer-panel {
   position: fixed;
   z-index: 25;
-  top: 76px;
+  top: 50%;
   right: 16px;
   display: grid;
   width: 240px;
@@ -380,6 +380,7 @@ button {
   transition:
     opacity 140ms ease,
     transform 160ms ease;
+  transform: translateY(-50%);
 }
 
 .style-panel.is-collapsed {
@@ -391,7 +392,7 @@ button {
 .layer-panel.is-collapsed {
   opacity: 0;
   pointer-events: none;
-  transform: translateX(calc(100% + 20px));
+  transform: translate(calc(100% + 20px), -50%);
 }
 
 .style-panel.is-collapsed > :not(.panel-title),
