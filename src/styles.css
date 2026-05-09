@@ -686,6 +686,10 @@ button {
   cursor: grab;
 }
 
+.stage-container[data-tool="pen"] {
+  cursor: none;
+}
+
 .stage-container[data-tool="eraser-stroke"],
 .stage-container[data-tool="eraser-object"] {
   cursor: none;

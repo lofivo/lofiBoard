@@ -63,6 +63,7 @@ import {
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
+  getBrushPreviewAttrs,
   getFillValue,
   getSquareEraserPreviewAttrs,
   isShapeTool,
@@ -213,6 +214,32 @@ export function createWhiteboardApp(root) {
   });
   overlayLayer.add(eraserCursor);
 
+  const brushCursorDot = new Konva.Circle({
+    radius: 3,
+    fill: colorInput.value,
+    visible: false,
+    listening: false,
+  });
+  const brushCursorGap = new Konva.Circle({
+    radius: 6,
+    fill: "#ffffff",
+    visible: false,
+    listening: false,
+  });
+  const brushCursorRing = new Konva.Circle({
+    radius: 3,
+    stroke: "#111827",
+    strokeWidth: 1,
+    dash: [1, 1],
+    fill: "rgba(0,0,0,0)",
+    strokeScaleEnabled: false,
+    visible: false,
+    listening: false,
+  });
+  overlayLayer.add(brushCursorGap);
+  overlayLayer.add(brushCursorDot);
+  overlayLayer.add(brushCursorRing);
+
   hydrateControls();
   applyViewport(board.viewport);
   applyBackground();
@@ -264,9 +291,11 @@ export function createWhiteboardApp(root) {
     }
 
     colorInput.addEventListener("input", applyStyleToSelection);
+    colorInput.addEventListener("input", updateBrushCursorStyle);
     fillInput.addEventListener("input", applyStyleToSelection);
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
+    widthInput.addEventListener("input", updateBrushCursorStyle);
     brushOpacityInput.addEventListener("input", applyStyleToSelection);
     brushSmoothingInput.addEventListener("input", applyStyleToSelection);
     brushCapInput.addEventListener("change", applyStyleToSelection);
@@ -296,7 +325,7 @@ export function createWhiteboardApp(root) {
     stage.on("pointerdown", handlePointerDown);
     stage.on("pointermove", handlePointerMove);
     stage.on("pointerup pointercancel", handlePointerUp);
-    stage.container().addEventListener("pointerleave", hideEraser);
+    stage.container().addEventListener("pointerleave", hideToolCursors);
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
     transformer.on("transform", syncTextWidthResize);
@@ -606,6 +635,7 @@ export function createWhiteboardApp(root) {
       y: pointer.y - mousePointTo.y * newScale,
     });
     updateGrid();
+    updateBrushCursorStyle();
     updateChrome();
   }
 
@@ -632,6 +662,7 @@ export function createWhiteboardApp(root) {
     });
     setZoomMenuOpen(false);
     updateGrid();
+    updateBrushCursorStyle();
     updateChrome();
   }
 
@@ -664,6 +695,7 @@ export function createWhiteboardApp(root) {
     clearSelection();
 
     if (currentTool === TOOLS.PEN) {
+      hideBrushCursor();
       startStroke(worldPoint, event.evt.pressure);
       return;
     }
@@ -752,6 +784,11 @@ export function createWhiteboardApp(root) {
 
     if (textPressIntent) {
       updateTextPressIntent(event, worldPoint);
+    }
+
+    if (currentTool === TOOLS.PEN) {
+      showBrushCursor(worldPoint);
+      return;
     }
 
     if ((currentTool === TOOLS.ERASER_STROKE || currentTool === TOOLS.ERASER_OBJECT) && !eraseSnapshot) {
@@ -1133,6 +1170,37 @@ export function createWhiteboardApp(root) {
   function hideEraser() {
     eraserCursor.visible(false);
     overlayLayer.batchDraw();
+  }
+
+  function showBrushCursor(worldPoint) {
+    const attrs = getBrushPreviewAttrs(worldPoint, widthInput.value, colorInput.value, stage.scaleX());
+    brushCursorGap.setAttrs(attrs.gap);
+    brushCursorDot.setAttrs(attrs.dot);
+    brushCursorRing.setAttrs(attrs.ring);
+    brushCursorGap.visible(true);
+    brushCursorDot.visible(true);
+    brushCursorRing.visible(true);
+    overlayLayer.batchDraw();
+  }
+
+  function hideBrushCursor() {
+    brushCursorGap.visible(false);
+    brushCursorDot.visible(false);
+    brushCursorRing.visible(false);
+    overlayLayer.batchDraw();
+  }
+
+  function hideToolCursors() {
+    eraserCursor.visible(false);
+    brushCursorGap.visible(false);
+    brushCursorDot.visible(false);
+    brushCursorRing.visible(false);
+    overlayLayer.batchDraw();
+  }
+
+  function updateBrushCursorStyle() {
+    if (!brushCursorDot.visible()) return;
+    showBrushCursor(brushCursorDot.position());
   }
 
   function addElement(element, message) {
@@ -1769,7 +1837,7 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
     });
-    hideEraser();
+    hideToolCursors();
     stage.container().classList.remove("is-erasing");
     if (![TOOLS.SELECT, TOOLS.PAN].includes(tool)) {
       clearSelection();
@@ -2292,6 +2360,7 @@ export function createWhiteboardApp(root) {
     stage.position({ x: viewport.x, y: viewport.y });
     stage.scale({ x: viewport.scale, y: viewport.scale });
     updateGrid();
+    updateBrushCursorStyle();
   }
 
   function applyBackground() {

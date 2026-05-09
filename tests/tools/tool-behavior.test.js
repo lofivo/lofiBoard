@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEraserRadius,
+  getBrushPreviewAttrs,
   getFillValue,
   getSquareEraserPreviewAttrs,
   isShapeTool,
@@ -23,6 +24,28 @@ describe("tool behavior", () => {
       y: 62,
       width: 36,
       height: 36,
+    });
+  });
+
+  it("sizes the brush preview dot from the current stroke width", () => {
+    expect(getBrushPreviewAttrs({ x: 48, y: 32 }, 12, "#2563eb", 2)).toEqual({
+      dot: {
+        x: 48,
+        y: 32,
+        radius: 6,
+        fill: "#2563eb",
+      },
+      ring: {
+        x: 48,
+        y: 32,
+        radius: 7.5,
+      },
+      gap: {
+        x: 48,
+        y: 32,
+        radius: 7.5,
+        fill: "#ffffff",
+      },
     });
   });
 

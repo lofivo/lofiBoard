@@ -15,6 +15,31 @@ export function getSquareEraserPreviewAttrs(center, radius) {
   };
 }
 
+export function getBrushPreviewAttrs(center, strokeWidth, color, scale = 1) {
+  const diameter = Math.max(1, Number(strokeWidth) || 1);
+  const dotRadius = diameter / 2;
+  const safeScale = Math.max(0.01, Number(scale) || 1);
+  return {
+    dot: {
+      x: center.x,
+      y: center.y,
+      radius: dotRadius,
+      fill: color,
+    },
+    ring: {
+      x: center.x,
+      y: center.y,
+      radius: dotRadius + 3 / safeScale,
+    },
+    gap: {
+      x: center.x,
+      y: center.y,
+      radius: dotRadius + 3 / safeScale,
+      fill: "#ffffff",
+    },
+  };
+}
+
 export function isShapeTool(tool) {
   return SHAPE_TOOLS.has(tool);
 }
