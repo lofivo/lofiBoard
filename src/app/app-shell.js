@@ -108,6 +108,9 @@ export function renderShell() {
           <button type="button" data-text-style="strike" title="删除线" aria-label="删除线">${icon(TEXT_FORMAT_ICONS.strike)}</button>
         </div>
         <div class="quick-actions">
+          <button type="button" data-action="array-insert-start">数组前插</button>
+          <button type="button" data-action="array-insert-end">数组后插</button>
+          <button type="button" data-action="array-delete-end">删末项</button>
           <button type="button" data-action="bring-front">置顶</button>
           <button type="button" data-action="send-back">置底</button>
           <button type="button" data-action="toggle-lock">锁定</button>

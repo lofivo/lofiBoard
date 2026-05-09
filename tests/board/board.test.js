@@ -69,6 +69,33 @@ describe("board model", () => {
     });
   });
 
+  it("normalizes structure element defaults", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        {
+          id: "graph_1",
+          type: "graph-structure",
+          nodes: [{ id: "A", label: "A", x: 10, y: 20 }],
+          edges: [],
+        },
+      ],
+    });
+
+    expect(board.elements[0]).toMatchObject({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 240,
+      nodes: [{ id: "A", label: "A", x: 10, y: 20 }],
+      edges: [],
+      settings: {},
+      style: {},
+    });
+  });
+
   it("serializes viewport and elements without mutating the source board", () => {
     const board = createEmptyBoard();
     board.elements.push({

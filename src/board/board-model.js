@@ -92,6 +92,36 @@ const ELEMENT_DEFAULTS = {
     strokeWidth: 4,
     rotation: 0,
   },
+  "array-structure": {
+    x: 0,
+    y: 0,
+    width: 360,
+    height: 88,
+    items: [],
+    style: {},
+    rotation: 0,
+  },
+  "graph-structure": {
+    x: 0,
+    y: 0,
+    width: 240,
+    height: 240,
+    nodes: [],
+    edges: [],
+    settings: {},
+    style: {},
+    rotation: 0,
+  },
+  "tree-structure": {
+    x: 0,
+    y: 0,
+    width: 296,
+    height: 276,
+    nodes: [],
+    values: [],
+    style: {},
+    rotation: 0,
+  },
 };
 
 export function clone(value) {

@@ -229,6 +229,87 @@ describe("konva elements", () => {
     expect(handlers.onMove).toHaveBeenCalledWith(node);
   });
 
+  it("renders array structure elements as a single draggable group", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, baseHandlers);
+
+    expect(node.x()).toBe(10);
+    expect(node.y()).toBe(20);
+    expect(node.width()).toBe(144);
+    expect(node.height()).toBe(88);
+    expect(node.find("Rect")).toHaveLength(4);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["0", "A", "1", "B"]);
+  });
+
+  it("renders graph structure elements with directed edges", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: true, weight: "5" }],
+      style: {},
+    }, baseHandlers);
+
+    expect(node.find("Arrow")).toHaveLength(1);
+    expect(node.find("Ellipse")).toHaveLength(2);
+    expect(node.find("Text").map((text) => text.text())).toContain("5");
+  });
+
+  it("renders tree structure elements from parent indexes", () => {
+    const node = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null },
+        { id: "1", index: 1, value: "B", x: 40, y: 92, parentIndex: 0 },
+      ],
+      style: {},
+    }, baseHandlers);
+
+    expect(node.find("Line")).toHaveLength(1);
+    expect(node.find("Ellipse")).toHaveLength(2);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["A", "B"]);
+  });
+
+  it("returns structure node attrs for rerender sync", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [],
+      style: {},
+    }, baseHandlers);
+
+    node.setAttrs({ x: 30, y: 40 });
+    expect(node.x()).toBe(30);
+    expect(node.y()).toBe(40);
+  });
+
   it("does not run selection click handlers after a drag", () => {
     const handlers = {
       draggable: true,

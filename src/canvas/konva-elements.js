@@ -1,5 +1,10 @@
 import Konva from "konva";
 import { flattenPoints } from "./geometry.js";
+import {
+  ARRAY_STRUCTURE_STYLE,
+  GRAPH_STRUCTURE_STYLE,
+  TREE_STRUCTURE_STYLE,
+} from "../structures/structure-templates.js";
 
 const imageCache = new Map();
 
@@ -191,6 +196,12 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       lineJoin: "round",
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
+  } else if (element.type === "array-structure") {
+    node = createArrayStructureNode(element, common);
+  } else if (element.type === "graph-structure") {
+    node = createGraphStructureNode(element, common);
+  } else if (element.type === "tree-structure") {
+    node = createTreeStructureNode(element, common);
   }
 
   let didDrag = false;
@@ -282,7 +293,200 @@ export function createNodeAttrs(element) {
       fill: element.fill ?? element.stroke,
     };
   }
+  if (element.type === "array-structure" || element.type === "graph-structure" || element.type === "tree-structure") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
   return {};
+}
+
+function createArrayStructureNode(element, common) {
+  const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const group = new Konva.Group({
+    ...common,
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height,
+  });
+  const cellWidth = style.cellWidth;
+  const cellHeight = style.cellHeight;
+
+  (element.items ?? []).forEach((item, index) => {
+    const x = index * cellWidth;
+    group.add(new Konva.Rect({
+      x,
+      y: 0,
+      width: cellWidth,
+      height: cellHeight,
+      stroke: style.stroke,
+      strokeWidth: 2,
+      fill: style.indexFill,
+    }));
+    group.add(new Konva.Text({
+      x,
+      y: 10,
+      width: cellWidth,
+      height: 24,
+      text: String(item.index ?? index),
+      fontSize: 18,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.indexTextFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+    group.add(new Konva.Rect({
+      x,
+      y: cellHeight,
+      width: cellWidth,
+      height: cellHeight,
+      stroke: style.stroke,
+      strokeWidth: 2,
+      fill: style.valueFill,
+    }));
+    group.add(new Konva.Text({
+      x,
+      y: cellHeight + 10,
+      width: cellWidth,
+      height: 24,
+      text: String(item.value ?? ""),
+      fontSize: 20,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.textFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+  });
+
+  return group;
+}
+
+function createGraphStructureNode(element, common) {
+  const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const group = new Konva.Group({
+    ...common,
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height,
+  });
+  const nodes = new Map((element.nodes ?? []).map((node) => [node.id, node]));
+
+  (element.edges ?? []).forEach((edge) => {
+    const source = nodes.get(edge.from);
+    const target = nodes.get(edge.to);
+    if (!source || !target) return;
+    const lineAttrs = {
+      points: [source.x, source.y, target.x, target.y],
+      stroke: style.stroke,
+      strokeWidth: 3,
+      lineCap: "round",
+      lineJoin: "round",
+      hitStrokeWidth: 18,
+    };
+    group.add(edge.directed
+      ? new Konva.Arrow({
+        ...lineAttrs,
+        fill: style.stroke,
+        pointerLength: 12,
+        pointerWidth: 12,
+      })
+      : new Konva.Line(lineAttrs));
+    if (edge.weight) {
+      group.add(new Konva.Text({
+        x: (source.x + target.x) / 2 - 18,
+        y: (source.y + target.y) / 2 - 18,
+        width: 36,
+        height: 18,
+        text: String(edge.weight),
+        fontSize: 14,
+        fontFamily: "Inter, system-ui, sans-serif",
+        fill: style.textFill,
+        align: "center",
+      }));
+    }
+  });
+
+  for (const node of nodes.values()) {
+    group.add(new Konva.Ellipse({
+      x: node.x,
+      y: node.y,
+      radiusX: style.nodeRadius,
+      radiusY: style.nodeRadius,
+      stroke: style.nodeStroke,
+      strokeWidth: 2,
+      fill: style.nodeFill,
+    }));
+    group.add(new Konva.Text({
+      x: node.x - style.nodeRadius,
+      y: node.y - 12,
+      width: style.nodeRadius * 2,
+      height: 24,
+      text: String(node.label ?? node.id),
+      fontSize: 20,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.textFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+  }
+
+  return group;
+}
+
+function createTreeStructureNode(element, common) {
+  const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const group = new Konva.Group({
+    ...common,
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height,
+  });
+  const nodes = new Map((element.nodes ?? []).map((node) => [node.index, node]));
+
+  for (const node of nodes.values()) {
+    if (node.parentIndex === null || node.parentIndex === undefined) continue;
+    const parent = nodes.get(node.parentIndex);
+    if (!parent) continue;
+    group.add(new Konva.Line({
+      points: [parent.x, parent.y, node.x, node.y],
+      stroke: style.stroke,
+      strokeWidth: 3,
+      lineCap: "round",
+      lineJoin: "round",
+    }));
+  }
+
+  for (const node of nodes.values()) {
+    group.add(new Konva.Ellipse({
+      x: node.x,
+      y: node.y,
+      radiusX: style.nodeRadius,
+      radiusY: style.nodeRadius,
+      stroke: style.nodeStroke,
+      strokeWidth: 2,
+      fill: style.nodeFill,
+    }));
+    group.add(new Konva.Text({
+      x: node.x - style.nodeRadius,
+      y: node.y - 12,
+      width: style.nodeRadius * 2,
+      height: 24,
+      text: String(node.value ?? ""),
+      fontSize: 19,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.textFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+  }
+
+  return group;
 }
 
 function getBrushDash(element) {

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  STRUCTURE_ELEMENT_TYPES,
   STRUCTURE_TYPES,
   createStructureElements,
   getStructureItem,
+  insertArrayItem,
+  deleteArrayItem,
   parseArrayInput,
   parseGraphInput,
   parseTreeInput,
@@ -21,19 +24,20 @@ describe("structure templates", () => {
       zIndexStart: 5,
     });
 
-    expect(elements).toHaveLength(8);
-    expect(elements.map((element) => element.zIndex)).toEqual([5, 6, 7, 8, 9, 10, 11, 12]);
-    expect(getBoundsCenter(elements)).toEqual({ x: 10, y: 20 });
-    expect(elements.filter((element) => element.type === "text").map((element) => element.text)).toEqual([
-      "0",
-      "A",
-      "1",
-      "B",
-    ]);
-    expect(new Set(elements.filter((element) => element.type === "rect").map((element) => element.y))).toHaveLength(2);
+    expect(elements).toHaveLength(1);
+    expect(elements[0]).toMatchObject({
+      type: STRUCTURE_ELEMENT_TYPES.ARRAY,
+      zIndex: 5,
+      x: -62,
+      y: -24,
+      width: 144,
+      height: 88,
+    });
+    expect(elements[0].items.map((item) => item.value)).toEqual(["A", "B"]);
+    expect(elements[0].items.map((item) => item.index)).toEqual([0, 1]);
   });
 
-  it("does not group array value cells by default so values can be edited directly", () => {
+  it("stores array values as structure data instead of loose grouped shapes", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.ARRAY,
       input: "A, B",
@@ -41,49 +45,48 @@ describe("structure templates", () => {
       zIndexStart: 0,
     });
 
-    const valueTexts = elements
-      .filter((element) => element.type === "text")
-      .filter((element) => ["A", "B"].includes(element.text));
-    const valueRects = elements
-      .filter((element) => element.type === "rect")
-      .filter((element) => element.groupId === undefined);
-
-    expect(valueTexts).toHaveLength(2);
-    expect(valueTexts.every((element) => element.groupId === undefined)).toBe(true);
-    expect(valueTexts.every((element) => element.locked === undefined)).toBe(true);
-    expect(valueRects).toHaveLength(2);
-    expect(valueRects.every((element) => element.groupId === undefined)).toBe(true);
+    expect(elements).toHaveLength(1);
+    expect(elements[0].groupId).toBeUndefined();
+    expect(elements[0].items).toHaveLength(2);
   });
 
   it("parses graph edges and preserves standalone nodes", () => {
-    expect(parseGraphInput("A-B, A-C, D")).toEqual({
-      nodes: ["A", "B", "C", "D"],
-      edges: [
-        { source: "A", target: "B" },
-        { source: "A", target: "C" },
-      ],
-    });
+    const graph = parseGraphInput("A-B, A->C, D");
+    expect(graph.nodes).toEqual(["A", "B", "C", "D"]);
+    expect(graph.edges).toMatchObject([
+      { from: "A", to: "B", directed: false, weight: "" },
+      { from: "A", to: "C", directed: true, weight: "" },
+    ]);
   });
 
-  it("creates graph lines before node shapes", () => {
+  it("creates graph structure data with nodes and edges", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
-      input: "A-B, B-C",
+      input: "A-B, B->C",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
-    expect(elements.filter((element) => element.type === "line")).toHaveLength(2);
-    expect(elements.filter((element) => element.type === "ellipse")).toHaveLength(3);
-    expect(elements.filter((element) => element.type === "text").map((element) => element.text)).toEqual(["A", "B", "C"]);
-    expectCenteredAt(elements, { x: 0, y: 0 });
+    expect(elements).toHaveLength(1);
+    expect(elements[0]).toMatchObject({
+      type: STRUCTURE_ELEMENT_TYPES.GRAPH,
+      x: -118,
+      y: -118,
+      width: 236,
+      height: 236,
+    });
+    expect(elements[0].nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
+    expect(elements[0].edges).toMatchObject([
+      { from: "A", to: "B", directed: false },
+      { from: "B", to: "C", directed: true },
+    ]);
   });
 
   it("parses tree null placeholders", () => {
     expect(parseTreeInput("A, B, null, #, E")).toEqual(["A", "B", null, null, "E"]);
   });
 
-  it("creates tree nodes and skips edges through null parents", () => {
+  it("creates tree structure data and skips null nodes", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
       input: "A, B, null, D",
@@ -91,10 +94,10 @@ describe("structure templates", () => {
       zIndexStart: 0,
     });
 
-    expect(elements.filter((element) => element.type === "ellipse")).toHaveLength(3);
-    expect(elements.filter((element) => element.type === "line")).toHaveLength(2);
-    expect(elements.filter((element) => element.type === "text").map((element) => element.text)).toEqual(["A", "B", "D"]);
-    expectCenteredAt(elements, { x: 0, y: 0 });
+    expect(elements).toHaveLength(1);
+    expect(elements[0].type).toBe(STRUCTURE_ELEMENT_TYPES.TREE);
+    expect(elements[0].nodes.map((node) => node.value)).toEqual(["A", "B", "D"]);
+    expect(elements[0].nodes.map((node) => node.parentIndex)).toEqual([null, 0, 1]);
   });
 
   it("uses default input when initial structure text is blank", () => {
@@ -106,46 +109,27 @@ describe("structure templates", () => {
     });
 
     const firstDefaultValue = getStructureItem(STRUCTURE_TYPES.ARRAY).defaultInput.split(",")[0].trim();
-    expect(elements.filter((element) => element.type === "text" && !element.groupId).map((element) => element.text)).toContain(firstDefaultValue);
+    expect(elements[0].items.map((item) => item.value)).toContain(firstDefaultValue);
+  });
+
+  it("inserts and deletes array structure items while keeping indexes normalized", () => {
+    const [array] = createStructureElements({
+      type: STRUCTURE_TYPES.ARRAY,
+      input: "A, B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    const inserted = insertArrayItem(array, 1, "X");
+    expect(inserted.items.map((item) => item.value)).toEqual(["A", "X", "B"]);
+    expect(inserted.items.map((item) => item.index)).toEqual([0, 1, 2]);
+    expect(inserted.width).toBe(216);
+    expect(inserted.x).toBe(-108);
+
+    const deleted = deleteArrayItem(inserted, 1);
+    expect(deleted.items.map((item) => item.value)).toEqual(["A", "B"]);
+    expect(deleted.items.map((item) => item.index)).toEqual([0, 1]);
+    expect(deleted.width).toBe(144);
+    expect(deleted.x).toBe(-72);
   });
 });
-
-function getBoundsCenter(elements) {
-  const boxes = elements.map((element) => {
-    if (element.type === "rect" || element.type === "text") {
-      return { x: element.x, y: element.y, width: element.width, height: element.height };
-    }
-    if (element.type === "ellipse") {
-      return {
-        x: element.x - element.radiusX,
-        y: element.y - element.radiusY,
-        width: element.radiusX * 2,
-        height: element.radiusY * 2,
-      };
-    }
-    if (element.type === "line") {
-      const xs = element.points.filter((_, index) => index % 2 === 0);
-      const ys = element.points.filter((_, index) => index % 2 === 1);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      const maxX = Math.max(...xs);
-      const maxY = Math.max(...ys);
-      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-    }
-    return null;
-  }).filter(Boolean);
-  const minX = Math.min(...boxes.map((box) => box.x));
-  const minY = Math.min(...boxes.map((box) => box.y));
-  const maxX = Math.max(...boxes.map((box) => box.x + box.width));
-  const maxY = Math.max(...boxes.map((box) => box.y + box.height));
-  return {
-    x: (minX + maxX) / 2,
-    y: (minY + maxY) / 2,
-  };
-}
-
-function expectCenteredAt(elements, point) {
-  const center = getBoundsCenter(elements);
-  expect(center.x).toBeCloseTo(point.x, 6);
-  expect(center.y).toBeCloseTo(point.y, 6);
-}

@@ -83,6 +83,8 @@ import {
   STRUCTURE_TYPES,
   createStructureElements,
   getStructureItem,
+  insertArrayItem,
+  deleteArrayItem,
 } from "../structures/structure-templates.js";
 import {
   getNextPanelCollapsedState,
@@ -388,6 +390,9 @@ export function createWhiteboardApp(root) {
       "bring-front": bringSelectionToFront,
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
+      "array-insert-start": () => editSelectedArrayStructure((element) => insertArrayItem(element, 0, "")),
+      "array-insert-end": () => editSelectedArrayStructure((element) => insertArrayItem(element, element.items?.length ?? 0, "")),
+      "array-delete-end": () => editSelectedArrayStructure((element) => deleteArrayItem(element)),
     };
 
     actions[action]?.();
@@ -760,7 +765,7 @@ export function createWhiteboardApp(root) {
     clearSelection();
 
     if (currentTool === TOOLS.PEN) {
-      hideBrushCursor();
+      showBrushCursor(worldPoint);
       startStroke(worldPoint, event.evt.pressure);
       return;
     }
@@ -835,6 +840,7 @@ export function createWhiteboardApp(root) {
 
     if (strokeDraft) {
       appendStroke(worldPoint, event.evt.pressure);
+      showBrushCursor(worldPoint);
       return;
     }
 
@@ -1828,6 +1834,21 @@ export function createWhiteboardApp(root) {
     pushHistory("已删除对象");
   }
 
+  function editSelectedArrayStructure(edit) {
+    const targetId = selectedIds.find((id) => {
+      const element = board.elements.find((item) => item.id === id);
+      return element?.type === "array-structure" && !element.locked;
+    });
+    if (!targetId) return;
+
+    board.elements = board.elements.map((element) => (
+      element.id === targetId ? edit(element) : element
+    ));
+    renderBoard();
+    selectIds([targetId]);
+    pushHistory("已更新数组");
+  }
+
   function bringSelectionToFront() {
     if (selectedIds.length === 0) return;
     const selected = [];
@@ -2643,6 +2664,9 @@ export function createWhiteboardApp(root) {
       ellipse: "椭圆",
       line: "线段",
       arrow: "箭头",
+      "array-structure": `数组：${element.items?.length ?? 0} 项`,
+      "graph-structure": `图：${element.nodes?.length ?? 0} 点 ${element.edges?.length ?? 0} 边`,
+      "tree-structure": `树：${element.nodes?.length ?? 0} 节点`,
     };
     return labels[element.type] ?? element.type;
   }
@@ -2704,6 +2728,8 @@ export function createWhiteboardApp(root) {
           ? "stroke"
         : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
           ? "linear"
+        : selectedElements.every((element) => ["array-structure", "graph-structure", "tree-structure"].includes(element.type))
+          ? "structure"
           : "element";
       stylePanel.hidden = false;
       stylePanelAvailable = true;

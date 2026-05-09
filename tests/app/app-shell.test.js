@@ -37,6 +37,14 @@ describe("app shell", () => {
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
   });
 
+  it("renders array structure quick edit actions", () => {
+    const markup = renderShell();
+
+    expect(markup).toContain('data-action="array-insert-start"');
+    expect(markup).toContain('data-action="array-insert-end"');
+    expect(markup).toContain('data-action="array-delete-end"');
+  });
+
   it("starts a drag gesture immediately after selecting an unselected text element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
