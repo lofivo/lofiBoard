@@ -50,7 +50,6 @@ import {
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
-  getTextPointerIntent,
   getTransformerAnchorsForSelection,
   measureTextareaContentHeight,
   isTextWidthResizeAnchor,
@@ -143,7 +142,6 @@ export function createWhiteboardApp(root) {
   let selectionDraft = null;
   let selectionDrag = null;
   let nodeDragSelection = null;
-  let textPressIntent = null;
   let eraseSnapshot = null;
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
@@ -161,7 +159,6 @@ export function createWhiteboardApp(root) {
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
 
-  const TEXT_DRAG_MOVE_TOLERANCE = 4;
   const MIN_TRANSFORM_SIZE = 12;
 
   const stage = new Konva.Stage({
@@ -856,10 +853,6 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if (textPressIntent) {
-      updateTextPressIntent(event, worldPoint);
-    }
-
     if (currentTool === TOOLS.PEN) {
       showBrushCursor(worldPoint);
       return;
@@ -885,11 +878,6 @@ export function createWhiteboardApp(root) {
   }
 
   function handlePointerUp() {
-    if (textPressIntent) {
-      finishTextPressIntent();
-      return;
-    }
-
     if (isPanning) {
       isPanning = false;
       panStart = null;
@@ -979,10 +967,6 @@ export function createWhiteboardApp(root) {
         beginSelectionDrag(worldPoint);
         return;
       }
-      if (element && ["text", "sticky"].includes(element.type) && !event.evt.shiftKey) {
-        beginTextPressIntent(targetElement, event, worldPoint);
-        return;
-      }
       selectElementById(targetElement, event.evt.shiftKey);
       return;
     }
@@ -1000,43 +984,6 @@ export function createWhiteboardApp(root) {
       visible: true,
     });
     contentLayer.batchDraw();
-  }
-
-  function beginTextPressIntent(id, event, worldPoint) {
-    textPressIntent = {
-      id,
-      pointerId: event.evt.pointerId,
-      startWorld: worldPoint,
-      startClient: { x: event.evt.clientX, y: event.evt.clientY },
-      moved: false,
-    };
-  }
-
-  function updateTextPressIntent(event, worldPoint) {
-    if (event.evt.pointerId !== textPressIntent.pointerId) return;
-    const dx = event.evt.clientX - textPressIntent.startClient.x;
-    const dy = event.evt.clientY - textPressIntent.startClient.y;
-    if (getTextPointerIntent({ dx, dy, threshold: TEXT_DRAG_MOVE_TOLERANCE }) !== "drag") return;
-
-    textPressIntent.moved = true;
-    selectElementById(textPressIntent.id, false);
-    if (!selectionDrag) beginSelectionDrag(textPressIntent.startWorld);
-    updateSelectionDrag(worldPoint);
-  }
-
-  function finishTextPressIntent() {
-    const intent = textPressIntent;
-    textPressIntent = null;
-
-    if (selectionDrag) {
-      finishSelectionDrag();
-      return;
-    }
-
-    if (!intent.moved) {
-      selectElementById(intent.id, false);
-      requestAnimationFrame(() => editTextElement(intent.id));
-    }
   }
 
   function beginSelectionDrag(worldPoint) {
@@ -1393,6 +1340,15 @@ export function createWhiteboardApp(root) {
         event.cancelBubble = true;
         const id = getElementIdFromNode(node);
         selectElementById(id, event.evt.shiftKey);
+      },
+      onEdit: (event, node) => {
+        if (currentTool !== TOOLS.SELECT) return;
+        event.cancelBubble = true;
+        const id = getElementIdFromNode(node);
+        const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
+        if (!editable || editable.locked) return;
+        selectIds([id]);
+        requestAnimationFrame(() => editTextElement(id));
       },
     });
   }

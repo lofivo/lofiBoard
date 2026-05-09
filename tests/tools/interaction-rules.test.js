@@ -5,7 +5,6 @@ import {
   getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
-  getTextPointerIntent,
   getTransformerAnchorsForSelection,
   isTransformerTarget,
   isTextWidthResizeAnchor,
@@ -74,12 +73,6 @@ describe("interaction rules", () => {
   it("keeps the default text editor height to one line", () => {
     expect(getSingleLineTextEditorHeight(28, 1)).toBe(35);
     expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
-  });
-
-  it("edits text on click and only enters selection drag after movement", () => {
-    expect(getTextPointerIntent({ dx: 0, dy: 0 })).toBe("edit");
-    expect(getTextPointerIntent({ dx: 3, dy: 2 })).toBe("edit");
-    expect(getTextPointerIntent({ dx: 5, dy: 0 })).toBe("drag");
   });
 
   it("adds an ellipsis when truncating layer labels", () => {

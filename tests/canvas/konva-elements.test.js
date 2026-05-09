@@ -257,4 +257,32 @@ describe("konva elements", () => {
 
     expect(handlers.onSelect).toHaveBeenCalledTimes(1);
   });
+
+  it("wires double click callbacks for text editing", () => {
+    const handlers = {
+      draggable: false,
+      onMove: vi.fn(),
+      onSelect: vi.fn(),
+      onEdit: vi.fn(),
+    };
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Hello",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, handlers);
+
+    node.fire("dblclick", { cancelBubble: false });
+
+    expect(handlers.onEdit).toHaveBeenCalledWith(expect.objectContaining({ cancelBubble: false }), node);
+  });
 });

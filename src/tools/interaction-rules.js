@@ -63,10 +63,6 @@ export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 
   return (Number(fontSize) || 0) * scale * lineHeight;
 }
 
-export function getTextPointerIntent({ dx = 0, dy = 0, threshold = 4 }) {
-  return Math.hypot(dx, dy) > threshold ? "drag" : "edit";
-}
-
 export function truncateWithEllipsis(value, maxLength) {
   const text = String(value ?? "");
   const length = Math.max(1, Number(maxLength) || 1);

@@ -41,7 +41,7 @@ export function syncTextNodeContent(node, element) {
   });
 }
 
-export function createElementNode(element, { draggable, onMove, onSelect, onDragStart, onDragMove }) {
+export function createElementNode(element, { draggable, onMove, onSelect, onEdit, onDragStart, onDragMove }) {
   let node;
   const common = {
     id: element.id,
@@ -211,6 +211,7 @@ export function createElementNode(element, { draggable, onMove, onSelect, onDrag
     }
     onSelect(event, node);
   });
+  node.on("dblclick dbltap", (event) => onEdit?.(event, node));
   return node;
 }
 
