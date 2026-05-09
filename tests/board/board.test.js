@@ -40,6 +40,7 @@ describe("board model", () => {
       fontFamily: "Inter, system-ui, sans-serif",
       fontStyle: "normal",
       textDecoration: "",
+      padding: 6,
       fill: "#111827",
     });
   });

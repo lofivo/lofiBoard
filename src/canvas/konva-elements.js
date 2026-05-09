@@ -3,7 +3,7 @@ import { flattenPoints } from "./geometry.js";
 
 const imageCache = new Map();
 
-export function createElementNode(element, { draggable, onMove, onSelect, onEditText }) {
+export function createElementNode(element, { draggable, onMove, onSelect }) {
   let node;
   const common = {
     id: element.id,
@@ -43,8 +43,8 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       textDecoration: element.textDecoration ?? "",
       fill: element.fill,
       lineHeight: 1.25,
+      padding: 0,
     });
-    node.on("dblclick dbltap", () => onEditText(element.id));
   } else if (element.type === "sticky") {
     node = new Konva.Group({
       ...common,
@@ -78,7 +78,6 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       fill: element.textFill ?? "#1f2937",
       lineHeight: 1.25,
     }));
-    node.on("dblclick dbltap", () => onEditText(element.id));
   } else if (element.type === "image") {
     node = new Konva.Image({
       ...common,

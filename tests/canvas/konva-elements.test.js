@@ -40,12 +40,14 @@ describe("konva elements", () => {
       fontFamily: "Georgia, serif",
       fontStyle: "bold italic",
       textDecoration: "underline line-through",
+      padding: 6,
       fill: "#111827",
     }, baseHandlers);
 
     expect(node.fontFamily()).toBe("Georgia, serif");
     expect(node.fontStyle()).toBe("bold italic");
     expect(node.textDecoration()).toBe("underline line-through");
+    expect(node.padding()).toBe(0);
   });
 
   it("reuses loaded image instances so rerendering does not flash blank", () => {

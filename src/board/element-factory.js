@@ -9,6 +9,7 @@ export const DEFAULT_TEXT_STYLE = Object.freeze({
   fontFamily: "Inter, system-ui, sans-serif",
   fontStyle: "normal",
   textDecoration: "",
+  padding: 6,
 });
 
 export function createTextElement({ point, zIndex }) {
@@ -24,6 +25,7 @@ export function createTextElement({ point, zIndex }) {
     fontFamily: DEFAULT_TEXT_STYLE.fontFamily,
     fontStyle: DEFAULT_TEXT_STYLE.fontStyle,
     textDecoration: DEFAULT_TEXT_STYLE.textDecoration,
+    padding: DEFAULT_TEXT_STYLE.padding,
     fill: DEFAULT_TEXT_STYLE.fill,
     rotation: 0,
     scaleX: 1,

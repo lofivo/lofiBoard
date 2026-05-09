@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getMinimumTextResizeWidth,
   getSelectionHitRadius,
+  getSingleLineTextEditorHeight,
   getTransformerAnchorsForSelection,
   isTransformerTarget,
   isTextWidthResizeAnchor,
@@ -62,6 +63,11 @@ describe("interaction rules", () => {
     expect(getMinimumTextResizeWidth(24)).toBe(24);
     expect(getMinimumTextResizeWidth(0)).toBe(8);
     expect(getMinimumTextResizeWidth(undefined)).toBe(8);
+  });
+
+  it("keeps the default text editor height to one line", () => {
+    expect(getSingleLineTextEditorHeight(28, 1)).toBe(35);
+    expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
   });
 
   it("ignores the canvas click that closes an active text editor", () => {

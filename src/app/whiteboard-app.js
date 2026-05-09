@@ -41,6 +41,7 @@ import {
 } from "../services/image-import-service.js";
 import {
   getSelectionHitRadius,
+  getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
   getTransformerAnchorsForSelection,
   isTextWidthResizeAnchor,
@@ -111,6 +112,7 @@ export function createWhiteboardApp(root) {
   let shapeDraft = null;
   let selectionDraft = null;
   let selectionDrag = null;
+  let textPressIntent = null;
   let eraseSnapshot = null;
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
@@ -125,6 +127,8 @@ export function createWhiteboardApp(root) {
   let statusTimer = null;
   let dirty = false;
 
+  const TEXT_DRAG_MOVE_TOLERANCE = 4;
+
   const stage = new Konva.Stage({
     container,
     width: container.clientWidth,
@@ -138,12 +142,18 @@ export function createWhiteboardApp(root) {
 
   const transformer = new Konva.Transformer({
     rotateEnabled: true,
+    flipEnabled: false,
     borderStroke: "#2563eb",
     anchorStroke: "#2563eb",
     anchorFill: "#ffffff",
     anchorSize: 9,
     padding: 6,
     ignoreStroke: true,
+    boundBoxFunc: (oldBox, newBox) => {
+      if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
+      if (newBox.width < 12 || newBox.height < 12) return oldBox;
+      return newBox;
+    },
   });
   overlayLayer.add(transformer);
 
@@ -250,6 +260,7 @@ export function createWhiteboardApp(root) {
 
     transformer.on("transform", syncTextWidthResize);
     transformer.on("dragend transformend", () => {
+      if (isEditingText) return;
       syncSelectedNodes();
       pushHistory("已更新选择对象");
     });
@@ -694,6 +705,9 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    if (textPressIntent) {
+      updateTextPressIntent(event, worldPoint);
+    }
 
     if (currentTool === TOOLS.ERASER_STROKE && eraseSnapshot) {
       const radius = updateEraserRadius(worldPoint);
@@ -710,6 +724,11 @@ export function createWhiteboardApp(root) {
   }
 
   function handlePointerUp() {
+    if (textPressIntent) {
+      finishTextPressIntent();
+      return;
+    }
+
     if (isPanning) {
       isPanning = false;
       panStart = null;
@@ -794,6 +813,11 @@ export function createWhiteboardApp(root) {
   function handleSelectPointerDown(event, worldPoint) {
     const targetElement = getElementIdFromNode(event.target);
     if (targetElement) {
+      const element = board.elements.find((item) => item.id === targetElement);
+      if (element && ["text", "sticky"].includes(element.type) && !event.evt.shiftKey) {
+        beginTextPressIntent(targetElement, event, worldPoint);
+        return;
+      }
       selectElementById(targetElement, event.evt.shiftKey);
       return;
     }
@@ -811,6 +835,44 @@ export function createWhiteboardApp(root) {
       visible: true,
     });
     contentLayer.batchDraw();
+  }
+
+  function beginTextPressIntent(id, event, worldPoint) {
+    textPressIntent = {
+      id,
+      pointerId: event.evt.pointerId,
+      startWorld: worldPoint,
+      startClient: { x: event.evt.clientX, y: event.evt.clientY },
+      moved: false,
+    };
+    selectElementById(id, false);
+  }
+
+  function updateTextPressIntent(event, worldPoint) {
+    if (event.evt.pointerId !== textPressIntent.pointerId) return;
+    const dx = event.evt.clientX - textPressIntent.startClient.x;
+    const dy = event.evt.clientY - textPressIntent.startClient.y;
+    const movedEnough = Math.hypot(dx, dy) > TEXT_DRAG_MOVE_TOLERANCE;
+    if (!movedEnough) return;
+
+    textPressIntent.moved = true;
+    if (!selectionDrag) beginSelectionDrag(textPressIntent.startWorld);
+    updateSelectionDrag(worldPoint);
+  }
+
+  function finishTextPressIntent() {
+    const intent = textPressIntent;
+    textPressIntent = null;
+
+    if (selectionDrag) {
+      finishSelectionDrag();
+      return;
+    }
+
+    if (!intent.moved) {
+      selectElementById(intent.id, false);
+      requestAnimationFrame(() => editTextElement(intent.id));
+    }
   }
 
   function beginSelectionDrag(worldPoint) {
@@ -1025,8 +1087,7 @@ export function createWhiteboardApp(root) {
 
   function createNode(element) {
     return createElementNode(element, {
-      draggable: currentTool === TOOLS.SELECT && !element.locked,
-      onEditText: editTextElement,
+      draggable: currentTool === TOOLS.SELECT && !element.locked && !["text", "sticky"].includes(element.type),
       onMove: (node) => {
         if (isElementLocked(getElementIdFromNode(node))) return;
         snapNodeToAlignment(node);
@@ -1103,7 +1164,9 @@ export function createWhiteboardApp(root) {
 
   function updateDraggableState() {
     contentLayer.find(".element").forEach((node) => {
-      node.draggable(currentTool === TOOLS.SELECT && !isElementLocked(getElementIdFromNode(node)));
+      const id = getElementIdFromNode(node);
+      const element = board.elements.find((item) => item.id === id);
+      node.draggable(currentTool === TOOLS.SELECT && !isElementLocked(id) && !["text", "sticky"].includes(element?.type));
     });
   }
 
@@ -1121,7 +1184,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === id);
     if (element?.type !== "text") return;
 
-    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize), node.width() * node.scaleX());
+    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize), node.width() * Math.abs(node.scaleX()));
     node.width(nextWidth);
     node.scaleX(1);
     transformer.forceUpdate();
@@ -1573,42 +1636,87 @@ export function createWhiteboardApp(root) {
 
     isEditingText = true;
     transformer.hide();
-    node.hide();
     contentLayer.draw();
 
     const editorFrame = document.createElement("div");
     editorFrame.className = "text-editor-frame";
     const textarea = document.createElement("textarea");
     textarea.className = "text-editor";
+    textarea.rows = 1;
     textarea.value = element.text;
     editorFrame.appendChild(textarea);
-    for (const anchor of ["top-left", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-right"]) {
-      const handle = document.createElement("button");
-      handle.type = "button";
-      handle.className = "text-editor-handle";
-      handle.dataset.editorAnchor = anchor;
-      handle.setAttribute("aria-label", "调整文本框大小");
-      editorFrame.appendChild(handle);
-    }
+    const measureTextarea = document.createElement("textarea");
+    measureTextarea.className = "text-editor text-editor-measure";
+    measureTextarea.tabIndex = -1;
+    measureTextarea.rows = 1;
+    measureTextarea.value = element.text;
+    document.body.appendChild(measureTextarea);
     const originalText = element.text;
     document.body.appendChild(editorFrame);
 
     const box = stage.container().getBoundingClientRect();
     const absolute = node.getAbsolutePosition();
     const scale = stage.scaleX() * (node.scaleX() || 1);
-    const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale;
-    const minEditorHeight = element.fontSize * 1.25 * scale;
+    const editorPadding = Number(element.padding ?? 6);
+    const horizontalPadding = editorPadding * scale;
+    const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale + horizontalPadding * 2;
+    const minEditorHeight = getSingleLineTextEditorHeight(element.fontSize, scale);
     const editorWidth = Math.max(minEditorWidth, node.width() * scale);
     const editorHeight = Math.max(minEditorHeight, (node.height?.() || element.height || element.fontSize * 1.25) * scale);
+    const maxAutoEditorWidth = editorWidth;
+    let hasManualEditorResize = false;
 
-    const setEditorSize = (width, height) => {
-      editorFrame.style.width = `${Math.max(minEditorWidth, width)}px`;
-      editorFrame.style.height = `${Math.max(minEditorHeight, height)}px`;
+    const getEditorWidth = () => Math.max(minEditorWidth, editorFrame.offsetWidth || editorWidth);
+    const applyNodeSizeFromEditor = () => {
+      node.width(editorFrame.offsetWidth / scale);
+      node.height(editorFrame.offsetHeight / scale);
     };
 
-    const fitEditorHeight = () => {
-      editorFrame.style.height = `${minEditorHeight}px`;
-      editorFrame.style.height = `${Math.max(minEditorHeight, textarea.scrollHeight)}px`;
+    const measureTextHeight = (width = getEditorWidth()) => {
+      measureTextarea.value = textarea.value || " ";
+      measureTextarea.style.width = `${Math.max(minEditorWidth, width)}px`;
+      measureTextarea.style.boxSizing = "border-box";
+      measureTextarea.style.fontSize = textarea.style.fontSize;
+      measureTextarea.style.padding = textarea.style.padding;
+      measureTextarea.style.fontFamily = textarea.style.fontFamily;
+      measureTextarea.style.fontStyle = textarea.style.fontStyle;
+      measureTextarea.style.fontWeight = textarea.style.fontWeight;
+      measureTextarea.style.textDecoration = textarea.style.textDecoration;
+      measureTextarea.style.lineHeight = textarea.style.lineHeight || "1.25";
+      return Math.max(minEditorHeight, Math.ceil(measureTextarea.scrollHeight));
+    };
+
+    const setEditorSize = (width, height = measureTextHeight(width)) => {
+      const nextWidth = Math.max(minEditorWidth, width);
+      const nextHeight = Math.max(minEditorHeight, height);
+      editorFrame.style.width = `${nextWidth}px`;
+      editorFrame.style.height = `${nextHeight}px`;
+    };
+
+    const getTextMeasureContext = () => {
+      const canvas = getTextMeasureContext.canvas ?? document.createElement("canvas");
+      getTextMeasureContext.canvas = canvas;
+      return canvas.getContext("2d");
+    };
+
+    const getTextLineWidth = (line) => {
+      const context = getTextMeasureContext();
+      const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
+      const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
+      context.font = `${fontStyle} ${fontWeight} ${element.fontSize * scale}px ${element.fontFamily}`;
+      return context.measureText(line || " ").width;
+    };
+
+    const fitEditorToContent = () => {
+      const lines = textarea.value.split("\n");
+      const contentWidth = Math.max(...lines.map(getTextLineWidth));
+      const canAutoFitWidth = !hasManualEditorResize && !originalText;
+      const nextWidth = canAutoFitWidth && textarea.value
+        ? Math.min(maxAutoEditorWidth, Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1)))
+        : getEditorWidth();
+      setEditorSize(nextWidth);
+      applyNodeSizeFromEditor();
+      transformer.forceUpdate();
     };
 
     editorFrame.style.left = `${box.left + absolute.x}px`;
@@ -1617,6 +1725,7 @@ export function createWhiteboardApp(root) {
     editorFrame.style.minWidth = `${minEditorWidth}px`;
     editorFrame.style.minHeight = `${minEditorHeight}px`;
     textarea.style.fontSize = `${element.fontSize * scale}px`;
+    textarea.style.padding = `0 ${horizontalPadding}px`;
     textarea.style.color = element.type === "sticky" ? element.textFill : element.fill;
     if (element.type === "sticky") {
       textarea.style.background = element.fill;
@@ -1627,12 +1736,69 @@ export function createWhiteboardApp(root) {
     textarea.style.fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
     textarea.style.textDecoration = element.textDecoration || "none";
     editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
-    fitEditorHeight();
+    applyNodeSizeFromEditor();
+    node.hide();
+    transformer.nodes([node]);
+    transformer.visible(true);
+    transformer.resizeEnabled(true);
+    transformer.rotateEnabled(true);
+    transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
+    const previousBoundBoxFunc = transformer.boundBoxFunc();
+    transformer.boundBoxFunc((oldBox, newBox) => {
+      if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
+      if (newBox.width < minEditorWidth || newBox.height < minEditorHeight) return oldBox;
+      return newBox;
+    });
+    transformer.forceUpdate();
+    overlayLayer.batchDraw();
     textarea.focus();
-    textarea.select();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
     let editorClosed = false;
-    let isResizingEditor = false;
+    let isTransformingEditor = false;
+
+    const syncEditorFrameFromNode = () => {
+      const nextAbsolute = node.getAbsolutePosition();
+      const nextFontScale = Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
+      const rawWidth = node.width() * stage.scaleX() * Math.max(0.001, Math.abs(node.scaleX() || 1));
+      const nextWidth = Math.max(minEditorWidth, rawWidth);
+      editorFrame.style.left = `${box.left + nextAbsolute.x}px`;
+      editorFrame.style.top = `${box.top + nextAbsolute.y}px`;
+      editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
+      textarea.style.fontSize = `${element.fontSize * stage.scaleX() * nextFontScale}px`;
+      setEditorSize(nextWidth);
+    };
+
+    const handleEditorTransform = () => {
+      isTransformingEditor = true;
+      hasManualEditorResize = true;
+      if (node.scaleX() < 0 || node.scaleY() < 0) {
+        node.scaleX(Math.max(0.001, node.scaleX()));
+        node.scaleY(Math.max(0.001, node.scaleY()));
+      }
+      if (isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) {
+        syncTextWidthResize();
+      }
+      syncEditorFrameFromNode();
+    };
+
+    const handleEditorTransformEnd = () => {
+      syncEditorFrameFromNode();
+      applyNodeSizeFromEditor();
+      transformer.forceUpdate();
+      window.setTimeout(() => {
+        isTransformingEditor = false;
+        textarea.focus();
+      });
+    };
+
+    transformer.on("transform.editor dragmove.editor", handleEditorTransform);
+    transformer.on("transformend.editor dragend.editor", handleEditorTransformEnd);
+
+    const cleanupEditorTransformer = () => {
+      transformer.off(".editor");
+      transformer.boundBoxFunc(previousBoundBoxFunc);
+    };
 
     const commit = () => {
       if (editorClosed) return;
@@ -1641,7 +1807,10 @@ export function createWhiteboardApp(root) {
       const nextText = textarea.value.trim();
       const committedWidth = editorFrame.offsetWidth;
       const committedHeight = editorFrame.offsetHeight;
+      const committedScale = Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
       editorFrame.remove();
+      measureTextarea.remove();
+      cleanupEditorTransformer();
 
       if (!nextText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
@@ -1654,10 +1823,17 @@ export function createWhiteboardApp(root) {
 
       board.elements = board.elements.map((item) => {
         if (item.id !== id) return item;
-        const nextElement = { ...item, text: nextText };
+        const nextFontSize = item.type === "text" ? Math.max(8, item.fontSize * committedScale) : item.fontSize;
+        const nextElement = {
+          ...item,
+          text: nextText,
+          fontSize: nextFontSize,
+          scaleX: 1,
+          scaleY: 1,
+        };
         if (item.type === "text") {
-          nextElement.width = Math.max(getMinimumTextResizeWidth(item.fontSize), committedWidth / scale);
-          nextElement.height = Math.max(item.fontSize * 1.25, committedHeight / scale);
+          nextElement.width = Math.max(getMinimumTextResizeWidth(nextFontSize) + editorPadding * 2, committedWidth / scale);
+          nextElement.height = Math.max(nextFontSize * 1.25, committedHeight / scale);
         }
         if (item.type === "sticky") {
           nextElement.width = Math.max(80, committedWidth / scale);
@@ -1675,6 +1851,8 @@ export function createWhiteboardApp(root) {
       editorClosed = true;
       isEditingText = false;
       editorFrame.remove();
+      measureTextarea.remove();
+      cleanupEditorTransformer();
 
       if (!originalText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
@@ -1700,70 +1878,12 @@ export function createWhiteboardApp(root) {
         cancel();
       }
     });
-    textarea.addEventListener("input", fitEditorHeight);
+    textarea.addEventListener("input", fitEditorToContent);
     textarea.addEventListener("blur", () => {
       window.setTimeout(() => {
-        if (!isResizingEditor) commit();
+        if (!isTransformingEditor && !transformer.isTransforming?.()) commit();
       });
     });
-    editorFrame.addEventListener("pointerdown", startEditorResize);
-
-    function startEditorResize(event) {
-      const handle = event.target.closest("[data-editor-anchor]");
-      if (!handle) return;
-
-      event.preventDefault();
-      isResizingEditor = true;
-      const anchor = handle.dataset.editorAnchor;
-      const startX = event.clientX;
-      const startY = event.clientY;
-      const startLeft = parseFloat(editorFrame.style.left);
-      const startTop = parseFloat(editorFrame.style.top);
-      const startWidth = editorFrame.offsetWidth;
-      const startHeight = editorFrame.offsetHeight;
-
-      handle.setPointerCapture?.(event.pointerId);
-
-      const resizeEditor = (moveEvent) => {
-        moveEvent.preventDefault();
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
-        let nextLeft = startLeft;
-        let nextTop = startTop;
-        let nextWidth = startWidth;
-        let nextHeight = startHeight;
-
-        if (anchor.includes("left")) {
-          nextWidth = Math.max(minEditorWidth, startWidth - dx);
-          nextLeft = startLeft + startWidth - nextWidth;
-        }
-        if (anchor.includes("right")) {
-          nextWidth = Math.max(minEditorWidth, startWidth + dx);
-        }
-        if (anchor.includes("top")) {
-          nextHeight = Math.max(minEditorHeight, startHeight - dy);
-          nextTop = startTop + startHeight - nextHeight;
-        }
-        if (anchor.includes("bottom")) {
-          nextHeight = Math.max(minEditorHeight, startHeight + dy);
-        }
-
-        editorFrame.style.left = `${nextLeft}px`;
-        editorFrame.style.top = `${nextTop}px`;
-        setEditorSize(nextWidth, nextHeight);
-      };
-
-      const finishResize = () => {
-        handle.releasePointerCapture?.(event.pointerId);
-        window.removeEventListener("pointermove", resizeEditor);
-        window.removeEventListener("pointerup", finishResize);
-        isResizingEditor = false;
-        textarea.focus();
-      };
-
-      window.addEventListener("pointermove", resizeEditor);
-      window.addEventListener("pointerup", finishResize, { once: true });
-    }
   }
 
   async function openBoardFile() {

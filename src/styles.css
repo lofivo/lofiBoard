@@ -759,13 +759,11 @@ button {
   position: fixed;
   z-index: 40;
   box-sizing: border-box;
-  border: 1px solid #2563eb;
-  border-radius: 4px;
   transform-origin: left top;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .text-editor {
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   min-height: 1.25em;
@@ -779,51 +777,14 @@ button {
   caret-color: #2563eb;
 }
 
-.text-editor-handle {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  padding: 0;
-  border: 1px solid #2563eb;
-  border-radius: 2px;
-  background: #ffffff;
-  transform: translate(-50%, -50%);
-}
-
-.text-editor-handle[data-editor-anchor="top-left"] {
-  top: 0;
-  left: 0;
-  cursor: nwse-resize;
-}
-
-.text-editor-handle[data-editor-anchor="top-right"] {
-  top: 0;
-  left: 100%;
-  cursor: nesw-resize;
-}
-
-.text-editor-handle[data-editor-anchor="middle-left"] {
-  top: 50%;
-  left: 0;
-  cursor: ew-resize;
-}
-
-.text-editor-handle[data-editor-anchor="middle-right"] {
-  top: 50%;
-  left: 100%;
-  cursor: ew-resize;
-}
-
-.text-editor-handle[data-editor-anchor="bottom-left"] {
-  top: 100%;
-  left: 0;
-  cursor: nesw-resize;
-}
-
-.text-editor-handle[data-editor-anchor="bottom-right"] {
-  top: 100%;
-  left: 100%;
-  cursor: nwse-resize;
+.text-editor-measure {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  height: auto;
+  min-height: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 @media (max-width: 760px) {

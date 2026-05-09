@@ -59,6 +59,10 @@ export function getMinimumTextResizeWidth(fontSize) {
   return Math.max(8, Number(fontSize) || 0);
 }
 
+export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 1.25) {
+  return (Number(fontSize) || 0) * scale * lineHeight;
+}
+
 export function getSelectionHitRadius(scale) {
   return Math.max(6, Math.round(12 / scale));
 }

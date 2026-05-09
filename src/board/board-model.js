@@ -25,6 +25,7 @@ const ELEMENT_DEFAULTS = {
     fill: "#111827",
     width: 260,
     height: 35,
+    padding: 6,
     rotation: 0,
   },
   sticky: {
