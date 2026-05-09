@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createElementNode, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
+import { createElementNode, syncTextNodeContent, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
 
 const baseHandlers = {
   draggable: false,
@@ -84,6 +84,46 @@ describe("konva elements", () => {
     expect(textNode.x()).toBe(6);
     expect(textNode.width()).toBe(148);
     expect(textNode.height()).toBe(105);
+  });
+
+  it("syncs grouped text content and font changes before drawing", () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "123456",
+      width: 120,
+      height: 35,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+
+    syncTextNodeContent(node, {
+      id: "text_1",
+      type: "text",
+      text: "123456",
+      width: 120,
+      height: 122,
+      fontSize: 96,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "bold",
+      textDecoration: "underline",
+      padding: 6,
+      fill: "#2563eb",
+    });
+
+    const textNode = node.findOne("Text");
+    expect(node.height()).toBe(122);
+    expect(textNode.height()).toBe(122);
+    expect(textNode.fontSize()).toBe(96);
+    expect(textNode.fontStyle()).toBe("bold");
+    expect(textNode.textDecoration()).toBe("underline");
+    expect(textNode.fill()).toBe("#2563eb");
   });
 
   it("reuses loaded image instances so rerendering does not flash blank", () => {

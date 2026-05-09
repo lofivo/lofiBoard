@@ -196,6 +196,7 @@ describe("interaction rules", () => {
       width: 200,
       fontSize: 20,
       padding: 6,
+      verticalGap: 0,
       measureText,
     })).toEqual({ width: 200, height: 25 });
     expect(getNormalizedTextBox({
@@ -203,8 +204,35 @@ describe("interaction rules", () => {
       width: 47,
       fontSize: 20,
       padding: 6,
+      verticalGap: 0,
       measureText,
     }).height).toBeGreaterThan(25);
+  });
+
+  it("adds a small vertical gap when normalizing text boxes", () => {
+    const measureText = (value) => String(value).length * 10;
+
+    expect(getNormalizedTextBox({
+      text: "123456",
+      width: 400,
+      fontSize: 20,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    }).height).toBe(27);
+  });
+
+  it("counts every character line for narrow unspaced text", () => {
+    const measureText = (value) => String(value).length * 96;
+
+    expect(getNormalizedTextBox({
+      text: "123456",
+      width: 108,
+      fontSize: 96,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    })).toEqual({ width: 108, height: 722 });
   });
 
   it("clamps resize anchors before they cross the opposite edge", () => {

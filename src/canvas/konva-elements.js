@@ -16,7 +16,28 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
   textNode.x(horizontalPadding);
   textNode.y(0);
   textNode.width(Math.max(1, nextWidth - horizontalPadding * 2));
+  textNode.height("auto");
   textNode.height(nextHeight);
+}
+
+export function syncTextNodeContent(node, element) {
+  const textNode = node?.findOne?.("Text");
+  if (!textNode || element?.type !== "text") return;
+  textNode.setAttrs({
+    text: element.text,
+    fontSize: element.fontSize,
+    fontFamily: element.fontFamily,
+    fontStyle: element.fontStyle ?? "normal",
+    textDecoration: element.textDecoration ?? "",
+    fill: element.fill,
+    lineHeight: 1.25,
+    padding: 0,
+  });
+  syncTextNodeSize(node, {
+    width: element.width,
+    height: element.height,
+    padding: element.padding ?? 0,
+  });
 }
 
 export function createElementNode(element, { draggable, onMove, onSelect }) {
@@ -68,11 +89,7 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
       lineHeight: 1.25,
       padding: 0,
     }));
-    syncTextNodeSize(node, {
-      width: element.width,
-      height: element.height,
-      padding: horizontalPadding,
-    });
+    syncTextNodeContent(node, element);
   } else if (element.type === "sticky") {
     node = new Konva.Group({
       ...common,

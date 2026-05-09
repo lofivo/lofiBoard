@@ -110,13 +110,20 @@ export function measureWrappedTextHeight({
     for (const token of tokens.length ? tokens : [" "]) {
       const tokenWidth = measure(token);
       if (tokenWidth > width) {
-        if (currentWidth > 0) {
-          lines += 1;
-          currentWidth = 0;
+        for (const character of Array.from(token)) {
+          const characterWidth = Math.max(1, measure(character));
+          if (currentWidth > 0 && currentWidth + characterWidth > width) {
+            lines += 1;
+            currentWidth = 0;
+          }
+          if (characterWidth > width) {
+            lines += Math.max(0, Math.ceil(characterWidth / width) - 1);
+            currentWidth = characterWidth % width;
+            if (currentWidth === 0) currentWidth = width;
+          } else {
+            currentWidth += characterWidth;
+          }
         }
-        lines += Math.max(0, Math.ceil(tokenWidth / width) - 1);
-        currentWidth = tokenWidth % width;
-        if (currentWidth === 0) currentWidth = width;
         continue;
       }
       if (currentWidth > 0 && currentWidth + tokenWidth > width) {
@@ -139,6 +146,7 @@ export function getNormalizedTextBox({
   fontSize,
   padding = 0,
   lineHeight = 1.25,
+  verticalGap = 2,
   measureText,
 }) {
   const size = Math.max(1, Number(fontSize) || 1);
@@ -154,7 +162,7 @@ export function getNormalizedTextBox({
       lineHeight,
       measureText,
       minHeight: size * lineHeight,
-    }),
+    }) + Math.max(0, Number(verticalGap) || 0),
   };
 }
 

@@ -32,6 +32,7 @@ import { createId } from "../board/ids.js";
 import {
   createElementNode,
   createNodeAttrs,
+  syncTextNodeContent,
   syncTextNodeSize,
 } from "../canvas/konva-elements.js";
 import {
@@ -1128,6 +1129,9 @@ export function createWhiteboardApp(root) {
 
   function applyElementToNode(element, node) {
     node.setAttrs(createNodeAttrs(element));
+    if (element.type === "text") {
+      syncTextNodeContent(node, element);
+    }
   }
 
   function renderBoard() {
@@ -1294,6 +1298,7 @@ export function createWhiteboardApp(root) {
       fontSize: element.fontSize,
       padding,
       lineHeight: 1.25,
+      verticalGap: 2,
       measureText: (value) => context.measureText(value || " ").width,
     });
   }
@@ -1904,20 +1909,7 @@ export function createWhiteboardApp(root) {
     };
 
     const applyCommittedTextToNode = (nextElement) => {
-      const textNode = node.findOne("Text");
-      textNode?.setAttrs({
-        text: nextElement.text,
-        fontSize: nextElement.fontSize,
-        fontFamily: nextElement.fontFamily,
-        fontStyle: nextElement.fontStyle ?? "normal",
-        textDecoration: nextElement.textDecoration ?? "",
-        fill: nextElement.fill,
-      });
-      syncTextNodeSize(node, {
-        width: nextElement.width,
-        height: nextElement.height,
-        padding: nextElement.padding ?? 0,
-      });
+      syncTextNodeContent(node, nextElement);
       node.scaleX(1);
       node.scaleY(1);
     };
