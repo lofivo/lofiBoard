@@ -11,6 +11,41 @@ const baseHandlers = {
 describe("konva elements", () => {
   afterEach(() => {
     delete globalThis.window;
+    delete globalThis.document;
+  });
+
+  it("applies text font styling to Konva text nodes", () => {
+    const context = {
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      getImageData: () => ({ data: [0, 0, 0, 0] }),
+      measureText: () => ({ width: 60 }),
+      font: "",
+    };
+    globalThis.document = {
+      createElement: () => ({
+        getContext: () => context,
+      }),
+    };
+
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Hello",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Georgia, serif",
+      fontStyle: "bold italic",
+      textDecoration: "underline line-through",
+      fill: "#111827",
+    }, baseHandlers);
+
+    expect(node.fontFamily()).toBe("Georgia, serif");
+    expect(node.fontStyle()).toBe("bold italic");
+    expect(node.textDecoration()).toBe("underline line-through");
   });
 
   it("reuses loaded image instances so rerendering does not flash blank", () => {

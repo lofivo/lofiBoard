@@ -5,6 +5,7 @@ import {
   contextMenuMarkup,
   MENU_ICON,
   PANEL_ICON,
+  TEXT_FORMAT_ICONS,
   icon,
   menuItemsMarkup,
   shapePopoverMarkup,
@@ -65,6 +66,23 @@ export function renderShell() {
           字号
           <input data-control="font-size" type="range" min="12" max="96" value="28" />
         </label>
+        <label class="control-font-family">
+          字体
+          <select data-control="font-family">
+            <option value="Inter, system-ui, sans-serif">Inter</option>
+            <option value="Arial, Helvetica, sans-serif">Arial</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Times New Roman', Times, serif">Times</option>
+            <option value="'Courier New', Courier, monospace">Courier</option>
+            <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">中文黑体</option>
+          </select>
+        </label>
+        <div class="control-text-format" role="group" aria-label="文字样式">
+          <button type="button" data-text-style="bold" title="加粗" aria-label="加粗">${icon(TEXT_FORMAT_ICONS.bold)}</button>
+          <button type="button" data-text-style="italic" title="斜体" aria-label="斜体">${icon(TEXT_FORMAT_ICONS.italic)}</button>
+          <button type="button" data-text-style="underline" title="下划线" aria-label="下划线">${icon(TEXT_FORMAT_ICONS.underline)}</button>
+          <button type="button" data-text-style="strike" title="删除线" aria-label="删除线">${icon(TEXT_FORMAT_ICONS.strike)}</button>
+        </div>
         <div class="quick-actions">
           <button type="button" data-action="bring-front">置顶</button>
           <button type="button" data-action="send-back">置底</button>

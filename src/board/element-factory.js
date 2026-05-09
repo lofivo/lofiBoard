@@ -3,17 +3,28 @@ import { createId } from "./ids.js";
 import { getFillValue } from "../tools/tool-behavior.js";
 import { TOOLS } from "../ui/ui-config.js";
 
-export function createTextElement({ point, color, fontSize, zIndex }) {
+export const DEFAULT_TEXT_STYLE = Object.freeze({
+  fill: "#111827",
+  fontSize: 28,
+  fontFamily: "Inter, system-ui, sans-serif",
+  fontStyle: "normal",
+  textDecoration: "",
+});
+
+export function createTextElement({ point, zIndex }) {
   return {
     id: createId("text"),
     type: "text",
     x: point.x,
     y: point.y,
     text: "",
-    width: 280,
-    fontSize,
-    fontFamily: "Inter, system-ui, sans-serif",
-    fill: color,
+    width: 220,
+    height: DEFAULT_TEXT_STYLE.fontSize * 1.25,
+    fontSize: DEFAULT_TEXT_STYLE.fontSize,
+    fontFamily: DEFAULT_TEXT_STYLE.fontFamily,
+    fontStyle: DEFAULT_TEXT_STYLE.fontStyle,
+    textDecoration: DEFAULT_TEXT_STYLE.textDecoration,
+    fill: DEFAULT_TEXT_STYLE.fill,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,

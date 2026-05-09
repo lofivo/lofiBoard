@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Bold,
   ChevronDown,
   Clipboard,
   Circle,
@@ -10,6 +11,7 @@ import {
   FolderOpen,
   Grid2X2,
   Hand,
+  Italic,
   LocateFixed,
   Lock,
   Minus,
@@ -29,8 +31,10 @@ import {
   StickyNote,
   Trash2,
   Type,
+  Underline,
   Undo2,
   Redo2,
+  Strikethrough,
 } from "lucide-static";
 
 export const TOOLS = {
@@ -91,6 +95,12 @@ export const BACKGROUND_ICON = Grid2X2;
 export const PANEL_ICON = PanelTop;
 export const ZOOM_OUT_ICON = Minus;
 export const ZOOM_IN_ICON = Plus;
+export const TEXT_FORMAT_ICONS = {
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  strike: Strikethrough,
+};
 
 export const CONTEXT_MENU_ITEMS = [
   { action: "copy", label: "复制", icon: Copy },

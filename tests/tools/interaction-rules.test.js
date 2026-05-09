@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  getMinimumTextResizeWidth,
   getSelectionHitRadius,
+  getTransformerAnchorsForSelection,
   isTransformerTarget,
+  isTextWidthResizeAnchor,
   nextToolAfterTextPlacement,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
@@ -29,6 +32,36 @@ describe("interaction rules", () => {
   it("returns to select after placing text", () => {
     expect(nextToolAfterTextPlacement(TOOLS.TEXT)).toBe(TOOLS.SELECT);
     expect(nextToolAfterTextPlacement(TOOLS.PEN)).toBe(TOOLS.PEN);
+  });
+
+  it("keeps text selection resizing on corners and side width handles", () => {
+    expect(getTransformerAnchorsForSelection([{ type: "text" }], true)).toEqual([
+      "top-left",
+      "top-right",
+      "middle-left",
+      "middle-right",
+      "bottom-left",
+      "bottom-right",
+    ]);
+  });
+
+  it("keeps full resize handles for non-text or mixed selections", () => {
+    expect(getTransformerAnchorsForSelection([{ type: "rect" }], true)).toContain("middle-left");
+    expect(getTransformerAnchorsForSelection([{ type: "text" }, { type: "rect" }], true)).toContain("top-center");
+    expect(getTransformerAnchorsForSelection([{ type: "text" }], false)).toEqual([]);
+  });
+
+  it("identifies text width-only resize handles", () => {
+    expect(isTextWidthResizeAnchor("middle-left")).toBe(true);
+    expect(isTextWidthResizeAnchor("middle-right")).toBe(true);
+    expect(isTextWidthResizeAnchor("top-left")).toBe(false);
+    expect(isTextWidthResizeAnchor("top-center")).toBe(false);
+  });
+
+  it("uses current character size as the minimum text resize width", () => {
+    expect(getMinimumTextResizeWidth(24)).toBe(24);
+    expect(getMinimumTextResizeWidth(0)).toBe(8);
+    expect(getMinimumTextResizeWidth(undefined)).toBe(8);
   });
 
   it("ignores the canvas click that closes an active text editor", () => {

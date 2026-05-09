@@ -41,6 +41,9 @@ import {
 } from "../services/image-import-service.js";
 import {
   getSelectionHitRadius,
+  getMinimumTextResizeWidth,
+  getTransformerAnchorsForSelection,
+  isTextWidthResizeAnchor,
   nextToolAfterTextPlacement,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
@@ -85,6 +88,7 @@ export function createWhiteboardApp(root) {
   const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
   const widthInput = root.querySelector("[data-control='width']");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
+  const fontFamilyInput = root.querySelector("[data-control='font-family']");
   const zoomLabel = root.querySelector("[data-zoom]");
   const zoomButton = root.querySelector("[data-zoom-trigger]");
   const zoomMenu = root.querySelector("[data-zoom-menu]");
@@ -126,17 +130,6 @@ export function createWhiteboardApp(root) {
     width: container.clientWidth,
     height: container.clientHeight,
   });
-
-  const transformerAnchors = [
-    "top-left",
-    "top-center",
-    "top-right",
-    "middle-left",
-    "middle-right",
-    "bottom-left",
-    "bottom-center",
-    "bottom-right",
-  ];
 
   const contentLayer = new Konva.Layer();
   const overlayLayer = new Konva.Layer();
@@ -229,6 +222,10 @@ export function createWhiteboardApp(root) {
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
     fontSizeInput.addEventListener("input", applyStyleToSelection);
+    fontFamilyInput.addEventListener("change", applyStyleToSelection);
+    root.querySelectorAll("[data-text-style]").forEach((button) => {
+      button.addEventListener("click", () => toggleTextStyle(button.dataset.textStyle));
+    });
     zoomButton.addEventListener("click", toggleZoomMenu);
     zoomOutButton.addEventListener("click", () => zoomBy(1 / 1.25));
     zoomInButton.addEventListener("click", () => zoomBy(1.25));
@@ -251,6 +248,7 @@ export function createWhiteboardApp(root) {
     stage.on("pointerup pointercancel", handlePointerUp);
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
+    transformer.on("transform", syncTextWidthResize);
     transformer.on("dragend transformend", () => {
       syncSelectedNodes();
       pushHistory("已更新选择对象");
@@ -633,8 +631,6 @@ export function createWhiteboardApp(root) {
     if (currentTool === TOOLS.TEXT) {
       const element = buildTextElement({
         point: worldPoint,
-        color: colorInput.value,
-        fontSize: Number(fontSizeInput.value),
         zIndex: board.elements.length,
       });
       addElement(element, "已添加文字");
@@ -1102,7 +1098,7 @@ export function createWhiteboardApp(root) {
     transformer.visible(hasSelection);
     transformer.resizeEnabled(canTransform);
     transformer.rotateEnabled(canTransform);
-    transformer.enabledAnchors(canTransform ? transformerAnchors : []);
+    transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
   }
 
   function updateDraggableState() {
@@ -1114,6 +1110,22 @@ export function createWhiteboardApp(root) {
   function syncSelectedNodes() {
     transformer.nodes().forEach(syncNodeToElement);
     renderBoard();
+  }
+
+  function syncTextWidthResize() {
+    if (!isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) return;
+    const nodes = transformer.nodes();
+    if (nodes.length !== 1) return;
+    const node = nodes[0];
+    const id = getElementIdFromNode(node);
+    const element = board.elements.find((item) => item.id === id);
+    if (element?.type !== "text") return;
+
+    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize), node.width() * node.scaleX());
+    node.width(nextWidth);
+    node.scaleX(1);
+    transformer.forceUpdate();
+    contentLayer.batchDraw();
   }
 
   function syncNodeToElement(node) {
@@ -1239,14 +1251,19 @@ export function createWhiteboardApp(root) {
       return;
     }
 
+    const nextFontSize = Number(fontSizeInput.value);
     board.elements = board.elements.map((element) => {
       if (!selectedIds.includes(element.id)) return element;
       if (element.locked) return element;
       if (element.type === "text") {
+        const previousFontSize = Number(element.fontSize) || nextFontSize;
+        const nextHeight = Math.max(nextFontSize * 1.25, (element.height ?? previousFontSize * 1.25) * (nextFontSize / previousFontSize));
         return {
           ...element,
           fill: colorInput.value,
-          fontSize: Number(fontSizeInput.value),
+          fontSize: nextFontSize,
+          height: nextHeight,
+          fontFamily: fontFamilyInput.value,
         };
       }
       if (element.type === "sticky") {
@@ -1254,7 +1271,8 @@ export function createWhiteboardApp(root) {
           ...element,
           textFill: colorInput.value,
           fill: getFillValue({ transparent: false, color: fillInput.value }),
-          fontSize: Number(fontSizeInput.value),
+          fontSize: nextFontSize,
+          fontFamily: fontFamilyInput.value,
         };
       }
       if (element.type === "arrow") {
@@ -1278,6 +1296,33 @@ export function createWhiteboardApp(root) {
 
     renderBoard();
     pushHistory("已更新样式");
+  }
+
+  function toggleTextStyle(style) {
+    if (!["bold", "italic", "underline", "strike"].includes(style)) return;
+    if (selectedIds.length === 0) return;
+
+    board.elements = board.elements.map((element) => {
+      if (!selectedIds.includes(element.id) || element.locked || !["text", "sticky"].includes(element.type)) {
+        return element;
+      }
+
+      if (style === "bold" || style === "italic") {
+        return {
+          ...element,
+          fontStyle: toggleFontStyleToken(element.fontStyle, style),
+        };
+      }
+
+      const decoration = style === "underline" ? "underline" : "line-through";
+      return {
+        ...element,
+        textDecoration: toggleTextDecorationToken(element.textDecoration, decoration),
+      };
+    });
+
+    renderBoard();
+    pushHistory("已更新文字样式");
   }
 
   function selectAllElements() {
@@ -1531,20 +1576,46 @@ export function createWhiteboardApp(root) {
     node.hide();
     contentLayer.draw();
 
+    const editorFrame = document.createElement("div");
+    editorFrame.className = "text-editor-frame";
     const textarea = document.createElement("textarea");
     textarea.className = "text-editor";
     textarea.value = element.text;
+    editorFrame.appendChild(textarea);
+    for (const anchor of ["top-left", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-right"]) {
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.className = "text-editor-handle";
+      handle.dataset.editorAnchor = anchor;
+      handle.setAttribute("aria-label", "调整文本框大小");
+      editorFrame.appendChild(handle);
+    }
     const originalText = element.text;
-    document.body.appendChild(textarea);
+    document.body.appendChild(editorFrame);
 
     const box = stage.container().getBoundingClientRect();
     const absolute = node.getAbsolutePosition();
     const scale = stage.scaleX() * (node.scaleX() || 1);
+    const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale;
+    const minEditorHeight = element.fontSize * 1.25 * scale;
+    const editorWidth = Math.max(minEditorWidth, node.width() * scale);
+    const editorHeight = Math.max(minEditorHeight, (node.height?.() || element.height || element.fontSize * 1.25) * scale);
 
-    textarea.style.left = `${box.left + absolute.x}px`;
-    textarea.style.top = `${box.top + absolute.y}px`;
-    textarea.style.width = `${Math.max(160, node.width() * scale)}px`;
-    textarea.style.height = `${Math.max(80, (node.height?.() || element.height || 42) * scale)}px`;
+    const setEditorSize = (width, height) => {
+      editorFrame.style.width = `${Math.max(minEditorWidth, width)}px`;
+      editorFrame.style.height = `${Math.max(minEditorHeight, height)}px`;
+    };
+
+    const fitEditorHeight = () => {
+      editorFrame.style.height = `${minEditorHeight}px`;
+      editorFrame.style.height = `${Math.max(minEditorHeight, textarea.scrollHeight)}px`;
+    };
+
+    editorFrame.style.left = `${box.left + absolute.x}px`;
+    editorFrame.style.top = `${box.top + absolute.y}px`;
+    setEditorSize(editorWidth, editorHeight);
+    editorFrame.style.minWidth = `${minEditorWidth}px`;
+    editorFrame.style.minHeight = `${minEditorHeight}px`;
     textarea.style.fontSize = `${element.fontSize * scale}px`;
     textarea.style.color = element.type === "sticky" ? element.textFill : element.fill;
     if (element.type === "sticky") {
@@ -1552,18 +1623,25 @@ export function createWhiteboardApp(root) {
       textarea.style.padding = "10px";
     }
     textarea.style.fontFamily = element.fontFamily;
-    textarea.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
+    textarea.style.fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
+    textarea.style.fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
+    textarea.style.textDecoration = element.textDecoration || "none";
+    editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
+    fitEditorHeight();
     textarea.focus();
     textarea.select();
 
     let editorClosed = false;
+    let isResizingEditor = false;
 
     const commit = () => {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
       const nextText = textarea.value.trim();
-      textarea.remove();
+      const committedWidth = editorFrame.offsetWidth;
+      const committedHeight = editorFrame.offsetHeight;
+      editorFrame.remove();
 
       if (!nextText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
@@ -1574,7 +1652,19 @@ export function createWhiteboardApp(root) {
         return;
       }
 
-      board.elements = board.elements.map((item) => (item.id === id ? { ...item, text: nextText } : item));
+      board.elements = board.elements.map((item) => {
+        if (item.id !== id) return item;
+        const nextElement = { ...item, text: nextText };
+        if (item.type === "text") {
+          nextElement.width = Math.max(getMinimumTextResizeWidth(item.fontSize), committedWidth / scale);
+          nextElement.height = Math.max(item.fontSize * 1.25, committedHeight / scale);
+        }
+        if (item.type === "sticky") {
+          nextElement.width = Math.max(80, committedWidth / scale);
+          nextElement.height = Math.max(60, committedHeight / scale);
+        }
+        return nextElement;
+      });
       transformer.show();
       renderBoard();
       pushHistory("已编辑文字");
@@ -1584,7 +1674,7 @@ export function createWhiteboardApp(root) {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
-      textarea.remove();
+      editorFrame.remove();
 
       if (!originalText && element.type !== "sticky") {
         board.elements = removeElementsById(board.elements, [id]);
@@ -1610,7 +1700,70 @@ export function createWhiteboardApp(root) {
         cancel();
       }
     });
-    textarea.addEventListener("blur", commit, { once: true });
+    textarea.addEventListener("input", fitEditorHeight);
+    textarea.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        if (!isResizingEditor) commit();
+      });
+    });
+    editorFrame.addEventListener("pointerdown", startEditorResize);
+
+    function startEditorResize(event) {
+      const handle = event.target.closest("[data-editor-anchor]");
+      if (!handle) return;
+
+      event.preventDefault();
+      isResizingEditor = true;
+      const anchor = handle.dataset.editorAnchor;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = parseFloat(editorFrame.style.left);
+      const startTop = parseFloat(editorFrame.style.top);
+      const startWidth = editorFrame.offsetWidth;
+      const startHeight = editorFrame.offsetHeight;
+
+      handle.setPointerCapture?.(event.pointerId);
+
+      const resizeEditor = (moveEvent) => {
+        moveEvent.preventDefault();
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        let nextLeft = startLeft;
+        let nextTop = startTop;
+        let nextWidth = startWidth;
+        let nextHeight = startHeight;
+
+        if (anchor.includes("left")) {
+          nextWidth = Math.max(minEditorWidth, startWidth - dx);
+          nextLeft = startLeft + startWidth - nextWidth;
+        }
+        if (anchor.includes("right")) {
+          nextWidth = Math.max(minEditorWidth, startWidth + dx);
+        }
+        if (anchor.includes("top")) {
+          nextHeight = Math.max(minEditorHeight, startHeight - dy);
+          nextTop = startTop + startHeight - nextHeight;
+        }
+        if (anchor.includes("bottom")) {
+          nextHeight = Math.max(minEditorHeight, startHeight + dy);
+        }
+
+        editorFrame.style.left = `${nextLeft}px`;
+        editorFrame.style.top = `${nextTop}px`;
+        setEditorSize(nextWidth, nextHeight);
+      };
+
+      const finishResize = () => {
+        handle.releasePointerCapture?.(event.pointerId);
+        window.removeEventListener("pointermove", resizeEditor);
+        window.removeEventListener("pointerup", finishResize);
+        isResizingEditor = false;
+        textarea.focus();
+      };
+
+      window.addEventListener("pointermove", resizeEditor);
+      window.addEventListener("pointerup", finishResize, { once: true });
+    }
   }
 
   async function openBoardFile() {
@@ -1697,8 +1850,6 @@ export function createWhiteboardApp(root) {
     const element = {
       ...buildTextElement({
         point,
-        color: colorInput.value,
-        fontSize: Number(fontSizeInput.value),
         zIndex: board.elements.length,
       }),
       text,
@@ -1929,6 +2080,42 @@ export function createWhiteboardApp(root) {
       .replaceAll("'", "&#039;");
   }
 
+  function getTokenSet(value) {
+    return new Set(String(value ?? "").split(/\s+/).filter((token) => token && token !== "normal" && token !== "none"));
+  }
+
+  function formatTokens(tokens, fallback = "") {
+    return Array.from(tokens).join(" ") || fallback;
+  }
+
+  function hasFontStyle(value, token) {
+    return getTokenSet(value).has(token);
+  }
+
+  function hasTextDecoration(value, token) {
+    return getTokenSet(value).has(token);
+  }
+
+  function toggleFontStyleToken(value, token) {
+    const tokens = getTokenSet(value);
+    if (tokens.has(token)) {
+      tokens.delete(token);
+    } else {
+      tokens.add(token);
+    }
+    return formatTokens(tokens, "normal");
+  }
+
+  function toggleTextDecorationToken(value, token) {
+    const tokens = getTokenSet(value);
+    if (tokens.has(token)) {
+      tokens.delete(token);
+    } else {
+      tokens.add(token);
+    }
+    return formatTokens(tokens);
+  }
+
   function updateContextPanel() {
     const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
     const first = selectedElements[0];
@@ -1947,7 +2134,7 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if ([TOOLS.PEN, TOOLS.TEXT, TOOLS.STICKY, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
+    if ([TOOLS.PEN, TOOLS.STICKY, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
@@ -1974,6 +2161,19 @@ export function createWhiteboardApp(root) {
     if (element.fill && element.type === "text") colorInput.value = element.fill;
     if (element.strokeWidth) widthInput.value = String(element.strokeWidth);
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
+    if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
+    updateTextStyleButtons(element);
+  }
+
+  function updateTextStyleButtons(element) {
+    root.querySelectorAll("[data-text-style]").forEach((button) => {
+      const style = button.dataset.textStyle;
+      const active = style === "bold" || style === "italic"
+        ? hasFontStyle(element.fontStyle, style)
+        : hasTextDecoration(element.textDecoration, style === "underline" ? "underline" : "line-through");
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
 
   function setStatus(message) {

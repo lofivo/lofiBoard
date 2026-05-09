@@ -37,6 +37,9 @@ describe("board model", () => {
       x: 0,
       y: 0,
       fontSize: 28,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
       fill: "#111827",
     });
   });

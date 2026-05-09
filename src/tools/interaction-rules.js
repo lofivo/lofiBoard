@@ -1,5 +1,32 @@
 import { TOOLS } from "../ui/ui-config.js";
 
+export const CORNER_TRANSFORMER_ANCHORS = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+];
+
+export const TEXT_TRANSFORMER_ANCHORS = [
+  "top-left",
+  "top-right",
+  "middle-left",
+  "middle-right",
+  "bottom-left",
+  "bottom-right",
+];
+
+export const ALL_TRANSFORMER_ANCHORS = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "middle-left",
+  "middle-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+];
+
 export function isTransformerTarget(target) {
   let node = target;
   while (node) {
@@ -15,6 +42,21 @@ export function shouldIgnoreCanvasPointerDown({ target, isEditingText }) {
 
 export function nextToolAfterTextPlacement(tool) {
   return tool === TOOLS.TEXT ? TOOLS.SELECT : tool;
+}
+
+export function getTransformerAnchorsForSelection(elements, canTransform) {
+  if (!canTransform || !Array.isArray(elements) || elements.length === 0) return [];
+  return elements.every((element) => element.type === "text")
+    ? TEXT_TRANSFORMER_ANCHORS
+    : ALL_TRANSFORMER_ANCHORS;
+}
+
+export function isTextWidthResizeAnchor(anchor) {
+  return anchor === "middle-left" || anchor === "middle-right";
+}
+
+export function getMinimumTextResizeWidth(fontSize) {
+  return Math.max(8, Number(fontSize) || 0);
 }
 
 export function getSelectionHitRadius(scale) {

@@ -36,8 +36,11 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       y: element.y,
       text: element.text,
       width: element.width,
+      height: element.height,
       fontSize: element.fontSize,
       fontFamily: element.fontFamily,
+      fontStyle: element.fontStyle ?? "normal",
+      textDecoration: element.textDecoration ?? "",
       fill: element.fill,
       lineHeight: 1.25,
     });
@@ -70,6 +73,8 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       text: element.text,
       fontSize: element.fontSize,
       fontFamily: element.fontFamily,
+      fontStyle: element.fontStyle ?? "normal",
+      textDecoration: element.textDecoration ?? "",
       fill: element.textFill ?? "#1f2937",
       lineHeight: 1.25,
     }));
