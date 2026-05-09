@@ -146,6 +146,7 @@ export function createWhiteboardApp(root) {
   const structureInput = root.querySelector("[data-structure-input]");
   const contextMenu = root.querySelector("[data-context-menu]");
   const layerPanel = root.querySelector("[data-layer-panel]");
+  const panelBody = root.querySelector("[data-panel-body]");
   const colorInput = root.querySelector("[data-control='color']");
   const fillInput = root.querySelector("[data-control='fill']");
   const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
@@ -163,6 +164,8 @@ export function createWhiteboardApp(root) {
   const zoomInButton = root.querySelector("[data-zoom-in]");
   const imageInput = root.querySelector("[data-image-input]");
   const layerList = root.querySelector("[data-layer-list]");
+  const inspectorSectionButtons = Array.from(root.querySelectorAll("[data-section-toggle]"));
+  const linearSectionButtons = Array.from(root.querySelectorAll("[data-linear-toggle]"));
   const linearFieldInputs = {
     currentIndex: root.querySelector("[data-linear-field='current-index']"),
     currentValue: root.querySelector("[data-linear-field='current-value']"),
@@ -215,6 +218,20 @@ export function createWhiteboardApp(root) {
   let suppressLinearItemSelect = null;
   let suppressSelectionDragOnce = false;
   let suppressedNodeDragElementId = null;
+  let inspectorSectionsState = {
+    appearance: true,
+    linear: false,
+    graph: false,
+    tree: false,
+    arrange: false,
+  };
+  let linearGroupState = {
+    edit: true,
+    highlight: false,
+    semantic: false,
+    more: false,
+  };
+  let activeInspectorContext = "appearance";
   let linearPanelState = {
     currentIndex: "0",
     currentValue: "",
@@ -407,6 +424,26 @@ export function createWhiteboardApp(root) {
     for (const button of root.querySelectorAll("[data-panel-toggle]")) {
       button.addEventListener("click", () => togglePanel(button.dataset.panelToggle));
     }
+    inspectorSectionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.sectionToggle;
+        inspectorSectionsState = {
+          ...inspectorSectionsState,
+          [key]: !inspectorSectionsState[key],
+        };
+        applyInspectorSectionState();
+      });
+    });
+    linearSectionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.linearToggle;
+        linearGroupState = {
+          ...linearGroupState,
+          [key]: !linearGroupState[key],
+        };
+        applyLinearGroupState();
+      });
+    });
     Object.entries(linearFieldInputs).forEach(([key, input]) => {
       if (!input) return;
       input.addEventListener("input", () => {
@@ -663,6 +700,91 @@ export function createWhiteboardApp(root) {
       "is-visible",
       shouldShowPanelEdgeToggle({ collapsed: panelCollapsedState.layers, available: layerPanelAvailable }),
     );
+  }
+
+  function getInspectorContext() {
+    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
+    if (selectedElements.length > 0) {
+      if (selectedElements.every((element) => isLinearStructureElement(element))) {
+        return "linear";
+      }
+      if (selectedElements.every((element) => element.type === "graph-structure")) {
+        return "graph";
+      }
+      if (selectedElements.every((element) => element.type === "tree-structure")) {
+        return "tree";
+      }
+      return "appearance";
+    }
+    return "appearance";
+  }
+
+  function getDefaultInspectorSections(context) {
+    return {
+      appearance: context === "appearance",
+      linear: context === "linear",
+      graph: context === "graph",
+      tree: context === "tree",
+      arrange: false,
+    };
+  }
+
+  function getVisibleInspectorSections(context) {
+    return {
+      appearance: true,
+      linear: context === "linear",
+      graph: context === "graph",
+      tree: context === "tree",
+      arrange: selectedIds.length > 0,
+    };
+  }
+
+  function getDefaultLinearGroupState() {
+    return {
+      edit: true,
+      highlight: false,
+      semantic: false,
+      more: false,
+    };
+  }
+
+  function applyInspectorSectionState() {
+    const visibleSections = getVisibleInspectorSections(activeInspectorContext);
+    root.querySelectorAll("[data-inspector-section]").forEach((section) => {
+      const key = section.dataset.inspectorSection;
+      const isVisible = Boolean(visibleSections[key]);
+      const expanded = isVisible && Boolean(inspectorSectionsState[key]);
+      section.hidden = !isVisible;
+      section.dataset.collapsed = expanded ? "false" : "true";
+      const button = section.querySelector("[data-section-toggle]");
+      const content = section.querySelector("[data-section-content]");
+      button?.setAttribute("aria-expanded", String(expanded));
+      content?.setAttribute("aria-hidden", String(!expanded));
+    });
+  }
+
+  function applyLinearGroupState() {
+    root.querySelectorAll("[data-linear-group]").forEach((group) => {
+      const key = group.dataset.linearGroup;
+      const expanded = Boolean(linearGroupState[key]);
+      group.dataset.collapsed = expanded ? "false" : "true";
+      const button = group.querySelector("[data-linear-toggle]");
+      const content = group.querySelector("[data-linear-content]");
+      button?.setAttribute("aria-expanded", String(expanded));
+      content?.setAttribute("aria-hidden", String(!expanded));
+    });
+  }
+
+  function syncInspectorPanelState({ forceReset = false } = {}) {
+    const nextContext = getInspectorContext();
+    if (forceReset || nextContext !== activeInspectorContext) {
+      activeInspectorContext = nextContext;
+      inspectorSectionsState = getDefaultInspectorSections(nextContext);
+      linearGroupState = getDefaultLinearGroupState();
+    }
+    applyInspectorSectionState();
+    applyLinearGroupState();
+    panelBody?.scrollTo?.(0, 0);
   }
 
   function bindUiEvents() {
@@ -3543,6 +3665,7 @@ export function createWhiteboardApp(root) {
       );
     });
     syncLinearPanelState();
+    syncInspectorPanelState();
     updateLayerPanelAvailability();
     renderLayerPanel();
     updateContextPanel();

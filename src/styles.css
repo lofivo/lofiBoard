@@ -451,12 +451,13 @@ button {
   z-index: 26;
   top: 50%;
   left: 16px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: 320px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  max-height: calc(100vh - 168px);
   padding: 10px;
   border-radius: 8px;
+  overflow: hidden;
   transform: translateY(-50%);
   transition:
     opacity 140ms ease,
@@ -545,9 +546,9 @@ button {
 
 .panel-title {
   display: flex;
-  grid-column: 1 / -1;
   align-items: center;
   gap: 7px;
+  flex: 0 0 auto;
   color: #64748b;
   font-size: 12px;
 }
@@ -574,7 +575,99 @@ button {
   background: #eef2ff;
 }
 
-.style-panel label {
+.panel-body {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
+
+.inspector-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.inspector-section[hidden] {
+  display: none;
+}
+
+.inspector-section-toggle,
+.linear-panel-toggle {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  color: #334155;
+  text-align: left;
+}
+
+.inspector-section-title,
+.linear-panel-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.inspector-section-chevron,
+.linear-panel-chevron {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.inspector-section[data-collapsed="false"] .inspector-section-chevron,
+.linear-panel-group[data-collapsed="false"] .linear-panel-chevron {
+  transform: rotate(180deg);
+}
+
+.inspector-section-content,
+.linear-panel-content {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 160ms ease,
+    opacity 140ms ease;
+}
+
+.inspector-section[data-collapsed="true"] .inspector-section-content,
+.linear-panel-group[data-collapsed="true"] .linear-panel-content {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.inspector-section-content > *,
+.linear-panel-content > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.inspector-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.inspector-section-grid-appearance {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.style-panel label,
+.linear-field {
   display: grid;
   min-width: 0;
   gap: 5px;
@@ -582,31 +675,32 @@ button {
   font-size: 12px;
 }
 
+.linear-field {
+  gap: 4px;
+  color: #475569;
+}
+
+.linear-field-wide {
+  grid-column: 1 / -1;
+}
+
 .control-fill-transparent {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .control-fill-transparent input {
+  flex: 0 0 auto;
   accent-color: #2563eb;
 }
 
-.style-panel input[type="color"] {
-  width: 100%;
-  height: 32px;
-  padding: 3px;
-  border: 1px solid #dbe3ef;
-  border-radius: 7px;
-  background: #ffffff;
-}
-
-.style-panel input[type="range"] {
-  width: 100%;
-  accent-color: #2563eb;
-}
-
+.style-panel input[type="color"],
+.style-panel input[type="text"],
+.style-panel input[type="number"],
 .style-panel select {
   width: 100%;
+  min-width: 0;
   height: 32px;
   border: 1px solid #dbe3ef;
   border-radius: 7px;
@@ -615,21 +709,41 @@ button {
   font-size: 12px;
 }
 
+.style-panel input[type="color"] {
+  padding: 3px;
+}
+
+.style-panel input[type="text"],
+.style-panel input[type="number"],
+.style-panel select,
+.linear-field input {
+  padding: 0 10px;
+}
+
+.style-panel input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: #2563eb;
+}
+
 .control-text-format {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
-.control-text-format button {
+.control-text-format button,
+.quick-actions button {
   display: grid;
   place-items: center;
+  min-width: 0;
   height: 32px;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
   background: #ffffff;
   color: #334155;
+  font-size: 13px;
 }
 
 .control-text-format button.active {
@@ -640,40 +754,22 @@ button {
 
 .quick-actions {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
 .linear-structure-panel {
   display: grid;
-  grid-column: 1 / -1;
   gap: 10px;
 }
 
 .linear-panel-group {
   display: grid;
   gap: 8px;
-  grid-column: 1 / -1;
   padding: 10px;
   border: 1px solid #dbe4f0;
   border-radius: 10px;
-  background: #f8fafc;
-}
-
-.linear-panel-group-more summary {
-  list-style: none;
-  cursor: pointer;
-}
-
-.linear-panel-group-more summary::-webkit-details-marker {
-  display: none;
-}
-
-.linear-panel-heading {
-  font-size: 12px;
-  font-weight: 700;
-  color: #334155;
+  background: #ffffff;
 }
 
 .linear-panel-fields {
@@ -682,22 +778,12 @@ button {
   gap: 8px;
 }
 
-.linear-field {
-  display: grid;
-  gap: 4px;
-  color: #475569;
-  font-size: 12px;
-}
-
-.linear-field-wide {
-  grid-column: 1 / -1;
-}
-
 .linear-field input {
+  width: 100%;
+  min-width: 0;
   height: 32px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 0 10px;
   color: #0f172a;
   background: #ffffff;
   font-size: 13px;
@@ -705,15 +791,6 @@ button {
 
 .quick-actions-linear {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.quick-actions button {
-  height: 32px;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #ffffff;
-  color: #334155;
-  font-size: 13px;
 }
 
 .layer-list {
@@ -770,26 +847,6 @@ button {
 [data-panel-mode="brush"] .control-fill-transparent,
 [data-panel-mode="stroke"] .control-fill,
 [data-panel-mode="stroke"] .control-fill-transparent,
-[data-panel-mode="tool"] .quick-actions,
-[data-panel-mode="brush"] .quick-actions,
-[data-panel-mode="linear-tool"] .quick-actions,
-[data-panel-mode="tool-text"] .quick-actions {
-  display: none;
-}
-
-[data-panel-mode="tool"] .linear-structure-panel,
-[data-panel-mode="brush"] .linear-structure-panel,
-[data-panel-mode="linear-tool"] .linear-structure-panel,
-[data-panel-mode="tool-text"] .linear-structure-panel,
-[data-panel-mode="element"] .linear-structure-panel,
-[data-panel-mode="text"] .linear-structure-panel,
-[data-panel-mode="linear"] .linear-structure-panel,
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] .linear-structure-panel,
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] .linear-structure-panel,
-[data-panel-mode="structure"][data-structure-selection="none"] .linear-structure-panel {
-  display: none;
-}
-
 [data-panel-mode="element"] .control-font,
 [data-panel-mode="element"] .control-font-family,
 [data-panel-mode="element"] .control-text-format,
@@ -797,74 +854,6 @@ button {
 [data-panel-mode="element"] .control-brush-smoothing,
 [data-panel-mode="element"] .control-brush-cap,
 [data-panel-mode="element"] .control-brush-style,
-[data-panel-mode="structure"] .control-line,
-[data-panel-mode="structure"] .control-fill,
-[data-panel-mode="structure"] .control-fill-transparent,
-[data-panel-mode="structure"] .control-width,
-[data-panel-mode="structure"] .control-font,
-[data-panel-mode="structure"] .control-font-family,
-[data-panel-mode="structure"] .control-text-format,
-[data-panel-mode="structure"] .control-brush-opacity,
-[data-panel-mode="structure"] .control-brush-smoothing,
-[data-panel-mode="structure"] .control-brush-cap,
-[data-panel-mode="structure"] .control-brush-style,
-[data-panel-mode="element"] [data-action^="array-"],
-[data-panel-mode="element"] [data-action^="linear-"],
-[data-panel-mode="element"] [data-action^="stack-"],
-[data-panel-mode="element"] [data-action^="queue-"],
-[data-panel-mode="element"] [data-action^="deque-"],
-[data-panel-mode="text"] [data-action^="array-"],
-[data-panel-mode="text"] [data-action^="linear-"],
-[data-panel-mode="text"] [data-action^="stack-"],
-[data-panel-mode="text"] [data-action^="queue-"],
-[data-panel-mode="text"] [data-action^="deque-"],
-[data-panel-mode="linear"] [data-action^="array-"],
-[data-panel-mode="linear"] [data-action^="linear-"],
-[data-panel-mode="linear"] [data-action^="stack-"],
-[data-panel-mode="linear"] [data-action^="queue-"],
-[data-panel-mode="linear"] [data-action^="deque-"],
-[data-panel-mode="element"] [data-action^="graph-"],
-[data-panel-mode="text"] [data-action^="graph-"],
-[data-panel-mode="linear"] [data-action^="graph-"],
-[data-panel-mode="element"] [data-action^="tree-"],
-[data-panel-mode="text"] [data-action^="tree-"],
-[data-panel-mode="linear"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="array-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="linear-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="array-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="linear-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="tree-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="array-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="linear-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="stack-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="queue-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="deque-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="graph-"],
-[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="tree-"],
 [data-panel-mode="linear"] .control-font,
 [data-panel-mode="linear"] .control-font-family,
 [data-panel-mode="linear"] .control-text-format,
@@ -1090,6 +1079,17 @@ button {
   pointer-events: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .style-panel,
+  .layer-panel,
+  .inspector-section-content,
+  .linear-panel-content,
+  .inspector-section-chevron,
+  .linear-panel-chevron {
+    transition: none;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     top: 8px;
@@ -1110,6 +1110,7 @@ button {
     right: 8px;
     left: 8px;
     width: auto;
+    max-height: calc(100vh - 180px);
     transform: none;
   }
 
