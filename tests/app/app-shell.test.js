@@ -125,4 +125,65 @@ describe("app shell", () => {
     expect(appSource).toContain("}) + 2 * scale");
     expect(appSource).toContain("verticalGap: 2");
   });
+
+  it("hides transformer handles while linear item drag preview is active", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("if (linearItemDragState)");
+    expect(appSource).toContain("transformer.enabledAnchors([])");
+    expect(appSource).toContain("transformer.visible(false)");
+  });
+
+  it("lets value-cell pointer down start whole-array drag only when the array is already selected", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain('event.target?.hasName?.("array-item-value-hit")');
+    expect(appSource).toContain('event.target?.findAncestor?.(".array-item-value-hit")');
+    expect(appSource).toContain("if (arrayValueHitNode && isLinearStructureElement(element))");
+    expect(appSource).toContain("targetIds.some((id) => selectedIds.includes(id))");
+    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+  });
+
+  it("does not auto-activate the first linear item just because the array itself became selected", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("if (!selectedLinear) {");
+    expect(appSource).toContain("activeLinearItem = null;");
+    expect(appSource).toContain("} else if (activeLinearItem?.elementId === selectedLinear.id) {");
+    expect(appSource).not.toContain("setActiveLinearItem(selectedLinear.id, 0, { syncPanel: false })");
+  });
+
+  it("cancels root-node drag state when committing a linear item reorder", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("suppressSelectionDragOnce = true");
+    expect(appSource).toContain("suppressedNodeDragElementId = dragState.elementId");
+    expect(appSource).toContain("contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag()");
+    expect(appSource).toContain("nodeDragSelection = null");
+    expect(appSource).toContain("selectionDrag = null");
+  });
+
+  it("selects the array from index click without auto-activating an item until the array is already selected", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("if (selectedIds.some((id) => targetIds.includes(id))) {");
+    expect(appSource).toContain("setActiveLinearItem(elementId, index)");
+    expect(appSource).toContain("selectIds([elementId])");
+  });
+
+  it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("itemNode.setAttrs({");
+    expect(appSource).not.toContain("itemNode.shadowBlur(");
+    expect(appSource).toContain("indicator.visible(false)");
+  });
+
+  it("starts whole-array drag from index press movement even when the array is already selected", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const pressedElementId = linearItemPressState.elementId");
+    expect(appSource).toContain("if (!selectedIds.some((id) => targetIds.includes(id))) {");
+    expect(appSource).toContain("beginSelectionDrag(pressStart)");
+  });
 });

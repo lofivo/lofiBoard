@@ -80,6 +80,7 @@ import {
   TOOLS,
 } from "../ui/ui-config.js";
 import {
+  ARRAY_STRUCTURE_STYLE,
   STRUCTURE_TYPES,
   LINEAR_STRUCTURE_TYPES,
   createStructureElements,
@@ -209,7 +210,11 @@ export function createWhiteboardApp(root) {
   let graphConnectState = null;
   let activeTreeParent = null;
   let activeLinearItem = null;
-  let linearItemHoldState = null;
+  let linearItemPressState = null;
+  let linearItemDragState = null;
+  let suppressLinearItemSelect = null;
+  let suppressSelectionDragOnce = false;
+  let suppressedNodeDragElementId = null;
   let linearPanelState = {
     currentIndex: "0",
     currentValue: "",
@@ -326,6 +331,10 @@ export function createWhiteboardApp(root) {
 
   return {
     getBoard: () => serializeCurrentBoard(),
+    __debug: {
+      getSelectedIds: () => [...selectedIds],
+      getActiveLinearItem: () => (activeLinearItem ? { ...activeLinearItem } : null),
+    },
     destroy: () => stage.destroy(),
   };
 
@@ -992,6 +1001,32 @@ export function createWhiteboardApp(root) {
     if (!worldPoint) return;
     lastPointerWorldPoint = worldPoint;
 
+    if (linearItemDragState) {
+      updateLinearItemDrag(worldPoint);
+      return;
+    }
+
+    if (linearItemPressState?.phase === "start" && linearItemPressState.startWorldPoint) {
+      const pressStart = linearItemPressState.startWorldPoint;
+      const pressedElementId = linearItemPressState.elementId;
+      linearItemPressState = {
+        ...linearItemPressState,
+        currentWorldPoint: worldPoint,
+      };
+      const distance = Math.hypot(
+        worldPoint.x - pressStart.x,
+        worldPoint.y - pressStart.y,
+      );
+      if (distance > 6) {
+        const targetIds = expandGroupedIds([pressedElementId]);
+        if (!selectedIds.some((id) => targetIds.includes(id))) {
+          selectIds([pressedElementId]);
+        }
+        beginSelectionDrag(pressStart);
+        resetLinearItemPressState();
+      }
+    }
+
     if (isPanning && panStart) {
       const pointer = stage.getPointerPosition();
       stage.position({
@@ -1049,6 +1084,14 @@ export function createWhiteboardApp(root) {
   }
 
   function handlePointerUp() {
+    if (linearItemDragState) {
+      resetLinearItemPressState();
+      commitLinearItemDrag();
+      return;
+    }
+
+    resetLinearItemPressState();
+
     if (isPanning) {
       isPanning = false;
       panStart = null;
@@ -1130,14 +1173,20 @@ export function createWhiteboardApp(root) {
   }
 
   function handleSelectPointerDown(event, worldPoint) {
+    if (suppressSelectionDragOnce) {
+      suppressSelectionDragOnce = false;
+      return;
+    }
     const targetElement = getElementIdFromNode(event.target);
-    const arrayItemNode = event.target?.hasName?.("array-item") ? event.target : event.target?.findAncestor?.(".array-item");
+    const arrayValueHitNode = event.target?.hasName?.("array-item-value-hit")
+      ? event.target
+      : event.target?.findAncestor?.(".array-item-value-hit");
     if (targetElement) {
       const element = board.elements.find((item) => item.id === targetElement);
       const targetIds = expandGroupedIds([targetElement]);
-      if (arrayItemNode && isLinearStructureElement(element)) {
-        if (!event.evt.shiftKey) {
-          selectIds([targetElement]);
+      if (arrayValueHitNode && isLinearStructureElement(element)) {
+        if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
+          beginSelectionDrag(worldPoint);
         }
         return;
       }
@@ -1168,7 +1217,7 @@ export function createWhiteboardApp(root) {
   }
 
   function beginSelectionDrag(worldPoint) {
-    if (linearItemHoldState?.phase === "hold") return;
+    if (linearItemDragState) return;
     selectionDrag = {
       start: worldPoint,
       moved: false,
@@ -1209,12 +1258,18 @@ export function createWhiteboardApp(root) {
   }
 
   function beginNodeDragSelection(node) {
+    const id = getElementIdFromNode(node);
+    if (id && (isLinearPointerGestureElement(id) || suppressSelectionDragOnce)) {
+      suppressedNodeDragElementId = id;
+      node.stopDrag?.();
+      nodeDragSelection = null;
+      return;
+    }
     if (selectionDrag) {
       node.stopDrag?.();
       nodeDragSelection = null;
       return;
     }
-    const id = getElementIdFromNode(node);
     if (!id || !selectedIds.includes(id)) {
       nodeDragSelection = null;
       return;
@@ -1242,6 +1297,12 @@ export function createWhiteboardApp(root) {
 
   function updateNodeDragSelection(node) {
     if (!nodeDragSelection) return;
+    if (isLinearPointerGestureElement(nodeDragSelection.id)) {
+      suppressedNodeDragElementId = nodeDragSelection.id;
+      node.stopDrag?.();
+      nodeDragSelection = null;
+      return;
+    }
     const dx = node.x() - nodeDragSelection.start.x;
     const dy = node.y() - nodeDragSelection.start.y;
     nodeDragSelection.moved = nodeDragSelection.moved || Math.hypot(dx, dy) > 0.5;
@@ -1258,8 +1319,18 @@ export function createWhiteboardApp(root) {
   function finishNodeDragSelection(node) {
     const dragSelection = nodeDragSelection;
     nodeDragSelection = null;
+    const nodeId = getElementIdFromNode(node);
 
-    if (!dragSelection || dragSelection.originals.length <= 1) {
+    if (suppressedNodeDragElementId && suppressedNodeDragElementId === nodeId) {
+      suppressedNodeDragElementId = null;
+      return;
+    }
+
+    if (!dragSelection) {
+      return;
+    }
+
+    if (dragSelection.originals.length <= 1) {
       snapNodeToAlignment(node);
       syncNodeToElement(node);
       handledNodeDragEnd = true;
@@ -1510,7 +1581,7 @@ export function createWhiteboardApp(root) {
 
   function createNode(element) {
     return createElementNode(element, {
-      draggable: currentTool === TOOLS.SELECT && !element.locked && !["text", "sticky"].includes(element.type),
+      draggable: shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id),
       onDragStart: beginNodeDragSelection,
       onDragMove: updateNodeDragSelection,
       onMove: (node) => {
@@ -1556,15 +1627,7 @@ export function createWhiteboardApp(root) {
   function renderBoard() {
     contentLayer.find(".element").forEach((node) => node.destroy());
     for (const element of reorderElements(board.elements)) {
-      const runtimeElement = isLinearStructureElement(element) && activeLinearItem?.elementId === element.id
-        ? {
-          ...element,
-          runtime: {
-            ...(element.runtime ?? {}),
-            activeIndex: activeLinearItem.index,
-          },
-        }
-        : element;
+      const runtimeElement = buildRuntimeElement(element);
       contentLayer.add(createNode(runtimeElement));
     }
     selectionRect.moveToTop();
@@ -1573,14 +1636,32 @@ export function createWhiteboardApp(root) {
     overlayLayer.batchDraw();
   }
 
+  function buildRuntimeElement(element) {
+    if (!isLinearStructureElement(element)) return element;
+    const runtime = {};
+    if (activeLinearItem?.elementId === element.id) {
+      runtime.activeIndex = activeLinearItem.index;
+    }
+    if (linearItemDragState?.elementId === element.id) {
+      Object.assign(runtime, {
+        dragIndex: linearItemDragState.fromIndex,
+        dragGap: linearItemDragState.previewGap,
+        dragX: linearItemDragState.dragX,
+        dragY: linearItemDragState.dragY,
+        dragLift: linearItemDragState.longPressTriggered,
+      });
+    }
+    return Object.keys(runtime).length > 0
+      ? { ...element, runtime: { ...(element.runtime ?? {}), ...runtime } }
+      : element;
+  }
+
   function selectIds(ids) {
     selectedIds = [...new Set(ids)];
     const selectedLinear = getSelectedLinearStructure();
     if (!selectedLinear) {
       activeLinearItem = null;
-    } else if (activeLinearItem?.elementId !== selectedLinear.id) {
-      setActiveLinearItem(selectedLinear.id, 0, { syncPanel: false });
-    } else {
+    } else if (activeLinearItem?.elementId === selectedLinear.id) {
       syncActiveLinearItemAfterEdit(selectedLinear.id);
     }
     syncSelectionNodes();
@@ -1608,10 +1689,20 @@ export function createWhiteboardApp(root) {
   }
 
   function clearSelection() {
+    cancelLinearItemDragPreview();
+    resetLinearItemPressState();
     selectIds([]);
   }
 
   function syncSelectionNodes() {
+    if (linearItemDragState) {
+      transformer.nodes([]);
+      transformer.visible(false);
+      transformer.resizeEnabled(false);
+      transformer.rotateEnabled(false);
+      transformer.enabledAnchors([]);
+      return;
+    }
     const nodes = selectedIds
       .map((id) => contentLayer.findOne(`#${id}`))
       .filter(Boolean);
@@ -1679,7 +1770,7 @@ export function createWhiteboardApp(root) {
     contentLayer.find(".element").forEach((node) => {
       const id = getElementIdFromNode(node);
       const element = board.elements.find((item) => item.id === id);
-      node.draggable(currentTool === TOOLS.SELECT && !isElementLocked(id) && !["text", "sticky"].includes(element?.type));
+      node.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(id));
     });
   }
 
@@ -2142,6 +2233,240 @@ export function createWhiteboardApp(root) {
     });
   }
 
+  function clearLinearItemPressTimer() {
+    if (!linearItemPressState?.holdTimer) return;
+    window.clearTimeout(linearItemPressState.holdTimer);
+    linearItemPressState.holdTimer = null;
+  }
+
+  function shouldElementBeDraggable(element) {
+    if (!element) return false;
+    return currentTool === TOOLS.SELECT
+      && !element.locked
+      && !["text", "sticky"].includes(element.type);
+  }
+
+  function isLinearPointerGestureElement(elementId) {
+    return linearItemPressState?.elementId === elementId || linearItemDragState?.elementId === elementId;
+  }
+
+  function setElementDraggableState(elementId, enabled) {
+    contentLayer.findOne(`#${elementId}`)?.draggable(Boolean(enabled));
+  }
+
+  function resetLinearItemPressState() {
+    const elementId = linearItemPressState?.elementId;
+    clearLinearItemPressTimer();
+    linearItemPressState = null;
+    if (elementId) {
+      const element = board.elements.find((item) => item.id === elementId);
+      setElementDraggableState(elementId, shouldElementBeDraggable(element) && !isLinearPointerGestureElement(elementId));
+    }
+  }
+
+  function cancelLinearItemDragPreview() {
+    if (!linearItemDragState) return;
+    linearItemDragState = null;
+    renderBoard();
+  }
+
+  function getLinearStructureGeometry(element) {
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    const showIndexes = element.settings?.showIndexes ?? element.type === "array-structure";
+    const cellWidth = style.cellWidth;
+    const cellHeight = style.cellHeight;
+    const totalHeight = cellHeight * (showIndexes ? 2 : 1);
+    return { style, showIndexes, cellWidth, cellHeight, totalHeight };
+  }
+
+  function getLinearItemDragThresholdY(element) {
+    const { totalHeight } = getLinearStructureGeometry(element);
+    return Math.max(28, totalHeight * 1.2);
+  }
+
+  function clampLinearGap(gap, length) {
+    return Math.min(length, Math.max(0, Number(gap) || 0));
+  }
+
+  function getLinearPreviewGap(element, localX) {
+    const length = element.items?.length ?? 0;
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const paddedX = localX + cellWidth * 0.35;
+    return clampLinearGap(Math.floor(paddedX / cellWidth), length);
+  }
+
+  function getLinearDragInsertIndex(fromIndex, previewGap, length) {
+    const safeGap = clampLinearGap(previewGap, length);
+    return safeGap > fromIndex ? safeGap - 1 : safeGap;
+  }
+
+  function getLinearPreviewXForGap(index, dragIndex, dragGap, dragX, cellWidth) {
+    if (!Number.isInteger(dragIndex) || !Number.isInteger(dragGap)) {
+      return index * cellWidth;
+    }
+    if (index === dragIndex) {
+      return dragX;
+    }
+    const baseX = index * cellWidth;
+    if (index < dragIndex && index >= dragGap) {
+      return baseX + cellWidth;
+    }
+    if (index > dragIndex && index < dragGap) {
+      return baseX - cellWidth;
+    }
+    return baseX;
+  }
+
+  function animateLinearDragGapChange() {
+    if (!linearItemDragState) return;
+    const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
+    if (!group) return;
+    const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
+    if (!isLinearStructureElement(element)) return;
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const itemNodes = group.find(".array-item");
+    itemNodes.forEach((node, index) => {
+      const targetX = getLinearPreviewXForGap(
+        index,
+        linearItemDragState.fromIndex,
+        linearItemDragState.cancelled ? linearItemDragState.fromIndex : linearItemDragState.previewGap,
+        linearItemDragState.dragX,
+        cellWidth,
+      );
+      const targetY = index === linearItemDragState.fromIndex
+        ? (linearItemDragState.cancelled ? 0 : linearItemDragState.dragY)
+        : 0;
+      node.to({
+        x: targetX,
+        y: targetY,
+        duration: index === linearItemDragState.fromIndex ? 0.04 : 0.16,
+        easing: Konva.Easings.EaseOut,
+      });
+    });
+    const indicator = group.findOne(".array-drop-indicator");
+    if (indicator) {
+      indicator.visible(false);
+      indicator.to({
+        x: (linearItemDragState.cancelled ? linearItemDragState.fromIndex : linearItemDragState.previewGap) * cellWidth - 3,
+        duration: 0.14,
+        easing: Konva.Easings.EaseOut,
+      });
+    }
+    contentLayer.batchDraw();
+  }
+
+  function beginLinearItemDrag({ elementId, index, worldPoint }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isLinearStructureElement(element) || element.locked) return;
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const relativeX = worldPoint.x - (element.x ?? 0);
+    const relativeY = worldPoint.y - (element.y ?? 0);
+    const baseX = index * cellWidth;
+    const previewGap = clampLinearGap(index, element.items?.length ?? 0);
+    linearItemDragState = {
+      elementId,
+      fromIndex: index,
+      pointerOffsetX: relativeX - baseX,
+      pointerOffsetY: relativeY,
+      dragX: baseX,
+      dragY: 0,
+      previewGap,
+      lastAnimatedGap: previewGap,
+      longPressTriggered: true,
+      cancelled: false,
+    };
+    setElementDraggableState(elementId, false);
+    setActiveLinearItem(elementId, index, { syncPanel: false });
+    renderBoard();
+  }
+
+  function updateLinearDragVisualPosition() {
+    if (!linearItemDragState) return;
+    const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
+    const itemNode = group?.find(".array-item")?.[linearItemDragState.fromIndex];
+    const indicator = group?.findOne(".array-drop-indicator");
+    const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
+    if (!itemNode) return;
+    itemNode.x(linearItemDragState.dragX);
+    itemNode.y(linearItemDragState.cancelled ? 0 : linearItemDragState.dragY);
+    itemNode.setAttrs({
+      scaleX: linearItemDragState.longPressTriggered && !linearItemDragState.cancelled ? 1.04 : 1,
+      scaleY: linearItemDragState.longPressTriggered && !linearItemDragState.cancelled ? 1.04 : 1,
+      shadowBlur: linearItemDragState.cancelled ? 0 : 18,
+      shadowOpacity: linearItemDragState.cancelled ? 0 : 1,
+      shadowOffsetY: linearItemDragState.cancelled ? 0 : -8,
+      opacity: linearItemDragState.cancelled ? 1 : 0.96,
+    });
+    if (indicator) {
+      indicator.visible(false);
+    }
+    contentLayer.batchDraw();
+  }
+
+  function updateLinearItemDrag(worldPoint) {
+    if (!linearItemDragState) return false;
+    const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
+    if (!isLinearStructureElement(element)) return false;
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const localX = worldPoint.x - (element.x ?? 0);
+    const localY = worldPoint.y - (element.y ?? 0);
+    const thresholdY = getLinearItemDragThresholdY(element);
+    const offsetY = localY - linearItemDragState.pointerOffsetY;
+    const cancelled = Math.abs(offsetY) > thresholdY;
+    const previewGap = getLinearPreviewGap(element, localX);
+    const baseX = localX - linearItemDragState.pointerOffsetX;
+    const gapChanged = linearItemDragState.previewGap !== previewGap;
+    const cancelChanged = linearItemDragState.cancelled !== cancelled;
+    linearItemDragState = {
+      ...linearItemDragState,
+      dragX: baseX,
+      dragY: cancelled ? 0 : -12,
+      previewGap,
+      cancelled,
+      dragYRaw: offsetY,
+    };
+    if (gapChanged || cancelChanged) {
+      linearItemDragState.lastAnimatedGap = previewGap;
+      animateLinearDragGapChange();
+      return true;
+    }
+    updateLinearDragVisualPosition();
+    return true;
+  }
+
+  function commitLinearItemDrag() {
+    if (!linearItemDragState) return false;
+    const dragState = linearItemDragState;
+    const element = board.elements.find((item) => item.id === dragState.elementId);
+    linearItemDragState = null;
+    suppressSelectionDragOnce = true;
+    suppressedNodeDragElementId = dragState.elementId;
+    contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag();
+    nodeDragSelection = null;
+    selectionDrag = null;
+    suppressLinearItemSelect = {
+      elementId: dragState.elementId,
+      index: dragState.fromIndex,
+    };
+    requestAnimationFrame(() => {
+      if (suppressLinearItemSelect?.elementId === dragState.elementId && suppressLinearItemSelect?.index === dragState.fromIndex) {
+        suppressLinearItemSelect = null;
+      }
+    });
+    if (!isLinearStructureElement(element) || dragState.cancelled) {
+      renderBoard();
+      return true;
+    }
+    const length = element.items?.length ?? 0;
+    const toIndex = getLinearDragInsertIndex(dragState.fromIndex, dragState.previewGap, length);
+    moveArrayStructureItem({
+      elementId: dragState.elementId,
+      fromIndex: dragState.fromIndex,
+      toIndex,
+    });
+    return true;
+  }
+
   function editSelectedStructure(type, edit, message) {
     const targetId = selectedIds.find((id) => {
       const element = board.elements.find((item) => item.id === id);
@@ -2291,47 +2616,75 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (fromIndex === toIndex) {
+      activeLinearItem = null;
       renderBoard();
-      selectIds([elementId]);
+      selectIds([]);
       return;
     }
     board.elements = board.elements.map((item) => (
       item.id === elementId ? moveArrayItem(item, fromIndex, toIndex) : item
     ));
-    setActiveLinearItem(elementId, toIndex, { syncPanel: false });
+    activeLinearItem = null;
     renderBoard();
-    selectIds([elementId]);
+    selectIds([]);
     pushHistory("已移动数组元素");
   }
 
   function handleArrayStructureItemSelect({ elementId, index }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
-    selectIds([elementId]);
-    setActiveLinearItem(elementId, index);
-  }
-
-  function handleArrayStructureItemPress({ elementId, index, phase = "start" }) {
-    if (phase === "hold") {
-      linearItemHoldState = { elementId, index, phase };
-      if (selectionDrag) {
-        selectionDrag = null;
-      }
+    if (suppressLinearItemSelect?.elementId === elementId) {
+      suppressLinearItemSelect = null;
+      return;
+    }
+    const targetIds = expandGroupedIds([elementId]);
+    if (selectedIds.some((id) => targetIds.includes(id))) {
       setActiveLinearItem(elementId, index);
       return;
     }
-    linearItemHoldState = { elementId, index, phase };
+    selectIds([elementId]);
+  }
+
+  function handleArrayStructureItemPress({ elementId, index }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isLinearStructureElement(element) || element.locked) return;
+    const worldPoint = getWorldPointer(stage);
+    suppressSelectionDragOnce = false;
+    contentLayer.findOne(`#${elementId}`)?.stopDrag();
+    linearItemPressState = {
+      elementId,
+      index,
+      phase: "start",
+      holdTimer: window.setTimeout(() => {
+        if (!linearItemPressState || linearItemPressState.elementId !== elementId || linearItemPressState.index !== index) return;
+        linearItemPressState = {
+          ...linearItemPressState,
+          phase: "hold",
+          holdTimer: null,
+        };
+        beginLinearItemDrag({
+          elementId,
+          index,
+          worldPoint: linearItemPressState.currentWorldPoint ?? linearItemPressState.startWorldPoint ?? worldPoint,
+        });
+      }, 250),
+      startWorldPoint: worldPoint,
+      currentWorldPoint: worldPoint,
+    };
+    setElementDraggableState(elementId, false);
   }
 
   function handleArrayStructureItemRelease() {
-    linearItemHoldState = null;
+    if (linearItemDragState) return;
+    resetLinearItemPressState();
   }
 
   function editArrayStructureItem({ elementId, index, value }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
-    selectIds([elementId]);
-    setActiveLinearItem(elementId, index);
+    activeLinearItem = null;
+    renderBoard();
+    selectIds([]);
     requestAnimationFrame(() => editLinearStructureItemInline({ elementId, index, value }));
   }
 
@@ -2342,7 +2695,8 @@ export function createWhiteboardApp(root) {
     const itemNode = node.find(".array-item")?.[index];
     if (!itemNode) return;
 
-    const valueRect = itemNode.find("Rect").at(-1);
+    const valueRect = itemNode.findOne(".array-item-value-hit");
+    if (!valueRect) return;
     const absolute = valueRect.getAbsolutePosition();
     const scale = stage.scaleX() * (node.scaleX() || 1);
     const box = stage.container().getBoundingClientRect();
@@ -2368,9 +2722,9 @@ export function createWhiteboardApp(root) {
       board.elements = board.elements.map((item) => (
         item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
       ));
-      setActiveLinearItem(elementId, index, { syncPanel: false });
+      activeLinearItem = null;
       renderBoard();
-      selectIds([elementId]);
+      selectIds([]);
       pushHistory("已更新线性结构元素");
     };
 

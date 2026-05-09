@@ -218,7 +218,6 @@ export function createElementNode(element, {
     });
   } else if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
     node = createLinearStructureNode(element, common, {
-      onArrayItemMove,
       onArrayItemEdit,
       onArrayItemSelect,
       onArrayItemPress,
@@ -336,7 +335,6 @@ export function createNodeAttrs(element) {
 }
 
 function createLinearStructureNode(element, common, {
-  onArrayItemMove,
   onArrayItemEdit,
   onArrayItemSelect,
   onArrayItemPress,
@@ -355,7 +353,11 @@ function createLinearStructureNode(element, common, {
   const cellWidth = style.cellWidth;
   const cellHeight = style.cellHeight;
   const valueY = showIndexes ? cellHeight : 0;
-  const itemGroups = [];
+  const dragIndex = Number.isInteger(element.runtime?.dragIndex) ? element.runtime.dragIndex : null;
+  const dragGap = Number.isInteger(element.runtime?.dragGap) ? element.runtime.dragGap : null;
+  const dragLift = Boolean(element.runtime?.dragLift);
+  const dragX = Number.isFinite(element.runtime?.dragX) ? element.runtime.dragX : 0;
+  const dragY = Number.isFinite(element.runtime?.dragY) ? element.runtime.dragY : 0;
   const dropIndicator = new Konva.Rect({
     name: "array-drop-indicator",
     y: valueY + 4,
@@ -369,27 +371,47 @@ function createLinearStructureNode(element, common, {
     shadowBlur: 10,
     shadowOpacity: 1,
   });
+  dropIndicator.x((Number.isInteger(dragGap) ? dragGap : 0) * cellWidth - 3);
 
   (element.items ?? []).forEach((item, index) => {
     const isActive = element.runtime?.activeIndex === index;
+    const isDragging = dragIndex === index;
+    const previewX = getLinearStructurePreviewX({
+      index,
+      dragIndex,
+      dragGap,
+      dragX,
+      cellWidth,
+    });
     const itemGroup = new Konva.Group({
       name: "array-item",
-      x: index * cellWidth,
-      y: 0,
+      x: previewX,
+      y: isDragging ? dragY : 0,
       width: cellWidth,
       height: cellHeight * (showIndexes ? 2 : 1),
       draggable: false,
+      scaleX: isDragging && dragLift ? 1.04 : 1,
+      scaleY: isDragging && dragLift ? 1.04 : 1,
+      opacity: isDragging ? 0.96 : 1,
+      shadowColor: isDragging ? "rgba(37,99,235,0.28)" : "rgba(0,0,0,0)",
+      shadowBlur: isDragging ? 18 : 0,
+      shadowOpacity: isDragging ? 1 : 0,
+      shadowOffsetY: isDragging ? -8 : 0,
     });
+    let indexRect = null;
+    let indexText = null;
     if (showIndexes) {
-      itemGroup.add(new Konva.Rect({
+      indexRect = new Konva.Rect({
+        name: "array-item-index-hit",
         y: 0,
         width: cellWidth,
         height: cellHeight,
         stroke: isActive ? "#2563eb" : style.stroke,
         strokeWidth: isActive ? 3 : 2,
         fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.indexFill,
-      }));
-      itemGroup.add(new Konva.Text({
+      });
+      indexText = new Konva.Text({
+        name: "array-item-index-hit",
         y: 10,
         width: cellWidth,
         height: 24,
@@ -399,17 +421,21 @@ function createLinearStructureNode(element, common, {
         fill: style.indexTextFill,
         align: "center",
         verticalAlign: "middle",
-      }));
+      });
+      itemGroup.add(indexRect);
+      itemGroup.add(indexText);
     }
-    itemGroup.add(new Konva.Rect({
+    const valueRect = new Konva.Rect({
+      name: "array-item-value-hit",
       y: valueY,
       width: cellWidth,
       height: cellHeight,
       stroke: isActive ? "#2563eb" : style.stroke,
       strokeWidth: isActive ? 3 : 2,
       fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.valueFill,
-    }));
-    itemGroup.add(new Konva.Text({
+    });
+    const valueText = new Konva.Text({
+      name: "array-item-value-hit",
       y: valueY + 10,
       width: cellWidth,
       height: 24,
@@ -419,8 +445,20 @@ function createLinearStructureNode(element, common, {
       fill: style.textFill,
       align: "center",
       verticalAlign: "middle",
-    }));
-    itemGroup.on("dblclick dbltap", (event) => {
+    });
+    itemGroup.add(valueRect);
+    itemGroup.add(valueText);
+
+    const handleSelect = (event) => {
+      event.cancelBubble = true;
+      onArrayItemSelect?.({
+        elementId: element.id,
+        index,
+        value: String(item.value ?? ""),
+      });
+    };
+
+    const handleValueEdit = (event) => {
       event.cancelBubble = true;
       onArrayItemEdit?.({
         elementId: element.id,
@@ -428,121 +466,37 @@ function createLinearStructureNode(element, common, {
         value: String(item.value ?? ""),
         trigger: "double",
       });
-    });
-    itemGroup.on("click tap", (event) => {
+    };
+
+    const swallowValuePointer = (event) => {
       event.cancelBubble = true;
-      onArrayItemSelect?.({
-        elementId: element.id,
-        index,
-        value: String(item.value ?? ""),
-      });
-    });
-    itemGroup.on("mousedown touchstart", (event) => {
+    };
+
+    const handlePress = (event) => {
       onArrayItemPress?.({
         elementId: element.id,
         index,
         value: String(item.value ?? ""),
-        phase: "start",
       });
-    });
-    itemGroup.on("mouseup touchend touchcancel", (event) => {
+    };
+
+    const handleRelease = (event) => {
       onArrayItemRelease?.({
         elementId: element.id,
         index,
       });
-    });
-    let holdTimer = null;
-    let longPressStarted = false;
-    const clearHoldTimer = () => {
-      if (!holdTimer) return;
-      window.clearTimeout(holdTimer);
-      holdTimer = null;
     };
-    const restorePreview = () => {
-      dropIndicator.visible(false);
-      itemGroups.forEach((otherGroup, otherIndex) => {
-        otherGroup.x(otherIndex * cellWidth);
-        otherGroup.y(0);
-        otherGroup.scale({ x: 1, y: 1 });
-        otherGroup.opacity(1);
-        otherGroup.shadowBlur(0);
-        otherGroup.shadowOpacity(0);
-        otherGroup.shadowOffsetY(0);
-      });
-      group.getLayer()?.batchDraw();
-    };
-    const updatePreview = (draggingGroup) => {
-      const targetIndex = Math.max(0, Math.min((element.items?.length ?? 1) - 1, Math.round(draggingGroup.x() / cellWidth)));
-      itemGroups.forEach((otherGroup, otherIndex) => {
-        if (otherGroup === draggingGroup) return;
-        otherGroup.y(0);
-        if (index < targetIndex && otherIndex > index && otherIndex <= targetIndex) {
-          otherGroup.x((otherIndex - 1) * cellWidth);
-          return;
-        }
-        if (index > targetIndex && otherIndex >= targetIndex && otherIndex < index) {
-          otherGroup.x((otherIndex + 1) * cellWidth);
-          return;
-        }
-        otherGroup.x(otherIndex * cellWidth);
-      });
-      dropIndicator.x(targetIndex * cellWidth - 3);
-      dropIndicator.visible(true);
-      group.getLayer()?.batchDraw();
-      return targetIndex;
-    };
-    itemGroup.on("pointerdown", () => {
-      clearHoldTimer();
-      longPressStarted = false;
-      if (!common.draggable) return;
-      holdTimer = window.setTimeout(() => {
-        longPressStarted = true;
-        onArrayItemPress?.({
-          elementId: element.id,
-          index,
-          value: String(item.value ?? ""),
-          phase: "hold",
-        });
-        group.draggable(false);
-        itemGroup.draggable(true);
-        itemGroup.scale({ x: 1.04, y: 1.04 });
-        itemGroup.opacity(0.96);
-        itemGroup.shadowColor("rgba(37,99,235,0.28)");
-        itemGroup.shadowBlur(18);
-        itemGroup.shadowOpacity(1);
-        itemGroup.shadowOffsetY(-8);
-        itemGroup.startDrag();
-      }, 250);
-    });
-    itemGroup.on("pointerup pointercancel pointerleave", () => {
-      clearHoldTimer();
-    });
-    itemGroup.on("dragstart", (event) => {
-      event.cancelBubble = true;
-      clearHoldTimer();
-    });
-    itemGroup.on("dragmove", (event) => {
-      event.cancelBubble = true;
-      itemGroup.y(-12);
-      updatePreview(itemGroup);
-    });
-    itemGroup.on("dragend", (event) => {
-      event.cancelBubble = true;
-      clearHoldTimer();
-      const targetIndex = updatePreview(itemGroup);
-      itemGroup.draggable(false);
-      group.draggable(Boolean(common.draggable));
-      restorePreview();
-      if (longPressStarted) {
-        onArrayItemMove?.({
-          elementId: element.id,
-          fromIndex: index,
-          toIndex: targetIndex,
-        });
-      }
-      longPressStarted = false;
-    });
-    itemGroups.push(itemGroup);
+
+    valueRect.on("dblclick dbltap", handleValueEdit);
+    valueText.on("dblclick dbltap", handleValueEdit);
+    valueRect.on("click tap mouseup touchend touchcancel", swallowValuePointer);
+    valueText.on("click tap mouseup touchend touchcancel", swallowValuePointer);
+    indexRect?.on("click tap", handleSelect);
+    indexText?.on("click tap", handleSelect);
+    indexRect?.on("mousedown touchstart", handlePress);
+    indexText?.on("mousedown touchstart", handlePress);
+    indexRect?.on("mouseup touchend touchcancel", handleRelease);
+    indexText?.on("mouseup touchend touchcancel", handleRelease);
     group.add(itemGroup);
   });
 
@@ -576,6 +530,29 @@ function createLinearStructureNode(element, common, {
   addLinearEndpointLabels(group, element, style, cellWidth);
 
   return group;
+}
+
+function getLinearStructurePreviewX({
+  index,
+  dragIndex,
+  dragGap,
+  dragX,
+  cellWidth,
+}) {
+  if (dragIndex === null || dragGap === null) {
+    return index * cellWidth;
+  }
+  if (index === dragIndex) {
+    return dragX;
+  }
+  const baseX = index * cellWidth;
+  if (index < dragIndex && index >= dragGap) {
+    return baseX + cellWidth;
+  }
+  if (index > dragIndex && index < dragGap) {
+    return baseX - cellWidth;
+  }
+  return baseX;
 }
 
 function createGraphStructureNode(element, common, {

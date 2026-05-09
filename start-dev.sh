@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_DIR="$ROOT_DIR/.runtime"
 PID_FILE="$RUN_DIR/dev.pid"
+PGID_FILE="$RUN_DIR/dev.pgid"
 LOG_FILE="$RUN_DIR/dev.log"
 PORT="${PORT:-5173}"
 HOST="${HOST:-127.0.0.1}"
@@ -17,5 +18,10 @@ fi
 
 cd "$ROOT_DIR"
 nohup npm run dev -- --host "$HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
-echo "$!" >"$PID_FILE"
+PID="$!"
+echo "$PID" >"$PID_FILE"
+PGID="$(ps -o pgid= -p "$PID" | tr -d '[:space:]' || true)"
+if [[ -n "$PGID" ]]; then
+  echo "$PGID" >"$PGID_FILE"
+fi
 echo "lofiBoard dev server started: http://$HOST:$PORT"

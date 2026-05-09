@@ -297,10 +297,45 @@ describe("konva elements", () => {
     expect(itemRects.at(-1).strokeWidth()).toBe(3);
   });
 
-  it("allows array items to be selected and edited inside the array structure", () => {
-    const onArrayItemMove = vi.fn();
+  it("hides the drag gap indicator on linear structure edges", () => {
+    const leftEdgeNode = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { dragIndex: 0, dragGap: 0, dragX: 0, dragY: -12, dragLift: true },
+      style: {},
+    }, baseHandlers);
+
+    const rightEdgeNode = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { dragIndex: 0, dragGap: 2, dragX: 120, dragY: -12, dragLift: true },
+      style: {},
+    }, baseHandlers);
+
+    expect(leftEdgeNode.findOne(".array-drop-indicator").visible()).toBe(false);
+    expect(rightEdgeNode.findOne(".array-drop-indicator").visible()).toBe(false);
+  });
+
+  it("keeps value-cell double click editing separate from index-cell selection", () => {
     const onArrayItemEdit = vi.fn();
     const onArrayItemSelect = vi.fn();
+    const onArrayItemPress = vi.fn();
     const node = createElementNode({
       id: "array_1",
       type: "array-structure",
@@ -317,26 +352,126 @@ describe("konva elements", () => {
     }, {
       ...baseHandlers,
       draggable: true,
-      onArrayItemMove,
       onArrayItemEdit,
       onArrayItemSelect,
+      onArrayItemPress,
     });
 
     const item = node.find(".array-item")[0];
-    item.fire("click", { cancelBubble: false });
-    item.fire("dblclick", { cancelBubble: false });
+    item.findOne(".array-item-value-hit").fire("dblclick", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("click", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("mousedown", { cancelBubble: false });
 
     expect(onArrayItemSelect).toHaveBeenCalledWith({
       elementId: "array_1",
       index: 0,
       value: "A",
     });
+    expect(onArrayItemSelect).toHaveBeenCalledTimes(1);
     expect(onArrayItemEdit).toHaveBeenCalledWith({
       elementId: "array_1",
       index: 0,
       value: "A",
       trigger: "double",
     });
+    expect(onArrayItemPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+  });
+
+  it("does not route value-cell click through array-item selection handlers", () => {
+    const onArrayItemSelect = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemSelect,
+    });
+
+    const item = node.find(".array-item")[0];
+    item.findOne(".array-item-value-hit").fire("click", { cancelBubble: false });
+
+    expect(onArrayItemSelect).not.toHaveBeenCalled();
+  });
+
+  it("keeps value-cell pointer down available for selected-array drag while index press remains reserved for item drag", () => {
+    const onArrayItemPress = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemPress,
+    });
+
+    const item = node.find(".array-item")[0];
+    const valuePointerDown = { cancelBubble: false };
+    const indexPointerDown = { cancelBubble: false };
+
+    item.findOne(".array-item-value-hit").fire("mousedown", valuePointerDown);
+    item.findOne(".array-item-index-hit").fire("mousedown", indexPointerDown);
+
+    expect(valuePointerDown.cancelBubble).toBe(false);
+    expect(indexPointerDown.cancelBubble).toBe(false);
+    expect(onArrayItemPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+  });
+
+  it("still routes index click separately after a drag gesture so app code can suppress reselection", () => {
+    const onArrayItemSelect = vi.fn();
+    const onArrayItemPress = vi.fn();
+    const onArrayItemRelease = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemSelect,
+      onArrayItemPress,
+      onArrayItemRelease,
+    });
+
+    const item = node.find(".array-item")[0];
+    item.findOne(".array-item-index-hit").fire("mousedown", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("mouseup", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("click", { cancelBubble: false });
+
+    expect(onArrayItemPress).toHaveBeenCalledTimes(1);
+    expect(onArrayItemRelease).toHaveBeenCalledTimes(1);
+    expect(onArrayItemSelect).toHaveBeenCalledTimes(1);
   });
 
   it("renders graph structure elements with directed edges", () => {
