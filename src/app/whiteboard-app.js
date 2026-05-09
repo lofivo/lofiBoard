@@ -77,7 +77,12 @@ import {
   SHAPE_TOOLS,
   TOOLS,
 } from "../ui/ui-config.js";
-import { getNextPanelCollapsedState, shouldShowPanelEdgeToggle } from "../ui/panel-state.js";
+import {
+  getNextPanelCollapsedState,
+  getPanelStateForLayerContent,
+  isLayerPanelAvailable,
+  shouldShowPanelEdgeToggle,
+} from "../ui/panel-state.js";
 import { computeFitViewport } from "../canvas/viewport-service.js";
 
 export function createWhiteboardApp(root) {
@@ -2269,6 +2274,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateChrome() {
+    panelCollapsedState = getPanelStateForLayerContent(panelCollapsedState, board.elements.length > 0);
     const dirtyMarker = dirty ? " *" : "";
     activeFileLabel.textContent = `${activeFileName}${dirtyMarker}`;
     zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
@@ -2291,7 +2297,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateLayerPanelAvailability() {
-    layerPanelAvailable = currentTool === TOOLS.SELECT;
+    layerPanelAvailable = isLayerPanelAvailable();
     layerPanel.hidden = !layerPanelAvailable;
     applyPanelState();
   }
