@@ -107,30 +107,96 @@ export function renderShell() {
           <button type="button" data-text-style="underline" title="下划线" aria-label="下划线">${icon(TEXT_FORMAT_ICONS.underline)}</button>
           <button type="button" data-text-style="strike" title="删除线" aria-label="删除线">${icon(TEXT_FORMAT_ICONS.strike)}</button>
         </div>
+        <div class="linear-structure-panel">
+          <section class="linear-panel-group" data-linear-group="edit">
+            <div class="linear-panel-heading">基础编辑</div>
+            <div class="linear-panel-fields">
+              <label class="linear-field">
+                当前位置
+                <input data-linear-field="current-index" type="number" min="0" step="1" value="0" />
+              </label>
+              <label class="linear-field linear-field-wide">
+                当前值
+                <input data-linear-field="current-value" type="text" value="" />
+              </label>
+              <label class="linear-field linear-field-wide">
+                插入值
+                <input data-linear-field="insert-value" type="text" value="" />
+              </label>
+              <label class="linear-field">
+                指定位置
+                <input data-linear-field="insert-index" type="number" min="0" step="1" value="0" />
+              </label>
+              <label class="linear-field">
+                交换到
+                <input data-linear-field="swap-index" type="number" min="0" step="1" value="1" />
+              </label>
+              <label class="linear-field">
+                移动到
+                <input data-linear-field="move-index" type="number" min="0" step="1" value="1" />
+              </label>
+            </div>
+            <div class="quick-actions quick-actions-linear">
+              <button type="button" data-action="array-set-value">修改当前</button>
+              <button type="button" data-action="array-delete-at">删除当前</button>
+              <button type="button" data-action="array-delete-end">删末项</button>
+              <button type="button" data-action="array-insert-start">前插</button>
+              <button type="button" data-action="array-insert-end">后插</button>
+              <button type="button" data-action="array-insert-at">指定插入</button>
+              <button type="button" data-action="array-swap">交换元素</button>
+              <button type="button" data-action="array-move">移动元素</button>
+            </div>
+          </section>
+
+          <section class="linear-panel-group" data-linear-group="highlight">
+            <div class="linear-panel-heading">高亮与下标</div>
+            <div class="linear-panel-fields">
+              <label class="linear-field">
+                高亮起点
+                <input data-linear-field="highlight-start" type="number" min="0" step="1" value="0" />
+              </label>
+              <label class="linear-field">
+                高亮终点
+                <input data-linear-field="highlight-end" type="number" min="0" step="1" value="0" />
+              </label>
+              <label class="linear-field">
+                指针
+                <input data-linear-field="highlight-pointer" type="number" min="0" step="1" value="0" />
+              </label>
+            </div>
+            <div class="quick-actions quick-actions-linear">
+              <button type="button" data-action="array-highlight">应用高亮</button>
+              <button type="button" data-action="array-clear-highlight">清除高亮</button>
+              <button type="button" data-action="linear-index-zero">0 下标</button>
+              <button type="button" data-action="linear-index-one">1 下标</button>
+              <button type="button" data-action="linear-index-show">显示下标</button>
+              <button type="button" data-action="linear-index-hide">隐藏下标</button>
+            </div>
+          </section>
+
+          <section class="linear-panel-group" data-linear-group="semantic">
+            <div class="linear-panel-heading">语义快捷操作</div>
+            <div class="quick-actions quick-actions-linear">
+              <button type="button" data-action="stack-push">Push</button>
+              <button type="button" data-action="stack-pop">Pop</button>
+              <button type="button" data-action="queue-enqueue">Enqueue</button>
+              <button type="button" data-action="queue-dequeue">Dequeue</button>
+              <button type="button" data-action="deque-push-left">左插</button>
+              <button type="button" data-action="deque-push-right">右插</button>
+              <button type="button" data-action="deque-pop-left">左删</button>
+              <button type="button" data-action="deque-pop-right">右删</button>
+            </div>
+          </section>
+
+          <details class="linear-panel-group linear-panel-group-more">
+            <summary class="linear-panel-heading">更多操作</summary>
+            <div class="quick-actions quick-actions-linear">
+              <button type="button" data-action="array-reload">从输入框重载</button>
+            </div>
+          </details>
+        </div>
+
         <div class="quick-actions">
-          <button type="button" data-action="array-insert-start">数组前插</button>
-          <button type="button" data-action="array-insert-end">数组后插</button>
-          <button type="button" data-action="array-insert-at">指定插入</button>
-          <button type="button" data-action="array-delete-at">指定删除</button>
-          <button type="button" data-action="array-set-value">修改元素</button>
-          <button type="button" data-action="array-swap">交换元素</button>
-          <button type="button" data-action="array-move">移动元素</button>
-          <button type="button" data-action="array-highlight">数组高亮</button>
-          <button type="button" data-action="array-clear-highlight">清除高亮</button>
-          <button type="button" data-action="linear-index-zero">0 下标</button>
-          <button type="button" data-action="linear-index-one">1 下标</button>
-          <button type="button" data-action="linear-index-show">显示下标</button>
-          <button type="button" data-action="linear-index-hide">隐藏下标</button>
-          <button type="button" data-action="array-delete-end">删末项</button>
-          <button type="button" data-action="array-reload">数组重载</button>
-          <button type="button" data-action="stack-push">Push</button>
-          <button type="button" data-action="stack-pop">Pop</button>
-          <button type="button" data-action="queue-enqueue">Enqueue</button>
-          <button type="button" data-action="queue-dequeue">Dequeue</button>
-          <button type="button" data-action="deque-push-left">左插</button>
-          <button type="button" data-action="deque-push-right">右插</button>
-          <button type="button" data-action="deque-pop-left">左删</button>
-          <button type="button" data-action="deque-pop-right">右删</button>
           <button type="button" data-action="graph-add-node">加点</button>
           <button type="button" data-action="graph-add-edge">连边</button>
           <button type="button" data-action="graph-connect-mode">点选连边</button>

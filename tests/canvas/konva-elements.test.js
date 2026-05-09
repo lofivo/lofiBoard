@@ -249,7 +249,8 @@ describe("konva elements", () => {
     expect(node.width()).toBe(144);
     expect(node.height()).toBe(88);
     expect(node.find(".array-item")).toHaveLength(2);
-    expect(node.find("Rect")).toHaveLength(4);
+    expect(node.find("Rect")).toHaveLength(5);
+    expect(node.findOne(".array-drop-indicator").visible()).toBe(false);
     expect(node.find("Text").map((text) => text.text())).toEqual(["0", "A", "1", "B"]);
   });
 
@@ -270,13 +271,36 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     expect(node.find(".array-item")).toHaveLength(2);
-    expect(node.find("Rect")).toHaveLength(2);
+    expect(node.find("Rect")).toHaveLength(3);
+    expect(node.findOne(".array-drop-indicator").visible()).toBe(false);
     expect(node.find("Text").map((text) => text.text())).toEqual(["A", "B", "top"]);
   });
 
-  it("allows array items to be moved and edited inside the array structure", () => {
+  it("renders active linear item highlight state", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { activeIndex: 1 },
+      style: {},
+    }, baseHandlers);
+
+    const itemRects = node.find(".array-item")[1].find("Rect");
+    expect(itemRects.at(-1).stroke()).toBe("#2563eb");
+    expect(itemRects.at(-1).strokeWidth()).toBe(3);
+  });
+
+  it("allows array items to be selected and edited inside the array structure", () => {
     const onArrayItemMove = vi.fn();
     const onArrayItemEdit = vi.fn();
+    const onArrayItemSelect = vi.fn();
     const node = createElementNode({
       id: "array_1",
       type: "array-structure",
@@ -295,18 +319,17 @@ describe("konva elements", () => {
       draggable: true,
       onArrayItemMove,
       onArrayItemEdit,
+      onArrayItemSelect,
     });
 
     const item = node.find(".array-item")[0];
-    item.position({ x: 144, y: 12 });
-    item.fire("dragmove", { cancelBubble: false });
-    item.fire("dragend", { cancelBubble: false });
+    item.fire("click", { cancelBubble: false });
     item.fire("dblclick", { cancelBubble: false });
 
-    expect(onArrayItemMove).toHaveBeenCalledWith({
+    expect(onArrayItemSelect).toHaveBeenCalledWith({
       elementId: "array_1",
-      fromIndex: 0,
-      toIndex: 2,
+      index: 0,
+      value: "A",
     });
     expect(onArrayItemEdit).toHaveBeenCalledWith({
       elementId: "array_1",

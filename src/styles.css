@@ -645,6 +645,68 @@ button {
   gap: 6px;
 }
 
+.linear-structure-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 10px;
+}
+
+.linear-panel-group {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  padding: 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.linear-panel-group-more summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.linear-panel-group-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.linear-panel-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.linear-panel-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.linear-field {
+  display: grid;
+  gap: 4px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.linear-field-wide {
+  grid-column: 1 / -1;
+}
+
+.linear-field input {
+  height: 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #0f172a;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.quick-actions-linear {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .quick-actions button {
   height: 32px;
   border: 1px solid #e2e8f0;
@@ -712,6 +774,19 @@ button {
 [data-panel-mode="brush"] .quick-actions,
 [data-panel-mode="linear-tool"] .quick-actions,
 [data-panel-mode="tool-text"] .quick-actions {
+  display: none;
+}
+
+[data-panel-mode="tool"] .linear-structure-panel,
+[data-panel-mode="brush"] .linear-structure-panel,
+[data-panel-mode="linear-tool"] .linear-structure-panel,
+[data-panel-mode="tool-text"] .linear-structure-panel,
+[data-panel-mode="element"] .linear-structure-panel,
+[data-panel-mode="text"] .linear-structure-panel,
+[data-panel-mode="linear"] .linear-structure-panel,
+[data-panel-mode="structure"][data-structure-selection="graph-structure"] .linear-structure-panel,
+[data-panel-mode="structure"][data-structure-selection="tree-structure"] .linear-structure-panel,
+[data-panel-mode="structure"][data-structure-selection="none"] .linear-structure-panel {
   display: none;
 }
 
@@ -995,13 +1070,14 @@ button {
   position: fixed;
   z-index: 80;
   border: 2px solid #2563eb;
-  border-radius: 0;
+  border-radius: 10px;
   padding: 0 6px;
   color: #111827;
   background: #ffffff;
   text-align: center;
   outline: none;
   user-select: text;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
 }
 
 .text-editor-measure {

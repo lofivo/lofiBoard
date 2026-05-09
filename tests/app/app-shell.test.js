@@ -40,6 +40,15 @@ describe("app shell", () => {
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
 
+    expect(markup).toContain('data-linear-field="current-index"');
+    expect(markup).toContain('data-linear-field="current-value"');
+    expect(markup).toContain('data-linear-field="insert-value"');
+    expect(markup).toContain('data-linear-field="insert-index"');
+    expect(markup).toContain('data-linear-field="swap-index"');
+    expect(markup).toContain('data-linear-field="move-index"');
+    expect(markup).toContain('data-linear-field="highlight-start"');
+    expect(markup).toContain('data-linear-field="highlight-end"');
+    expect(markup).toContain('data-linear-field="highlight-pointer"');
     expect(markup).toContain('data-action="array-insert-start"');
     expect(markup).toContain('data-action="array-insert-end"');
     expect(markup).toContain('data-action="array-insert-at"');
