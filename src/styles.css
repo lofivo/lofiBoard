@@ -688,7 +688,7 @@ button {
 
 .stage-container[data-tool="eraser-stroke"],
 .stage-container[data-tool="eraser-object"] {
-  cursor: crosshair;
+  cursor: none;
 }
 
 .stage-container.is-panning,
