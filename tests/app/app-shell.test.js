@@ -36,4 +36,19 @@ describe("app shell", () => {
     expect(appSource).toContain("beginSelectionDrag(worldPoint)");
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
   });
+
+  it("starts a drag gesture immediately after selecting an unselected text element", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain('["text", "sticky"].includes(element.type)');
+    expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
+    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+  });
+
+  it("keeps live text editor height aligned with committed text box normalization", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("}) + 2 * scale");
+    expect(appSource).toContain("verticalGap: 2");
+  });
 });

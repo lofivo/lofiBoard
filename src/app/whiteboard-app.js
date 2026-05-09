@@ -968,6 +968,9 @@ export function createWhiteboardApp(root) {
         return;
       }
       selectElementById(targetElement, event.evt.shiftKey);
+      if (!event.evt.shiftKey && element && ["text", "sticky"].includes(element.type)) {
+        beginSelectionDrag(worldPoint);
+      }
       return;
     }
 
@@ -1795,7 +1798,7 @@ export function createWhiteboardApp(root) {
     const elements = createStructureElements({
       type: activeStructureType,
       input: structureInput.value,
-      point: getDefaultInsertPoint(),
+      point: getViewportCenterPoint(),
       zIndexStart: board.elements.length,
     });
     if (elements.length === 0) return;
@@ -1808,8 +1811,8 @@ export function createWhiteboardApp(root) {
     pushHistory(`已添加${getStructureItem(activeStructureType).label}`);
   }
 
-  function getDefaultInsertPoint() {
-    return lastPointerWorldPoint ?? {
+  function getViewportCenterPoint() {
+    return {
       x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
       y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
     };
@@ -2129,7 +2132,7 @@ export function createWhiteboardApp(root) {
         measureTextarea,
         width: Math.max(minEditorWidth, width),
         minHeight: currentFontSize * 1.25,
-      });
+      }) + 2 * scale;
     };
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {

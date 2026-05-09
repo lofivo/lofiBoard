@@ -85,13 +85,15 @@ export function parseTreeInput(input) {
 
 export function createStructureElements({ type, input, point, zIndexStart = 0 }) {
   const normalizedInput = normalizeStructureInput(type, input);
+  let elements;
   if (type === STRUCTURE_TYPES.GRAPH) {
-    return createGraphElements(parseGraphInput(normalizedInput), point, zIndexStart);
+    elements = createGraphElements(parseGraphInput(normalizedInput), point, zIndexStart);
+  } else if (type === STRUCTURE_TYPES.TREE) {
+    elements = createTreeElements(parseTreeInput(normalizedInput), point, zIndexStart);
+  } else {
+    elements = createArrayElements(parseArrayInput(normalizedInput), point, zIndexStart);
   }
-  if (type === STRUCTURE_TYPES.TREE) {
-    return createTreeElements(parseTreeInput(normalizedInput), point, zIndexStart);
-  }
-  return createArrayElements(parseArrayInput(normalizedInput), point, zIndexStart);
+  return centerElementsAt(elements, point);
 }
 
 function createArrayElements(values, point, zIndexStart) {
@@ -279,6 +281,79 @@ function assignZIndexes(elements, zIndexStart) {
     ...element,
     zIndex: zIndexStart + index,
   }));
+}
+
+function centerElementsAt(elements, point) {
+  const bounds = getElementBounds(elements);
+  if (!bounds) return elements;
+
+  const dx = point.x - (bounds.x + bounds.width / 2);
+  const dy = point.y - (bounds.y + bounds.height / 2);
+  return elements.map((element) => moveElement(element, dx, dy));
+}
+
+function getElementBounds(elements) {
+  const boxes = elements.map(getElementBox).filter(Boolean);
+  if (boxes.length === 0) return null;
+
+  const minX = Math.min(...boxes.map((box) => box.x));
+  const minY = Math.min(...boxes.map((box) => box.y));
+  const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+  const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+function getElementBox(element) {
+  if (element.type === "rect" || element.type === "text") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  if (element.type === "ellipse") {
+    return {
+      x: element.x - element.radiusX,
+      y: element.y - element.radiusY,
+      width: element.radiusX * 2,
+      height: element.radiusY * 2,
+    };
+  }
+  if (element.type === "line" && Array.isArray(element.points)) {
+    const xs = element.points.filter((_, index) => index % 2 === 0);
+    const ys = element.points.filter((_, index) => index % 2 === 1);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+  return null;
+}
+
+function moveElement(element, dx, dy) {
+  if (element.type === "line" && Array.isArray(element.points)) {
+    return {
+      ...element,
+      points: element.points.map((value, index) => value + (index % 2 === 0 ? dx : dy)),
+    };
+  }
+  return {
+    ...element,
+    x: (element.x ?? 0) + dx,
+    y: (element.y ?? 0) + dy,
+  };
 }
 
 function createRect({ x, y, width, height, fill, groupId }) {
