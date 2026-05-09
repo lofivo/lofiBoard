@@ -18,6 +18,41 @@ export function computeFitViewport({ bounds, stageSize, padding = 96, minScale =
   };
 }
 
+export function computeViewportForBoundsVisibility({ bounds, viewport, stageSize, padding = 96 }) {
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0 || stageSize.width <= 0 || stageSize.height <= 0) {
+    return viewport;
+  }
+
+  const scale = viewport.scale || 1;
+  const screenBounds = {
+    x: bounds.x * scale + viewport.x,
+    y: bounds.y * scale + viewport.y,
+    width: bounds.width * scale,
+    height: bounds.height * scale,
+  };
+  const visible = {
+    x: padding,
+    y: padding,
+    width: Math.max(1, stageSize.width - padding * 2),
+    height: Math.max(1, stageSize.height - padding * 2),
+  };
+
+  if (
+    screenBounds.x >= visible.x
+    && screenBounds.y >= visible.y
+    && screenBounds.x + screenBounds.width <= visible.x + visible.width
+    && screenBounds.y + screenBounds.height <= visible.y + visible.height
+  ) {
+    return viewport;
+  }
+
+  return {
+    x: stageSize.width / 2 - (bounds.x + bounds.width / 2) * scale,
+    y: stageSize.height / 2 - (bounds.y + bounds.height / 2) * scale,
+    scale,
+  };
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }

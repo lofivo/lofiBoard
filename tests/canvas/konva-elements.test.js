@@ -42,6 +42,7 @@ describe("konva elements", () => {
       textDecoration: "underline line-through",
       padding: 6,
       fill: "#111827",
+      align: "center",
     }, baseHandlers);
 
     const textNode = node.findOne("Text");
@@ -52,6 +53,7 @@ describe("konva elements", () => {
     expect(textNode.fontFamily()).toBe("Georgia, serif");
     expect(textNode.fontStyle()).toBe("bold italic");
     expect(textNode.textDecoration()).toBe("underline line-through");
+    expect(textNode.align()).toBe("center");
     expect(textNode.padding()).toBe(0);
   });
 
@@ -196,5 +198,63 @@ describe("konva elements", () => {
     expect(createdImages).toHaveLength(1);
     expect(firstNode.image()).toBe(createdImages[0]);
     expect(secondNode.image()).toBe(createdImages[0]);
+  });
+
+  it("wires drag lifecycle callbacks for app-level multi-selection moves", () => {
+    const handlers = {
+      draggable: true,
+      onDragStart: vi.fn(),
+      onDragMove: vi.fn(),
+      onMove: vi.fn(),
+      onSelect: vi.fn(),
+    };
+    const node = createElementNode({
+      id: "rect_1",
+      type: "rect",
+      x: 0,
+      y: 0,
+      width: 80,
+      height: 40,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "transparent",
+    }, handlers);
+
+    node.fire("dragstart");
+    node.fire("dragmove");
+    node.fire("dragend");
+
+    expect(handlers.onDragStart).toHaveBeenCalledWith(node);
+    expect(handlers.onDragMove).toHaveBeenCalledWith(node);
+    expect(handlers.onMove).toHaveBeenCalledWith(node);
+  });
+
+  it("does not run selection click handlers after a drag", () => {
+    const handlers = {
+      draggable: true,
+      onDragStart: vi.fn(),
+      onDragMove: vi.fn(),
+      onMove: vi.fn(),
+      onSelect: vi.fn(),
+    };
+    const node = createElementNode({
+      id: "rect_1",
+      type: "rect",
+      x: 0,
+      y: 0,
+      width: 80,
+      height: 40,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "transparent",
+    }, handlers);
+
+    node.fire("dragstart");
+    node.fire("dragmove");
+    node.fire("dragend");
+    node.fire("click", { cancelBubble: false });
+    node.fire("click", { cancelBubble: false });
+
+    expect(handlers.onSelect).toHaveBeenCalledTimes(1);
   });
 });

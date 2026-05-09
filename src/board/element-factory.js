@@ -27,6 +27,7 @@ export function createTextElement({ point, zIndex }) {
     textDecoration: DEFAULT_TEXT_STYLE.textDecoration,
     padding: DEFAULT_TEXT_STYLE.padding,
     fill: DEFAULT_TEXT_STYLE.fill,
+    align: "left",
     rotation: 0,
     scaleX: 1,
     scaleY: 1,

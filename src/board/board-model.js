@@ -27,6 +27,7 @@ const ELEMENT_DEFAULTS = {
     fontStyle: "normal",
     textDecoration: "",
     fill: "#111827",
+    align: "left",
     width: 260,
     height: 35,
     padding: 6,

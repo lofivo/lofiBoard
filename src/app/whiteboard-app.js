@@ -81,12 +81,17 @@ import {
   TOOLS,
 } from "../ui/ui-config.js";
 import {
+  STRUCTURE_TYPES,
+  createStructureElements,
+  getStructureItem,
+} from "../structures/structure-templates.js";
+import {
   getNextPanelCollapsedState,
   getPanelStateForLayerContent,
   isLayerPanelAvailable,
   shouldShowPanelEdgeToggle,
 } from "../ui/panel-state.js";
-import { computeFitViewport } from "../canvas/viewport-service.js";
+import { computeFitViewport, computeViewportForBoundsVisibility } from "../canvas/viewport-service.js";
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -100,6 +105,8 @@ export function createWhiteboardApp(root) {
   const mainMenu = root.querySelector("[data-main-menu]");
   const stylePanel = root.querySelector("[data-style-panel]");
   const shapePopover = root.querySelector("[data-shape-popover]");
+  const structurePanel = root.querySelector("[data-structure-panel]");
+  const structureInput = root.querySelector("[data-structure-input]");
   const contextMenu = root.querySelector("[data-context-menu]");
   const layerPanel = root.querySelector("[data-layer-panel]");
   const colorInput = root.querySelector("[data-control='color']");
@@ -124,6 +131,7 @@ export function createWhiteboardApp(root) {
   let history = createHistory(board);
   let currentTool = TOOLS.PEN;
   let activeShapeTool = DEFAULT_SHAPE_TOOL;
+  let activeStructureType = STRUCTURE_TYPES.ARRAY;
   let selectedIds = [];
   let fileHandle = null;
   let activeFileName = "未命名白板";
@@ -134,6 +142,7 @@ export function createWhiteboardApp(root) {
   let shapeDraft = null;
   let selectionDraft = null;
   let selectionDrag = null;
+  let nodeDragSelection = null;
   let textPressIntent = null;
   let eraseSnapshot = null;
   let lastEraserPoint = null;
@@ -150,6 +159,7 @@ export function createWhiteboardApp(root) {
   let statusTimer = null;
   let dirty = false;
   let lastTransformAnchor = null;
+  let handledNodeDragEnd = false;
 
   const TEXT_DRAG_MOVE_TOLERANCE = 4;
   const MIN_TRANSFORM_SIZE = 12;
@@ -264,6 +274,7 @@ export function createWhiteboardApp(root) {
       button.addEventListener("click", () => {
         setTool(button.dataset.tool);
         setShapePopoverOpen(button.dataset.tool === TOOLS.SHAPE);
+        setStructurePanelOpen(button.dataset.tool === TOOLS.STRUCTURE);
       });
     }
 
@@ -293,6 +304,18 @@ export function createWhiteboardApp(root) {
       });
     }
 
+    for (const button of root.querySelectorAll("[data-structure-type]")) {
+      button.addEventListener("click", () => {
+        setActiveStructureType(button.dataset.structureType);
+      });
+    }
+    root.querySelector("[data-structure-insert]").addEventListener("click", insertStructureFromPanel);
+    root.querySelector("[data-structure-cancel]").addEventListener("click", () => {
+      setStructurePanelOpen(false);
+      setTool(TOOLS.SELECT);
+    });
+    hydrateStructurePanel();
+
     colorInput.addEventListener("input", applyStyleToSelection);
     colorInput.addEventListener("input", updateBrushCursorStyle);
     fillInput.addEventListener("input", applyStyleToSelection);
@@ -320,6 +343,7 @@ export function createWhiteboardApp(root) {
       if (!button) return;
       setTool(TOOLS.SELECT);
       selectElementById(button.dataset.layerId, event.shiftKey);
+      ensureSelectionVisible();
     });
   }
 
@@ -337,6 +361,10 @@ export function createWhiteboardApp(root) {
     });
     transformer.on("dragend transformend", () => {
       if (isEditingText) return;
+      if (handledNodeDragEnd) {
+        handledNodeDragEnd = false;
+        return;
+      }
       syncSelectedNodes();
       pushHistory("已更新选择对象");
       lastTransformAnchor = null;
@@ -402,6 +430,30 @@ export function createWhiteboardApp(root) {
     shapePopover.hidden = !nextOpen;
   }
 
+  function setStructurePanelOpen(nextOpen) {
+    structurePanel.hidden = !nextOpen;
+    if (!nextOpen) return;
+    hydrateStructurePanel({ resetInput: true });
+    requestAnimationFrame(() => structureInput.focus());
+  }
+
+  function hydrateStructurePanel({ resetInput = false } = {}) {
+    const item = getStructureItem(activeStructureType);
+    structureInput.placeholder = item.placeholder;
+    if (resetInput) {
+      structureInput.value = item.defaultInput;
+    }
+    root.querySelectorAll("[data-structure-type]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.structureType === activeStructureType);
+    });
+  }
+
+  function setActiveStructureType(type) {
+    activeStructureType = getStructureItem(type).id;
+    hydrateStructurePanel({ resetInput: true });
+    structureInput.focus();
+  }
+
   function toggleZoomMenu() {
     setZoomMenuOpen(!isZoomMenuOpen);
   }
@@ -445,6 +497,7 @@ export function createWhiteboardApp(root) {
     });
 
     root.addEventListener("selectstart", (event) => {
+      if (event.target instanceof HTMLTextAreaElement) return;
       event.preventDefault();
     });
 
@@ -468,6 +521,14 @@ export function createWhiteboardApp(root) {
         return;
       }
       setShapePopoverOpen(false);
+    });
+
+    window.addEventListener("pointerdown", (event) => {
+      if (structurePanel.hidden) return;
+      if (event.target.closest("[data-structure-panel], [data-tool='structure']")) {
+        return;
+      }
+      setStructurePanelOpen(false);
     });
 
     window.addEventListener("pointerdown", (event) => {
@@ -575,6 +636,7 @@ export function createWhiteboardApp(root) {
         event.preventDefault();
         closeMainMenu();
         setShapePopoverOpen(false);
+        setStructurePanelOpen(false);
         setZoomMenuOpen(false);
         hideContextMenu();
         if (currentTool !== TOOLS.SELECT) {
@@ -593,6 +655,7 @@ export function createWhiteboardApp(root) {
         t: TOOLS.TEXT,
         n: TOOLS.STICKY,
         h: TOOLS.PAN,
+        s: TOOLS.STRUCTURE,
         r: TOOLS.SHAPE,
         l: TOOLS.SHAPE,
         a: TOOLS.SHAPE,
@@ -743,6 +806,11 @@ export function createWhiteboardApp(root) {
       selectIds([element.id]);
       setTool(TOOLS.SELECT);
       requestAnimationFrame(() => editTextElement(element.id));
+      return;
+    }
+
+    if (currentTool === TOOLS.STRUCTURE) {
+      setStructurePanelOpen(true);
       return;
     }
 
@@ -906,6 +974,11 @@ export function createWhiteboardApp(root) {
     const targetElement = getElementIdFromNode(event.target);
     if (targetElement) {
       const element = board.elements.find((item) => item.id === targetElement);
+      const targetIds = expandGroupedIds([targetElement]);
+      if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
+        beginSelectionDrag(worldPoint);
+        return;
+      }
       if (element && ["text", "sticky"].includes(element.type) && !event.evt.shiftKey) {
         beginTextPressIntent(targetElement, event, worldPoint);
         return;
@@ -1002,6 +1075,85 @@ export function createWhiteboardApp(root) {
     const didMove = selectionDrag.moved;
     selectionDrag = null;
     if (didMove) {
+      pushHistory("已移动对象");
+    }
+  }
+
+  function beginNodeDragSelection(node) {
+    if (selectionDrag) {
+      node.stopDrag?.();
+      nodeDragSelection = null;
+      return;
+    }
+    const id = getElementIdFromNode(node);
+    if (!id || !selectedIds.includes(id)) {
+      nodeDragSelection = null;
+      return;
+    }
+
+    nodeDragSelection = {
+      id,
+      start: {
+        x: node.x(),
+        y: node.y(),
+      },
+      moved: false,
+      originals: selectedIds
+        .filter((selectedId) => !isElementLocked(selectedId))
+        .map((selectedId) => {
+          const element = board.elements.find((item) => item.id === selectedId);
+          return {
+            id: selectedId,
+            x: Number(element?.x ?? 0),
+            y: Number(element?.y ?? 0),
+          };
+        }),
+    };
+  }
+
+  function updateNodeDragSelection(node) {
+    if (!nodeDragSelection) return;
+    const dx = node.x() - nodeDragSelection.start.x;
+    const dy = node.y() - nodeDragSelection.start.y;
+    nodeDragSelection.moved = nodeDragSelection.moved || Math.hypot(dx, dy) > 0.5;
+    for (const original of nodeDragSelection.originals) {
+      const selectedNode = contentLayer.findOne(`#${original.id}`);
+      selectedNode?.position({
+        x: original.x + dx,
+        y: original.y + dy,
+      });
+    }
+    contentLayer.batchDraw();
+  }
+
+  function finishNodeDragSelection(node) {
+    const dragSelection = nodeDragSelection;
+    nodeDragSelection = null;
+
+    if (!dragSelection || dragSelection.originals.length <= 1) {
+      snapNodeToAlignment(node);
+      syncNodeToElement(node);
+      handledNodeDragEnd = true;
+      pushHistory("已移动对象");
+      return;
+    }
+
+    const dx = node.x() - dragSelection.start.x;
+    const dy = node.y() - dragSelection.start.y;
+    board.elements = board.elements.map((element) => {
+      const original = dragSelection.originals.find((item) => item.id === element.id);
+      if (!original) return element;
+      return {
+        ...element,
+        x: original.x + dx,
+        y: original.y + dy,
+        scaleX: element.scaleX ?? 1,
+        scaleY: element.scaleY ?? 1,
+      };
+    });
+    renderBoard();
+    if (dragSelection.moved) {
+      handledNodeDragEnd = true;
       pushHistory("已移动对象");
     }
   }
@@ -1230,11 +1382,11 @@ export function createWhiteboardApp(root) {
   function createNode(element) {
     return createElementNode(element, {
       draggable: currentTool === TOOLS.SELECT && !element.locked && !["text", "sticky"].includes(element.type),
+      onDragStart: beginNodeDragSelection,
+      onDragMove: updateNodeDragSelection,
       onMove: (node) => {
         if (isElementLocked(getElementIdFromNode(node))) return;
-        snapNodeToAlignment(node);
-        syncNodeToElement(node);
-        pushHistory("已移动对象");
+        finishNodeDragSelection(node);
       },
       onSelect: (event, node) => {
         if (currentTool !== TOOLS.SELECT) return;
@@ -1683,6 +1835,30 @@ export function createWhiteboardApp(root) {
     pushHistory("已粘贴对象");
   }
 
+  function insertStructureFromPanel() {
+    const elements = createStructureElements({
+      type: activeStructureType,
+      input: structureInput.value,
+      point: getDefaultInsertPoint(),
+      zIndexStart: board.elements.length,
+    });
+    if (elements.length === 0) return;
+
+    board.elements = reorderElements([...board.elements, ...elements]);
+    renderBoard();
+    setStructurePanelOpen(false);
+    setTool(TOOLS.SELECT);
+    selectIds(elements.map((element) => element.id));
+    pushHistory(`已添加${getStructureItem(activeStructureType).label}`);
+  }
+
+  function getDefaultInsertPoint() {
+    return lastPointerWorldPoint ?? {
+      x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
+      y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
+    };
+  }
+
   function deleteSelection() {
     if (selectedIds.length === 0) return;
     const editableIds = selectedIds.filter((id) => !isElementLocked(id));
@@ -1814,6 +1990,55 @@ export function createWhiteboardApp(root) {
     };
   }
 
+  function ensureSelectionVisible() {
+    const bounds = getSelectedContentBounds();
+    if (!bounds) return;
+
+    const nextViewport = computeViewportForBoundsVisibility({
+      bounds,
+      viewport: {
+        x: stage.x(),
+        y: stage.y(),
+        scale: stage.scaleX(),
+      },
+      stageSize: {
+        width: stage.width(),
+        height: stage.height(),
+      },
+      padding: 96,
+    });
+
+    if (nextViewport.x === stage.x() && nextViewport.y === stage.y() && nextViewport.scale === stage.scaleX()) {
+      return;
+    }
+    applyViewport(nextViewport);
+    board = serializeCurrentBoard();
+    dirty = true;
+    updateChrome();
+  }
+
+  function getSelectedContentBounds() {
+    const boxes = selectedIds
+      .map((id) => contentLayer.findOne(`#${id}`))
+      .filter(Boolean)
+      .map((node) => node.getClientRect({ relativeTo: contentLayer }))
+      .filter((box) => Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0);
+
+    if (boxes.length === 0) return null;
+
+    const minX = Math.min(...boxes.map((box) => box.x));
+    const minY = Math.min(...boxes.map((box) => box.y));
+    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
   function newBoard() {
     board = createEmptyBoard();
     history = createHistory(board);
@@ -1855,6 +2080,9 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
     });
+    if (tool !== TOOLS.SHAPE) setShapePopoverOpen(false);
+    if (tool !== TOOLS.STRUCTURE) setStructurePanelOpen(false);
+    if (tool === TOOLS.STRUCTURE) setStructurePanelOpen(true);
     hideToolCursors();
     stage.container().classList.remove("is-erasing");
     if (![TOOLS.SELECT, TOOLS.PAN].includes(tool)) {
@@ -1876,6 +2104,7 @@ export function createWhiteboardApp(root) {
       [TOOLS.ERASER_OBJECT]: "对象橡皮：碰到对象即删除",
       [TOOLS.TEXT]: "文字：点击画布添加文字",
       [TOOLS.STICKY]: "便签：点击画布添加便签",
+      [TOOLS.STRUCTURE]: "结构：选择数组、图或树并填写初始内容",
       [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、线段或箭头",
       [TOOLS.RECT]: "矩形：拖动创建",
       [TOOLS.ELLIPSE]: "椭圆：拖动创建",
@@ -2406,6 +2635,9 @@ export function createWhiteboardApp(root) {
     });
     root.querySelectorAll("[data-shape-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.shapeTool === activeShapeTool);
+    });
+    root.querySelectorAll("[data-structure-type]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });
     root.querySelectorAll("[data-zoom-level]").forEach((button) => {
       button.classList.toggle(

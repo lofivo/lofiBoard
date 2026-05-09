@@ -30,6 +30,7 @@ export function syncTextNodeContent(node, element) {
     fontStyle: element.fontStyle ?? "normal",
     textDecoration: element.textDecoration ?? "",
     fill: element.fill,
+    align: element.align ?? "left",
     lineHeight: 1.25,
     padding: 0,
   });
@@ -40,7 +41,7 @@ export function syncTextNodeContent(node, element) {
   });
 }
 
-export function createElementNode(element, { draggable, onMove, onSelect }) {
+export function createElementNode(element, { draggable, onMove, onSelect, onDragStart, onDragMove }) {
   let node;
   const common = {
     id: element.id,
@@ -88,6 +89,7 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
       fontStyle: element.fontStyle ?? "normal",
       textDecoration: element.textDecoration ?? "",
       fill: element.fill,
+      align: element.align ?? "left",
       lineHeight: 1.25,
       padding: 0,
     }));
@@ -191,8 +193,24 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
     });
   }
 
+  let didDrag = false;
+  node.on("dragstart", () => {
+    didDrag = false;
+    onDragStart?.(node);
+  });
+  node.on("dragmove", () => {
+    didDrag = true;
+    onDragMove?.(node);
+  });
   node.on("dragend", () => onMove(node));
-  node.on("click tap", (event) => onSelect(event, node));
+  node.on("click tap", (event) => {
+    if (didDrag) {
+      didDrag = false;
+      event.cancelBubble = true;
+      return;
+    }
+    onSelect(event, node);
+  });
   return node;
 }
 

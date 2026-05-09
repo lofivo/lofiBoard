@@ -42,6 +42,7 @@ describe("board model", () => {
       textDecoration: "",
       padding: 6,
       fill: "#111827",
+      align: "left",
     });
   });
 

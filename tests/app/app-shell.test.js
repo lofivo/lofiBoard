@@ -28,4 +28,12 @@ describe("app shell", () => {
     expect(styles).toContain("text-overflow: ellipsis");
     expect(styles).toContain("white-space: nowrap");
   });
+
+  it("keeps the current selection when pointer down starts on an already selected element", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("targetIds.some((id) => selectedIds.includes(id))");
+    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+    expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
+  });
 });

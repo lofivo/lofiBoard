@@ -66,6 +66,7 @@ button {
 .layer-panel,
 .main-menu,
 .context-menu,
+.structure-panel,
 .zoom-controls,
 .statusbar span {
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -239,6 +240,107 @@ button {
 
 .shape-popover[hidden] {
   display: none;
+}
+
+.structure-panel {
+  position: fixed;
+  z-index: 29;
+  bottom: 76px;
+  left: 50%;
+  display: grid;
+  width: 340px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  transform: translateX(-50%);
+}
+
+.structure-panel[hidden] {
+  display: none;
+}
+
+.structure-panel-title {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.structure-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.structure-tab {
+  height: 32px;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.structure-tab:hover,
+.structure-tab.active {
+  color: #1d4ed8;
+  background: #ffffff;
+  box-shadow: 0 1px 5px rgba(15, 23, 42, 0.08);
+}
+
+.structure-input-label {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.structure-input-label textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 8px;
+  color: #111827;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+  user-select: text;
+}
+
+.structure-input-label textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.structure-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.structure-actions button {
+  height: 32px;
+  border-radius: 7px;
+  padding: 0 12px;
+  color: #334155;
+  background: #f1f5f9;
+  font-size: 13px;
+}
+
+.structure-actions button:hover {
+  background: #e2e8f0;
+}
+
+.structure-actions [data-structure-insert] {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.structure-actions [data-structure-insert]:hover {
+  background: #1d4ed8;
 }
 
 .context-menu {
@@ -871,6 +973,14 @@ button {
     bottom: 106px;
     left: 8px;
     overflow-x: auto;
+    transform: none;
+  }
+
+  .structure-panel {
+    right: 8px;
+    bottom: 106px;
+    left: 8px;
+    width: auto;
     transform: none;
   }
 

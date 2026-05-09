@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Bold,
+  Binary,
   ChevronDown,
   Clipboard,
   Circle,
@@ -36,6 +37,7 @@ import {
   Redo2,
   Strikethrough,
 } from "lucide-static";
+import { STRUCTURE_ITEMS } from "../structures/structure-templates.js";
 
 export const TOOLS = {
   SELECT: "select",
@@ -45,6 +47,7 @@ export const TOOLS = {
   ERASER_OBJECT: "eraser-object",
   TEXT: "text",
   STICKY: "sticky",
+  STRUCTURE: "structure",
   SHAPE: "shape",
   RECT: "rect",
   ELLIPSE: "ellipse",
@@ -63,6 +66,7 @@ export const TOOL_ITEMS = [
   { id: TOOLS.ERASER_OBJECT, label: "对象橡皮", shortcut: "O", icon: Trash2 },
   { id: TOOLS.TEXT, label: "文字", shortcut: "T", icon: Type },
   { id: TOOLS.STICKY, label: "便签", shortcut: "N", icon: StickyNote },
+  { id: TOOLS.STRUCTURE, label: "结构", shortcut: "S", icon: Binary },
   { id: TOOLS.SHAPE, label: "图形", shortcut: "R / L / A", icon: Shapes },
 ];
 
@@ -151,6 +155,27 @@ export function shapePopoverMarkup() {
     `;
     },
   ).join("");
+}
+
+export function structurePanelMarkup() {
+  return `
+    <div class="structure-panel-title">结构模板</div>
+    <div class="structure-tabs" role="tablist" aria-label="结构类型">
+      ${STRUCTURE_ITEMS.map((item) => `
+        <button type="button" class="structure-tab" data-structure-type="${item.id}" title="${item.label}" aria-label="${item.label}">
+          ${item.label}
+        </button>
+      `).join("")}
+    </div>
+    <label class="structure-input-label">
+      初始结构
+      <textarea data-structure-input rows="3" spellcheck="false"></textarea>
+    </label>
+    <div class="structure-actions">
+      <button type="button" data-structure-cancel>取消</button>
+      <button type="button" data-structure-insert>插入</button>
+    </div>
+  `;
 }
 
 export function formatShortcutLabel(item) {

@@ -9,6 +9,7 @@ import {
   icon,
   menuItemsMarkup,
   shapePopoverMarkup,
+  structurePanelMarkup,
   toolButtonsMarkup,
   zoomMenuMarkup,
 } from "../ui/ui-config.js";
@@ -132,6 +133,10 @@ export function renderShell() {
 
       <div class="shape-popover" data-shape-popover hidden>
         ${shapePopoverMarkup()}
+      </div>
+
+      <div class="structure-panel" data-structure-panel hidden>
+        ${structurePanelMarkup()}
       </div>
 
       <div class="context-menu" data-context-menu hidden>
