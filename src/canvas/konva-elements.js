@@ -3,6 +3,22 @@ import { flattenPoints } from "./geometry.js";
 
 const imageCache = new Map();
 
+export function syncTextNodeSize(node, { width, height, padding = 0 }) {
+  if (!node || !Number.isFinite(width) || !Number.isFinite(height)) return;
+  const nextWidth = Math.max(1, width);
+  const nextHeight = Math.max(1, height);
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  node.width(nextWidth);
+  node.height(nextHeight);
+
+  const textNode = node.findOne?.("Text");
+  if (!textNode) return;
+  textNode.x(horizontalPadding);
+  textNode.y(0);
+  textNode.width(Math.max(1, nextWidth - horizontalPadding * 2));
+  textNode.height(nextHeight);
+}
+
 export function createElementNode(element, { draggable, onMove, onSelect }) {
   let node;
   const common = {
@@ -30,12 +46,19 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
       shadowForStrokeEnabled: false,
     });
   } else if (element.type === "text") {
-    node = new Konva.Text({
+    const horizontalPadding = element.padding ?? 0;
+    node = new Konva.Group({
       ...common,
       x: element.x,
       y: element.y,
-      text: element.text,
       width: element.width,
+      height: element.height,
+    });
+    node.add(new Konva.Text({
+      x: horizontalPadding,
+      y: 0,
+      text: element.text,
+      width: Math.max(1, element.width - horizontalPadding * 2),
       height: element.height,
       fontSize: element.fontSize,
       fontFamily: element.fontFamily,
@@ -44,6 +67,11 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
       fill: element.fill,
       lineHeight: 1.25,
       padding: 0,
+    }));
+    syncTextNodeSize(node, {
+      width: element.width,
+      height: element.height,
+      padding: horizontalPadding,
     });
   } else if (element.type === "sticky") {
     node = new Konva.Group({
@@ -162,6 +190,14 @@ export function createNodeAttrs(element) {
     };
   }
   if (element.type === "sticky") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  if (element.type === "text") {
     return {
       x: element.x,
       y: element.y,

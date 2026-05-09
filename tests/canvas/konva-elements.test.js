@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createElementNode } from "../../src/canvas/konva-elements.js";
+import { createElementNode, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
 
 const baseHandlers = {
   draggable: false,
@@ -44,10 +44,46 @@ describe("konva elements", () => {
       fill: "#111827",
     }, baseHandlers);
 
-    expect(node.fontFamily()).toBe("Georgia, serif");
-    expect(node.fontStyle()).toBe("bold italic");
-    expect(node.textDecoration()).toBe("underline line-through");
-    expect(node.padding()).toBe(0);
+    const textNode = node.findOne("Text");
+    expect(node.width()).toBe(120);
+    expect(node.height()).toBe(40);
+    expect(textNode.x()).toBe(6);
+    expect(textNode.width()).toBe(108);
+    expect(textNode.fontFamily()).toBe("Georgia, serif");
+    expect(textNode.fontStyle()).toBe("bold italic");
+    expect(textNode.textDecoration()).toBe("underline line-through");
+    expect(textNode.padding()).toBe(0);
+  });
+
+  it("keeps grouped text child size in sync with the text box", () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Hello",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+
+    syncTextNodeSize(node, {
+      width: 160,
+      height: 105,
+      padding: 6,
+    });
+
+    const textNode = node.findOne("Text");
+    expect(node.width()).toBe(160);
+    expect(node.height()).toBe(105);
+    expect(textNode.x()).toBe(6);
+    expect(textNode.width()).toBe(148);
+    expect(textNode.height()).toBe(105);
   });
 
   it("reuses loaded image instances so rerendering does not flash blank", () => {

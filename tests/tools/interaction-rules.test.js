@@ -3,9 +3,11 @@ import {
   getMinimumTextResizeWidth,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
+  getTextPointerIntent,
   getTransformerAnchorsForSelection,
   isTransformerTarget,
   isTextWidthResizeAnchor,
+  measureTextareaContentHeight,
   nextToolAfterTextPlacement,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
@@ -68,6 +70,91 @@ describe("interaction rules", () => {
   it("keeps the default text editor height to one line", () => {
     expect(getSingleLineTextEditorHeight(28, 1)).toBe(35);
     expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
+  });
+
+  it("edits text on click and only enters selection drag after movement", () => {
+    expect(getTextPointerIntent({ dx: 0, dy: 0 })).toBe("edit");
+    expect(getTextPointerIntent({ dx: 3, dy: 2 })).toBe("edit");
+    expect(getTextPointerIntent({ dx: 5, dy: 0 })).toBe("drag");
+  });
+
+  it("measures live text editor height from textarea scroll height", () => {
+    const sourceTextarea = {
+      value: "line one\nline two",
+      style: {
+        boxSizing: "border-box",
+        fontSize: "28px",
+        padding: "0 6px",
+        fontFamily: "Inter, sans-serif",
+        fontStyle: "italic",
+        fontWeight: "700",
+        textDecoration: "underline",
+        lineHeight: "1.25",
+        letterSpacing: "0px",
+      },
+    };
+    const measureTextarea = {
+      rows: 3,
+      style: {},
+      scrollHeight: 70.2,
+      value: "",
+    };
+
+    expect(measureTextareaContentHeight({
+      sourceTextarea,
+      measureTextarea,
+      width: 120,
+      minHeight: 35,
+    })).toBe(71);
+    expect(measureTextarea.value).toBe(sourceTextarea.value);
+    expect(measureTextarea.rows).toBe(1);
+    expect(measureTextarea.style.width).toBe("120px");
+    expect(measureTextarea.style.height).toBe("0px");
+    expect(measureTextarea.style.minHeight).toBe("0px");
+    expect(measureTextarea.style.fontSize).toBe("28px");
+    expect(measureTextarea.style.padding).toBe("0 6px");
+  });
+
+  it("keeps textarea measurement fresh when content grows while editing", () => {
+    const sourceTextarea = {
+      value: "first line",
+      style: {
+        boxSizing: "border-box",
+        fontSize: "28px",
+        padding: "0 6px",
+        fontFamily: "Inter, sans-serif",
+        fontStyle: "normal",
+        fontWeight: "400",
+        textDecoration: "none",
+        lineHeight: "1.25",
+        letterSpacing: "0px",
+      },
+    };
+    const measureTextarea = {
+      rows: 1,
+      style: { height: "35px", minHeight: "35px" },
+      scrollHeight: 35,
+      value: "",
+    };
+
+    expect(measureTextareaContentHeight({
+      sourceTextarea,
+      measureTextarea,
+      width: 120,
+      minHeight: 35,
+    })).toBe(35);
+
+    sourceTextarea.value = "first line\nsecond line\nthird line";
+    measureTextarea.scrollHeight = 105;
+
+    expect(measureTextareaContentHeight({
+      sourceTextarea,
+      measureTextarea,
+      width: 120,
+      minHeight: 35,
+    })).toBe(105);
+    expect(measureTextarea.style.height).toBe("0px");
+    expect(measureTextarea.style.minHeight).toBe("0px");
   });
 
   it("ignores the canvas click that closes an active text editor", () => {

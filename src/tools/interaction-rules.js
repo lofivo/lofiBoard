@@ -63,6 +63,32 @@ export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 
   return (Number(fontSize) || 0) * scale * lineHeight;
 }
 
+export function getTextPointerIntent({ dx = 0, dy = 0, threshold = 4 }) {
+  return Math.hypot(dx, dy) > threshold ? "drag" : "edit";
+}
+
+export function measureTextareaContentHeight({ sourceTextarea, measureTextarea, width, minHeight = 0 }) {
+  if (!sourceTextarea || !measureTextarea) return Math.max(0, Math.ceil(minHeight));
+
+  const nextWidth = Math.max(1, Number(width) || 1);
+  const minimumHeight = Math.max(0, Number(minHeight) || 0);
+  measureTextarea.value = sourceTextarea.value || " ";
+  measureTextarea.rows = 1;
+  measureTextarea.style.width = `${nextWidth}px`;
+  measureTextarea.style.height = "0px";
+  measureTextarea.style.minHeight = "0px";
+  measureTextarea.style.boxSizing = sourceTextarea.style.boxSizing || "border-box";
+  measureTextarea.style.fontSize = sourceTextarea.style.fontSize;
+  measureTextarea.style.padding = sourceTextarea.style.padding;
+  measureTextarea.style.fontFamily = sourceTextarea.style.fontFamily;
+  measureTextarea.style.fontStyle = sourceTextarea.style.fontStyle;
+  measureTextarea.style.fontWeight = sourceTextarea.style.fontWeight;
+  measureTextarea.style.textDecoration = sourceTextarea.style.textDecoration;
+  measureTextarea.style.lineHeight = sourceTextarea.style.lineHeight || "1.25";
+  measureTextarea.style.letterSpacing = sourceTextarea.style.letterSpacing;
+  return Math.max(minimumHeight, Math.ceil(Number(measureTextarea.scrollHeight) || 0));
+}
+
 export function getSelectionHitRadius(scale) {
   return Math.max(6, Math.round(12 / scale));
 }
