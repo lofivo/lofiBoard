@@ -12,7 +12,7 @@ import {
   updateArrayValues,
   setArrayHighlight,
   clearArrayHighlight,
-  setArrayStructureMode,
+  setLinearIndexOptions,
   addGraphNode,
   addGraphEdge,
   addGraphEdgeFromText,
@@ -227,17 +227,25 @@ describe("structure templates", () => {
     expect(clearArrayHighlight(highlighted).markers).toEqual({ highlight: [], pointer: null });
   });
 
-  it("sets array-derived teaching modes", () => {
-    const [array] = createStructureElements({
-      type: STRUCTURE_TYPES.ARRAY,
+  it("creates array-derived structures as independent element types", () => {
+    const [stack] = createStructureElements({
+      type: STRUCTURE_TYPES.STACK,
+      input: "A, B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const [queue] = createStructureElements({
+      type: STRUCTURE_TYPES.QUEUE,
       input: "A, B",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
-    expect(setArrayStructureMode(array, "stack").settings.mode).toBe("stack");
-    expect(setArrayStructureMode(array, "queue").settings.mode).toBe("queue");
-    expect(setArrayStructureMode(array, "unknown").settings.mode).toBe("array");
+    expect(stack.type).toBe(STRUCTURE_ELEMENT_TYPES.STACK);
+    expect(stack.settings).toEqual({ indexBase: 0, showIndexes: false });
+    expect(queue.type).toBe(STRUCTURE_ELEMENT_TYPES.QUEUE);
+    expect(setLinearIndexOptions(queue, { indexBase: 1, showIndexes: true }).settings)
+      .toEqual({ indexBase: 1, showIndexes: true });
   });
 
   it("adds graph nodes and edges then deletes the last edge", () => {

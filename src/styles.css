@@ -734,8 +734,20 @@ button {
 [data-panel-mode="structure"] .control-brush-cap,
 [data-panel-mode="structure"] .control-brush-style,
 [data-panel-mode="element"] [data-action^="array-"],
+[data-panel-mode="element"] [data-action^="linear-"],
+[data-panel-mode="element"] [data-action^="stack-"],
+[data-panel-mode="element"] [data-action^="queue-"],
+[data-panel-mode="element"] [data-action^="deque-"],
 [data-panel-mode="text"] [data-action^="array-"],
+[data-panel-mode="text"] [data-action^="linear-"],
+[data-panel-mode="text"] [data-action^="stack-"],
+[data-panel-mode="text"] [data-action^="queue-"],
+[data-panel-mode="text"] [data-action^="deque-"],
 [data-panel-mode="linear"] [data-action^="array-"],
+[data-panel-mode="linear"] [data-action^="linear-"],
+[data-panel-mode="linear"] [data-action^="stack-"],
+[data-panel-mode="linear"] [data-action^="queue-"],
+[data-panel-mode="linear"] [data-action^="deque-"],
 [data-panel-mode="element"] [data-action^="graph-"],
 [data-panel-mode="text"] [data-action^="graph-"],
 [data-panel-mode="linear"] [data-action^="graph-"],
@@ -743,12 +755,39 @@ button {
 [data-panel-mode="text"] [data-action^="tree-"],
 [data-panel-mode="linear"] [data-action^="tree-"],
 [data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="array-"],
+[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="linear-"],
+[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="queue-"],
+[data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="deque-"],
 [data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="array-"],
+[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="linear-"],
+[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="queue-"],
+[data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="deque-"],
+[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="queue-"],
+[data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="deque-"],
+[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="queue-"],
+[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="deque-"],
+[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="deque-"],
+[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="queue-"],
 [data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="graph-"],
+[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="graph-"],
+[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="graph-"],
+[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="graph-"],
 [data-panel-mode="structure"][data-structure-selection="tree-structure"] [data-action^="graph-"],
 [data-panel-mode="structure"][data-structure-selection="array-structure"] [data-action^="tree-"],
+[data-panel-mode="structure"][data-structure-selection="stack-structure"] [data-action^="tree-"],
+[data-panel-mode="structure"][data-structure-selection="queue-structure"] [data-action^="tree-"],
+[data-panel-mode="structure"][data-structure-selection="deque-structure"] [data-action^="tree-"],
 [data-panel-mode="structure"][data-structure-selection="graph-structure"] [data-action^="tree-"],
 [data-panel-mode="structure"][data-structure-selection="none"] [data-action^="array-"],
+[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="linear-"],
+[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="stack-"],
+[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="queue-"],
+[data-panel-mode="structure"][data-structure-selection="none"] [data-action^="deque-"],
 [data-panel-mode="structure"][data-structure-selection="none"] [data-action^="graph-"],
 [data-panel-mode="structure"][data-structure-selection="none"] [data-action^="tree-"],
 [data-panel-mode="linear"] .control-font,
@@ -950,6 +989,19 @@ button {
   overflow: hidden;
   resize: none;
   caret-color: #2563eb;
+}
+
+.cell-editor {
+  position: fixed;
+  z-index: 80;
+  border: 2px solid #2563eb;
+  border-radius: 0;
+  padding: 0 6px;
+  color: #111827;
+  background: #ffffff;
+  text-align: center;
+  outline: none;
+  user-select: text;
 }
 
 .text-editor-measure {

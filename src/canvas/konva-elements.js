@@ -3,6 +3,8 @@ import { flattenPoints } from "./geometry.js";
 import {
   ARRAY_STRUCTURE_STYLE,
   GRAPH_STRUCTURE_STYLE,
+  LINEAR_STRUCTURE_TYPES,
+  STRUCTURE_ELEMENT_TYPES,
   TREE_STRUCTURE_STYLE,
 } from "../structures/structure-templates.js";
 
@@ -211,8 +213,8 @@ export function createElementNode(element, {
       lineJoin: "round",
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
-  } else if (element.type === "array-structure") {
-    node = createArrayStructureNode(element, common, { onArrayItemMove, onArrayItemEdit });
+  } else if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
+    node = createLinearStructureNode(element, common, { onArrayItemMove, onArrayItemEdit });
   } else if (element.type === "graph-structure") {
     node = createGraphStructureNode(element, common, {
       onGraphNodeMove,
@@ -313,7 +315,7 @@ export function createNodeAttrs(element) {
       fill: element.fill ?? element.stroke,
     };
   }
-  if (element.type === "array-structure" || element.type === "graph-structure" || element.type === "tree-structure") {
+  if (LINEAR_STRUCTURE_TYPES.includes(element.type) || element.type === "graph-structure" || element.type === "tree-structure") {
     return {
       x: element.x,
       y: element.y,
@@ -324,8 +326,10 @@ export function createNodeAttrs(element) {
   return {};
 }
 
-function createArrayStructureNode(element, common, { onArrayItemMove, onArrayItemEdit } = {}) {
+function createLinearStructureNode(element, common, { onArrayItemMove, onArrayItemEdit } = {}) {
   const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const showIndexes = element.settings?.showIndexes ?? element.type === STRUCTURE_ELEMENT_TYPES.ARRAY;
+  const indexBase = Number(element.settings?.indexBase) === 1 ? 1 : 0;
   const group = new Konva.Group({
     ...common,
     x: element.x,
@@ -335,6 +339,7 @@ function createArrayStructureNode(element, common, { onArrayItemMove, onArrayIte
   });
   const cellWidth = style.cellWidth;
   const cellHeight = style.cellHeight;
+  const valueY = showIndexes ? cellHeight : 0;
 
   (element.items ?? []).forEach((item, index) => {
     const itemGroup = new Konva.Group({
@@ -342,30 +347,32 @@ function createArrayStructureNode(element, common, { onArrayItemMove, onArrayIte
       x: index * cellWidth,
       y: 0,
       width: cellWidth,
-      height: cellHeight * 2,
+      height: cellHeight * (showIndexes ? 2 : 1),
       draggable: Boolean(common.draggable),
     });
+    if (showIndexes) {
+      itemGroup.add(new Konva.Rect({
+        y: 0,
+        width: cellWidth,
+        height: cellHeight,
+        stroke: style.stroke,
+        strokeWidth: 2,
+        fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.indexFill,
+      }));
+      itemGroup.add(new Konva.Text({
+        y: 10,
+        width: cellWidth,
+        height: 24,
+        text: String(index + indexBase),
+        fontSize: 18,
+        fontFamily: "Inter, system-ui, sans-serif",
+        fill: style.indexTextFill,
+        align: "center",
+        verticalAlign: "middle",
+      }));
+    }
     itemGroup.add(new Konva.Rect({
-      y: 0,
-      width: cellWidth,
-      height: cellHeight,
-      stroke: style.stroke,
-      strokeWidth: 2,
-      fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.indexFill,
-    }));
-    itemGroup.add(new Konva.Text({
-      y: 10,
-      width: cellWidth,
-      height: 24,
-      text: String(item.index ?? index),
-      fontSize: 18,
-      fontFamily: "Inter, system-ui, sans-serif",
-      fill: style.indexTextFill,
-      align: "center",
-      verticalAlign: "middle",
-    }));
-    itemGroup.add(new Konva.Rect({
-      y: cellHeight,
+      y: valueY,
       width: cellWidth,
       height: cellHeight,
       stroke: style.stroke,
@@ -373,7 +380,7 @@ function createArrayStructureNode(element, common, { onArrayItemMove, onArrayIte
       fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.valueFill,
     }));
     itemGroup.add(new Konva.Text({
-      y: cellHeight + 10,
+      y: valueY + 10,
       width: cellWidth,
       height: 24,
       text: String(item.value ?? ""),
@@ -408,6 +415,16 @@ function createArrayStructureNode(element, common, { onArrayItemMove, onArrayIte
         elementId: element.id,
         index,
         value: String(item.value ?? ""),
+        trigger: "double",
+      });
+    });
+    itemGroup.on("click tap", (event) => {
+      event.cancelBubble = true;
+      onArrayItemEdit?.({
+        elementId: element.id,
+        index,
+        value: String(item.value ?? ""),
+        trigger: "single",
       });
     });
     group.add(itemGroup);
@@ -438,21 +455,7 @@ function createArrayStructureNode(element, common, { onArrayItemMove, onArrayIte
     }));
   }
 
-  const modeLabel = getArrayModeLabel(element.settings?.mode);
-  if (modeLabel) {
-    group.add(new Konva.Text({
-      x: 0,
-      y: element.height + 6,
-      width: Math.max(cellWidth, element.width),
-      height: 18,
-      text: modeLabel,
-      fontSize: 13,
-      fontFamily: "Inter, system-ui, sans-serif",
-      fill: style.indexTextFill,
-      align: "center",
-      listening: false,
-    }));
-  }
+  addLinearEndpointLabels(group, element, style, cellWidth);
 
   return group;
 }
@@ -690,12 +693,34 @@ function createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeCl
   return group;
 }
 
-function getArrayModeLabel(mode) {
-  return {
-    stack: "栈",
-    queue: "队列",
-    deque: "双端队列",
-  }[mode] ?? "";
+function addLinearEndpointLabels(group, element, style, cellWidth) {
+  const count = element.items?.length ?? 0;
+  if (count === 0) return;
+  const labels = {
+    [STRUCTURE_ELEMENT_TYPES.STACK]: [{ index: count - 1, text: "top" }],
+    [STRUCTURE_ELEMENT_TYPES.QUEUE]: [
+      { index: 0, text: "front" },
+      { index: count - 1, text: "back" },
+    ],
+    [STRUCTURE_ELEMENT_TYPES.DEQUE]: [
+      { index: 0, text: "left" },
+      { index: count - 1, text: "right" },
+    ],
+  }[element.type] ?? [];
+  for (const label of labels) {
+    group.add(new Konva.Text({
+      x: label.index * cellWidth,
+      y: element.height + 6,
+      width: cellWidth,
+      height: 18,
+      text: label.text,
+      fontSize: 13,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.indexTextFill,
+      align: "center",
+      listening: false,
+    }));
+  }
 }
 
 function getParallelEdgeIndex(edges, edge) {

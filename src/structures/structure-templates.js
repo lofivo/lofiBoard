@@ -2,15 +2,28 @@ import { createId } from "../board/ids.js";
 
 export const STRUCTURE_TYPES = {
   ARRAY: "array",
+  STACK: "stack",
+  QUEUE: "queue",
+  DEQUE: "deque",
   GRAPH: "graph",
   TREE: "tree",
 };
 
 export const STRUCTURE_ELEMENT_TYPES = {
   ARRAY: "array-structure",
+  STACK: "stack-structure",
+  QUEUE: "queue-structure",
+  DEQUE: "deque-structure",
   GRAPH: "graph-structure",
   TREE: "tree-structure",
 };
+
+export const LINEAR_STRUCTURE_TYPES = [
+  STRUCTURE_ELEMENT_TYPES.ARRAY,
+  STRUCTURE_ELEMENT_TYPES.STACK,
+  STRUCTURE_ELEMENT_TYPES.QUEUE,
+  STRUCTURE_ELEMENT_TYPES.DEQUE,
+];
 
 export const STRUCTURE_ITEMS = [
   {
@@ -18,6 +31,24 @@ export const STRUCTURE_ITEMS = [
     label: "数组",
     defaultInput: "1,2,3,4,5",
     placeholder: "1,2,3,4,5",
+  },
+  {
+    id: STRUCTURE_TYPES.STACK,
+    label: "栈",
+    defaultInput: "1,2,3",
+    placeholder: "1,2,3",
+  },
+  {
+    id: STRUCTURE_TYPES.QUEUE,
+    label: "队列",
+    defaultInput: "1,2,3",
+    placeholder: "1,2,3",
+  },
+  {
+    id: STRUCTURE_TYPES.DEQUE,
+    label: "双端队列",
+    defaultInput: "1,2,3",
+    placeholder: "1,2,3",
   },
   {
     id: STRUCTURE_TYPES.GRAPH,
@@ -139,12 +170,17 @@ export function createStructureElements({ type, input, point, zIndexStart = 0 })
     ? createGraphStructureElement(parseGraphInput(normalizedInput), point, zIndexStart)
     : type === STRUCTURE_TYPES.TREE
       ? createTreeStructureElement(parseTreeInput(normalizedInput), point, zIndexStart)
-      : createArrayStructureElement(parseArrayInput(normalizedInput), point, zIndexStart);
+      : createLinearStructureElement(type, parseArrayInput(normalizedInput), point, zIndexStart);
   return [element];
 }
 
+export function isLinearStructureElement(elementOrType) {
+  const type = typeof elementOrType === "string" ? elementOrType : elementOrType?.type;
+  return LINEAR_STRUCTURE_TYPES.includes(type);
+}
+
 export function insertArrayItem(element, index = element?.items?.length ?? 0, value = "") {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const items = [...(element.items ?? [])];
   const safeIndex = Math.min(items.length, Math.max(0, Number(index) || 0));
   items.splice(safeIndex, 0, {
@@ -159,7 +195,7 @@ export function insertArrayItem(element, index = element?.items?.length ?? 0, va
 }
 
 export function deleteArrayItem(element, index = (element?.items?.length ?? 1) - 1) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const items = [...(element.items ?? [])];
   if (items.length === 0) return element;
   const safeIndex = Math.min(items.length - 1, Math.max(0, Number(index) || 0));
@@ -171,7 +207,7 @@ export function deleteArrayItem(element, index = (element?.items?.length ?? 1) -
 }
 
 export function updateArrayItemValue(element, index = 0, value = "") {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const items = [...(element.items ?? [])];
   if (items.length === 0) return element;
   const safeIndex = clampIndex(index, items.length - 1);
@@ -186,7 +222,7 @@ export function updateArrayItemValue(element, index = 0, value = "") {
 }
 
 export function swapArrayItems(element, firstIndex = 0, secondIndex = 1) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const items = [...(element.items ?? [])];
   if (items.length < 2) return element;
   const first = clampIndex(firstIndex, items.length - 1);
@@ -200,7 +236,7 @@ export function swapArrayItems(element, firstIndex = 0, secondIndex = 1) {
 }
 
 export function moveArrayItem(element, fromIndex = 0, toIndex = 0) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const items = [...(element.items ?? [])];
   if (items.length < 2) return element;
   const from = clampIndex(fromIndex, items.length - 1);
@@ -215,7 +251,7 @@ export function moveArrayItem(element, fromIndex = 0, toIndex = 0) {
 }
 
 export function updateArrayValues(element, input) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const values = parseArrayInput(normalizeStructureInput(STRUCTURE_TYPES.ARRAY, input));
   return normalizeArrayStructureItems({
     ...element,
@@ -228,7 +264,7 @@ export function updateArrayValues(element, input) {
 }
 
 export function setArrayHighlight(element, { start = 0, end = start, pointer = start } = {}) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   const length = element.items?.length ?? 0;
   if (length === 0) {
     return {
@@ -251,7 +287,7 @@ export function setArrayHighlight(element, { start = 0, end = start, pointer = s
 }
 
 export function clearArrayHighlight(element) {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
+  if (!isLinearStructureElement(element)) return element;
   return {
     ...element,
     markers: {
@@ -262,14 +298,14 @@ export function clearArrayHighlight(element) {
   };
 }
 
-export function setArrayStructureMode(element, mode = "array") {
-  if (element?.type !== STRUCTURE_ELEMENT_TYPES.ARRAY) return element;
-  const allowedModes = new Set(["array", "stack", "queue", "deque"]);
+export function setLinearIndexOptions(element, { indexBase = element?.settings?.indexBase ?? 0, showIndexes = element?.settings?.showIndexes ?? true } = {}) {
+  if (!isLinearStructureElement(element)) return element;
   return {
     ...element,
     settings: {
       ...(element.settings ?? {}),
-      mode: allowedModes.has(mode) ? mode : "array",
+      indexBase: Number(indexBase) === 1 ? 1 : 0,
+      showIndexes: Boolean(showIndexes),
     },
   };
 }
@@ -922,24 +958,28 @@ function normalizeArrayStructureItems(element) {
   }));
   const previousWidth = Number(element.width) || style.cellWidth;
   const nextWidth = Math.max(style.cellWidth, nextItems.length * style.cellWidth);
+  const showIndexes = element.settings?.showIndexes ?? element.type === STRUCTURE_ELEMENT_TYPES.ARRAY;
   return {
     ...element,
     x: (Number(element.x) || 0) - (nextWidth - previousWidth) / 2,
     width: nextWidth,
-    height: style.cellHeight * 2,
+    height: style.cellHeight * (showIndexes ? 2 : 1),
     items: nextItems,
+    settings: getLinearStructureSettings(element.type, element.settings),
     style,
   };
 }
 
-function createArrayStructureElement(values, point, zIndex) {
+function createLinearStructureElement(type, values, point, zIndex) {
+  const elementType = getLinearElementType(type);
   const cellWidth = ARRAY_STRUCTURE_STYLE.cellWidth;
   const cellHeight = ARRAY_STRUCTURE_STYLE.cellHeight;
+  const settings = getLinearStructureSettings(elementType);
   const width = Math.max(cellWidth, values.length * cellWidth);
-  const height = cellHeight * 2;
+  const height = cellHeight * (settings.showIndexes ? 2 : 1);
   return {
-    id: createId("array"),
-    type: STRUCTURE_ELEMENT_TYPES.ARRAY,
+    id: createId(getLinearIdPrefix(elementType)),
+    type: elementType,
     x: point.x - width / 2,
     y: point.y - height / 2,
     width,
@@ -949,11 +989,38 @@ function createArrayStructureElement(values, point, zIndex) {
       index,
       value: String(value),
     })),
+    settings,
     style: { ...ARRAY_STRUCTURE_STYLE },
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
     zIndex,
+  };
+}
+
+function getLinearElementType(type) {
+  return {
+    [STRUCTURE_TYPES.ARRAY]: STRUCTURE_ELEMENT_TYPES.ARRAY,
+    [STRUCTURE_TYPES.STACK]: STRUCTURE_ELEMENT_TYPES.STACK,
+    [STRUCTURE_TYPES.QUEUE]: STRUCTURE_ELEMENT_TYPES.QUEUE,
+    [STRUCTURE_TYPES.DEQUE]: STRUCTURE_ELEMENT_TYPES.DEQUE,
+  }[type] ?? STRUCTURE_ELEMENT_TYPES.ARRAY;
+}
+
+function getLinearIdPrefix(type) {
+  return {
+    [STRUCTURE_ELEMENT_TYPES.ARRAY]: "array",
+    [STRUCTURE_ELEMENT_TYPES.STACK]: "stack",
+    [STRUCTURE_ELEMENT_TYPES.QUEUE]: "queue",
+    [STRUCTURE_ELEMENT_TYPES.DEQUE]: "deque",
+  }[type] ?? "linear";
+}
+
+function getLinearStructureSettings(type, settings = {}) {
+  const isArray = type === STRUCTURE_ELEMENT_TYPES.ARRAY;
+  return {
+    indexBase: Number(settings.indexBase) === 1 ? 1 : 0,
+    showIndexes: settings.showIndexes ?? isArray,
   };
 }
 

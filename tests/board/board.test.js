@@ -96,6 +96,27 @@ describe("board model", () => {
     });
   });
 
+  it("normalizes independent linear structure defaults", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        { id: "stack_1", type: "stack-structure", items: [{ value: "A" }] },
+        { id: "queue_1", type: "queue-structure", items: [{ value: "B" }] },
+        { id: "deque_1", type: "deque-structure", items: [{ value: "C" }] },
+      ],
+    });
+
+    expect(board.elements.map((element) => element.type)).toEqual([
+      "stack-structure",
+      "queue-structure",
+      "deque-structure",
+    ]);
+    expect(board.elements[0]).toMatchObject({
+      height: 44,
+      settings: { indexBase: 0, showIndexes: false },
+    });
+  });
+
   it("serializes viewport and elements without mutating the source board", () => {
     const board = createEmptyBoard();
     board.elements.push({

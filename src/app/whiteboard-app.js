@@ -81,8 +81,10 @@ import {
 } from "../ui/ui-config.js";
 import {
   STRUCTURE_TYPES,
+  LINEAR_STRUCTURE_TYPES,
   createStructureElements,
   getStructureItem,
+  isLinearStructureElement,
   insertArrayItem,
   deleteArrayItem,
   updateArrayItemValue,
@@ -91,7 +93,7 @@ import {
   updateArrayValues,
   setArrayHighlight,
   clearArrayHighlight,
-  setArrayStructureMode,
+  setLinearIndexOptions,
   addGraphNode,
   addGraphEdge,
   addGraphEdgeFromText,
@@ -439,10 +441,18 @@ export function createWhiteboardApp(root) {
         pointer: promptIndex("当前指针", 0),
       })),
       "array-clear-highlight": () => editSelectedArrayStructure(clearArrayHighlight),
-      "array-mode-array": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "array")),
-      "array-mode-stack": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "stack")),
-      "array-mode-queue": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "queue")),
-      "array-mode-deque": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "deque")),
+      "linear-index-zero": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 0, showIndexes: element.settings?.showIndexes ?? true })),
+      "linear-index-one": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 1, showIndexes: element.settings?.showIndexes ?? true })),
+      "linear-index-show": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: true })),
+      "linear-index-hide": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: false })),
+      "stack-push": () => editSelectedStructure("stack-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, promptValue("Push 值", "")), "已更新栈"),
+      "stack-pop": () => editSelectedStructure("stack-structure", (element) => deleteArrayItem(element, (element.items?.length ?? 1) - 1), "已更新栈"),
+      "queue-enqueue": () => editSelectedStructure("queue-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, promptValue("Enqueue 值", "")), "已更新队列"),
+      "queue-dequeue": () => editSelectedStructure("queue-structure", (element) => deleteArrayItem(element, 0), "已更新队列"),
+      "deque-push-left": () => editSelectedStructure("deque-structure", (element) => insertArrayItem(element, 0, promptValue("左侧插入值", "")), "已更新双端队列"),
+      "deque-push-right": () => editSelectedStructure("deque-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, promptValue("右侧插入值", "")), "已更新双端队列"),
+      "deque-pop-left": () => editSelectedStructure("deque-structure", (element) => deleteArrayItem(element, 0), "已更新双端队列"),
+      "deque-pop-right": () => editSelectedStructure("deque-structure", (element) => deleteArrayItem(element, (element.items?.length ?? 1) - 1), "已更新双端队列"),
       "array-reload": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInput.value)),
       "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
       "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
@@ -1936,7 +1946,18 @@ export function createWhiteboardApp(root) {
   }
 
   function editSelectedArrayStructure(edit) {
-    editSelectedStructure("array-structure", edit, "已更新数组");
+    const targetId = selectedIds.find((id) => {
+      const element = board.elements.find((item) => item.id === id);
+      return isLinearStructureElement(element) && !element.locked;
+    });
+    if (!targetId) return;
+
+    board.elements = board.elements.map((element) => (
+      element.id === targetId ? edit(element) : element
+    ));
+    renderBoard();
+    selectIds([targetId]);
+    pushHistory("已更新线性结构");
   }
 
   function editSelectedStructure(type, edit, message) {
@@ -2082,7 +2103,7 @@ export function createWhiteboardApp(root) {
 
   function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
     const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "array-structure" || element.locked) return;
+    if (!isLinearStructureElement(element) || element.locked) return;
     if (fromIndex === toIndex) {
       renderBoard();
       selectIds([elementId]);
@@ -2096,16 +2117,64 @@ export function createWhiteboardApp(root) {
     pushHistory("已移动数组元素");
   }
 
-  function editArrayStructureItem({ elementId, index, value }) {
+  function editArrayStructureItem({ elementId, index, value, trigger = "double" }) {
     const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "array-structure" || element.locked) return;
-    const nextValue = promptValue("元素值", value);
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
-    ));
-    renderBoard();
+    if (!isLinearStructureElement(element) || element.locked) return;
+    const wasSelected = selectedIds.includes(elementId);
     selectIds([elementId]);
-    pushHistory("已更新数组元素");
+    if (trigger === "single" && !wasSelected) return;
+    requestAnimationFrame(() => editLinearStructureItemInline({ elementId, index, value }));
+  }
+
+  function editLinearStructureItemInline({ elementId, index, value }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    const node = contentLayer.findOne(`#${elementId}`);
+    if (!isLinearStructureElement(element) || !node) return;
+    const itemNode = node.find(".array-item")?.[index];
+    if (!itemNode) return;
+
+    const valueRect = itemNode.find("Rect").at(-1);
+    const absolute = valueRect.getAbsolutePosition();
+    const scale = stage.scaleX() * (node.scaleX() || 1);
+    const box = stage.container().getBoundingClientRect();
+    const input = document.createElement("input");
+    input.className = "cell-editor";
+    input.value = value;
+    input.style.left = `${box.left + absolute.x}px`;
+    input.style.top = `${box.top + absolute.y}px`;
+    input.style.width = `${valueRect.width() * scale}px`;
+    input.style.height = `${valueRect.height() * scale}px`;
+    input.style.fontSize = `${20 * scale}px`;
+    document.body.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = (commit) => {
+      if (closed) return;
+      closed = true;
+      const nextValue = input.value;
+      input.remove();
+      if (!commit) return;
+      board.elements = board.elements.map((item) => (
+        item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
+      ));
+      renderBoard();
+      selectIds([elementId]);
+      pushHistory("已更新线性结构元素");
+    };
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        close(true);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    });
+    input.addEventListener("blur", () => close(true));
   }
 
   function editTreeStructureNode({ elementId, index, value }) {
@@ -2949,6 +3018,9 @@ export function createWhiteboardApp(root) {
       line: "线段",
       arrow: "箭头",
       "array-structure": `数组：${element.items?.length ?? 0} 项`,
+      "stack-structure": `栈：${element.items?.length ?? 0} 项`,
+      "queue-structure": `队列：${element.items?.length ?? 0} 项`,
+      "deque-structure": `双端队列：${element.items?.length ?? 0} 项`,
       "graph-structure": `图：${element.nodes?.length ?? 0} 点 ${element.edges?.length ?? 0} 边`,
       "tree-structure": `树：${element.nodes?.length ?? 0} 节点`,
     };
@@ -3012,7 +3084,7 @@ export function createWhiteboardApp(root) {
           ? "stroke"
         : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
           ? "linear"
-        : selectedElements.every((element) => ["array-structure", "graph-structure", "tree-structure"].includes(element.type))
+        : selectedElements.every((element) => isLinearStructureElement(element) || ["graph-structure", "tree-structure"].includes(element.type))
           ? "structure"
           : "element";
       stylePanel.hidden = false;

@@ -253,6 +253,27 @@ describe("konva elements", () => {
     expect(node.find("Text").map((text) => text.text())).toEqual(["0", "A", "1", "B"]);
   });
 
+  it("renders independent stack structures with hidden indexes and endpoint labels", () => {
+    const node = createElementNode({
+      id: "stack_1",
+      type: "stack-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 44,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      settings: { indexBase: 0, showIndexes: false },
+      style: {},
+    }, baseHandlers);
+
+    expect(node.find(".array-item")).toHaveLength(2);
+    expect(node.find("Rect")).toHaveLength(2);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["A", "B", "top"]);
+  });
+
   it("allows array items to be moved and edited inside the array structure", () => {
     const onArrayItemMove = vi.fn();
     const onArrayItemEdit = vi.fn();
@@ -291,6 +312,7 @@ describe("konva elements", () => {
       elementId: "array_1",
       index: 0,
       value: "A",
+      trigger: "double",
     });
   });
 

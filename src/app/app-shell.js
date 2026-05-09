@@ -117,12 +117,20 @@ export function renderShell() {
           <button type="button" data-action="array-move">移动元素</button>
           <button type="button" data-action="array-highlight">数组高亮</button>
           <button type="button" data-action="array-clear-highlight">清除高亮</button>
-          <button type="button" data-action="array-mode-array">数组模式</button>
-          <button type="button" data-action="array-mode-stack">栈模式</button>
-          <button type="button" data-action="array-mode-queue">队列模式</button>
-          <button type="button" data-action="array-mode-deque">双端队列</button>
+          <button type="button" data-action="linear-index-zero">0 下标</button>
+          <button type="button" data-action="linear-index-one">1 下标</button>
+          <button type="button" data-action="linear-index-show">显示下标</button>
+          <button type="button" data-action="linear-index-hide">隐藏下标</button>
           <button type="button" data-action="array-delete-end">删末项</button>
           <button type="button" data-action="array-reload">数组重载</button>
+          <button type="button" data-action="stack-push">Push</button>
+          <button type="button" data-action="stack-pop">Pop</button>
+          <button type="button" data-action="queue-enqueue">Enqueue</button>
+          <button type="button" data-action="queue-dequeue">Dequeue</button>
+          <button type="button" data-action="deque-push-left">左插</button>
+          <button type="button" data-action="deque-push-right">右插</button>
+          <button type="button" data-action="deque-pop-left">左删</button>
+          <button type="button" data-action="deque-pop-right">右删</button>
           <button type="button" data-action="graph-add-node">加点</button>
           <button type="button" data-action="graph-add-edge">连边</button>
           <button type="button" data-action="graph-connect-mode">点选连边</button>
