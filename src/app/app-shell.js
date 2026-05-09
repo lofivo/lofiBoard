@@ -110,7 +110,58 @@ export function renderShell() {
         <div class="quick-actions">
           <button type="button" data-action="array-insert-start">数组前插</button>
           <button type="button" data-action="array-insert-end">数组后插</button>
+          <button type="button" data-action="array-insert-at">指定插入</button>
+          <button type="button" data-action="array-delete-at">指定删除</button>
+          <button type="button" data-action="array-set-value">修改元素</button>
+          <button type="button" data-action="array-swap">交换元素</button>
+          <button type="button" data-action="array-move">移动元素</button>
+          <button type="button" data-action="array-highlight">数组高亮</button>
+          <button type="button" data-action="array-clear-highlight">清除高亮</button>
+          <button type="button" data-action="array-mode-array">数组模式</button>
+          <button type="button" data-action="array-mode-stack">栈模式</button>
+          <button type="button" data-action="array-mode-queue">队列模式</button>
+          <button type="button" data-action="array-mode-deque">双端队列</button>
           <button type="button" data-action="array-delete-end">删末项</button>
+          <button type="button" data-action="array-reload">数组重载</button>
+          <button type="button" data-action="graph-add-node">加点</button>
+          <button type="button" data-action="graph-add-edge">连边</button>
+          <button type="button" data-action="graph-connect-mode">点选连边</button>
+          <button type="button" data-action="graph-add-edge-input">输入连边</button>
+          <button type="button" data-action="graph-delete-node">删点</button>
+          <button type="button" data-action="graph-delete-edge">删边</button>
+          <button type="button" data-action="graph-edit-edge">改边</button>
+          <button type="button" data-action="graph-directed-on">默认有向</button>
+          <button type="button" data-action="graph-directed-off">默认无向</button>
+          <button type="button" data-action="graph-highlight">图高亮</button>
+          <button type="button" data-action="graph-clear-highlight">清高亮</button>
+          <button type="button" data-action="graph-layout-circle">环形布局</button>
+          <button type="button" data-action="graph-layout-grid">网格布局</button>
+          <button type="button" data-action="graph-layout-layered">分层布局</button>
+          <button type="button" data-action="graph-layout-force">力导向</button>
+          <button type="button" data-action="graph-export-edge-list">导出边表</button>
+          <button type="button" data-action="graph-export-adjacency-list">导出邻接表</button>
+          <button type="button" data-action="graph-export-adjacency-matrix">导出矩阵</button>
+          <button type="button" data-action="graph-import-adjacency-list">导入邻接表</button>
+          <button type="button" data-action="graph-import-adjacency-matrix">导入矩阵</button>
+          <button type="button" data-action="graph-reload">图重载</button>
+          <button type="button" data-action="tree-add-node">树加点</button>
+          <button type="button" data-action="tree-add-left">加左儿子</button>
+          <button type="button" data-action="tree-add-right">加右儿子</button>
+          <button type="button" data-action="tree-set-value">改节点值</button>
+          <button type="button" data-action="tree-delete-subtree">删子树</button>
+          <button type="button" data-action="tree-highlight-level">层序高亮</button>
+          <button type="button" data-action="tree-highlight-preorder">前序高亮</button>
+          <button type="button" data-action="tree-highlight-inorder">中序高亮</button>
+          <button type="button" data-action="tree-highlight-postorder">后序高亮</button>
+          <button type="button" data-action="tree-step-next">遍历下一步</button>
+          <button type="button" data-action="tree-step-prev">遍历上一步</button>
+          <button type="button" data-action="tree-clear-highlight">清除高亮</button>
+          <button type="button" data-action="tree-collapse-subtree">折叠子树</button>
+          <button type="button" data-action="tree-expand-subtree">展开子树</button>
+          <button type="button" data-action="tree-copy-subtree">复制子树</button>
+          <button type="button" data-action="tree-move-subtree">移动子树</button>
+          <button type="button" data-action="tree-delete-node">删节点</button>
+          <button type="button" data-action="tree-reload">树重载</button>
           <button type="button" data-action="bring-front">置顶</button>
           <button type="button" data-action="send-back">置底</button>
           <button type="button" data-action="toggle-lock">锁定</button>

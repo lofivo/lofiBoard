@@ -46,7 +46,22 @@ export function syncTextNodeContent(node, element) {
   });
 }
 
-export function createElementNode(element, { draggable, onMove, onSelect, onEdit, onDragStart, onDragMove }) {
+export function createElementNode(element, {
+  draggable,
+  onMove,
+  onSelect,
+  onEdit,
+  onDragStart,
+  onDragMove,
+  onArrayItemMove,
+  onArrayItemEdit,
+  onGraphNodeMove,
+  onGraphNodeClick,
+  onGraphEdgeEdit,
+  getGraphEdgeState,
+  onTreeNodeEdit,
+  onTreeNodeClick,
+}) {
   let node;
   const common = {
     id: element.id,
@@ -197,11 +212,16 @@ export function createElementNode(element, { draggable, onMove, onSelect, onEdit
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
   } else if (element.type === "array-structure") {
-    node = createArrayStructureNode(element, common);
+    node = createArrayStructureNode(element, common, { onArrayItemMove, onArrayItemEdit });
   } else if (element.type === "graph-structure") {
-    node = createGraphStructureNode(element, common);
+    node = createGraphStructureNode(element, common, {
+      onGraphNodeMove,
+      onGraphNodeClick,
+      onGraphEdgeEdit,
+      getGraphEdgeState,
+    });
   } else if (element.type === "tree-structure") {
-    node = createTreeStructureNode(element, common);
+    node = createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeClick });
   }
 
   let didDrag = false;
@@ -304,7 +324,7 @@ export function createNodeAttrs(element) {
   return {};
 }
 
-function createArrayStructureNode(element, common) {
+function createArrayStructureNode(element, common, { onArrayItemMove, onArrayItemEdit } = {}) {
   const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const group = new Konva.Group({
     ...common,
@@ -317,18 +337,23 @@ function createArrayStructureNode(element, common) {
   const cellHeight = style.cellHeight;
 
   (element.items ?? []).forEach((item, index) => {
-    const x = index * cellWidth;
-    group.add(new Konva.Rect({
-      x,
+    const itemGroup = new Konva.Group({
+      name: "array-item",
+      x: index * cellWidth,
+      y: 0,
+      width: cellWidth,
+      height: cellHeight * 2,
+      draggable: Boolean(common.draggable),
+    });
+    itemGroup.add(new Konva.Rect({
       y: 0,
       width: cellWidth,
       height: cellHeight,
       stroke: style.stroke,
       strokeWidth: 2,
-      fill: style.indexFill,
+      fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.indexFill,
     }));
-    group.add(new Konva.Text({
-      x,
+    itemGroup.add(new Konva.Text({
       y: 10,
       width: cellWidth,
       height: 24,
@@ -339,17 +364,15 @@ function createArrayStructureNode(element, common) {
       align: "center",
       verticalAlign: "middle",
     }));
-    group.add(new Konva.Rect({
-      x,
+    itemGroup.add(new Konva.Rect({
       y: cellHeight,
       width: cellWidth,
       height: cellHeight,
       stroke: style.stroke,
       strokeWidth: 2,
-      fill: style.valueFill,
+      fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.valueFill,
     }));
-    group.add(new Konva.Text({
-      x,
+    itemGroup.add(new Konva.Text({
       y: cellHeight + 10,
       width: cellWidth,
       height: 24,
@@ -360,12 +383,86 @@ function createArrayStructureNode(element, common) {
       align: "center",
       verticalAlign: "middle",
     }));
+    itemGroup.on("dragstart", (event) => {
+      event.cancelBubble = true;
+      group.draggable(false);
+    });
+    itemGroup.on("dragmove", (event) => {
+      event.cancelBubble = true;
+      itemGroup.y(0);
+      group.getLayer()?.batchDraw();
+    });
+    itemGroup.on("dragend", (event) => {
+      event.cancelBubble = true;
+      group.draggable(Boolean(common.draggable));
+      const targetIndex = Math.max(0, Math.min((element.items?.length ?? 1) - 1, Math.round(itemGroup.x() / cellWidth)));
+      onArrayItemMove?.({
+        elementId: element.id,
+        fromIndex: index,
+        toIndex: targetIndex,
+      });
+    });
+    itemGroup.on("dblclick dbltap", (event) => {
+      event.cancelBubble = true;
+      onArrayItemEdit?.({
+        elementId: element.id,
+        index,
+        value: String(item.value ?? ""),
+      });
+    });
+    group.add(itemGroup);
   });
+
+  const pointerIndex = element.markers?.pointer;
+  if (Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
+    group.add(new Konva.RegularPolygon({
+      x: pointerIndex * cellWidth + cellWidth / 2,
+      y: -10,
+      sides: 3,
+      radius: 9,
+      fill: style.pointerFill,
+      rotation: 180,
+      listening: false,
+    }));
+    group.add(new Konva.Text({
+      x: pointerIndex * cellWidth,
+      y: -30,
+      width: cellWidth,
+      height: 16,
+      text: "i",
+      fontSize: 13,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.pointerFill,
+      align: "center",
+      listening: false,
+    }));
+  }
+
+  const modeLabel = getArrayModeLabel(element.settings?.mode);
+  if (modeLabel) {
+    group.add(new Konva.Text({
+      x: 0,
+      y: element.height + 6,
+      width: Math.max(cellWidth, element.width),
+      height: 18,
+      text: modeLabel,
+      fontSize: 13,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.indexTextFill,
+      align: "center",
+      listening: false,
+    }));
+  }
 
   return group;
 }
 
-function createGraphStructureNode(element, common) {
+function createGraphStructureNode(element, common, {
+  onGraphNodeMove,
+  onGraphNodeClick,
+  onGraphEdgeEdit,
+  getGraphEdgeState,
+} = {}) {
   const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const group = new Konva.Group({
     ...common,
@@ -374,32 +471,81 @@ function createGraphStructureNode(element, common) {
     width: element.width,
     height: element.height,
   });
-  const nodes = new Map((element.nodes ?? []).map((node) => [node.id, node]));
+  const nodes = new Map((element.nodes ?? []).map((node) => [node.id, { ...node }]));
+  const nodeGroups = new Map();
+  const edgeRecords = [];
+
+  const getNodePosition = (nodeId) => {
+    const nodeGroup = nodeGroups.get(nodeId);
+    if (nodeGroup) return { x: nodeGroup.x(), y: nodeGroup.y() };
+    const node = nodes.get(nodeId);
+    return node ? { x: node.x, y: node.y } : null;
+  };
+
+  const refreshEdges = () => {
+    for (const record of edgeRecords) {
+      const source = getNodePosition(record.edge.from);
+      const target = getNodePosition(record.edge.to);
+      if (!source || !target) continue;
+      record.line.points([source.x, source.y, target.x, target.y]);
+      if (record.weightBackground && record.weightLabel) {
+        const x = (source.x + target.x) / 2 - 18;
+        const y = (source.y + target.y) / 2 - 18;
+        record.weightBackground.position({ x, y });
+        record.weightLabel.position({ x, y });
+      }
+    }
+  };
 
   (element.edges ?? []).forEach((edge) => {
     const source = nodes.get(edge.from);
     const target = nodes.get(edge.to);
     if (!source || !target) return;
+    const edgeIndex = getParallelEdgeIndex(element.edges ?? [], edge);
+    const isSelfLoop = edge.from === edge.to;
     const lineAttrs = {
-      points: [source.x, source.y, target.x, target.y],
-      stroke: style.stroke,
+      points: getGraphEdgePoints(source, target, edgeIndex),
+      stroke: (element.markers?.highlightedEdges ?? []).includes(edge.id) ? style.edgeHighlightStroke : style.stroke,
       strokeWidth: 3,
       lineCap: "round",
       lineJoin: "round",
       hitStrokeWidth: 18,
+      tension: isSelfLoop || edgeIndex !== 0 ? 0.45 : 0,
     };
-    group.add(edge.directed
+    const line = edge.directed
       ? new Konva.Arrow({
         ...lineAttrs,
         fill: style.stroke,
         pointerLength: 12,
         pointerWidth: 12,
       })
-      : new Konva.Line(lineAttrs));
+      : new Konva.Line(lineAttrs);
+    group.add(line);
+    line.on("dblclick dbltap", (event) => {
+      event.cancelBubble = true;
+      onGraphEdgeEdit?.({
+        elementId: element.id,
+        edgeId: edge.id,
+        directed: edge.directed,
+        weight: edge.weight ?? "",
+      });
+    });
+    const record = { edge, line, weightBackground: null, weightLabel: null };
     if (edge.weight) {
-      group.add(new Konva.Text({
-        x: (source.x + target.x) / 2 - 18,
-        y: (source.y + target.y) / 2 - 18,
+      const labelPoint = getGraphEdgeLabelPoint(source, target, edgeIndex);
+      record.weightBackground = new Konva.Rect({
+        x: labelPoint.x - 18,
+        y: labelPoint.y - 9,
+        width: 36,
+        height: 18,
+        fill: "rgba(255,255,255,0.92)",
+        cornerRadius: 4,
+        listening: false,
+      });
+      group.add(record.weightBackground);
+      record.weightLabel = new Konva.Text({
+        x: labelPoint.x - 18,
+        y: labelPoint.y - 9,
         width: 36,
         height: 18,
         text: String(edge.weight),
@@ -407,23 +553,30 @@ function createGraphStructureNode(element, common) {
         fontFamily: "Inter, system-ui, sans-serif",
         fill: style.textFill,
         align: "center",
-      }));
+      });
+      group.add(record.weightLabel);
     }
+    if (line) edgeRecords.push(record);
   });
 
   for (const node of nodes.values()) {
-    group.add(new Konva.Ellipse({
+    const nodeGroup = new Konva.Group({
+      name: "graph-node",
       x: node.x,
       y: node.y,
+      draggable: Boolean(common.draggable),
+    });
+    nodeGroups.set(node.id, nodeGroup);
+    nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
       stroke: style.nodeStroke,
       strokeWidth: 2,
-      fill: style.nodeFill,
+      fill: getGraphNodeFill(element, node, style, getGraphEdgeState),
     }));
-    group.add(new Konva.Text({
-      x: node.x - style.nodeRadius,
-      y: node.y - 12,
+    nodeGroup.add(new Konva.Text({
+      x: -style.nodeRadius,
+      y: -12,
       width: style.nodeRadius * 2,
       height: 24,
       text: String(node.label ?? node.id),
@@ -433,12 +586,39 @@ function createGraphStructureNode(element, common) {
       align: "center",
       verticalAlign: "middle",
     }));
+    nodeGroup.on("dragstart", (event) => {
+      event.cancelBubble = true;
+      group.draggable(false);
+    });
+    nodeGroup.on("dragmove", (event) => {
+      event.cancelBubble = true;
+      refreshEdges();
+      group.getLayer()?.batchDraw();
+    });
+    nodeGroup.on("dragend", (event) => {
+      event.cancelBubble = true;
+      group.draggable(Boolean(common.draggable));
+      onGraphNodeMove?.({
+        elementId: element.id,
+        nodeId: node.id,
+        x: nodeGroup.x(),
+        y: nodeGroup.y(),
+      });
+    });
+    nodeGroup.on("click tap", (event) => {
+      event.cancelBubble = true;
+      onGraphNodeClick?.({
+        elementId: element.id,
+        nodeId: node.id,
+      });
+    });
+    group.add(nodeGroup);
   }
 
   return group;
 }
 
-function createTreeStructureNode(element, common) {
+function createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeClick } = {}) {
   const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const group = new Konva.Group({
     ...common,
@@ -447,7 +627,9 @@ function createTreeStructureNode(element, common) {
     width: element.width,
     height: element.height,
   });
-  const nodes = new Map((element.nodes ?? []).map((node) => [node.index, node]));
+  const collapsed = new Set(element.markers?.collapsed ?? []);
+  const hidden = getCollapsedTreeIndexes(collapsed, Math.max(0, ...(element.nodes ?? []).map((node) => node.index ?? 0)));
+  const nodes = new Map((element.nodes ?? []).filter((node) => !hidden.has(node.index)).map((node) => [node.index, node]));
 
   for (const node of nodes.values()) {
     if (node.parentIndex === null || node.parentIndex === undefined) continue;
@@ -463,18 +645,21 @@ function createTreeStructureNode(element, common) {
   }
 
   for (const node of nodes.values()) {
-    group.add(new Konva.Ellipse({
+    const nodeGroup = new Konva.Group({
+      name: "tree-node",
       x: node.x,
       y: node.y,
+    });
+    nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
       stroke: style.nodeStroke,
       strokeWidth: 2,
-      fill: style.nodeFill,
+      fill: (element.markers?.highlighted ?? []).includes(node.index) ? style.highlightFill : style.nodeFill,
     }));
-    group.add(new Konva.Text({
-      x: node.x - style.nodeRadius,
-      y: node.y - 12,
+    nodeGroup.add(new Konva.Text({
+      x: -style.nodeRadius,
+      y: -12,
       width: style.nodeRadius * 2,
       height: 24,
       text: String(node.value ?? ""),
@@ -484,9 +669,102 @@ function createTreeStructureNode(element, common) {
       align: "center",
       verticalAlign: "middle",
     }));
+    nodeGroup.on("dblclick dbltap", (event) => {
+      event.cancelBubble = true;
+      onTreeNodeEdit?.({
+        elementId: element.id,
+        index: node.index,
+        value: String(node.value ?? ""),
+      });
+    });
+    nodeGroup.on("click tap", (event) => {
+      event.cancelBubble = true;
+      onTreeNodeClick?.({
+        elementId: element.id,
+        index: node.index,
+      });
+    });
+    group.add(nodeGroup);
   }
 
   return group;
+}
+
+function getArrayModeLabel(mode) {
+  return {
+    stack: "栈",
+    queue: "队列",
+    deque: "双端队列",
+  }[mode] ?? "";
+}
+
+function getParallelEdgeIndex(edges, edge) {
+  const same = edges.filter((item) => (
+    (item.from === edge.from && item.to === edge.to)
+    || (!item.directed && !edge.directed && item.from === edge.to && item.to === edge.from)
+  ));
+  const index = same.findIndex((item) => item.id === edge.id);
+  if (edge.from === edge.to) return index + 1;
+  return index <= 0 ? 0 : index;
+}
+
+function getGraphEdgePoints(source, target, edgeIndex = 0) {
+  if (source.id === target.id || (source.x === target.x && source.y === target.y)) {
+    const radius = 28 + edgeIndex * 14;
+    return [
+      source.x,
+      source.y - 24,
+      source.x + radius,
+      source.y - radius,
+      source.x + radius,
+      source.y + radius,
+      source.x,
+      source.y + 24,
+    ];
+  }
+  if (edgeIndex === 0) return [source.x, source.y, target.x, target.y];
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const normalX = -dy / distance;
+  const normalY = dx / distance;
+  const offset = edgeIndex * 28;
+  const middleX = (source.x + target.x) / 2 + normalX * offset;
+  const middleY = (source.y + target.y) / 2 + normalY * offset;
+  return [source.x, source.y, middleX, middleY, target.x, target.y];
+}
+
+function getGraphEdgeLabelPoint(source, target, edgeIndex = 0) {
+  const points = getGraphEdgePoints(source, target, edgeIndex);
+  if (points.length >= 6) {
+    return { x: points[2], y: points[3] };
+  }
+  return {
+    x: (source.x + target.x) / 2,
+    y: (source.y + target.y) / 2,
+  };
+}
+
+function getCollapsedTreeIndexes(collapsed, maxIndex = 0) {
+  const hidden = new Set();
+  const visit = (index) => {
+    if (index > maxIndex) return;
+    const left = index * 2 + 1;
+    const right = index * 2 + 2;
+    if (left <= maxIndex) hidden.add(left);
+    if (right <= maxIndex) hidden.add(right);
+    visit(left);
+    visit(right);
+  };
+  for (const index of collapsed) visit(index);
+  return hidden;
+}
+
+function getGraphNodeFill(element, node, style, getGraphEdgeState) {
+  if ((element.markers?.highlightedNodes ?? []).includes(node.id)) return style.highlightFill;
+  const state = getGraphEdgeState?.(element.id);
+  if (state?.sourceNodeId === node.id) return "#dbeafe";
+  return style.nodeFill;
 }
 
 function getBrushDash(element) {

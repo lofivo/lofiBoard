@@ -248,8 +248,50 @@ describe("konva elements", () => {
     expect(node.y()).toBe(20);
     expect(node.width()).toBe(144);
     expect(node.height()).toBe(88);
+    expect(node.find(".array-item")).toHaveLength(2);
     expect(node.find("Rect")).toHaveLength(4);
     expect(node.find("Text").map((text) => text.text())).toEqual(["0", "A", "1", "B"]);
+  });
+
+  it("allows array items to be moved and edited inside the array structure", () => {
+    const onArrayItemMove = vi.fn();
+    const onArrayItemEdit = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+        { id: "item_3", index: 2, value: "C" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onArrayItemMove,
+      onArrayItemEdit,
+    });
+
+    const item = node.find(".array-item")[0];
+    item.position({ x: 144, y: 12 });
+    item.fire("dragmove", { cancelBubble: false });
+    item.fire("dragend", { cancelBubble: false });
+    item.fire("dblclick", { cancelBubble: false });
+
+    expect(onArrayItemMove).toHaveBeenCalledWith({
+      elementId: "array_1",
+      fromIndex: 0,
+      toIndex: 2,
+    });
+    expect(onArrayItemEdit).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
   });
 
   it("renders graph structure elements with directed edges", () => {
@@ -270,7 +312,112 @@ describe("konva elements", () => {
 
     expect(node.find("Arrow")).toHaveLength(1);
     expect(node.find("Ellipse")).toHaveLength(2);
+    expect(node.find("Rect")).toHaveLength(1);
     expect(node.find("Text").map((text) => text.text())).toContain("5");
+  });
+
+  it("allows graph nodes to move inside the graph structure", () => {
+    const onGraphNodeMove = vi.fn();
+    const onGraphNodeClick = vi.fn();
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onGraphNodeMove,
+      onGraphNodeClick,
+    });
+
+    const graphNode = node.findOne(".graph-node");
+    graphNode.position({ x: 50, y: 70 });
+    graphNode.fire("dragmove", { cancelBubble: false });
+    graphNode.fire("dragend", { cancelBubble: false });
+
+    expect(onGraphNodeMove).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      nodeId: "A",
+      x: 50,
+      y: 70,
+    });
+    graphNode.fire("click", { cancelBubble: false });
+    expect(onGraphNodeClick).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      nodeId: "A",
+    });
+  });
+
+  it("renders graph highlights and allows edges to be edited", () => {
+    const onGraphEdgeEdit = vi.fn();
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "3" }],
+      markers: {
+        highlightedNodes: ["A"],
+        highlightedEdges: ["edge_1"],
+      },
+      style: {},
+    }, {
+      ...baseHandlers,
+      onGraphEdgeEdit,
+    });
+
+    const line = node.findOne("Line");
+    line.fire("dblclick", { cancelBubble: false });
+
+    expect(node.find("Ellipse")[0].fill()).toBe("#fef3c7");
+    expect(line.stroke()).toBe("#2563eb");
+    expect(onGraphEdgeEdit).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      edgeId: "edge_1",
+      directed: false,
+      weight: "3",
+    });
+  });
+
+  it("renders self loops and parallel graph edges with curved paths", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 180,
+      height: 140,
+      nodes: [
+        { id: "A", label: "A", x: 50, y: 70 },
+        { id: "B", label: "B", x: 130, y: 70 },
+      ],
+      edges: [
+        { id: "edge_1", from: "A", to: "A", directed: true, weight: "" },
+        { id: "edge_2", from: "A", to: "B", directed: false, weight: "" },
+        { id: "edge_3", from: "A", to: "B", directed: false, weight: "" },
+      ],
+      style: {},
+    }, baseHandlers);
+
+    const arrows = node.find("Arrow");
+    const lines = node.find("Line");
+    expect(arrows[0].points()).toHaveLength(8);
+    expect(lines[1].points()).toHaveLength(6);
   });
 
   it("renders tree structure elements from parent indexes", () => {
@@ -290,7 +437,63 @@ describe("konva elements", () => {
 
     expect(node.find("Line")).toHaveLength(1);
     expect(node.find("Ellipse")).toHaveLength(2);
+    expect(node.find(".tree-node")).toHaveLength(2);
     expect(node.find("Text").map((text) => text.text())).toEqual(["A", "B"]);
+  });
+
+  it("hides collapsed tree descendants", () => {
+    const node = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 180,
+      nodes: [
+        { id: "0", index: 0, value: "A", x: 120, y: 24, parentIndex: null },
+        { id: "1", index: 1, value: "B", x: 80, y: 92, parentIndex: 0 },
+        { id: "3", index: 3, value: "D", x: 40, y: 160, parentIndex: 1 },
+      ],
+      markers: { collapsed: [1] },
+      style: {},
+    }, baseHandlers);
+
+    expect(node.find(".tree-node")).toHaveLength(2);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["A", "B"]);
+  });
+
+  it("allows tree nodes to be edited inside the tree structure", () => {
+    const onTreeNodeEdit = vi.fn();
+    const onTreeNodeClick = vi.fn();
+    const node = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onTreeNodeEdit,
+      onTreeNodeClick,
+    });
+
+    node.findOne(".tree-node").fire("dblclick", { cancelBubble: false });
+    node.findOne(".tree-node").fire("click", { cancelBubble: false });
+
+    expect(onTreeNodeEdit).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onTreeNodeClick).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      index: 0,
+    });
   });
 
   it("returns structure node attrs for rerender sync", () => {

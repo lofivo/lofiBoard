@@ -85,6 +85,39 @@ import {
   getStructureItem,
   insertArrayItem,
   deleteArrayItem,
+  updateArrayItemValue,
+  swapArrayItems,
+  moveArrayItem,
+  updateArrayValues,
+  setArrayHighlight,
+  clearArrayHighlight,
+  setArrayStructureMode,
+  addGraphNode,
+  addGraphEdge,
+  addGraphEdgeFromText,
+  deleteGraphNode,
+  deleteLastGraphEdge,
+  moveGraphNode,
+  setGraphDirectedDefault,
+  updateGraphEdge,
+  setGraphHighlight,
+  clearGraphHighlight,
+  layoutGraph,
+  exportGraph,
+  importGraphFromText,
+  updateGraphFromInput,
+  addTreeNode,
+  addTreeChild,
+  updateTreeNodeValue,
+  setTreeTraversalHighlight,
+  stepTreeTraversalHighlight,
+  clearTreeHighlight,
+  setTreeSubtreeCollapsed,
+  copyTreeSubtreeValues,
+  moveTreeSubtree,
+  deleteTreeSubtree,
+  deleteLastTreeNode,
+  updateTreeFromInput,
 } from "../structures/structure-templates.js";
 import {
   getNextPanelCollapsedState,
@@ -160,6 +193,8 @@ export function createWhiteboardApp(root) {
   let dirty = false;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
+  let graphConnectState = null;
+  let activeTreeParent = null;
 
   const MIN_TRANSFORM_SIZE = 12;
 
@@ -392,7 +427,65 @@ export function createWhiteboardApp(root) {
       "delete-selection": deleteSelection,
       "array-insert-start": () => editSelectedArrayStructure((element) => insertArrayItem(element, 0, "")),
       "array-insert-end": () => editSelectedArrayStructure((element) => insertArrayItem(element, element.items?.length ?? 0, "")),
+      "array-insert-at": () => editSelectedArrayStructure((element) => insertArrayItem(element, promptIndex("插入位置", element.items?.length ?? 0), promptValue("新元素值", ""))),
+      "array-delete-at": () => editSelectedArrayStructure((element) => deleteArrayItem(element, promptIndex("删除位置", (element.items?.length ?? 1) - 1))),
       "array-delete-end": () => editSelectedArrayStructure((element) => deleteArrayItem(element)),
+      "array-set-value": () => editSelectedArrayStructure((element) => updateArrayItemValue(element, promptIndex("修改位置", 0), promptValue("元素值", element.items?.[0]?.value ?? ""))),
+      "array-swap": () => editSelectedArrayStructure((element) => swapArrayItems(element, promptIndex("交换位置 A", 0), promptIndex("交换位置 B", 1))),
+      "array-move": () => editSelectedArrayStructure((element) => moveArrayItem(element, promptIndex("原位置", 0), promptIndex("目标位置", (element.items?.length ?? 1) - 1))),
+      "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
+        start: promptIndex("高亮起点", 0),
+        end: promptIndex("高亮终点", Math.max(0, (element.items?.length ?? 1) - 1)),
+        pointer: promptIndex("当前指针", 0),
+      })),
+      "array-clear-highlight": () => editSelectedArrayStructure(clearArrayHighlight),
+      "array-mode-array": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "array")),
+      "array-mode-stack": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "stack")),
+      "array-mode-queue": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "queue")),
+      "array-mode-deque": () => editSelectedArrayStructure((element) => setArrayStructureMode(element, "deque")),
+      "array-reload": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInput.value)),
+      "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
+      "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
+      "graph-connect-mode": beginGraphConnectMode,
+      "graph-add-edge-input": () => editSelectedStructure("graph-structure", (element) => addGraphEdgeFromText(element, promptValue("边，例如 A->B:5", structureInput.value || "A-B")), "已更新图"),
+      "graph-delete-node": () => editSelectedStructure("graph-structure", deleteGraphNode, "已更新图"),
+      "graph-delete-edge": () => editSelectedStructure("graph-structure", deleteLastGraphEdge, "已更新图"),
+      "graph-edit-edge": () => editSelectedStructure("graph-structure", (element) => editGraphEdgeData(element), "已更新图"),
+      "graph-directed-on": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, true), "已更新图"),
+      "graph-directed-off": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, false), "已更新图"),
+      "graph-highlight": () => editSelectedStructure("graph-structure", (element) => setGraphHighlight(element, {
+        nodes: promptValue("高亮节点，逗号分隔", "").split(",").map((item) => item.trim()).filter(Boolean),
+        edges: promptValue("高亮边 ID，逗号分隔", "").split(",").map((item) => item.trim()).filter(Boolean),
+      }), "已更新图"),
+      "graph-clear-highlight": () => editSelectedStructure("graph-structure", clearGraphHighlight, "已更新图"),
+      "graph-layout-circle": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "circle"), "已更新图布局"),
+      "graph-layout-grid": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "grid"), "已更新图布局"),
+      "graph-layout-layered": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "layered"), "已更新图布局"),
+      "graph-layout-force": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "force"), "已更新图布局"),
+      "graph-export-edge-list": () => copySelectedGraphExport("edge-list"),
+      "graph-export-adjacency-list": () => copySelectedGraphExport("adjacency-list"),
+      "graph-export-adjacency-matrix": () => copySelectedGraphExport("adjacency-matrix"),
+      "graph-import-adjacency-list": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接表", exportGraph(element, "adjacency-list")), "adjacency-list"), "已导入图"),
+      "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
+      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInput.value), "已更新图"),
+      "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, ""), "已更新树"),
+      "tree-add-left": () => editSelectedStructure("tree-structure", (element) => addTreeChild(element, getActiveTreeParentIndex(element), "left", promptValue("左孩子值", "")), "已更新树"),
+      "tree-add-right": () => editSelectedStructure("tree-structure", (element) => addTreeChild(element, getActiveTreeParentIndex(element), "right", promptValue("右孩子值", "")), "已更新树"),
+      "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, promptIndex("节点下标", 0), promptValue("节点值", element.values?.[0] ?? "")), "已更新树"),
+      "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, promptIndex("删除子树根下标", (element.values?.length ?? 1) - 1)), "已更新树"),
+      "tree-highlight-level": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "level"), "已高亮遍历"),
+      "tree-highlight-preorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "preorder"), "已高亮遍历"),
+      "tree-highlight-inorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "inorder"), "已高亮遍历"),
+      "tree-highlight-postorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "postorder"), "已高亮遍历"),
+      "tree-step-next": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, 1), "已推进遍历"),
+      "tree-step-prev": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, -1), "已回退遍历"),
+      "tree-clear-highlight": () => editSelectedStructure("tree-structure", clearTreeHighlight, "已清除高亮"),
+      "tree-collapse-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeParentIndex(element), true), "已折叠子树"),
+      "tree-expand-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeParentIndex(element), false), "已展开子树"),
+      "tree-copy-subtree": copySelectedTreeSubtree,
+      "tree-move-subtree": () => editSelectedStructure("tree-structure", (element) => moveTreeSubtree(element, getActiveTreeParentIndex(element), promptIndex("移动到目标下标", 0)), "已移动子树"),
+      "tree-delete-node": () => editSelectedStructure("tree-structure", deleteLastTreeNode, "已更新树"),
+      "tree-reload": () => editSelectedStructure("tree-structure", (element) => updateTreeFromInput(element, structureInput.value), "已更新树"),
     };
 
     actions[action]?.();
@@ -1359,6 +1452,14 @@ export function createWhiteboardApp(root) {
         selectIds([id]);
         requestAnimationFrame(() => editTextElement(id));
       },
+      onArrayItemMove: moveArrayStructureItem,
+      onArrayItemEdit: editArrayStructureItem,
+      onGraphNodeMove: moveGraphStructureNode,
+      onGraphNodeClick: handleGraphNodeClick,
+      onGraphEdgeEdit: editGraphStructureEdge,
+      getGraphEdgeState: (elementId) => (graphConnectState?.elementId === elementId ? graphConnectState : null),
+      onTreeNodeEdit: editTreeStructureNode,
+      onTreeNodeClick: handleTreeNodeClick,
     });
   }
 
@@ -1835,9 +1936,13 @@ export function createWhiteboardApp(root) {
   }
 
   function editSelectedArrayStructure(edit) {
+    editSelectedStructure("array-structure", edit, "已更新数组");
+  }
+
+  function editSelectedStructure(type, edit, message) {
     const targetId = selectedIds.find((id) => {
       const element = board.elements.find((item) => item.id === id);
-      return element?.type === "array-structure" && !element.locked;
+      return element?.type === type && !element.locked;
     });
     if (!targetId) return;
 
@@ -1846,7 +1951,184 @@ export function createWhiteboardApp(root) {
     ));
     renderBoard();
     selectIds([targetId]);
-    pushHistory("已更新数组");
+    pushHistory(message);
+  }
+
+  function promptIndex(label, fallback = 0) {
+    const input = window.prompt(label, String(Math.max(0, Number(fallback) || 0)));
+    if (input === null) return fallback;
+    const parsed = Number.parseInt(input, 10);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+  }
+
+  function promptValue(label, fallback = "") {
+    const input = window.prompt(label, String(fallback ?? ""));
+    return input === null ? fallback : input;
+  }
+
+  function promptMultiline(label, fallback = "") {
+    return promptValue(label, fallback);
+  }
+
+  function promptBoolean(label, fallback = false) {
+    const input = window.prompt(label, fallback ? "y" : "n");
+    if (input === null) return fallback;
+    return /^(y|yes|true|1|是|有向)$/i.test(input.trim());
+  }
+
+  function beginGraphConnectMode() {
+    const graphId = selectedIds.find((id) => {
+      const element = board.elements.find((item) => item.id === id);
+      return element?.type === "graph-structure" && !element.locked;
+    });
+    if (!graphId) return;
+    graphConnectState = { elementId: graphId, sourceNodeId: null };
+    renderBoard();
+    selectIds([graphId]);
+    setStatus("连边模式：点击源节点，再点击目标节点");
+  }
+
+  function handleGraphNodeClick({ elementId, nodeId }) {
+    if (!graphConnectState || graphConnectState.elementId !== elementId) {
+      selectIds([elementId]);
+      return;
+    }
+    if (!graphConnectState.sourceNodeId) {
+      graphConnectState = { elementId, sourceNodeId: nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      setStatus("连边模式：点击目标节点");
+      return;
+    }
+    const sourceNodeId = graphConnectState.sourceNodeId;
+    graphConnectState = null;
+    board.elements = board.elements.map((item) => (
+      item.id === elementId
+        ? addGraphEdge(item, sourceNodeId, nodeId, { directed: item.settings?.directedDefault ?? false })
+        : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已添加图边");
+  }
+
+  function editGraphStructureEdge({ elementId, edgeId, directed, weight }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "graph-structure" || element.locked) return;
+    const nextWeight = promptValue("边权，留空表示无权", weight);
+    const nextDirected = promptBoolean("是否有向？y/n", directed);
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? updateGraphEdge(item, edgeId, { weight: nextWeight, directed: nextDirected }) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已更新图边");
+  }
+
+  function editGraphEdgeData(element) {
+    const edge = element.edges?.at(-1);
+    if (!edge) return element;
+    return updateGraphEdge(element, edge.id, {
+      weight: promptValue("边权，留空表示无权", edge.weight ?? ""),
+      directed: promptBoolean("是否有向？y/n", edge.directed),
+    });
+  }
+
+  function copySelectedGraphExport(format) {
+    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure");
+    if (!element) return;
+    const text = exportGraph(element, format);
+    navigator.clipboard?.writeText?.(text).then(
+      () => setStatus("已复制图数据"),
+      () => {
+        structureInput.value = text;
+        setStatus("无法访问剪贴板，已写入结构输入框");
+      },
+    );
+    if (!navigator.clipboard?.writeText) {
+      structureInput.value = text;
+      setStatus("已写入结构输入框");
+    }
+  }
+
+  function copySelectedTreeSubtree() {
+    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
+    if (!element) return;
+    const values = copyTreeSubtreeValues(element, getActiveTreeParentIndex(element));
+    const text = values.map((value) => value ?? "null").join(", ");
+    navigator.clipboard?.writeText?.(text).then(
+      () => setStatus("已复制子树层序数据"),
+      () => {
+        structureInput.value = text;
+        setStatus("无法访问剪贴板，已写入结构输入框");
+      },
+    );
+    if (!navigator.clipboard?.writeText) {
+      structureInput.value = text;
+      setStatus("已写入结构输入框");
+    }
+  }
+
+  function moveGraphStructureNode({ elementId, nodeId, x, y }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "graph-structure" || element.locked) return;
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? moveGraphNode(item, nodeId, x, y) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已移动图节点");
+  }
+
+  function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "array-structure" || element.locked) return;
+    if (fromIndex === toIndex) {
+      renderBoard();
+      selectIds([elementId]);
+      return;
+    }
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? moveArrayItem(item, fromIndex, toIndex) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已移动数组元素");
+  }
+
+  function editArrayStructureItem({ elementId, index, value }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "array-structure" || element.locked) return;
+    const nextValue = promptValue("元素值", value);
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已更新数组元素");
+  }
+
+  function editTreeStructureNode({ elementId, index, value }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "tree-structure" || element.locked) return;
+    const nextValue = promptValue("节点值", value);
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? updateTreeNodeValue(item, index, nextValue) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已更新树节点");
+  }
+
+  function handleTreeNodeClick({ elementId, index }) {
+    activeTreeParent = { elementId, index };
+    selectIds([elementId]);
+    setStatus(`已选择父节点 ${index}`);
+  }
+
+  function getActiveTreeParentIndex(element) {
+    if (activeTreeParent?.elementId === element.id) return activeTreeParent.index;
+    return promptIndex("父节点下标", 0);
   }
 
   function bringSelectionToFront() {
@@ -2610,6 +2892,8 @@ export function createWhiteboardApp(root) {
     activeFileLabel.textContent = `${activeFileName}${dirtyMarker}`;
     zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
     root.dataset.hasSelection = selectedIds.length > 0 ? "true" : "false";
+    const selectedStructures = board.elements.filter((element) => selectedIds.includes(element.id) && element.type.endsWith?.("-structure"));
+    root.dataset.structureSelection = selectedStructures.length === 1 ? selectedStructures[0].type : "none";
     root.querySelectorAll("[data-background-mode]").forEach((button) => {
       button.classList.toggle("active", button.dataset.backgroundMode === board.canvas.backgroundMode);
     });
@@ -2756,6 +3040,7 @@ export function createWhiteboardApp(root) {
     stylePanel.hidden = true;
     stylePanelAvailable = false;
     root.dataset.panelMode = "hidden";
+    root.dataset.structureSelection = "none";
     applyPanelState();
   }
 
