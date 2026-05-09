@@ -12,6 +12,10 @@ const ELEMENT_DEFAULTS = {
     points: [],
     stroke: "#111827",
     strokeWidth: 6,
+    opacity: 1,
+    lineCap: "round",
+    brushStyle: "solid",
+    smoothing: 0.45,
     rotation: 0,
   },
   text: {

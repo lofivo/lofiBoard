@@ -47,7 +47,7 @@ export function renderShell() {
           <button type="button" class="panel-toggle" data-panel-toggle="style" title="收起/展开属性" aria-label="收起/展开属性">‹</button>
         </div>
         <label class="control-line">
-          线条
+          颜色
           <input data-control="color" type="color" value="#111827" />
         </label>
         <label class="control-fill">
@@ -61,6 +61,29 @@ export function renderShell() {
         <label class="control-width">
           粗细
           <input data-control="width" type="range" min="1" max="28" value="6" />
+        </label>
+        <label class="control-brush-opacity">
+          不透明度
+          <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
+        </label>
+        <label class="control-brush-smoothing">
+          平滑
+          <input data-control="brush-smoothing" type="range" min="0" max="100" value="45" />
+        </label>
+        <label class="control-brush-cap">
+          笔头
+          <select data-control="brush-cap">
+            <option value="round">圆头</option>
+            <option value="square">方头</option>
+          </select>
+        </label>
+        <label class="control-brush-style">
+          线型
+          <select data-control="brush-style">
+            <option value="solid">实线</option>
+            <option value="dash">虚线</option>
+            <option value="dot">点线</option>
+          </select>
         </label>
         <label class="control-font">
           字号
@@ -93,7 +116,7 @@ export function renderShell() {
         </div>
       </aside>
 
-      <aside class="layer-panel" data-layer-panel aria-label="图层">
+      <aside class="layer-panel is-collapsed" data-layer-panel aria-label="图层">
         <div class="panel-title">
           ${icon(PANEL_ICON)}<span>图层</span>
           <button type="button" class="panel-toggle" data-panel-toggle="layers" title="收起/展开图层" aria-label="收起/展开图层">›</button>

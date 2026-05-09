@@ -5,6 +5,16 @@ export function computeEraserRadius({ baseRadius, speed }) {
   return Math.round(baseRadius + speedBoost);
 }
 
+export function getSquareEraserPreviewAttrs(center, radius) {
+  const safeRadius = Math.max(1, Number(radius) || 1);
+  return {
+    x: center.x - safeRadius,
+    y: center.y - safeRadius,
+    width: safeRadius * 2,
+    height: safeRadius * 2,
+  };
+}
+
 export function isShapeTool(tool) {
   return SHAPE_TOOLS.has(tool);
 }

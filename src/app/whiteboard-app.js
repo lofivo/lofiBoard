@@ -64,6 +64,7 @@ import {
 import {
   computeEraserRadius,
   getFillValue,
+  getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
 } from "../tools/tool-behavior.js";
@@ -103,6 +104,10 @@ export function createWhiteboardApp(root) {
   const fillInput = root.querySelector("[data-control='fill']");
   const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
   const widthInput = root.querySelector("[data-control='width']");
+  const brushOpacityInput = root.querySelector("[data-control='brush-opacity']");
+  const brushSmoothingInput = root.querySelector("[data-control='brush-smoothing']");
+  const brushCapInput = root.querySelector("[data-control='brush-cap']");
+  const brushStyleInput = root.querySelector("[data-control='brush-style']");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
   const fontFamilyInput = root.querySelector("[data-control='font-family']");
   const zoomLabel = root.querySelector("[data-zoom]");
@@ -136,7 +141,7 @@ export function createWhiteboardApp(root) {
   let isEditingText = false;
   let clipboardSnapshot = [];
   let lastPointerWorldPoint = null;
-  let panelCollapsedState = { style: false, layers: false };
+  let panelCollapsedState = { style: false, layers: true };
   let stylePanelAvailable = true;
   let layerPanelAvailable = false;
   let statusTimer = null;
@@ -194,11 +199,15 @@ export function createWhiteboardApp(root) {
   });
   contentLayer.add(selectionRect);
 
-  const eraserCursor = new Konva.Circle({
-    radius: 18,
+  const eraserCursor = new Konva.Rect({
+    x: -18,
+    y: -18,
+    width: 36,
+    height: 36,
     stroke: "#111827",
-    strokeWidth: 1,
-    fill: "rgba(17,24,39,0.08)",
+    strokeWidth: 2,
+    dash: [6, 4],
+    fill: "rgba(0,0,0,0)",
     visible: false,
     listening: false,
   });
@@ -258,6 +267,10 @@ export function createWhiteboardApp(root) {
     fillInput.addEventListener("input", applyStyleToSelection);
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
+    brushOpacityInput.addEventListener("input", applyStyleToSelection);
+    brushSmoothingInput.addEventListener("input", applyStyleToSelection);
+    brushCapInput.addEventListener("change", applyStyleToSelection);
+    brushStyleInput.addEventListener("change", applyStyleToSelection);
     fontSizeInput.addEventListener("input", applyStyleToSelection);
     fontFamilyInput.addEventListener("change", applyStyleToSelection);
     root.querySelectorAll("[data-text-style]").forEach((button) => {
@@ -283,6 +296,7 @@ export function createWhiteboardApp(root) {
     stage.on("pointerdown", handlePointerDown);
     stage.on("pointermove", handlePointerMove);
     stage.on("pointerup pointercancel", handlePointerUp);
+    stage.container().addEventListener("pointerleave", hideEraser);
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
     transformer.on("transform", syncTextWidthResize);
@@ -740,6 +754,11 @@ export function createWhiteboardApp(root) {
       updateTextPressIntent(event, worldPoint);
     }
 
+    if ((currentTool === TOOLS.ERASER_STROKE || currentTool === TOOLS.ERASER_OBJECT) && !eraseSnapshot) {
+      showEraser(worldPoint, getBaseEraserRadius());
+      return;
+    }
+
     if (currentTool === TOOLS.ERASER_STROKE && eraseSnapshot) {
       const radius = updateEraserRadius(worldPoint);
       eraseStrokeAt(worldPoint, radius);
@@ -788,9 +807,8 @@ export function createWhiteboardApp(root) {
 
 
     if (eraseSnapshot) {
-      eraserCursor.visible(false);
+      hideEraser();
       stage.container().classList.remove("is-erasing");
-      overlayLayer.batchDraw();
       if (JSON.stringify(eraseSnapshot.elements) !== JSON.stringify(board.elements)) {
         pushHistory("已擦除内容");
       }
@@ -953,6 +971,10 @@ export function createWhiteboardApp(root) {
       points,
       stroke: colorInput.value,
       strokeWidth: Number(widthInput.value),
+      opacity: getBrushOpacityValue(),
+      lineCap: brushCapInput.value,
+      brushStyle: brushStyleInput.value,
+      smoothing: getBrushSmoothingValue(),
       rotation: 0,
       scaleX: 1,
       scaleY: 1,
@@ -970,7 +992,7 @@ export function createWhiteboardApp(root) {
     const minDistance = Math.max(0.7, Number(widthInput.value) * 0.08) / stage.scaleX();
     if (!shouldAppendStrokePoint(previousPoint, nextPoint, minDistance)) return;
 
-    strokeDraft.element.points.push(smoothStrokePoint(previousPoint, nextPoint, 0.28));
+    strokeDraft.element.points.push(smoothStrokePoint(previousPoint, nextPoint, getBrushInputSmoothingValue()));
     strokeDraft.node.points(flattenPoints(strokeDraft.element.points));
     contentLayer.batchDraw();
   }
@@ -1103,9 +1125,13 @@ export function createWhiteboardApp(root) {
   }
 
   function showEraser(worldPoint, radius = activeEraserRadius) {
-    eraserCursor.position(worldPoint);
-    eraserCursor.radius(radius);
+    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, radius));
     eraserCursor.visible(true);
+    overlayLayer.batchDraw();
+  }
+
+  function hideEraser() {
+    eraserCursor.visible(false);
     overlayLayer.batchDraw();
   }
 
@@ -1453,6 +1479,9 @@ export function createWhiteboardApp(root) {
     }
 
     const nextFontSize = Number(fontSizeInput.value);
+    const strokeStyle = getStrokeStyleFromControls();
+    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
+    const isStrokeOnlySelection = selectedElements.every((element) => element.type === "stroke");
     board.elements = board.elements.map((element) => {
       if (!selectedIds.includes(element.id)) return element;
       if (element.locked) return element;
@@ -1481,7 +1510,12 @@ export function createWhiteboardApp(root) {
           strokeWidth: Number(widthInput.value),
         };
       }
-      if (element.type === "line" || element.type === "stroke") {
+      if (element.type === "stroke") {
+        return isStrokeOnlySelection
+          ? { ...element, ...strokeStyle }
+          : { ...element, stroke: colorInput.value, strokeWidth: Number(widthInput.value) };
+      }
+      if (element.type === "line") {
         return { ...element, stroke: colorInput.value, strokeWidth: Number(widthInput.value) };
       }
       return {
@@ -1735,7 +1769,7 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
     });
-    eraserCursor.visible(false);
+    hideEraser();
     stage.container().classList.remove("is-erasing");
     if (![TOOLS.SELECT, TOOLS.PAN].includes(tool)) {
       clearSelection();
@@ -2387,6 +2421,8 @@ export function createWhiteboardApp(root) {
       hydrateControlsFromElement(first);
       const mode = selectedElements.every((element) => element.type === "text")
         ? "text"
+        : selectedElements.every((element) => element.type === "stroke")
+          ? "stroke"
         : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
           ? "linear"
           : "element";
@@ -2403,7 +2439,9 @@ export function createWhiteboardApp(root) {
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
       root.dataset.panelMode = [TOOLS.TEXT, TOOLS.STICKY].includes(currentTool)
         ? "tool-text"
-        : ["line", "arrow", "pen"].includes(drawingTool) || currentTool === TOOLS.PEN
+        : currentTool === TOOLS.PEN
+          ? "brush"
+        : ["line", "arrow"].includes(drawingTool)
           ? "linear-tool"
           : "tool";
       applyPanelState();
@@ -2423,9 +2461,40 @@ export function createWhiteboardApp(root) {
     fillTransparentInput.checked = !element.fill || element.fill === "transparent";
     if (element.fill && element.type === "text") colorInput.value = element.fill;
     if (element.strokeWidth) widthInput.value = String(element.strokeWidth);
+    if (element.type === "stroke") hydrateBrushControlsFromElement(element);
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
     if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
     updateTextStyleButtons(element);
+  }
+
+  function hydrateBrushControlsFromElement(element) {
+    brushOpacityInput.value = String(Math.round((element.opacity ?? 1) * 100));
+    brushSmoothingInput.value = String(Math.round((element.smoothing ?? 0.45) * 100));
+    brushCapInput.value = element.lineCap ?? "round";
+    brushStyleInput.value = element.brushStyle ?? "solid";
+  }
+
+  function getStrokeStyleFromControls() {
+    return {
+      stroke: colorInput.value,
+      strokeWidth: Number(widthInput.value),
+      opacity: getBrushOpacityValue(),
+      lineCap: brushCapInput.value,
+      brushStyle: brushStyleInput.value,
+      smoothing: getBrushSmoothingValue(),
+    };
+  }
+
+  function getBrushOpacityValue() {
+    return Math.max(0.1, Math.min(1, Number(brushOpacityInput.value) / 100 || 1));
+  }
+
+  function getBrushSmoothingValue() {
+    return Math.max(0, Math.min(1, Number(brushSmoothingInput.value) / 100 || 0));
+  }
+
+  function getBrushInputSmoothingValue() {
+    return Math.min(0.9, getBrushSmoothingValue());
   }
 
   function updateTextStyleButtons(element) {

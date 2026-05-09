@@ -602,7 +602,12 @@ button {
 [data-panel-mode="linear"] .control-fill-transparent,
 [data-panel-mode="linear-tool"] .control-fill,
 [data-panel-mode="linear-tool"] .control-fill-transparent,
+[data-panel-mode="brush"] .control-fill,
+[data-panel-mode="brush"] .control-fill-transparent,
+[data-panel-mode="stroke"] .control-fill,
+[data-panel-mode="stroke"] .control-fill-transparent,
 [data-panel-mode="tool"] .quick-actions,
+[data-panel-mode="brush"] .quick-actions,
 [data-panel-mode="linear-tool"] .quick-actions,
 [data-panel-mode="tool-text"] .quick-actions {
   display: none;
@@ -611,14 +616,45 @@ button {
 [data-panel-mode="element"] .control-font,
 [data-panel-mode="element"] .control-font-family,
 [data-panel-mode="element"] .control-text-format,
+[data-panel-mode="element"] .control-brush-opacity,
+[data-panel-mode="element"] .control-brush-smoothing,
+[data-panel-mode="element"] .control-brush-cap,
+[data-panel-mode="element"] .control-brush-style,
 [data-panel-mode="linear"] .control-font,
 [data-panel-mode="linear"] .control-font-family,
 [data-panel-mode="linear"] .control-text-format,
+[data-panel-mode="linear"] .control-brush-opacity,
+[data-panel-mode="linear"] .control-brush-smoothing,
+[data-panel-mode="linear"] .control-brush-cap,
+[data-panel-mode="linear"] .control-brush-style,
 [data-panel-mode="tool"] .control-font,
 [data-panel-mode="tool"] .control-font-family,
 [data-panel-mode="tool"] .control-text-format,
+[data-panel-mode="tool"] .control-brush-opacity,
+[data-panel-mode="tool"] .control-brush-smoothing,
+[data-panel-mode="tool"] .control-brush-cap,
+[data-panel-mode="tool"] .control-brush-style,
+[data-panel-mode="tool-text"] .control-brush-opacity,
+[data-panel-mode="tool-text"] .control-brush-smoothing,
+[data-panel-mode="tool-text"] .control-brush-cap,
+[data-panel-mode="tool-text"] .control-brush-style,
+[data-panel-mode="brush"] .control-font,
+[data-panel-mode="brush"] .control-font-family,
+[data-panel-mode="brush"] .control-text-format,
+[data-panel-mode="stroke"] .control-font,
+[data-panel-mode="stroke"] .control-font-family,
+[data-panel-mode="stroke"] .control-text-format,
+[data-panel-mode="linear-tool"] .control-font,
 [data-panel-mode="linear-tool"] .control-font-family,
-[data-panel-mode="linear-tool"] .control-text-format {
+[data-panel-mode="linear-tool"] .control-text-format,
+[data-panel-mode="linear-tool"] .control-brush-opacity,
+[data-panel-mode="linear-tool"] .control-brush-smoothing,
+[data-panel-mode="linear-tool"] .control-brush-cap,
+[data-panel-mode="linear-tool"] .control-brush-style,
+[data-panel-mode="text"] .control-brush-opacity,
+[data-panel-mode="text"] .control-brush-smoothing,
+[data-panel-mode="text"] .control-brush-cap,
+[data-panel-mode="text"] .control-brush-style {
   display: none;
 }
 
@@ -652,11 +688,7 @@ button {
 
 .stage-container[data-tool="eraser-stroke"],
 .stage-container[data-tool="eraser-object"] {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='rotate(-35 15 15)'%3E%3Crect x='8' y='4' width='14' height='22' rx='3' fill='%23ffffff' stroke='%23111827' stroke-width='2'/%3E%3Cpath d='M8 16h14' stroke='%23111827' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 8 24, crosshair;
-}
-
-.stage-container.is-erasing {
-  cursor: none;
+  cursor: crosshair;
 }
 
 .stage-container.is-panning,

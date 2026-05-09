@@ -16,31 +16,13 @@ export function distance(pointA, pointB) {
   return Math.hypot(pointA.x - pointB.x, pointA.y - pointB.y);
 }
 
-function interiorDistanceToSegment(point, segmentStart, segmentEnd) {
-  const dx = segmentEnd.x - segmentStart.x;
-  const dy = segmentEnd.y - segmentStart.y;
-  const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared === 0) return Infinity;
-
-  const t =
-    ((point.x - segmentStart.x) * dx + (point.y - segmentStart.y) * dy) /
-    lengthSquared;
-
-  if (t <= 0 || t >= 1) return Infinity;
-
-  return distance(point, {
-    x: segmentStart.x + t * dx,
-    y: segmentStart.y + t * dy,
-  });
-}
-
 export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   const points = stroke.points ?? [];
   if (points.length < 2) return [];
   const localEraserPoint = toElementLocalPoint(stroke, eraserPoint);
   const localRadius = getLocalRadius(stroke, radius);
 
-  if (points.every((point) => distance(point, localEraserPoint) <= localRadius)) {
+  if (points.every((point) => pointInSquare(point, localEraserPoint, localRadius))) {
     return [];
   }
 
@@ -50,10 +32,16 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
     const point = points[index];
-    const cutsSegment =
-      interiorDistanceToSegment(localEraserPoint, previous, point) <= localRadius;
+    const previousInside = pointInSquare(previous, localEraserPoint, localRadius);
+    const pointInside = pointInSquare(point, localEraserPoint, localRadius);
+    const cutsSegment = segmentIntersectsSquare(previous, point, localEraserPoint, localRadius);
 
-    if (cutsSegment) {
+    if (cutsSegment && previousInside && pointInside) {
+      if (current.length >= 2) {
+        fragments.push(current);
+      }
+      current = [{ ...point }];
+    } else if (cutsSegment && !previousInside && !pointInside) {
       if (current.length >= 2) {
         fragments.push(current);
       }
@@ -72,6 +60,34 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
     id: index === 0 ? stroke.id : createId("stroke"),
     points: points.map((point) => ({ ...point })),
   }));
+}
+
+function pointInSquare(point, center, halfSize) {
+  return Math.abs(point.x - center.x) <= halfSize && Math.abs(point.y - center.y) <= halfSize;
+}
+
+function segmentIntersectsSquare(start, end, center, halfSize) {
+  if (pointInSquare(start, center, halfSize) || pointInSquare(end, center, halfSize)) return true;
+
+  const left = center.x - halfSize;
+  const right = center.x + halfSize;
+  const top = center.y - halfSize;
+  const bottom = center.y + halfSize;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let tMin = 0;
+  let tMax = 1;
+
+  const clip = (delta, min, max, value) => {
+    if (delta === 0) return value >= min && value <= max;
+    const t1 = (min - value) / delta;
+    const t2 = (max - value) / delta;
+    tMin = Math.max(tMin, Math.min(t1, t2));
+    tMax = Math.min(tMax, Math.max(t1, t2));
+    return tMin <= tMax;
+  };
+
+  return clip(dx, left, right, start.x) && clip(dy, top, bottom, start.y) && tMax > 0 && tMin < 1;
 }
 
 function toElementLocalPoint(element, worldPoint) {

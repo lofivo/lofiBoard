@@ -45,6 +45,29 @@ describe("board model", () => {
     });
   });
 
+  it("normalizes brush stroke styling defaults for older files", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        {
+          id: "stroke_1",
+          type: "stroke",
+          points: [{ x: 0, y: 0 }, { x: 10, y: 10 }],
+        },
+      ],
+    });
+
+    expect(board.elements[0]).toMatchObject({
+      type: "stroke",
+      stroke: "#111827",
+      strokeWidth: 6,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "solid",
+      smoothing: 0.45,
+    });
+  });
+
   it("serializes viewport and elements without mutating the source board", () => {
     const board = createEmptyBoard();
     board.elements.push({

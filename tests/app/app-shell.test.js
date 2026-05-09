@@ -12,6 +12,13 @@ describe("app shell", () => {
     expect(markup).toContain("展开图层");
   });
 
+  it("renders the layer panel collapsed before app hydration", () => {
+    const markup = renderShell();
+
+    expect(markup).toContain('class="layer-panel is-collapsed"');
+    expect(markup).toContain('data-panel-toggle="layers"');
+  });
+
   it("styles layer labels with ellipsis overflow", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");

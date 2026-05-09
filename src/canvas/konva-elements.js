@@ -59,9 +59,11 @@ export function createElementNode(element, { draggable, onMove, onSelect }) {
       points: flattenPoints(element.points ?? []),
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      lineCap: "round",
+      opacity: element.opacity ?? 1,
+      lineCap: element.lineCap ?? "round",
       lineJoin: "round",
-      tension: 0.45,
+      tension: element.smoothing ?? 0.45,
+      dash: getBrushDash(element),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
       perfectDrawEnabled: false,
       shadowForStrokeEnabled: false,
@@ -241,6 +243,18 @@ export function createNodeAttrs(element) {
       fill: resolveFill(element.fill),
     };
   }
+  if (element.type === "stroke") {
+    return {
+      points: flattenPoints(element.points ?? []),
+      stroke: element.stroke,
+      strokeWidth: element.strokeWidth,
+      opacity: element.opacity ?? 1,
+      lineCap: element.lineCap ?? "round",
+      tension: element.smoothing ?? 0.45,
+      dash: getBrushDash(element),
+      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
+    };
+  }
   if (element.type === "line" || element.type === "arrow") {
     return {
       points: element.points,
@@ -250,6 +264,13 @@ export function createNodeAttrs(element) {
     };
   }
   return {};
+}
+
+function getBrushDash(element) {
+  const width = Math.max(1, Number(element.strokeWidth) || 1);
+  if (element.brushStyle === "dash") return [width * 3, width * 2];
+  if (element.brushStyle === "dot") return [0.01, width * 1.8];
+  return [];
 }
 
 function resolveFill(fill) {

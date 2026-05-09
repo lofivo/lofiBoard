@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderShell } from "../../src/app/app-shell.js";
 import { formatShortcutLabel, toolButtonsMarkup } from "../../src/ui/ui-config.js";
 
 describe("ui config", () => {
@@ -15,5 +16,14 @@ describe("ui config", () => {
     expect(markup).toContain("画笔 (B)");
     expect(markup).toContain("图形 (R / L / A)");
     expect(markup).not.toContain("套索");
+  });
+
+  it("renders brush-specific controls in the property panel", () => {
+    const markup = renderShell();
+
+    expect(markup).toContain("data-control=\"brush-opacity\"");
+    expect(markup).toContain("data-control=\"brush-smoothing\"");
+    expect(markup).toContain("data-control=\"brush-cap\"");
+    expect(markup).toContain("data-control=\"brush-style\"");
   });
 });

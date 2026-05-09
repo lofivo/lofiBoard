@@ -126,6 +126,44 @@ describe("konva elements", () => {
     expect(textNode.fill()).toBe("#2563eb");
   });
 
+  it("applies brush stroke rendering options to Konva lines", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      points: [{ x: 0, y: 0 }, { x: 20, y: 20 }],
+      stroke: "#2563eb",
+      strokeWidth: 8,
+      opacity: 0.45,
+      lineCap: "square",
+      brushStyle: "dash",
+      smoothing: 0.2,
+    }, baseHandlers);
+
+    expect(node.stroke()).toBe("#2563eb");
+    expect(node.strokeWidth()).toBe(8);
+    expect(node.opacity()).toBe(0.45);
+    expect(node.lineCap()).toBe("square");
+    expect(node.tension()).toBe(0.2);
+    expect(node.dash()).toEqual([24, 16]);
+  });
+
+  it("uses rounded dotted brush dashes for dot strokes", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      points: [{ x: 0, y: 0 }, { x: 20, y: 20 }],
+      stroke: "#111827",
+      strokeWidth: 10,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "dot",
+      smoothing: 0.45,
+    }, baseHandlers);
+
+    expect(node.dash()).toEqual([0.01, 18]);
+    expect(node.lineCap()).toBe("round");
+  });
+
   it("reuses loaded image instances so rerendering does not flash blank", () => {
     const createdImages = [];
 

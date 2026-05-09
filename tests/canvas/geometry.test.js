@@ -66,4 +66,22 @@ describe("geometry", () => {
     expect(fragments[1].points.map((point) => point.x)).toEqual([20, 30]);
     expect(fragments.every((fragment) => fragment.x === 100 && fragment.y === 50)).toBe(true);
   });
+
+  it("uses a square eraser footprint instead of a circular one", () => {
+    const stroke = {
+      id: "stroke_4",
+      type: "stroke",
+      points: [
+        { x: 20, y: 5, pressure: 0.5 },
+        { x: 21, y: 5, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 6,
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
+
+    expect(fragments).toEqual([]);
+  });
 });
