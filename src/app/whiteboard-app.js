@@ -59,6 +59,7 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
+  truncateWithEllipsis,
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
@@ -2306,7 +2307,7 @@ export function createWhiteboardApp(root) {
       ].filter(Boolean).join(" · ");
       return `
         <button type="button" class="layer-item${active}" data-layer-id="${element.id}" title="${escapeHtml(label)}">
-          <span>${escapeHtml(label)}</span>
+          <span class="layer-label">${escapeHtml(label)}</span>
           <span class="layer-meta">${escapeHtml(meta)}</span>
         </button>
       `;
@@ -2316,8 +2317,8 @@ export function createWhiteboardApp(root) {
   function getElementLabel(element) {
     const labels = {
       stroke: "笔触",
-      text: element.text ? `文字：${element.text.slice(0, 10)}` : "文字",
-      sticky: element.text ? `便签：${element.text.slice(0, 10)}` : "便签",
+      text: element.text ? `文字：${truncateWithEllipsis(element.text, 10)}` : "文字",
+      sticky: element.text ? `便签：${truncateWithEllipsis(element.text, 10)}` : "便签",
       image: "图片",
       rect: "矩形",
       ellipse: "椭圆",

@@ -67,6 +67,14 @@ export function getTextPointerIntent({ dx = 0, dy = 0, threshold = 4 }) {
   return Math.hypot(dx, dy) > threshold ? "drag" : "edit";
 }
 
+export function truncateWithEllipsis(value, maxLength) {
+  const text = String(value ?? "");
+  const length = Math.max(1, Number(maxLength) || 1);
+  const characters = Array.from(text);
+  if (characters.length <= length) return text;
+  return `${characters.slice(0, Math.max(0, length - 1)).join("")}…`;
+}
+
 export function measureTextareaContentHeight({ sourceTextarea, measureTextarea, width, minHeight = 0 }) {
   if (!sourceTextarea || !measureTextarea) return Math.max(0, Math.ceil(minHeight));
 

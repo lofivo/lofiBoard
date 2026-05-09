@@ -561,7 +561,7 @@ button {
 
 .layer-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
   min-height: 32px;
@@ -571,6 +571,14 @@ button {
   background: #ffffff;
   font-size: 12px;
   text-align: left;
+}
+
+.layer-label,
+.layer-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layer-item:hover,

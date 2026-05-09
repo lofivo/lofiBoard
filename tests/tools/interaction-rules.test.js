@@ -16,6 +16,7 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
+  truncateWithEllipsis,
 } from "../../src/tools/interaction-rules.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
@@ -79,6 +80,12 @@ describe("interaction rules", () => {
     expect(getTextPointerIntent({ dx: 0, dy: 0 })).toBe("edit");
     expect(getTextPointerIntent({ dx: 3, dy: 2 })).toBe("edit");
     expect(getTextPointerIntent({ dx: 5, dy: 0 })).toBe("drag");
+  });
+
+  it("adds an ellipsis when truncating layer labels", () => {
+    expect(truncateWithEllipsis("1234567890", 10)).toBe("1234567890");
+    expect(truncateWithEllipsis("12345678901", 10)).toBe("123456789…");
+    expect(truncateWithEllipsis("你好世界白板文本", 5)).toBe("你好世界…");
   });
 
   it("measures live text editor height from textarea scroll height", () => {
