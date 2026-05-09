@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampResizeAnchorPosition,
   getMinimumTextResizeWidth,
+  getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getTextPointerIntent,
@@ -8,6 +10,7 @@ import {
   isTransformerTarget,
   isTextWidthResizeAnchor,
   measureTextareaContentHeight,
+  measureWrappedTextHeight,
   nextToolAfterTextPlacement,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
@@ -155,6 +158,75 @@ describe("interaction rules", () => {
     })).toBe(105);
     expect(measureTextarea.style.height).toBe("0px");
     expect(measureTextarea.style.minHeight).toBe("0px");
+  });
+
+  it("grows text box height when width-only resize wraps selected text", () => {
+    const measureText = (value) => String(value).length * 10;
+
+    expect(measureWrappedTextHeight({
+      text: "one two three",
+      contentWidth: 200,
+      fontSize: 20,
+      lineHeight: 1.25,
+      measureText,
+      minHeight: 25,
+    })).toBe(25);
+    expect(measureWrappedTextHeight({
+      text: "one two three",
+      contentWidth: 35,
+      fontSize: 20,
+      lineHeight: 1.25,
+      measureText,
+      minHeight: 25,
+    })).toBeGreaterThan(25);
+  });
+
+  it("normalizes text box dimensions after text operations", () => {
+    const measureText = (value) => String(value).length * 10;
+
+    expect(getNormalizedTextBox({
+      text: "one two three",
+      width: 10,
+      fontSize: 20,
+      padding: 6,
+      measureText,
+    }).width).toBe(32);
+    expect(getNormalizedTextBox({
+      text: "one two three",
+      width: 200,
+      fontSize: 20,
+      padding: 6,
+      measureText,
+    })).toEqual({ width: 200, height: 25 });
+    expect(getNormalizedTextBox({
+      text: "one two three",
+      width: 47,
+      fontSize: 20,
+      padding: 6,
+      measureText,
+    }).height).toBeGreaterThan(25);
+  });
+
+  it("clamps resize anchors before they cross the opposite edge", () => {
+    const topLeft = { x: 100, y: 50 };
+    const bottomRight = { x: 220, y: 130 };
+
+    expect(clampResizeAnchorPosition({
+      anchor: "middle-right",
+      position: { x: 80, y: 90 },
+      topLeft,
+      bottomRight,
+      minWidth: 40,
+      minHeight: 20,
+    })).toEqual({ x: 140, y: 90 });
+    expect(clampResizeAnchorPosition({
+      anchor: "bottom-left",
+      position: { x: 250, y: 40 },
+      topLeft,
+      bottomRight,
+      minWidth: 40,
+      minHeight: 20,
+    })).toEqual({ x: 180, y: 70 });
   });
 
   it("ignores the canvas click that closes an active text editor", () => {

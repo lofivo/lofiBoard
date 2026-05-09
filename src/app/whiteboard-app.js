@@ -29,7 +29,11 @@ import {
 import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
-import { createElementNode, createNodeAttrs, syncTextNodeSize } from "../canvas/konva-elements.js";
+import {
+  createElementNode,
+  createNodeAttrs,
+  syncTextNodeSize,
+} from "../canvas/konva-elements.js";
 import {
   getImageFileFromDropEvent,
   getImageFileFromPasteEvent,
@@ -40,6 +44,8 @@ import {
   readImageSize,
 } from "../services/image-import-service.js";
 import {
+  clampResizeAnchorPosition,
+  getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
@@ -128,8 +134,10 @@ export function createWhiteboardApp(root) {
   let layerPanelAvailable = false;
   let statusTimer = null;
   let dirty = false;
+  let lastTransformAnchor = null;
 
   const TEXT_DRAG_MOVE_TOLERANCE = 4;
+  const MIN_TRANSFORM_SIZE = 12;
 
   const stage = new Konva.Stage({
     container,
@@ -151,10 +159,20 @@ export function createWhiteboardApp(root) {
     anchorSize: 9,
     padding: 6,
     ignoreStroke: true,
+    anchorDragBoundFunc: (oldAbsPos, newAbsPos) => clampTransformerAnchorDrag(oldAbsPos, newAbsPos),
     boundBoxFunc: (oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
-      if (newBox.width < 12 || newBox.height < 12) return oldBox;
-      return newBox;
+      const anchor = transformer.getActiveAnchor?.();
+      const nextBox = { ...newBox };
+      if (newBox.width < MIN_TRANSFORM_SIZE) {
+        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - MIN_TRANSFORM_SIZE;
+        nextBox.width = MIN_TRANSFORM_SIZE;
+      }
+      if (newBox.height < MIN_TRANSFORM_SIZE) {
+        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - MIN_TRANSFORM_SIZE;
+        nextBox.height = MIN_TRANSFORM_SIZE;
+      }
+      return nextBox;
     },
   });
   overlayLayer.add(transformer);
@@ -261,10 +279,14 @@ export function createWhiteboardApp(root) {
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
     transformer.on("transform", syncTextWidthResize);
+    transformer.on("transformstart transform", () => {
+      lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
+    });
     transformer.on("dragend transformend", () => {
       if (isEditingText) return;
       syncSelectedNodes();
       pushHistory("已更新选择对象");
+      lastTransformAnchor = null;
     });
   }
 
@@ -1163,6 +1185,56 @@ export function createWhiteboardApp(root) {
     transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
   }
 
+  function clampTransformerAnchorDrag(oldAbsPos, newAbsPos) {
+    return clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, {
+      minWidth: getActiveTransformerMinWidth(),
+      minHeight: getActiveTransformerMinHeight(),
+    });
+  }
+
+  function clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, { minWidth, minHeight }) {
+    const anchor = transformer.getActiveAnchor?.();
+    if (!anchor || anchor === "rotater") return newAbsPos;
+    const topLeft = transformer.findOne?.(".top-left");
+    const bottomRight = transformer.findOne?.(".bottom-right");
+    if (!topLeft || !bottomRight) return newAbsPos;
+
+    const minimumWidth = Math.max(1, Number(minWidth) || 1);
+    const minimumHeight = Math.max(1, Number(minHeight) || 1);
+    const topLeftAbs = topLeft.getAbsolutePosition();
+    const bottomRightAbs = bottomRight.getAbsolutePosition();
+    const nextPos = clampResizeAnchorPosition({
+      anchor,
+      position: newAbsPos,
+      topLeft: topLeftAbs,
+      bottomRight: bottomRightAbs,
+      minWidth: minimumWidth,
+      minHeight: minimumHeight,
+    });
+
+    return Number.isFinite(nextPos.x) && Number.isFinite(nextPos.y) ? nextPos : oldAbsPos;
+  }
+
+  function getActiveTransformerMinWidth() {
+    const node = transformer.nodes()[0];
+    const id = getElementIdFromNode(node);
+    const element = board.elements.find((item) => item.id === id);
+    if (element?.type === "text") {
+      return (getMinimumTextResizeWidth(element.fontSize) + (element.padding ?? 0) * 2) * stage.scaleX();
+    }
+    return MIN_TRANSFORM_SIZE;
+  }
+
+  function getActiveTransformerMinHeight() {
+    const node = transformer.nodes()[0];
+    const id = getElementIdFromNode(node);
+    const element = board.elements.find((item) => item.id === id);
+    if (element?.type === "text") {
+      return getSingleLineTextEditorHeight(element.fontSize, stage.scaleX());
+    }
+    return MIN_TRANSFORM_SIZE;
+  }
+
   function updateDraggableState() {
     contentLayer.find(".element").forEach((node) => {
       const id = getElementIdFromNode(node);
@@ -1185,15 +1257,57 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === id);
     if (element?.type !== "text") return;
 
-    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize), node.width() * Math.abs(node.scaleX()));
+    const proposedWidth = node.width() * (node.scaleX() || 1);
+    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize) + (element.padding ?? 0) * 2, proposedWidth);
+    const nextHeight = getTextElementWrappedHeight(element, nextWidth);
     syncTextNodeSize(node, {
       width: nextWidth,
-      height: node.height(),
+      height: nextHeight,
       padding: element.padding ?? 0,
     });
     node.scaleX(1);
+    node.scaleY(1);
     transformer.forceUpdate();
     contentLayer.batchDraw();
+    overlayLayer.batchDraw();
+  }
+
+  function getTextMeasureContext() {
+    const canvas = getTextMeasureContext.canvas ?? document.createElement("canvas");
+    getTextMeasureContext.canvas = canvas;
+    return canvas.getContext("2d");
+  }
+
+  function getTextElementWrappedHeight(element, width) {
+    return getNormalizedTextElementBox(element, width).height;
+  }
+
+  function getNormalizedTextElementBox(element, width = element.width) {
+    const padding = Number(element.padding ?? 0);
+    const context = getTextMeasureContext();
+    const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
+    const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
+    context.font = `${fontStyle} ${fontWeight} ${element.fontSize}px ${element.fontFamily}`;
+    return getNormalizedTextBox({
+      text: element.text,
+      width,
+      fontSize: element.fontSize,
+      padding,
+      lineHeight: 1.25,
+      measureText: (value) => context.measureText(value || " ").width,
+    });
+  }
+
+  function normalizeTextElementBox(element) {
+    if (element.type !== "text") return element;
+    const box = getNormalizedTextElementBox(element);
+    return {
+      ...element,
+      width: box.width,
+      height: box.height,
+      scaleX: 1,
+      scaleY: 1,
+    };
   }
 
   function syncNodeToElement(node) {
@@ -1212,10 +1326,15 @@ export function createWhiteboardApp(root) {
     };
 
     if (element.type === "text") {
-      board.elements[index].width = node.width() * Math.abs(node.scaleX() || 1);
-      board.elements[index].height = node.height() * Math.abs(node.scaleY() || 1);
-      board.elements[index].scaleX = 1;
-      board.elements[index].scaleY = 1;
+      const widthOnlyResize = isTextWidthResizeAnchor(lastTransformAnchor);
+      const nextScale = widthOnlyResize
+        ? 1
+        : Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
+      board.elements[index] = normalizeTextElementBox({
+        ...board.elements[index],
+        fontSize: Math.max(8, element.fontSize * nextScale),
+        width: node.width() * Math.abs(node.scaleX() || 1),
+      });
     }
   }
 
@@ -1327,15 +1446,12 @@ export function createWhiteboardApp(root) {
       if (!selectedIds.includes(element.id)) return element;
       if (element.locked) return element;
       if (element.type === "text") {
-        const previousFontSize = Number(element.fontSize) || nextFontSize;
-        const nextHeight = Math.max(nextFontSize * 1.25, (element.height ?? previousFontSize * 1.25) * (nextFontSize / previousFontSize));
-        return {
+        return normalizeTextElementBox({
           ...element,
           fill: colorInput.value,
           fontSize: nextFontSize,
-          height: nextHeight,
           fontFamily: fontFamilyInput.value,
-        };
+        });
       }
       if (element.type === "sticky") {
         return {
@@ -1379,17 +1495,17 @@ export function createWhiteboardApp(root) {
       }
 
       if (style === "bold" || style === "italic") {
-        return {
+        return normalizeTextElementBox({
           ...element,
           fontStyle: toggleFontStyleToken(element.fontStyle, style),
-        };
+        });
       }
 
       const decoration = style === "underline" ? "underline" : "line-through";
-      return {
+      return normalizeTextElementBox({
         ...element,
         textDecoration: toggleTextDecorationToken(element.textDecoration, decoration),
-      };
+      });
     });
 
     renderBoard();
@@ -1691,11 +1807,12 @@ export function createWhiteboardApp(root) {
     };
 
     const measureTextHeight = (width = getEditorWidth()) => {
+      const currentFontSize = Number.parseFloat(textarea.style.fontSize) || element.fontSize * scale;
       return measureTextareaContentHeight({
         sourceTextarea: textarea,
         measureTextarea,
         width: Math.max(minEditorWidth, width),
-        minHeight: minEditorHeight,
+        minHeight: currentFontSize * 1.25,
       });
     };
 
@@ -1704,12 +1821,6 @@ export function createWhiteboardApp(root) {
       const nextHeight = Math.max(minEditorHeight, height);
       editorFrame.style.width = `${nextWidth}px`;
       editorFrame.style.height = `${nextHeight}px`;
-    };
-
-    const getTextMeasureContext = () => {
-      const canvas = getTextMeasureContext.canvas ?? document.createElement("canvas");
-      getTextMeasureContext.canvas = canvas;
-      return canvas.getContext("2d");
     };
 
     const getTextLineWidth = (line) => {
@@ -1758,10 +1869,26 @@ export function createWhiteboardApp(root) {
     transformer.rotateEnabled(true);
     transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
     const previousBoundBoxFunc = transformer.boundBoxFunc();
+    const previousAnchorDragBoundFunc = transformer.anchorDragBoundFunc();
+    transformer.anchorDragBoundFunc((oldAbsPos, newAbsPos) => {
+      return clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, {
+        minWidth: minEditorWidth,
+        minHeight: minEditorHeight,
+      });
+    });
     transformer.boundBoxFunc((oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
-      if (newBox.width < minEditorWidth || newBox.height < minEditorHeight) return oldBox;
-      return newBox;
+      const anchor = transformer.getActiveAnchor?.();
+      const nextBox = { ...newBox };
+      if (newBox.width < minEditorWidth) {
+        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minEditorWidth;
+        nextBox.width = minEditorWidth;
+      }
+      if (newBox.height < minEditorHeight) {
+        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - minEditorHeight;
+        nextBox.height = minEditorHeight;
+      }
+      return nextBox;
     });
     transformer.forceUpdate();
     overlayLayer.batchDraw();
@@ -1769,64 +1896,39 @@ export function createWhiteboardApp(root) {
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
     let editorClosed = false;
-    let isTransformingEditor = false;
-
-    const syncEditorFrameFromNode = () => {
-      const nextAbsolute = node.getAbsolutePosition();
-      const nextFontScale = Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
-      const rawWidth = node.width() * stage.scaleX() * Math.max(0.001, Math.abs(node.scaleX() || 1));
-      const nextWidth = Math.max(minEditorWidth, rawWidth);
-      editorFrame.style.left = `${box.left + nextAbsolute.x}px`;
-      editorFrame.style.top = `${box.top + nextAbsolute.y}px`;
-      editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
-      textarea.style.fontSize = `${element.fontSize * stage.scaleX() * nextFontScale}px`;
-      setEditorSize(nextWidth);
-      applyNodeSizeFromEditor();
-      node.scaleX(1);
-      node.scaleY(1);
-      transformer.forceUpdate();
-      overlayLayer.batchDraw();
-    };
-
-    const handleEditorTransform = () => {
-      isTransformingEditor = true;
-      hasManualEditorResize = true;
-      if (node.scaleX() < 0 || node.scaleY() < 0) {
-        node.scaleX(Math.max(0.001, node.scaleX()));
-        node.scaleY(Math.max(0.001, node.scaleY()));
-      }
-      if (isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) {
-        syncTextWidthResize();
-      }
-      syncEditorFrameFromNode();
-    };
-
-    const handleEditorTransformEnd = () => {
-      syncEditorFrameFromNode();
-      transformer.forceUpdate();
-      overlayLayer.batchDraw();
-      window.setTimeout(() => {
-        isTransformingEditor = false;
-        textarea.focus();
-      });
-    };
-
-    transformer.on("transform.editor dragmove.editor", handleEditorTransform);
-    transformer.on("transformend.editor dragend.editor", handleEditorTransformEnd);
 
     const cleanupEditorTransformer = () => {
       transformer.off(".editor");
       transformer.boundBoxFunc(previousBoundBoxFunc);
+      transformer.anchorDragBoundFunc(previousAnchorDragBoundFunc);
     };
 
-    const commit = () => {
+    const applyCommittedTextToNode = (nextElement) => {
+      const textNode = node.findOne("Text");
+      textNode?.setAttrs({
+        text: nextElement.text,
+        fontSize: nextElement.fontSize,
+        fontFamily: nextElement.fontFamily,
+        fontStyle: nextElement.fontStyle ?? "normal",
+        textDecoration: nextElement.textDecoration ?? "",
+        fill: nextElement.fill,
+      });
+      syncTextNodeSize(node, {
+        width: nextElement.width,
+        height: nextElement.height,
+        padding: nextElement.padding ?? 0,
+      });
+      node.scaleX(1);
+      node.scaleY(1);
+    };
+
+    const commit = ({ keepNode = false } = {}) => {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
       const nextText = textarea.value.trim();
       const committedWidth = editorFrame.offsetWidth;
       const committedHeight = editorFrame.offsetHeight;
-      const committedScale = Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();
@@ -1840,9 +1942,10 @@ export function createWhiteboardApp(root) {
         return;
       }
 
+      let committedElement = null;
       board.elements = board.elements.map((item) => {
         if (item.id !== id) return item;
-        const nextFontSize = item.type === "text" ? Math.max(8, item.fontSize * committedScale) : item.fontSize;
+        const nextFontSize = item.fontSize;
         const nextElement = {
           ...item,
           text: nextText,
@@ -1851,19 +1954,41 @@ export function createWhiteboardApp(root) {
           scaleY: 1,
         };
         if (item.type === "text") {
-          nextElement.width = Math.max(getMinimumTextResizeWidth(nextFontSize) + editorPadding * 2, committedWidth / scale);
-          nextElement.height = Math.max(nextFontSize * 1.25, committedHeight / scale);
+          committedElement = normalizeTextElementBox({
+            ...nextElement,
+            width: Math.max(getMinimumTextResizeWidth(nextFontSize) + editorPadding * 2, committedWidth / scale),
+            height: Math.max(nextFontSize * 1.25, committedHeight / scale),
+          });
+          return committedElement;
         }
         if (item.type === "sticky") {
           nextElement.width = Math.max(80, committedWidth / scale);
           nextElement.height = Math.max(60, committedHeight / scale);
+          committedElement = nextElement;
         }
         return nextElement;
       });
       transformer.show();
+      if (keepNode && committedElement) {
+        if (!selectedIds.includes(id)) selectedIds = [id];
+        applyCommittedTextToNode(committedElement);
+        node.show();
+        transformer.nodes([node]);
+        transformer.forceUpdate();
+        contentLayer.batchDraw();
+        overlayLayer.batchDraw();
+        pushHistory("已编辑文字");
+        return;
+      }
       renderBoard();
       pushHistory("已编辑文字");
     };
+
+    const exitEditorForTransform = () => {
+      commit({ keepNode: true });
+    };
+
+    transformer.on("transformstart.editor dragstart.editor", exitEditorForTransform);
 
     const cancel = () => {
       if (editorClosed) return;
@@ -1900,7 +2025,7 @@ export function createWhiteboardApp(root) {
     textarea.addEventListener("input", fitEditorToContent);
     textarea.addEventListener("blur", () => {
       window.setTimeout(() => {
-        if (!isTransformingEditor && !transformer.isTransforming?.()) commit();
+        if (!transformer.isTransforming?.()) commit();
       });
     });
   }

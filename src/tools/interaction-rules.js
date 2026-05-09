@@ -89,6 +89,104 @@ export function measureTextareaContentHeight({ sourceTextarea, measureTextarea, 
   return Math.max(minimumHeight, Math.ceil(Number(measureTextarea.scrollHeight) || 0));
 }
 
+export function measureWrappedTextHeight({
+  text = "",
+  contentWidth,
+  fontSize,
+  lineHeight = 1.25,
+  measureText,
+  minHeight = 0,
+}) {
+  const width = Math.max(1, Number(contentWidth) || 1);
+  const size = Math.max(1, Number(fontSize) || 1);
+  const lineHeightPx = size * (Number(lineHeight) || 1.25);
+  const measure = typeof measureText === "function" ? measureText : (value) => String(value).length * size * 0.55;
+  const paragraphs = String(text || " ").split("\n");
+  const lineCount = paragraphs.reduce((count, paragraph) => {
+    const tokens = String(paragraph || " ").split(/(\s+)/).filter((token) => token.length > 0);
+    let lines = 1;
+    let currentWidth = 0;
+
+    for (const token of tokens.length ? tokens : [" "]) {
+      const tokenWidth = measure(token);
+      if (tokenWidth > width) {
+        if (currentWidth > 0) {
+          lines += 1;
+          currentWidth = 0;
+        }
+        lines += Math.max(0, Math.ceil(tokenWidth / width) - 1);
+        currentWidth = tokenWidth % width;
+        if (currentWidth === 0) currentWidth = width;
+        continue;
+      }
+      if (currentWidth > 0 && currentWidth + tokenWidth > width) {
+        lines += 1;
+        currentWidth = token.trim() ? tokenWidth : 0;
+      } else {
+        currentWidth += tokenWidth;
+      }
+    }
+
+    return count + lines;
+  }, 0);
+
+  return Math.max(Math.ceil(Number(minHeight) || 0), Math.ceil(lineCount * lineHeightPx));
+}
+
+export function getNormalizedTextBox({
+  text = "",
+  width,
+  fontSize,
+  padding = 0,
+  lineHeight = 1.25,
+  measureText,
+}) {
+  const size = Math.max(1, Number(fontSize) || 1);
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  const minWidth = getMinimumTextResizeWidth(size) + horizontalPadding * 2;
+  const nextWidth = Math.max(minWidth, Number(width) || minWidth);
+  return {
+    width: nextWidth,
+    height: measureWrappedTextHeight({
+      text,
+      contentWidth: Math.max(1, nextWidth - horizontalPadding * 2),
+      fontSize: size,
+      lineHeight,
+      measureText,
+      minHeight: size * lineHeight,
+    }),
+  };
+}
+
+export function clampResizeAnchorPosition({
+  anchor,
+  position,
+  topLeft,
+  bottomRight,
+  minWidth,
+  minHeight,
+}) {
+  if (!anchor || anchor === "rotater" || !position || !topLeft || !bottomRight) return position;
+  const nextPosition = { ...position };
+  const minimumWidth = Math.max(1, Number(minWidth) || 1);
+  const minimumHeight = Math.max(1, Number(minHeight) || 1);
+
+  if (anchor.includes("right")) {
+    nextPosition.x = Math.max(nextPosition.x, topLeft.x + minimumWidth);
+  }
+  if (anchor.includes("left")) {
+    nextPosition.x = Math.min(nextPosition.x, bottomRight.x - minimumWidth);
+  }
+  if (anchor.includes("bottom")) {
+    nextPosition.y = Math.max(nextPosition.y, topLeft.y + minimumHeight);
+  }
+  if (anchor.includes("top")) {
+    nextPosition.y = Math.min(nextPosition.y, bottomRight.y - minimumHeight);
+  }
+
+  return nextPosition;
+}
+
 export function getSelectionHitRadius(scale) {
   return Math.max(6, Math.round(12 / scale));
 }
