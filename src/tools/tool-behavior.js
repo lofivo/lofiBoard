@@ -5,13 +5,22 @@ export function computeEraserRadius({ baseRadius, speed }) {
   return Math.round(baseRadius + speedBoost);
 }
 
+export function getMinimumEraserRadius(scale = 1, minimumScreenSize = 44) {
+  const safeScale = Math.max(0.01, Number(scale) || 1);
+  return minimumScreenSize / 2 / safeScale;
+}
+
 export function getSquareEraserPreviewAttrs(center, radius) {
   const safeRadius = Math.max(1, Number(radius) || 1);
+  const densityProgress = Math.min(1, Math.max(0, (safeRadius - 18) / 72));
+  const dashSize = 2.5 + densityProgress * 2.5;
+  const gapSize = 1.8 + densityProgress * 1.8;
   return {
     x: center.x - safeRadius,
     y: center.y - safeRadius,
     width: safeRadius * 2,
     height: safeRadius * 2,
+    dash: [Number(dashSize.toFixed(2)), Number(gapSize.toFixed(2))],
   };
 }
 

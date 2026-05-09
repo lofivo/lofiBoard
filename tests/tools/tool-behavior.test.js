@@ -3,6 +3,7 @@ import {
   computeEraserRadius,
   getBrushPreviewAttrs,
   getFillValue,
+  getMinimumEraserRadius,
   getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
@@ -18,13 +19,38 @@ describe("tool behavior", () => {
     expect(computeEraserRadius({ baseRadius: base, speed: 99 })).toBe(base * 3);
   });
 
+  it("keeps a minimum eraser size in screen pixels", () => {
+    expect(getMinimumEraserRadius(1, 44)).toBe(22);
+    expect(getMinimumEraserRadius(0.25, 44)).toBe(88);
+  });
+
+  it("does not bake zoom minimums into square eraser preview geometry", () => {
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 10)).toMatchObject({
+      x: 90,
+      y: 70,
+      width: 20,
+      height: 20,
+    });
+  });
+
   it("positions the square eraser preview around the pointer", () => {
     expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18)).toEqual({
       x: 82,
       y: 62,
       width: 36,
       height: 36,
+      dash: [2.5, 1.8],
     });
+  });
+
+  it("keeps square eraser dash density within a controlled range", () => {
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18).dash).toEqual([2.5, 1.8]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 72).dash).toEqual([4.38, 3.15]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 120).dash).toEqual([5, 3.6]);
+  });
+
+  it("keeps square eraser dash spacing stable when the board is zoomed", () => {
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18).dash).toEqual([2.5, 1.8]);
   });
 
   it("sizes the brush preview dot from the current stroke width", () => {

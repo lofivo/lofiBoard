@@ -65,6 +65,7 @@ import {
   computeEraserRadius,
   getBrushPreviewAttrs,
   getFillValue,
+  getMinimumEraserRadius,
   getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
@@ -137,6 +138,7 @@ export function createWhiteboardApp(root) {
   let eraseSnapshot = null;
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
+  let eraserPreviewPoint = null;
   let isMainMenuOpen = false;
   let isZoomMenuOpen = false;
   let isEditingText = false;
@@ -207,8 +209,9 @@ export function createWhiteboardApp(root) {
     height: 36,
     stroke: "#111827",
     strokeWidth: 2,
-    dash: [6, 4],
+    dash: [2.5, 1.8],
     fill: "rgba(0,0,0,0)",
+    strokeScaleEnabled: false,
     visible: false,
     listening: false,
   });
@@ -636,6 +639,7 @@ export function createWhiteboardApp(root) {
     });
     updateGrid();
     updateBrushCursorStyle();
+    updateEraserCursorStyle();
     updateChrome();
   }
 
@@ -663,6 +667,7 @@ export function createWhiteboardApp(root) {
     setZoomMenuOpen(false);
     updateGrid();
     updateBrushCursorStyle();
+    updateEraserCursorStyle();
     updateChrome();
   }
 
@@ -703,8 +708,9 @@ export function createWhiteboardApp(root) {
     if (currentTool === TOOLS.ERASER_STROKE) {
       eraseSnapshot = snapshotBoard();
       beginEraser(worldPoint);
-      eraseStrokeAt(worldPoint, activeEraserRadius);
-      showEraser(worldPoint, activeEraserRadius);
+      const radius = getVisibleEraserRadius(activeEraserRadius);
+      eraseStrokeAt(worldPoint, radius);
+      showEraser(worldPoint, radius);
       return;
     }
 
@@ -712,7 +718,7 @@ export function createWhiteboardApp(root) {
       eraseSnapshot = snapshotBoard();
       beginEraser(worldPoint);
       eraseObjectAt(event.target);
-      showEraser(worldPoint, activeEraserRadius);
+      showEraser(worldPoint, getVisibleEraserRadius(activeEraserRadius));
       return;
     }
 
@@ -1149,10 +1155,10 @@ export function createWhiteboardApp(root) {
 
     const elapsed = Math.max(16, now - lastEraserPoint.time);
     const speed = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) / elapsed;
-    activeEraserRadius = computeEraserRadius({
+    activeEraserRadius = getVisibleEraserRadius(computeEraserRadius({
       baseRadius: getBaseEraserRadius(),
       speed,
-    });
+    }));
     lastEraserPoint = { ...worldPoint, time: now };
     return activeEraserRadius;
   }
@@ -1161,13 +1167,20 @@ export function createWhiteboardApp(root) {
     return Math.max(18, Number(widthInput.value) * 1.7);
   }
 
+  function getVisibleEraserRadius(radius = getBaseEraserRadius()) {
+    return Math.max(radius, getMinimumEraserRadius(stage.scaleX()));
+  }
+
   function showEraser(worldPoint, radius = activeEraserRadius) {
-    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, radius));
+    eraserPreviewPoint = { ...worldPoint };
+    const visibleRadius = getVisibleEraserRadius(radius);
+    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, visibleRadius));
     eraserCursor.visible(true);
     overlayLayer.batchDraw();
   }
 
   function hideEraser() {
+    eraserPreviewPoint = null;
     eraserCursor.visible(false);
     overlayLayer.batchDraw();
   }
@@ -1201,6 +1214,11 @@ export function createWhiteboardApp(root) {
   function updateBrushCursorStyle() {
     if (!brushCursorDot.visible()) return;
     showBrushCursor(brushCursorDot.position());
+  }
+
+  function updateEraserCursorStyle() {
+    if (!eraserCursor.visible() || !eraserPreviewPoint) return;
+    showEraser(eraserPreviewPoint, eraseSnapshot ? activeEraserRadius : getBaseEraserRadius());
   }
 
   function addElement(element, message) {
@@ -2361,6 +2379,7 @@ export function createWhiteboardApp(root) {
     stage.scale({ x: viewport.scale, y: viewport.scale });
     updateGrid();
     updateBrushCursorStyle();
+    updateEraserCursorStyle();
   }
 
   function applyBackground() {
