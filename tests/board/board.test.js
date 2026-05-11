@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   BOARD_VERSION,
   createEmptyBoard,
+  moveElementsByLayer,
   normalizeBoard,
+  reorderElements,
   serializeBoard,
 } from "../../src/board/board-model.js";
 
@@ -143,5 +145,30 @@ describe("board model", () => {
     const serialized = serializeBoard(board, { x: 0, y: 0, scale: 1 });
 
     expect(serialized.canvas).toEqual({ backgroundMode: "plain" });
+  });
+
+  it("moves selected elements one layer while preserving selection order", () => {
+    const elements = reorderElements([
+      { id: "a", type: "rect" },
+      { id: "b", type: "rect" },
+      { id: "c", type: "rect" },
+      { id: "d", type: "rect" },
+    ]);
+
+    expect(moveElementsByLayer(elements, ["b"], 1).map((element) => element.id)).toEqual(["a", "c", "b", "d"]);
+    expect(moveElementsByLayer(elements, ["c"], -1).map((element) => element.id)).toEqual(["a", "c", "b", "d"]);
+    expect(moveElementsByLayer(elements, ["b", "c"], 1).map((element) => element.id)).toEqual(["a", "d", "b", "c"]);
+    expect(moveElementsByLayer(elements, ["b", "c"], -1).map((element) => element.id)).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("keeps layer moves stable at the front and back boundaries", () => {
+    const elements = reorderElements([
+      { id: "a", type: "rect" },
+      { id: "b", type: "rect" },
+      { id: "c", type: "rect" },
+    ]);
+
+    expect(moveElementsByLayer(elements, ["a"], -1)).toEqual(elements);
+    expect(moveElementsByLayer(elements, ["c"], 1)).toEqual(elements);
   });
 });

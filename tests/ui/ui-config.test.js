@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderShell } from "../../src/app/app-shell.js";
-import { formatShortcutLabel, structurePanelMarkup, toolButtonsMarkup } from "../../src/ui/ui-config.js";
+import { contextMenuMarkup, formatShortcutLabel, structurePanelMarkup, toolButtonsMarkup } from "../../src/ui/ui-config.js";
 import { getStructureItem } from "../../src/structures/structure-templates.js";
 
 describe("ui config", () => {
@@ -51,5 +51,19 @@ describe("ui config", () => {
     expect(markup).toContain("data-brush-style-option=\"dash\"");
     expect(markup).toContain("data-brush-smoothing=\"45\"");
     expect(markup).toContain("data-brush-cap-option=\"round\"");
+  });
+
+  it("renders layer ordering controls in context menu and property panel", () => {
+    const shell = renderShell();
+    const contextMenu = contextMenuMarkup();
+
+    expect(contextMenu).toContain('data-context-action="bring-forward"');
+    expect(contextMenu).toContain('data-context-action="send-backward"');
+    expect(contextMenu).toContain('data-context-action="bring-front"');
+    expect(contextMenu).toContain('data-context-action="send-back"');
+    expect(shell).toContain('data-action="bring-forward"');
+    expect(shell).toContain('data-action="send-backward"');
+    expect(shell).toContain('data-action="bring-front"');
+    expect(shell).toContain('data-action="send-back"');
   });
 });

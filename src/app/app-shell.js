@@ -369,6 +369,8 @@ export function renderShell() {
             </button>
             <div class="inspector-section-content" data-section-content="arrange">
               <div class="quick-actions quick-actions-arrange">
+                <button type="button" data-action="bring-forward">上移</button>
+                <button type="button" data-action="send-backward">下移</button>
                 <button type="button" data-action="bring-front">置顶</button>
                 <button type="button" data-action="send-back">置底</button>
                 <button type="button" data-action="toggle-lock">锁定</button>

@@ -239,3 +239,28 @@ export function reorderElements(elements) {
     .map((element, index) => ({ ...element, zIndex: index }))
     .sort((a, b) => a.zIndex - b.zIndex);
 }
+
+export function moveElementsByLayer(elements, selectedIds, direction) {
+  if (!Array.isArray(elements) || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+    return reorderElements(elements ?? []);
+  }
+
+  const selectedSet = new Set(selectedIds);
+  const ordered = reorderElements(elements);
+  const step = Number(direction) >= 0 ? 1 : -1;
+  const next = ordered.slice();
+
+  if (step > 0) {
+    for (let index = next.length - 2; index >= 0; index -= 1) {
+      if (!selectedSet.has(next[index].id) || selectedSet.has(next[index + 1]?.id)) continue;
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    }
+  } else {
+    for (let index = 1; index < next.length; index += 1) {
+      if (!selectedSet.has(next[index].id) || selectedSet.has(next[index - 1]?.id)) continue;
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    }
+  }
+
+  return reorderElements(next);
+}

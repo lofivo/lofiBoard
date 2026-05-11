@@ -170,6 +170,16 @@ describe("app shell", () => {
     expect(appSource).toContain("syncBrushPresetButtons");
   });
 
+  it("resets property panel controls and section state when switching tools", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("resetPropertyControlsForTool(tool)");
+    expect(appSource).toContain("syncInspectorPanelState({ forceReset: true })");
+    expect(appSource).toContain("colorInput.value = DEFAULT_PROPERTY_CONTROLS.color");
+    expect(appSource).toContain("brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle");
+    expect(appSource).toContain("fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize");
+  });
+
   it("starts a drag gesture immediately after selecting an unselected text element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -200,6 +210,16 @@ describe("app shell", () => {
     expect(appSource).toContain("if (linearItemDragState)");
     expect(appSource).toContain("transformer.enabledAnchors([])");
     expect(appSource).toContain("transformer.visible(false)");
+  });
+
+  it("wires layer ordering actions to inspector and context menu commands", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain('"bring-forward": bringSelectionForward');
+    expect(appSource).toContain('"send-backward": sendSelectionBackward');
+    expect(appSource).toContain('"bring-front": bringSelectionToFront');
+    expect(appSource).toContain('"send-back": sendSelectionToBack');
+    expect(appSource).toContain("moveElementsByLayer(board.elements, selectedIds, direction)");
   });
 
   it("styles transformer edge handles as invisible hit areas and scales vertical edge drags uniformly", () => {

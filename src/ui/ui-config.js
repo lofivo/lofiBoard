@@ -18,6 +18,8 @@ import {
   Minus,
   MousePointer2,
   Image,
+  Layers,
+  SendToBack,
   Group,
   Ungroup,
   PanelTop,
@@ -36,6 +38,7 @@ import {
   Undo2,
   Redo2,
   Strikethrough,
+  BringToFront,
 } from "lucide-static";
 import { STRUCTURE_ITEMS } from "../structures/structure-templates.js";
 
@@ -110,6 +113,10 @@ export const CONTEXT_MENU_ITEMS = [
   { action: "copy", label: "复制", icon: Copy },
   { action: "cut", label: "剪切", icon: Scissors },
   { action: "paste", label: "粘贴", icon: Clipboard },
+  { action: "bring-forward", label: "上移", icon: Layers },
+  { action: "send-backward", label: "下移", icon: Layers },
+  { action: "bring-front", label: "置顶", icon: BringToFront },
+  { action: "send-back", label: "置底", icon: SendToBack },
   { action: "group", label: "分组", icon: Group },
   { action: "ungroup", label: "取消分组", icon: Ungroup },
   { action: "toggle-lock", label: "锁定/解锁", icon: Lock },

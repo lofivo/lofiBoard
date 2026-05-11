@@ -7,6 +7,7 @@ import {
 } from "../services/clipboard-service.js";
 import {
   createEmptyBoard,
+  moveElementsByLayer,
   normalizeBoard,
   reorderElements,
   serializeBoard,
@@ -247,6 +248,18 @@ export function createWhiteboardApp(root) {
     highlightEnd: "0",
     highlightPointer: "0",
   };
+  const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
+    color: "#111827",
+    fill: "#ffffff",
+    fillTransparent: true,
+    width: "6",
+    brushOpacity: "100",
+    brushSmoothing: "45",
+    brushCap: "round",
+    brushStyle: "solid",
+    fontSize: "28",
+    fontFamily: "Inter, system-ui, sans-serif",
+  });
 
   const MIN_TRANSFORM_SIZE = 12;
 
@@ -577,6 +590,8 @@ export function createWhiteboardApp(root) {
       clear: clearBoard,
       "reset-view": resetView,
       "bring-front": bringSelectionToFront,
+      "bring-forward": bringSelectionForward,
+      "send-backward": sendSelectionBackward,
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
       "array-insert-start": () => editSelectedArrayStructure((element) => insertArrayItem(
@@ -691,6 +706,10 @@ export function createWhiteboardApp(root) {
       group: groupSelection,
       ungroup: ungroupSelection,
       "toggle-lock": toggleSelectionLock,
+      "bring-front": bringSelectionToFront,
+      "bring-forward": bringSelectionForward,
+      "send-backward": sendSelectionBackward,
+      "send-back": sendSelectionToBack,
       delete: deleteSelection,
     };
 
@@ -1358,7 +1377,18 @@ export function createWhiteboardApp(root) {
 
   function updateContextMenuActions() {
     root.querySelectorAll("[data-context-action]").forEach((button) => {
-      const needsSelection = ["copy", "cut", "delete", "group", "ungroup", "toggle-lock"].includes(button.dataset.contextAction);
+      const needsSelection = [
+        "copy",
+        "cut",
+        "delete",
+        "group",
+        "ungroup",
+        "toggle-lock",
+        "bring-front",
+        "bring-forward",
+        "send-backward",
+        "send-back",
+      ].includes(button.dataset.contextAction);
       const needsClipboard = button.dataset.contextAction === "paste";
       const needsMultiple = button.dataset.contextAction === "group";
       button.disabled = (needsSelection && selectedIds.length === 0)
@@ -2981,6 +3011,10 @@ export function createWhiteboardApp(root) {
     pushHistory("已置顶对象");
   }
 
+  function bringSelectionForward() {
+    moveSelectionByLayer(1, "已上移对象");
+  }
+
   function groupSelection() {
     if (selectedIds.length < 2) return;
     const groupId = createId("group");
@@ -3027,6 +3061,20 @@ export function createWhiteboardApp(root) {
     board.elements = reorderElements([...selected, ...rest]);
     renderBoard();
     pushHistory("已置底对象");
+  }
+
+  function sendSelectionBackward() {
+    moveSelectionByLayer(-1, "已下移对象");
+  }
+
+  function moveSelectionByLayer(direction, historyLabel) {
+    if (selectedIds.length === 0) return;
+    const previousOrder = board.elements.map((element) => element.id).join("\n");
+    board.elements = moveElementsByLayer(board.elements, selectedIds, direction);
+    const nextOrder = board.elements.map((element) => element.id).join("\n");
+    if (previousOrder === nextOrder) return;
+    renderBoard();
+    pushHistory(historyLabel);
   }
 
   function clearBoard() {
@@ -3176,6 +3224,7 @@ export function createWhiteboardApp(root) {
   }
 
   function setTool(tool) {
+    const toolChanged = currentTool !== tool;
     currentTool = tool;
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
@@ -3191,6 +3240,10 @@ export function createWhiteboardApp(root) {
     updateDraggableState();
     syncSelectionNodes();
     stage.container().dataset.tool = tool;
+    if (toolChanged) {
+      resetPropertyControlsForTool(tool);
+      syncInspectorPanelState({ forceReset: true });
+    }
     updateChrome();
     setStatus(getToolStatus(tool));
   }
@@ -3905,6 +3958,29 @@ export function createWhiteboardApp(root) {
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
     if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
     updateTextStyleButtons(element);
+  }
+
+  function resetPropertyControlsForTool(tool) {
+    colorInput.value = DEFAULT_PROPERTY_CONTROLS.color;
+    fillInput.value = DEFAULT_PROPERTY_CONTROLS.fill;
+    fillTransparentInput.checked = DEFAULT_PROPERTY_CONTROLS.fillTransparent;
+    widthInput.value = DEFAULT_PROPERTY_CONTROLS.width;
+    brushOpacityInput.value = DEFAULT_PROPERTY_CONTROLS.brushOpacity;
+    brushSmoothingInput.value = DEFAULT_PROPERTY_CONTROLS.brushSmoothing;
+    brushCapInput.value = DEFAULT_PROPERTY_CONTROLS.brushCap;
+    brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle;
+    fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize;
+    fontFamilyInput.value = DEFAULT_PROPERTY_CONTROLS.fontFamily;
+    updateTextStyleButtons({
+      fontStyle: "normal",
+      textDecoration: "",
+    });
+    if (tool === TOOLS.STICKY) {
+      fillInput.value = "#fef08a";
+      fillTransparentInput.checked = false;
+    }
+    syncBrushPresetButtons();
+    updateBrushCursorStyle();
   }
 
   function hydrateBrushControlsFromElement(element) {
