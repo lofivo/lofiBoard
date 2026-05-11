@@ -11,16 +11,24 @@ HOST="${HOST:-127.0.0.1}"
 
 mkdir -p "$RUN_DIR"
 
-if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "lofiBoard dev server is already running: http://$HOST:$PORT"
-  exit 0
+if [[ -f "$PID_FILE" ]]; then
+  PID="$(cat "$PID_FILE" 2>/dev/null || true)"
+  if [[ -n "$PID" ]] && kill -0 "$PID" 2>/dev/null; then
+    echo "lofiBoard dev server is already running: http://$HOST:$PORT"
+    exit 0
+  fi
+  rm -f "$PID_FILE" "$PGID_FILE"
 fi
 
 cd "$ROOT_DIR"
-nohup npm run dev -- --host "$HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
+if command -v setsid >/dev/null 2>&1; then
+  nohup setsid npm run dev -- --host "$HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
+else
+  nohup npm run dev -- --host "$HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
+fi
 PID="$!"
 echo "$PID" >"$PID_FILE"
-PGID="$(ps -o pgid= -p "$PID" | tr -d '[:space:]' || true)"
+PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d '[:space:]' || true)"
 if [[ -n "$PGID" ]]; then
   echo "$PGID" >"$PGID_FILE"
 fi

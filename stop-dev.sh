@@ -8,37 +8,53 @@ PORT="${PORT:-5173}"
 
 stopped=0
 
-if [[ -f "$PGID_FILE" ]]; then
-  PGID="$(cat "$PGID_FILE")"
-  if [[ -n "$PGID" ]] && kill -0 "-$PGID" 2>/dev/null; then
-    kill "-$PGID" 2>/dev/null || true
+terminate_pid() {
+  local pid="$1"
+  [[ -z "$pid" ]] && return
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
     stopped=1
   fi
+}
+
+terminate_pgid() {
+  local pgid="$1"
+  local current_pgid
+  [[ -z "$pgid" ]] && return
+  current_pgid="$(ps -o pgid= -p "$$" 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ "$pgid" != "$current_pgid" ]] && kill -0 "-$pgid" 2>/dev/null; then
+    kill "-$pgid" 2>/dev/null || true
+    stopped=1
+  fi
+}
+
+terminate_matching_port_processes() {
+  local pid cwd args
+  command -v lsof >/dev/null 2>&1 || return
+  while read -r pid; do
+    [[ -z "$pid" ]] && continue
+    cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+    args="$(ps -o args= -p "$pid" 2>/dev/null || true)"
+    if [[ "$cwd" == "$ROOT_DIR" || "$args" == *"$ROOT_DIR"* ]]; then
+      terminate_pid "$pid"
+    fi
+  done < <(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+}
+
+if [[ -f "$PGID_FILE" ]]; then
+  terminate_pgid "$(cat "$PGID_FILE" 2>/dev/null || true)"
 fi
 
 if [[ -f "$PID_FILE" ]]; then
-  PID="$(cat "$PID_FILE")"
-  if [[ -n "$PID" ]] && kill -0 "$PID" 2>/dev/null; then
-    kill "$PID" 2>/dev/null || true
-    stopped=1
-  fi
+  terminate_pid "$(cat "$PID_FILE" 2>/dev/null || true)"
 fi
 
-FALLBACK_PIDS="$(pgrep -f "$ROOT_DIR/node_modules/.bin/vite --host .* --port $PORT" || true)"
-if [[ -n "$FALLBACK_PIDS" ]]; then
-  while read -r vite_pid; do
-    [[ -z "$vite_pid" ]] && continue
-    kill "$vite_pid" 2>/dev/null || true
-    stopped=1
-  done <<< "$FALLBACK_PIDS"
-fi
+sleep 0.3
+terminate_matching_port_processes
 
 rm -f "$PID_FILE" "$PGID_FILE"
-
 if [[ "$stopped" -eq 1 ]]; then
-  rm -f "$PID_FILE" "$PGID_FILE"
   echo "Stopped lofiBoard dev server."
 else
-  rm -f "$PID_FILE" "$PGID_FILE"
   echo "lofiBoard dev server is not running."
 fi
