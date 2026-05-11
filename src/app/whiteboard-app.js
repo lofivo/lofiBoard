@@ -155,6 +155,7 @@ export function createWhiteboardApp(root) {
   const brushSmoothingInput = root.querySelector("[data-control='brush-smoothing']");
   const brushCapInput = root.querySelector("[data-control='brush-cap']");
   const brushStyleInput = root.querySelector("[data-control='brush-style']");
+  const brushCustomColorInput = root.querySelector("[data-brush-custom-color]");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
   const fontFamilyInput = root.querySelector("[data-control='font-family']");
   const zoomLabel = root.querySelector("[data-zoom]");
@@ -424,6 +425,10 @@ export function createWhiteboardApp(root) {
         setBrushControlValue(colorInput, button.dataset.brushColor, "input");
         updateBrushCursorStyle();
       });
+    });
+    brushCustomColorInput?.addEventListener("input", () => {
+      setBrushControlValue(colorInput, brushCustomColorInput.value, "input");
+      updateBrushCursorStyle();
     });
     root.querySelectorAll("[data-brush-width]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -3866,8 +3871,17 @@ export function createWhiteboardApp(root) {
   }
 
   function syncBrushPresetButtons() {
+    if (brushCustomColorInput && normalizeHexColor(brushCustomColorInput.value) !== normalizeHexColor(colorInput.value)) {
+      brushCustomColorInput.value = colorInput.value;
+    }
+    const presetColors = Array.from(root.querySelectorAll("[data-brush-color]"))
+      .map((button) => normalizeHexColor(button.dataset.brushColor));
+    const customColorActive = !presetColors.includes(normalizeHexColor(colorInput.value));
     root.querySelectorAll("[data-brush-color]").forEach((button) => {
       setBrushPresetActive(button, normalizeHexColor(button.dataset.brushColor) === normalizeHexColor(colorInput.value));
+    });
+    root.querySelectorAll(".brush-custom-color").forEach((control) => {
+      setBrushPresetActive(control, customColorActive);
     });
     root.querySelectorAll("[data-brush-width]").forEach((button) => {
       setBrushPresetActive(button, Number(button.dataset.brushWidth) === Number(widthInput.value));

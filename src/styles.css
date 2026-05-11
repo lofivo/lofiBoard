@@ -640,6 +640,7 @@ button {
 .inspector-section-content,
 .linear-panel-content {
   display: grid;
+  min-width: 0;
   min-height: 0;
   grid-template-rows: 1fr;
   opacity: 1;
@@ -656,6 +657,7 @@ button {
 
 .inspector-section-content > *,
 .linear-panel-content > * {
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -795,14 +797,23 @@ button {
 }
 
 .brush-color-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .brush-preset-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.brush-style-row {
+  overflow: hidden;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
 .brush-color-swatch,
+.brush-custom-color,
 .brush-preset-button {
   display: grid;
   min-width: 0;
@@ -816,11 +827,30 @@ button {
   transition:
     border-color 120ms ease,
     background 120ms ease,
+    color 120ms ease,
     box-shadow 120ms ease;
+}
+
+.brush-style-row .brush-style-preset {
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.brush-style-row .brush-style-preset + .brush-style-preset {
+  border-left: 1px solid #e2e8f0;
 }
 
 .brush-color-swatch {
   position: relative;
+}
+
+.brush-custom-color {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
 }
 
 .brush-color-swatch::before {
@@ -832,13 +862,45 @@ button {
   background: var(--swatch-color);
 }
 
+.brush-custom-color::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, transparent 54%, rgba(255, 255, 255, 0.9) 54% 62%, transparent 62%),
+    conic-gradient(from 90deg, #ef4444, #f59e0b, #22c55e, #06b6d4, #2563eb, #7c3aed, #ef4444);
+}
+
+.brush-custom-color input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .brush-preset-button:hover,
 .brush-color-swatch:hover,
+.brush-custom-color:hover,
 .brush-preset-button.active,
-.brush-color-swatch.active {
+.brush-color-swatch.active,
+.brush-custom-color.active {
   border-color: #93c5fd;
   background: #eff6ff;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.22);
+}
+
+.brush-style-preset.active {
+  color: #1d4ed8;
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 2px rgba(37, 99, 235, 0.55),
+    0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
 .brush-width-preset span {
@@ -852,17 +914,18 @@ button {
 .brush-style-line {
   display: block;
   width: 44px;
-  height: 0;
-  border-top: 3px solid #111827;
+  height: 4px;
+  border-radius: 999px;
+  background: #111827;
 }
 
 .brush-style-line-dash {
-  border-top-style: dashed;
+  background: repeating-linear-gradient(90deg, #111827 0 9px, transparent 9px 15px);
 }
 
 .brush-style-line-dot {
-  border-top-style: dotted;
-  border-top-width: 4px;
+  height: 6px;
+  background: repeating-radial-gradient(circle at 3px 50%, #111827 0 2px, transparent 2.4px 8px);
 }
 
 .brush-cap-preview {
@@ -887,13 +950,23 @@ button {
 
 .quick-actions {
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
 
 .linear-structure-panel {
   display: grid;
+  min-width: 0;
   gap: 6px;
+}
+
+.linear-panel-content-inner {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: 6px;
+  overflow: hidden;
 }
 
 .linear-panel-group {
@@ -914,20 +987,21 @@ button {
 
 .linear-panel-fields {
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
 .linear-panel-fields-edit {
-  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .linear-panel-fields-edit .linear-field-wide {
-  grid-column: auto;
+  grid-column: 1 / -1;
 }
 
 .linear-panel-fields-highlight {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .linear-field input {
@@ -948,6 +1022,8 @@ button {
 .quick-actions-compact button {
   height: 28px;
   padding-inline: 5px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .quick-actions-graph,
@@ -1220,7 +1296,7 @@ button {
   padding: 0;
   border: 0;
   outline: none;
-  background: rgba(255, 255, 255, 0.94);
+  background: transparent;
   line-height: 1.25;
   overflow: hidden;
   resize: none;

@@ -120,7 +120,33 @@ describe("app shell", () => {
     expect(markup).toContain("quick-actions-compact");
     expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
     expect(styles).toContain('.linear-panel-group[data-collapsed="true"]');
-    expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(styles).toContain(".quick-actions-linear");
+  });
+
+  it("prevents linear inspector controls from forcing the property panel wider", () => {
+    const markup = renderShell();
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const linearContentBlocks = markup.match(/class="linear-panel-content"/g) ?? [];
+    const collapsedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="true"/g) ?? [];
+    const expandedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="false"/g) ?? [];
+    const linearContentInnerBlocks = markup.match(/<div class="linear-panel-content" data-linear-content="[^"]+" aria-hidden="[^"]+">\s*<div class="linear-panel-content-inner">/g) ?? [];
+
+    expect(linearContentBlocks).toHaveLength(4);
+    expect(linearContentInnerBlocks).toHaveLength(4);
+    expect(expandedLinearGroups).toHaveLength(1);
+    expect(collapsedLinearGroups).toHaveLength(3);
+    expect(markup).toContain("linear-panel-content-inner");
+    expect(styles).toMatch(/\.inspector-section-content,\n\.linear-panel-content \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.inspector-section-content > \*,\n\.linear-panel-content > \* \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?overflow: hidden;/);
+    expect(styles).toMatch(/\.linear-panel-fields \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.linear-panel-fields-edit \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(styles).toMatch(/\.linear-panel-fields-edit \.linear-field-wide \{[\s\S]*?grid-column: 1 \/ -1;/);
+    expect(styles).toMatch(/\.linear-panel-fields-highlight \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(styles).toMatch(/\.quick-actions \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?white-space: normal;/);
+    expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?overflow-wrap: anywhere;/);
   });
 
   it("renders an Excalidraw-like brush inspector with preset controls", () => {
@@ -133,9 +159,14 @@ describe("app shell", () => {
     expect(markup).toContain("data-brush-width=\"2\"");
     expect(markup).toContain("data-brush-width=\"14\"");
     expect(markup).toContain("data-brush-style-option=\"dot\"");
+    expect(markup).toContain("data-brush-custom-color");
     expect(styles).toContain(".brush-inspector");
     expect(styles).toContain(".brush-preset-button");
+    expect(styles).toContain(".brush-custom-color");
+    expect(styles).toContain(".brush-style-preset.active");
+    expect(styles).toContain("repeating-linear-gradient");
     expect(appSource).toContain("[data-brush-width]");
+    expect(appSource).toContain("brushCustomColorInput");
     expect(appSource).toContain("syncBrushPresetButtons");
   });
 
@@ -152,6 +183,15 @@ describe("app shell", () => {
 
     expect(appSource).toContain("}) + 2 * scale");
     expect(appSource).toContain("verticalGap: 2");
+  });
+
+  it("keeps plain text editor backgrounds transparent while sticky notes keep their fill", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
+    expect(appSource).toContain('if (element.type === "sticky")');
+    expect(appSource).toContain("textarea.style.background = element.fill");
   });
 
   it("hides transformer handles while linear item drag preview is active", () => {

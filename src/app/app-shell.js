@@ -69,6 +69,9 @@ export function renderShell() {
                     <button type="button" class="brush-color-swatch" data-brush-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
                     <button type="button" class="brush-color-swatch" data-brush-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
                     <button type="button" class="brush-color-swatch" data-brush-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
+                    <label class="brush-custom-color" title="自定义颜色" aria-label="自定义颜色">
+                      <input data-brush-custom-color type="color" value="#111827" />
+                    </label>
                   </div>
                 </div>
                 <div class="brush-field">
@@ -81,7 +84,7 @@ export function renderShell() {
                 </div>
                 <div class="brush-field">
                   <div class="brush-field-label">线型</div>
-                  <div class="brush-preset-row" role="group" aria-label="画笔线型">
+                  <div class="brush-preset-row brush-style-row" role="group" aria-label="画笔线型">
                     <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="solid" title="实线" aria-label="实线"><span class="brush-style-line brush-style-line-solid"></span></button>
                     <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dash" title="虚线" aria-label="虚线"><span class="brush-style-line brush-style-line-dash"></span></button>
                     <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dot" title="点线" aria-label="点线"><span class="brush-style-line brush-style-line-dot"></span></button>
@@ -431,7 +434,7 @@ export function renderShell() {
 
 function linearGroupMarkup({ key, title, expanded, content }) {
   return `
-    <section class="linear-panel-group" data-linear-group="${key}">
+    <section class="linear-panel-group" data-linear-group="${key}" data-collapsed="${expanded ? "false" : "true"}">
       <button
         type="button"
         class="linear-panel-toggle"
@@ -441,8 +444,10 @@ function linearGroupMarkup({ key, title, expanded, content }) {
         <span class="linear-panel-heading">${title}</span>
         <span class="linear-panel-chevron" aria-hidden="true">⌄</span>
       </button>
-      <div class="linear-panel-content" data-linear-content="${key}">
-        ${content}
+      <div class="linear-panel-content" data-linear-content="${key}" aria-hidden="${expanded ? "false" : "true"}">
+        <div class="linear-panel-content-inner">
+          ${content}
+        </div>
       </div>
     </section>
   `;
