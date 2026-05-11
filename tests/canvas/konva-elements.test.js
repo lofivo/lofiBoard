@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createElementNode, syncTextNodeContent, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
+import { createElementNode, getStickyBorderColor, syncTextNodeContent, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
 
 const baseHandlers = {
   draggable: false,
@@ -126,6 +126,57 @@ describe("konva elements", () => {
     expect(textNode.fontStyle()).toBe("bold");
     expect(textNode.textDecoration()).toBe("underline");
     expect(textNode.fill()).toBe("#2563eb");
+  });
+
+  it("renders sticky notes with a related border and a stronger paper shadow", () => {
+    const node = createElementNode({
+      id: "sticky_1",
+      type: "sticky",
+      x: 10,
+      y: 20,
+      width: 220,
+      height: 160,
+      text: "note",
+      fontSize: 22,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      fill: "#fef08a",
+      textFill: "#1f2937",
+    }, baseHandlers);
+
+    const rect = node.findOne("Rect");
+    expect(rect.fill()).toBe("#fef08a");
+    expect(rect.stroke()).toBe("#eab308");
+    expect(rect.shadowBlur()).toBe(18);
+    expect(rect.shadowOffset()).toEqual({ x: 0, y: 10 });
+    expect(rect.cornerRadius()).toBe(6);
+
+    const blueNode = createElementNode({
+      id: "sticky_2",
+      type: "sticky",
+      x: 10,
+      y: 20,
+      width: 220,
+      height: 160,
+      text: "note",
+      fontSize: 22,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      fill: "#bfdbfe",
+      textFill: "#1f2937",
+    }, baseHandlers);
+
+    expect(blueNode.findOne("Rect").stroke()).toBe(getStickyBorderColor("#bfdbfe"));
+    expect(blueNode.findOne("Rect").stroke()).not.toBe("#eab308");
+  });
+
+  it("derives sticky note border colors from the fill color", () => {
+    expect(getStickyBorderColor("#fef08a")).toBe("#eab308");
+    expect(getStickyBorderColor("#bfdbfe")).not.toBe("#eab308");
+    expect(getStickyBorderColor("#bfdbfe")).not.toBe(getStickyBorderColor("#fecdd3"));
+    expect(getStickyBorderColor("#bfdbfe")).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it("applies brush stroke rendering options to Konva lines", () => {

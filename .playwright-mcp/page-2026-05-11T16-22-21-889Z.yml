@@ -1,0 +1,97 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "lofiBoard 未命名白板" [ref=e6] [cursor=pointer]:
+      - generic [ref=e8]:
+        - strong [ref=e9]: lofiBoard
+        - generic [ref=e10]: 未命名白板
+      - img [ref=e12]
+  - complementary "属性" [ref=e14]:
+    - generic [ref=e15]:
+      - img [ref=e16]
+      - generic [ref=e18]: 属性
+      - button "收起/展开属性" [ref=e19] [cursor=pointer]: ‹
+    - generic [ref=e21]:
+      - button "外观" [expanded] [ref=e22] [cursor=pointer]:
+        - generic [ref=e23]: 外观
+        - generic [ref=e24]: ⌄
+      - generic "画笔样式" [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: 描边
+          - group "画笔颜色" [ref=e29]:
+            - button "黑色" [pressed] [ref=e30] [cursor=pointer]
+            - button "蓝色" [ref=e31] [cursor=pointer]
+            - button "红色" [ref=e32] [cursor=pointer]
+            - button "绿色" [ref=e33] [cursor=pointer]
+            - button "黄色" [ref=e34] [cursor=pointer]
+            - button "紫色" [ref=e35] [cursor=pointer]
+            - generic "自定义颜色" [ref=e36] [cursor=pointer]:
+              - textbox "自定义颜色" [ref=e37]: "#111827"
+        - generic [ref=e38]:
+          - generic [ref=e39]: 粗细
+          - group "画笔粗细" [ref=e40]:
+            - button "细" [ref=e41] [cursor=pointer]
+            - button "中" [pressed] [ref=e43] [cursor=pointer]
+            - button "粗" [ref=e45] [cursor=pointer]
+        - generic [ref=e47]:
+          - generic [ref=e48]: 线型
+          - group "画笔线型" [ref=e49]:
+            - button "实线" [pressed] [ref=e50] [cursor=pointer]
+            - button "虚线" [ref=e52] [cursor=pointer]
+            - button "点线" [ref=e54] [cursor=pointer]
+        - generic [ref=e56]:
+          - generic [ref=e57]: 笔头
+          - group "画笔笔头" [ref=e58]:
+            - button "圆头" [pressed] [ref=e59] [cursor=pointer]
+            - button "方头" [ref=e61] [cursor=pointer]
+        - generic [ref=e63]:
+          - generic [ref=e64]: 不透明度
+          - slider "不透明度" [ref=e65]: "100"
+        - generic [ref=e66]:
+          - generic [ref=e67]: 平滑
+          - group "画笔平滑" [ref=e68]:
+            - button "低" [ref=e69] [cursor=pointer]
+            - button "中" [pressed] [ref=e70] [cursor=pointer]
+            - button "高" [ref=e71] [cursor=pointer]
+  - complementary "图层":
+    - generic:
+      - img
+      - generic: 图层
+      - button "收起/展开图层": ‹
+  - button "展开图层" [ref=e72] [cursor=pointer]: ‹
+  - main [ref=e73]
+  - navigation "白板工具" [ref=e76]:
+    - button "选择 (V)" [ref=e77] [cursor=pointer]:
+      - img [ref=e78]
+      - tooltip "选择 (V)"
+    - button "平移 (H)" [ref=e80] [cursor=pointer]:
+      - img [ref=e81]
+      - tooltip "平移 (H)"
+    - button "画笔 (B)" [ref=e86] [cursor=pointer]:
+      - img [ref=e87]
+      - tooltip "画笔 (B)"
+    - button "片段橡皮 (E)" [ref=e89] [cursor=pointer]:
+      - img [ref=e90]
+      - tooltip "片段橡皮 (E)"
+    - button "对象橡皮 (O)" [ref=e93] [cursor=pointer]:
+      - img [ref=e94]
+      - tooltip "对象橡皮 (O)"
+    - button "文字 (T)" [ref=e97] [cursor=pointer]:
+      - img [ref=e98]
+      - tooltip "文字 (T)"
+    - button "便签 (N)" [ref=e100] [cursor=pointer]:
+      - img [ref=e101]
+      - tooltip "便签 (N)"
+    - button "结构 (S)" [ref=e104] [cursor=pointer]:
+      - img [ref=e105]
+      - tooltip "结构 (S)"
+    - button "图形 (R / L / A)" [ref=e110] [cursor=pointer]:
+      - img [ref=e111]
+      - tooltip "图形 (R / L / A)"
+  - contentinfo:
+    - generic: 画笔：拖动画出可编辑笔触
+    - generic "缩放控制" [ref=e115]:
+      - button "缩小" [ref=e116] [cursor=pointer]:
+        - img [ref=e117]
+      - button "100%" [ref=e118] [cursor=pointer]
+      - button "放大" [ref=e119] [cursor=pointer]:
+        - img [ref=e120]

@@ -10,6 +10,20 @@ import {
 
 const imageCache = new Map();
 
+export function getStickyBorderColor(fill) {
+  const fallback = "#eab308";
+  const hex = String(fill ?? "").trim();
+  if (hex.toLowerCase() === "#fef08a") return fallback;
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return fallback;
+  const value = match[1];
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  const next = [r, g, b].map((channel) => Math.max(0, Math.round(channel * 0.7)));
+  return `#${next.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
 export function syncTextNodeSize(node, { width, height, padding = 0 }) {
   if (!node || !Number.isFinite(width) || !Number.isFinite(height)) return;
   const nextWidth = Math.max(1, width);
@@ -131,13 +145,13 @@ export function createElementNode(element, {
       width: element.width,
       height: element.height,
       fill: element.fill,
-      stroke: "#facc15",
+      stroke: getStickyBorderColor(element.fill),
       strokeWidth: 1,
-      shadowColor: "rgba(15,23,42,0.18)",
-      shadowBlur: 12,
-      shadowOffset: { x: 0, y: 6 },
-      shadowOpacity: 0.35,
-      cornerRadius: 3,
+      shadowColor: "rgba(120, 113, 108, 0.24)",
+      shadowBlur: 18,
+      shadowOffset: { x: 0, y: 10 },
+      shadowOpacity: 0.42,
+      cornerRadius: 6,
     }));
     node.add(new Konva.Text({
       x: 14,

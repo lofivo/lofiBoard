@@ -201,7 +201,23 @@ describe("app shell", () => {
 
     expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
     expect(appSource).toContain('if (element.type === "sticky")');
-    expect(appSource).toContain("textarea.style.background = element.fill");
+    expect(appSource).toContain('editorFrame.classList.add("is-sticky-editor")');
+    expect(appSource).toContain('const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;');
+    expect(appSource).toContain('const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;');
+    expect(appSource).toContain('element.type !== "sticky" && canAutoFitWidth && textarea.value');
+    expect(appSource).toContain('const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;');
+    expect(appSource).toContain("editorFrame.style.background = stickyFill");
+    expect(appSource).toContain("editorFrame.style.borderColor = getStickyBorderColor(stickyFill)");
+    expect(appSource).toContain("Math.max(element.width, committedWidth / scale)");
+    expect(appSource).toContain("Math.max(element.height, committedHeight / scale)");
+  });
+
+  it("aligns the transparent fill checkbox with its label text", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.control-fill-transparent \{[\s\S]*?display: grid;/);
+    expect(styles).toMatch(/\.control-fill-transparent \{[\s\S]*?grid-template-columns: auto 1fr;/);
+    expect(styles).toMatch(/\.control-fill-transparent \{[\s\S]*?line-height: 1;/);
   });
 
   it("hides transformer handles while linear item drag preview is active", () => {

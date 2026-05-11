@@ -33,6 +33,7 @@ import { createId } from "../board/ids.js";
 import {
   createElementNode,
   createNodeAttrs,
+  getStickyBorderColor,
   syncTextNodeContent,
   syncTextNodeSize,
 } from "../canvas/konva-elements.js";
@@ -3300,6 +3301,8 @@ export function createWhiteboardApp(root) {
     const minEditorHeight = getSingleLineTextEditorHeight(element.fontSize, scale);
     const editorWidth = Math.max(minEditorWidth, node.width() * scale);
     const editorHeight = Math.max(minEditorHeight, (node.height?.() || element.height || element.fontSize * 1.25) * scale);
+    const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
+    const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
     const maxAutoEditorWidth = editorWidth;
     let hasManualEditorResize = false;
 
@@ -3330,8 +3333,8 @@ export function createWhiteboardApp(root) {
     };
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {
-      const nextWidth = Math.max(minEditorWidth, width);
-      const nextHeight = Math.max(minEditorHeight, height);
+      const nextWidth = Math.max(minLiveEditorWidth, width);
+      const nextHeight = Math.max(minLiveEditorHeight, height);
       editorFrame.style.width = `${nextWidth}px`;
       editorFrame.style.height = `${nextHeight}px`;
     };
@@ -3348,7 +3351,7 @@ export function createWhiteboardApp(root) {
       const lines = textarea.value.split("\n");
       const contentWidth = Math.max(...lines.map(getTextLineWidth));
       const canAutoFitWidth = !hasManualEditorResize && !originalText;
-      const nextWidth = canAutoFitWidth && textarea.value
+      const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
         ? Math.min(maxAutoEditorWidth, Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1)))
         : getEditorWidth();
       setEditorSize(nextWidth);
@@ -3366,7 +3369,10 @@ export function createWhiteboardApp(root) {
     textarea.style.padding = `0 ${horizontalPadding}px`;
     textarea.style.color = element.type === "sticky" ? element.textFill : element.fill;
     if (element.type === "sticky") {
-      textarea.style.background = element.fill;
+      const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;
+      editorFrame.classList.add("is-sticky-editor");
+      editorFrame.style.background = stickyFill;
+      editorFrame.style.borderColor = getStickyBorderColor(stickyFill);
       textarea.style.padding = "10px";
     }
     textarea.style.fontFamily = element.fontFamily;
@@ -3468,8 +3474,8 @@ export function createWhiteboardApp(root) {
           return committedElement;
         }
         if (item.type === "sticky") {
-          nextElement.width = Math.max(80, committedWidth / scale);
-          nextElement.height = Math.max(60, committedHeight / scale);
+          nextElement.width = Math.max(element.width, committedWidth / scale);
+          nextElement.height = Math.max(element.height, committedHeight / scale);
           committedElement = nextElement;
         }
         return nextElement;
