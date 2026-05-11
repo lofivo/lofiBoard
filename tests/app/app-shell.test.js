@@ -202,6 +202,25 @@ describe("app shell", () => {
     expect(appSource).toContain("transformer.visible(false)");
   });
 
+  it("styles transformer edge handles as invisible hit areas and scales vertical edge drags uniformly", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("anchorCornerRadius: 3");
+    expect(appSource).toContain('anchor.hasName("top-center") || anchor.hasName("bottom-center")');
+    expect(appSource).toContain('anchor.hasName("middle-left") || anchor.hasName("middle-right")');
+    expect(appSource).toContain('anchor.fill("rgba(0,0,0,0)")');
+    expect(appSource).toContain("getUniformScaledBoxForVerticalResize");
+  });
+
+  it("commits text corner scaling without changing the text wrapping ratio", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("getTextScaleCommitBox");
+    expect(appSource).toContain("fontSize: textCommit.fontSize");
+    expect(appSource).toContain("width: textCommit.width");
+    expect(appSource).not.toContain("width: node.width() * Math.abs(node.scaleX() || 1)");
+  });
+
   it("lets value-cell pointer down start whole-array drag only when the array is already selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 

@@ -46,6 +46,9 @@ import {
 } from "../services/image-import-service.js";
 import {
   clampResizeAnchorPosition,
+  getTextScaleCommitBox,
+  getTextTransformMinimumSize,
+  getUniformScaledBoxForVerticalResize,
   getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
@@ -262,23 +265,56 @@ export function createWhiteboardApp(root) {
     rotateEnabled: true,
     flipEnabled: false,
     borderStroke: "#2563eb",
+    borderStrokeWidth: 1.5,
     anchorStroke: "#2563eb",
     anchorFill: "#ffffff",
-    anchorSize: 9,
+    anchorSize: 10,
+    anchorCornerRadius: 3,
     padding: 6,
     ignoreStroke: true,
+    anchorStyleFunc: (anchor) => {
+      if (anchor.hasName("top-center") || anchor.hasName("bottom-center")) {
+        const width = Math.max(36, transformer.width() - 28);
+        anchor.width(width);
+        anchor.height(14);
+        anchor.offsetX(width / 2);
+        anchor.offsetY(anchor.hasName("top-center") ? 20 : -6);
+        anchor.fill("rgba(0,0,0,0)");
+        anchor.stroke("rgba(0,0,0,0)");
+        anchor.cornerRadius(7);
+      } else if (anchor.hasName("middle-left") || anchor.hasName("middle-right")) {
+        const height = Math.max(36, transformer.height() - 28);
+        anchor.width(28);
+        anchor.height(height);
+        anchor.offsetX(anchor.hasName("middle-left") ? 34 : -6);
+        anchor.offsetY(height / 2);
+        anchor.fill("rgba(0,0,0,0)");
+        anchor.stroke("rgba(0,0,0,0)");
+        anchor.cornerRadius(7);
+      } else if (!anchor.hasName("rotater")) {
+        anchor.cornerRadius(3);
+      }
+    },
     anchorDragBoundFunc: (oldAbsPos, newAbsPos) => clampTransformerAnchorDrag(oldAbsPos, newAbsPos),
     boundBoxFunc: (oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
       const anchor = transformer.getActiveAnchor?.();
-      const nextBox = { ...newBox };
-      if (newBox.width < MIN_TRANSFORM_SIZE) {
-        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - MIN_TRANSFORM_SIZE;
-        nextBox.width = MIN_TRANSFORM_SIZE;
+      const minWidth = getActiveTransformerMinWidth();
+      const minHeight = getActiveTransformerMinHeight();
+      const nextBox = getUniformScaledBoxForVerticalResize({
+        anchor,
+        oldBox,
+        newBox,
+        minWidth,
+        minHeight,
+      });
+      if (nextBox.width < minWidth) {
+        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minWidth;
+        nextBox.width = minWidth;
       }
-      if (newBox.height < MIN_TRANSFORM_SIZE) {
-        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - MIN_TRANSFORM_SIZE;
-        nextBox.height = MIN_TRANSFORM_SIZE;
+      if (nextBox.height < minHeight) {
+        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - minHeight;
+        nextBox.height = minHeight;
       }
       return nextBox;
     },
@@ -1910,7 +1946,11 @@ export function createWhiteboardApp(root) {
     const id = getElementIdFromNode(node);
     const element = board.elements.find((item) => item.id === id);
     if (element?.type === "text") {
-      return (getMinimumTextResizeWidth(element.fontSize) + (element.padding ?? 0) * 2) * stage.scaleX();
+      return getTextTransformMinimumSize({
+        element,
+        anchor: transformer.getActiveAnchor?.(),
+        stageScale: stage.scaleX(),
+      }).minWidth;
     }
     return MIN_TRANSFORM_SIZE;
   }
@@ -1920,7 +1960,11 @@ export function createWhiteboardApp(root) {
     const id = getElementIdFromNode(node);
     const element = board.elements.find((item) => item.id === id);
     if (element?.type === "text") {
-      return getSingleLineTextEditorHeight(element.fontSize, stage.scaleX());
+      return getTextTransformMinimumSize({
+        element,
+        anchor: transformer.getActiveAnchor?.(),
+        stageScale: stage.scaleX(),
+      }).minHeight;
     }
     return MIN_TRANSFORM_SIZE;
   }
@@ -2017,14 +2061,16 @@ export function createWhiteboardApp(root) {
     };
 
     if (element.type === "text") {
-      const widthOnlyResize = isTextWidthResizeAnchor(lastTransformAnchor);
-      const nextScale = widthOnlyResize
-        ? 1
-        : Math.max(0.1, Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1)));
+      const textCommit = getTextScaleCommitBox({
+        element,
+        nodeScaleX: node.scaleX(),
+        nodeScaleY: node.scaleY(),
+        anchor: lastTransformAnchor,
+      });
       board.elements[index] = normalizeTextElementBox({
         ...board.elements[index],
-        fontSize: Math.max(8, element.fontSize * nextScale),
-        width: node.width() * Math.abs(node.scaleX() || 1),
+        fontSize: textCommit.fontSize,
+        width: textCommit.width,
       });
     }
   }
@@ -3293,12 +3339,18 @@ export function createWhiteboardApp(root) {
     transformer.boundBoxFunc((oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
       const anchor = transformer.getActiveAnchor?.();
-      const nextBox = { ...newBox };
-      if (newBox.width < minEditorWidth) {
+      const nextBox = getUniformScaledBoxForVerticalResize({
+        anchor,
+        oldBox,
+        newBox,
+        minWidth: minEditorWidth,
+        minHeight: minEditorHeight,
+      });
+      if (nextBox.width < minEditorWidth) {
         if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minEditorWidth;
         nextBox.width = minEditorWidth;
       }
-      if (newBox.height < minEditorHeight) {
+      if (nextBox.height < minEditorHeight) {
         if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - minEditorHeight;
         nextBox.height = minEditorHeight;
       }

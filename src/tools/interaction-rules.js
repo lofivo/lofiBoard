@@ -9,10 +9,12 @@ export const CORNER_TRANSFORMER_ANCHORS = [
 
 export const TEXT_TRANSFORMER_ANCHORS = [
   "top-left",
+  "top-center",
   "top-right",
   "middle-left",
   "middle-right",
   "bottom-left",
+  "bottom-center",
   "bottom-right",
 ];
 
@@ -53,6 +55,95 @@ export function getTransformerAnchorsForSelection(elements, canTransform) {
 
 export function isTextWidthResizeAnchor(anchor) {
   return anchor === "middle-left" || anchor === "middle-right";
+}
+
+export function isTransformerVerticalScaleAnchor(anchor) {
+  return anchor === "top-center" || anchor === "bottom-center";
+}
+
+export function isTransformerScaleAnchor(anchor) {
+  return CORNER_TRANSFORMER_ANCHORS.includes(anchor) || isTransformerVerticalScaleAnchor(anchor);
+}
+
+export function getUniformScaledBoxForVerticalResize({
+  anchor,
+  oldBox,
+  newBox,
+  minWidth = 1,
+  minHeight = 1,
+}) {
+  if (!isTransformerScaleAnchor(anchor) || !oldBox || !newBox) return newBox;
+
+  const oldWidth = Math.max(1, Math.abs(Number(oldBox.width) || 1));
+  const oldHeight = Math.max(1, Math.abs(Number(oldBox.height) || 1));
+  const minimumWidth = Math.max(1, Number(minWidth) || 1);
+  const minimumHeight = Math.max(1, Number(minHeight) || 1);
+  const requestedWidth = Math.max(minimumWidth, Math.abs(Number(newBox.width) || minimumWidth));
+  const requestedHeight = Math.max(minimumHeight, Math.abs(Number(newBox.height) || minimumHeight));
+  const requestedScale = isTransformerVerticalScaleAnchor(anchor)
+    ? requestedHeight / oldHeight
+    : Math.max(requestedWidth / oldWidth, requestedHeight / oldHeight);
+  const scale = Math.max(requestedScale, minimumWidth / oldWidth, minimumHeight / oldHeight);
+  const nextWidth = oldWidth * scale;
+  const nextHeight = oldHeight * scale;
+  const centerX = oldBox.x + oldWidth / 2;
+  const nextX = anchor.includes("left")
+    ? oldBox.x + oldWidth - nextWidth
+    : anchor.includes("right")
+      ? oldBox.x
+      : centerX - nextWidth / 2;
+  const nextY = anchor.includes("top")
+    ? oldBox.y + oldHeight - nextHeight
+    : oldBox.y;
+
+  return {
+    ...newBox,
+    x: nextX,
+    y: nextY,
+    width: nextWidth,
+    height: nextHeight,
+  };
+}
+
+export function getTextScaleCommitBox({
+  element,
+  nodeScaleX,
+  nodeScaleY,
+  anchor,
+  minFontSize = 8,
+}) {
+  const scaleX = Math.abs(Number(nodeScaleX) || 1);
+  const scaleY = Math.abs(Number(nodeScaleY) || 1);
+  if (isTextWidthResizeAnchor(anchor)) {
+    return {
+      width: Math.max(1, (Number(element?.width) || 1) * scaleX),
+      fontSize: Number(element?.fontSize) || minFontSize,
+    };
+  }
+
+  const fontSize = Number(element?.fontSize) || minFontSize;
+  const scale = Math.max(minFontSize / fontSize, Math.max(0.1, Math.max(scaleX, scaleY)));
+  return {
+    width: Math.max(1, (Number(element?.width) || 1) * scale),
+    fontSize: fontSize * scale,
+  };
+}
+
+export function getTextTransformMinimumSize({
+  element,
+  anchor,
+  stageScale = 1,
+  minFontSize = 8,
+  lineHeight = 1.25,
+}) {
+  const scale = Math.max(0.01, Number(stageScale) || 1);
+  const padding = Math.max(0, Number(element?.padding) || 0);
+  const fontSize = Number(element?.fontSize) || minFontSize;
+  const transformFontSize = isTextWidthResizeAnchor(anchor) ? fontSize : Math.min(fontSize, minFontSize);
+  return {
+    minWidth: (getMinimumTextResizeWidth(transformFontSize) + padding * 2) * scale,
+    minHeight: getSingleLineTextEditorHeight(transformFontSize, scale, lineHeight),
+  };
 }
 
 export function getMinimumTextResizeWidth(fontSize) {

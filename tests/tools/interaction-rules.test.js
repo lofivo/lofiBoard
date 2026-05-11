@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   clampResizeAnchorPosition,
+  getTextTransformMinimumSize,
+  getTextScaleCommitBox,
+  getUniformScaledBoxForVerticalResize,
   getMinimumTextResizeWidth,
   getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getTransformerAnchorsForSelection,
+  isTransformerVerticalScaleAnchor,
+  isTransformerScaleAnchor,
   isTransformerTarget,
   isTextWidthResizeAnchor,
   measureTextareaContentHeight,
@@ -40,13 +45,15 @@ describe("interaction rules", () => {
     expect(nextToolAfterTextPlacement(TOOLS.PEN)).toBe(TOOLS.PEN);
   });
 
-  it("keeps text selection resizing on corners and side width handles", () => {
+  it("keeps text selection resizing available on corners and invisible side edges", () => {
     expect(getTransformerAnchorsForSelection([{ type: "text" }], true)).toEqual([
       "top-left",
+      "top-center",
       "top-right",
       "middle-left",
       "middle-right",
       "bottom-left",
+      "bottom-center",
       "bottom-right",
     ]);
   });
@@ -62,6 +69,104 @@ describe("interaction rules", () => {
     expect(isTextWidthResizeAnchor("middle-right")).toBe(true);
     expect(isTextWidthResizeAnchor("top-left")).toBe(false);
     expect(isTextWidthResizeAnchor("top-center")).toBe(false);
+  });
+
+  it("identifies vertical edge anchors that scale instead of stretch", () => {
+    expect(isTransformerVerticalScaleAnchor("top-center")).toBe(true);
+    expect(isTransformerVerticalScaleAnchor("bottom-center")).toBe(true);
+    expect(isTransformerVerticalScaleAnchor("middle-left")).toBe(false);
+    expect(isTransformerVerticalScaleAnchor("top-left")).toBe(false);
+  });
+
+  it("identifies corner and vertical edge anchors that scale proportionally", () => {
+    expect(isTransformerScaleAnchor("top-left")).toBe(true);
+    expect(isTransformerScaleAnchor("bottom-right")).toBe(true);
+    expect(isTransformerScaleAnchor("top-center")).toBe(true);
+    expect(isTransformerScaleAnchor("middle-right")).toBe(false);
+  });
+
+  it("converts corner and vertical edge resizing into proportional scaling", () => {
+    const oldBox = { x: 100, y: 80, width: 200, height: 100, rotation: 0 };
+
+    expect(getUniformScaledBoxForVerticalResize({
+      anchor: "bottom-center",
+      oldBox,
+      newBox: { x: 100, y: 80, width: 200, height: 150, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 50, y: 80, width: 300, height: 150, rotation: 0 });
+
+    expect(getUniformScaledBoxForVerticalResize({
+      anchor: "top-center",
+      oldBox,
+      newBox: { x: 100, y: 30, width: 200, height: 150, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 50, y: 30, width: 300, height: 150, rotation: 0 });
+
+    expect(getUniformScaledBoxForVerticalResize({
+      anchor: "bottom-right",
+      oldBox,
+      newBox: { x: 100, y: 80, width: 120, height: 40, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 100, y: 80, width: 120, height: 60, rotation: 0 });
+  });
+
+  it("honors minimum dimensions while keeping vertical edge scaling proportional", () => {
+    const oldBox = { x: 100, y: 80, width: 200, height: 100, rotation: 0 };
+
+    expect(getUniformScaledBoxForVerticalResize({
+      anchor: "bottom-center",
+      oldBox,
+      newBox: { x: 100, y: 80, width: 200, height: 4, rotation: 0 },
+      minWidth: 40,
+      minHeight: 30,
+    })).toEqual({ x: 170, y: 80, width: 60, height: 30, rotation: 0 });
+  });
+
+  it("commits text proportional scaling without changing the text wrapping ratio", () => {
+    expect(getTextScaleCommitBox({
+      element: { width: 200, fontSize: 24 },
+      nodeScaleX: 0.5,
+      nodeScaleY: 0.5,
+      anchor: "bottom-right",
+    })).toEqual({ width: 100, fontSize: 12 });
+
+    expect(getTextScaleCommitBox({
+      element: { width: 200, fontSize: 24 },
+      nodeScaleX: 2,
+      nodeScaleY: 2,
+      anchor: "bottom-right",
+    })).toEqual({ width: 400, fontSize: 48 });
+
+    expect(getTextScaleCommitBox({
+      element: { width: 200, fontSize: 24 },
+      nodeScaleX: 0.5,
+      nodeScaleY: 1,
+      anchor: "middle-right",
+    })).toEqual({ width: 100, fontSize: 24 });
+
+    expect(getTextScaleCommitBox({
+      element: { width: 200, fontSize: 24 },
+      nodeScaleX: 0.1,
+      nodeScaleY: 0.1,
+      anchor: "bottom-right",
+    })).toEqual({ width: 200 * (8 / 24), fontSize: 8 });
+  });
+
+  it("uses minimum font size for text corner scaling constraints", () => {
+    expect(getTextTransformMinimumSize({
+      element: { fontSize: 24, padding: 0 },
+      anchor: "bottom-right",
+      stageScale: 1,
+    })).toEqual({ minWidth: 8, minHeight: 10 });
+
+    expect(getTextTransformMinimumSize({
+      element: { fontSize: 24, padding: 0 },
+      anchor: "middle-right",
+      stageScale: 1,
+    })).toEqual({ minWidth: 24, minHeight: 30 });
   });
 
   it("uses current character size as the minimum text resize width", () => {
