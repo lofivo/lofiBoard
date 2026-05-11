@@ -111,6 +111,34 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-reload"');
   });
 
+  it("keeps structure inspector groups compact when collapsed", () => {
+    const markup = renderShell();
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(markup).toContain("linear-panel-fields-edit");
+    expect(markup).toContain("linear-panel-fields-highlight");
+    expect(markup).toContain("quick-actions-compact");
+    expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
+    expect(styles).toContain('.linear-panel-group[data-collapsed="true"]');
+    expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+  });
+
+  it("renders an Excalidraw-like brush inspector with preset controls", () => {
+    const markup = renderShell();
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(markup).toContain("brush-inspector");
+    expect(markup).toContain("brush-preset-row");
+    expect(markup).toContain("data-brush-width=\"2\"");
+    expect(markup).toContain("data-brush-width=\"14\"");
+    expect(markup).toContain("data-brush-style-option=\"dot\"");
+    expect(styles).toContain(".brush-inspector");
+    expect(styles).toContain(".brush-preset-button");
+    expect(appSource).toContain("[data-brush-width]");
+    expect(appSource).toContain("syncBrushPresetButtons");
+  });
+
   it("starts a drag gesture immediately after selecting an unselected text element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 

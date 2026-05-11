@@ -45,5 +45,10 @@ describe("ui config", () => {
     expect(markup).toContain("data-control=\"brush-smoothing\"");
     expect(markup).toContain("data-control=\"brush-cap\"");
     expect(markup).toContain("data-control=\"brush-style\"");
+    expect(markup).toContain("data-brush-color=\"#111827\"");
+    expect(markup).toContain("data-brush-width=\"6\"");
+    expect(markup).toContain("data-brush-style-option=\"dash\"");
+    expect(markup).toContain("data-brush-smoothing=\"45\"");
+    expect(markup).toContain("data-brush-cap-option=\"round\"");
   });
 });

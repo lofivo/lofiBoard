@@ -59,6 +59,54 @@ export function renderShell() {
               <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="inspector-section-content" data-section-content="appearance">
+              <div class="brush-inspector" aria-label="画笔样式">
+                <div class="brush-field brush-field-color">
+                  <div class="brush-field-label">描边</div>
+                  <div class="brush-color-grid" role="group" aria-label="画笔颜色">
+                    <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
+                    <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
+                    <button type="button" class="brush-color-swatch" data-brush-color="#dc2626" style="--swatch-color: #dc2626" title="红色" aria-label="红色"></button>
+                    <button type="button" class="brush-color-swatch" data-brush-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
+                    <button type="button" class="brush-color-swatch" data-brush-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
+                    <button type="button" class="brush-color-swatch" data-brush-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
+                  </div>
+                </div>
+                <div class="brush-field">
+                  <div class="brush-field-label">粗细</div>
+                  <div class="brush-preset-row" role="group" aria-label="画笔粗细">
+                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="2" title="细" aria-label="细"><span style="--stroke-size: 2px"></span></button>
+                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="6" title="中" aria-label="中"><span style="--stroke-size: 6px"></span></button>
+                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="14" title="粗" aria-label="粗"><span style="--stroke-size: 12px"></span></button>
+                  </div>
+                </div>
+                <div class="brush-field">
+                  <div class="brush-field-label">线型</div>
+                  <div class="brush-preset-row" role="group" aria-label="画笔线型">
+                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="solid" title="实线" aria-label="实线"><span class="brush-style-line brush-style-line-solid"></span></button>
+                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dash" title="虚线" aria-label="虚线"><span class="brush-style-line brush-style-line-dash"></span></button>
+                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dot" title="点线" aria-label="点线"><span class="brush-style-line brush-style-line-dot"></span></button>
+                  </div>
+                </div>
+                <div class="brush-field">
+                  <div class="brush-field-label">笔头</div>
+                  <div class="brush-preset-row" role="group" aria-label="画笔笔头">
+                    <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="round" title="圆头" aria-label="圆头"><span class="brush-cap-preview brush-cap-preview-round"></span></button>
+                    <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="square" title="方头" aria-label="方头"><span class="brush-cap-preview brush-cap-preview-square"></span></button>
+                  </div>
+                </div>
+                <label class="brush-field brush-slider-field control-brush-opacity">
+                  <span class="brush-field-label">不透明度</span>
+                  <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
+                </label>
+                <div class="brush-field">
+                  <div class="brush-field-label">平滑</div>
+                  <div class="brush-preset-row" role="group" aria-label="画笔平滑">
+                    <button type="button" class="brush-preset-button" data-brush-smoothing="15">低</button>
+                    <button type="button" class="brush-preset-button" data-brush-smoothing="45">中</button>
+                    <button type="button" class="brush-preset-button" data-brush-smoothing="75">高</button>
+                  </div>
+                </div>
+              </div>
               <div class="inspector-section-grid inspector-section-grid-appearance">
                 <label class="control-line">
                   颜色
@@ -75,10 +123,6 @@ export function renderShell() {
                 <label class="control-width">
                   粗细
                   <input data-control="width" type="range" min="1" max="28" value="6" />
-                </label>
-                <label class="control-brush-opacity">
-                  不透明度
-                  <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
                 </label>
                 <label class="control-brush-smoothing">
                   平滑
@@ -141,7 +185,7 @@ export function renderShell() {
                   title: "基础编辑",
                   expanded: true,
                   content: `
-                    <div class="linear-panel-fields">
+                    <div class="linear-panel-fields linear-panel-fields-edit">
                       <label class="linear-field">
                         当前位置
                         <input data-linear-field="current-index" type="number" min="0" step="1" value="0" />
@@ -167,7 +211,7 @@ export function renderShell() {
                         <input data-linear-field="move-index" type="number" min="0" step="1" value="1" />
                       </label>
                     </div>
-                    <div class="quick-actions quick-actions-linear">
+                    <div class="quick-actions quick-actions-linear quick-actions-compact">
                       <button type="button" data-action="array-set-value">修改当前</button>
                       <button type="button" data-action="array-delete-at">删除当前</button>
                       <button type="button" data-action="array-delete-end">删末项</button>
@@ -184,7 +228,7 @@ export function renderShell() {
                   title: "高亮与下标",
                   expanded: false,
                   content: `
-                    <div class="linear-panel-fields">
+                    <div class="linear-panel-fields linear-panel-fields-highlight">
                       <label class="linear-field">
                         高亮起点
                         <input data-linear-field="highlight-start" type="number" min="0" step="1" value="0" />
@@ -198,7 +242,7 @@ export function renderShell() {
                         <input data-linear-field="highlight-pointer" type="number" min="0" step="1" value="0" />
                       </label>
                     </div>
-                    <div class="quick-actions quick-actions-linear">
+                    <div class="quick-actions quick-actions-linear quick-actions-compact">
                       <button type="button" data-action="array-highlight">应用高亮</button>
                       <button type="button" data-action="array-clear-highlight">清除高亮</button>
                       <button type="button" data-action="linear-index-zero">0 下标</button>
@@ -213,7 +257,7 @@ export function renderShell() {
                   title: "语义快捷操作",
                   expanded: false,
                   content: `
-                    <div class="quick-actions quick-actions-linear">
+                    <div class="quick-actions quick-actions-linear quick-actions-compact">
                       <button type="button" data-action="stack-push">Push</button>
                       <button type="button" data-action="stack-pop">Pop</button>
                       <button type="button" data-action="queue-enqueue">Enqueue</button>
@@ -230,7 +274,7 @@ export function renderShell() {
                   title: "更多操作",
                   expanded: false,
                   content: `
-                    <div class="quick-actions quick-actions-linear">
+                    <div class="quick-actions quick-actions-linear quick-actions-compact">
                       <button type="button" data-action="array-reload">从输入框重载</button>
                     </div>
                   `,

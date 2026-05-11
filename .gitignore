@@ -1,4 +1,4 @@
-/.vscode
+.vscode/
 
 .codex
 
@@ -7,3 +7,5 @@ dist/
 .runtime/
 
 .history/
+
+.runtime/

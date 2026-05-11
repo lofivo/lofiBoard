@@ -404,16 +404,48 @@ export function createWhiteboardApp(root) {
 
     colorInput.addEventListener("input", applyStyleToSelection);
     colorInput.addEventListener("input", updateBrushCursorStyle);
+    colorInput.addEventListener("input", syncBrushPresetButtons);
     fillInput.addEventListener("input", applyStyleToSelection);
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
     widthInput.addEventListener("input", updateBrushCursorStyle);
+    widthInput.addEventListener("input", syncBrushPresetButtons);
     brushOpacityInput.addEventListener("input", applyStyleToSelection);
     brushSmoothingInput.addEventListener("input", applyStyleToSelection);
+    brushSmoothingInput.addEventListener("input", syncBrushPresetButtons);
     brushCapInput.addEventListener("change", applyStyleToSelection);
+    brushCapInput.addEventListener("change", syncBrushPresetButtons);
     brushStyleInput.addEventListener("change", applyStyleToSelection);
+    brushStyleInput.addEventListener("change", syncBrushPresetButtons);
     fontSizeInput.addEventListener("input", applyStyleToSelection);
     fontFamilyInput.addEventListener("change", applyStyleToSelection);
+    root.querySelectorAll("[data-brush-color]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(colorInput, button.dataset.brushColor, "input");
+        updateBrushCursorStyle();
+      });
+    });
+    root.querySelectorAll("[data-brush-width]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(widthInput, button.dataset.brushWidth, "input");
+        updateBrushCursorStyle();
+      });
+    });
+    root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(brushStyleInput, button.dataset.brushStyleOption, "change");
+      });
+    });
+    root.querySelectorAll("[data-brush-cap-option]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(brushCapInput, button.dataset.brushCapOption, "change");
+      });
+    });
+    root.querySelectorAll("[data-brush-smoothing]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(brushSmoothingInput, button.dataset.brushSmoothing, "input");
+      });
+    });
     root.querySelectorAll("[data-text-style]").forEach((button) => {
       button.addEventListener("click", () => toggleTextStyle(button.dataset.textStyle));
     });
@@ -3666,6 +3698,7 @@ export function createWhiteboardApp(root) {
     });
     syncLinearPanelState();
     syncInspectorPanelState();
+    syncBrushPresetButtons();
     updateLayerPanelAvailability();
     renderLayerPanel();
     updateContextPanel();
@@ -3822,6 +3855,41 @@ export function createWhiteboardApp(root) {
     brushSmoothingInput.value = String(Math.round((element.smoothing ?? 0.45) * 100));
     brushCapInput.value = element.lineCap ?? "round";
     brushStyleInput.value = element.brushStyle ?? "solid";
+    syncBrushPresetButtons();
+  }
+
+  function setBrushControlValue(input, value, eventName) {
+    if (!input || value === undefined) return;
+    input.value = value;
+    input.dispatchEvent(new Event(eventName, { bubbles: true }));
+    syncBrushPresetButtons();
+  }
+
+  function syncBrushPresetButtons() {
+    root.querySelectorAll("[data-brush-color]").forEach((button) => {
+      setBrushPresetActive(button, normalizeHexColor(button.dataset.brushColor) === normalizeHexColor(colorInput.value));
+    });
+    root.querySelectorAll("[data-brush-width]").forEach((button) => {
+      setBrushPresetActive(button, Number(button.dataset.brushWidth) === Number(widthInput.value));
+    });
+    root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
+      setBrushPresetActive(button, button.dataset.brushStyleOption === brushStyleInput.value);
+    });
+    root.querySelectorAll("[data-brush-cap-option]").forEach((button) => {
+      setBrushPresetActive(button, button.dataset.brushCapOption === brushCapInput.value);
+    });
+    root.querySelectorAll("[data-brush-smoothing]").forEach((button) => {
+      setBrushPresetActive(button, Number(button.dataset.brushSmoothing) === Number(brushSmoothingInput.value));
+    });
+  }
+
+  function setBrushPresetActive(button, active) {
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+
+  function normalizeHexColor(value) {
+    return String(value ?? "").trim().toLowerCase();
   }
 
   function getStrokeStyleFromControls() {
