@@ -195,6 +195,15 @@ describe("app shell", () => {
     expect(appSource).toContain("verticalGap: 2");
   });
 
+  it("keeps the Konva text visible while the textarea only edits input", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("getTextEditorStyle");
+    expect(appSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
+    expect(appSource).toContain("syncTextNodeContent(node, {");
+    expect(appSource).toContain("text: textarea.value");
+  });
+
   it("keeps plain text editor backgrounds transparent while sticky notes keep their fill", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");

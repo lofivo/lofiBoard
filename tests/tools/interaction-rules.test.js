@@ -3,6 +3,7 @@ import {
   clampResizeAnchorPosition,
   getTextTransformMinimumSize,
   getTextScaleCommitBox,
+  getTextEditorStyle,
   getUniformScaledBoxForVerticalResize,
   getMinimumTextResizeWidth,
   getNormalizedTextBox,
@@ -178,6 +179,44 @@ describe("interaction rules", () => {
   it("keeps the default text editor height to one line", () => {
     expect(getSingleLineTextEditorHeight(28, 1)).toBe(35);
     expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
+  });
+
+  it("keeps plain text visually rendered by Konva while the textarea edits input", () => {
+    expect(getTextEditorStyle({
+      element: {
+        type: "text",
+        fill: "#111827",
+        fontSize: 28,
+        fontFamily: "Inter, system-ui, sans-serif",
+        fontStyle: "bold italic",
+        textDecoration: "underline",
+      },
+      scale: 1.5,
+      horizontalPadding: 9,
+    })).toEqual({
+      fontSize: "42px",
+      padding: "0 9px",
+      color: "transparent",
+      fontFamily: "Inter, system-ui, sans-serif",
+      fontStyle: "italic",
+      fontWeight: "700",
+      textDecoration: "underline",
+      lineHeight: "1.25",
+      letterSpacing: "0px",
+    });
+
+    expect(getTextEditorStyle({
+      element: {
+        type: "sticky",
+        textFill: "#1f2937",
+        fontSize: 22,
+        fontFamily: "Inter, system-ui, sans-serif",
+        fontStyle: "normal",
+        textDecoration: "",
+      },
+      scale: 2,
+      horizontalPadding: 12,
+    }).color).toBe("#1f2937");
   });
 
   it("adds an ellipsis when truncating layer labels", () => {

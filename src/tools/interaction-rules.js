@@ -154,6 +154,21 @@ export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 
   return (Number(fontSize) || 0) * scale * lineHeight;
 }
 
+export function getTextEditorStyle({ element, scale = 1, horizontalPadding = 0, lineHeight = 1.25 }) {
+  const fontStyle = String(element?.fontStyle ?? "");
+  return {
+    fontSize: `${(Number(element?.fontSize) || 0) * scale}px`,
+    padding: `0 ${horizontalPadding}px`,
+    color: element?.type === "sticky" ? element.textFill : "transparent",
+    fontFamily: element?.fontFamily,
+    fontStyle: fontStyle.includes("italic") ? "italic" : "normal",
+    fontWeight: fontStyle.includes("bold") ? "700" : "400",
+    textDecoration: element?.textDecoration || "none",
+    lineHeight: String(lineHeight),
+    letterSpacing: "0px",
+  };
+}
+
 export function truncateWithEllipsis(value, maxLength) {
   const text = String(value ?? "");
   const length = Math.max(1, Number(maxLength) || 1);

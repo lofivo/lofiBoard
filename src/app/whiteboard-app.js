@@ -49,6 +49,7 @@ import {
 import {
   clampResizeAnchorPosition,
   getTextScaleCommitBox,
+  getTextEditorStyle,
   getTextTransformMinimumSize,
   getUniformScaledBoxForVerticalResize,
   getNormalizedTextBox,
@@ -3356,6 +3357,14 @@ export function createWhiteboardApp(root) {
         : getEditorWidth();
       setEditorSize(nextWidth);
       applyNodeSizeFromEditor();
+      if (element.type === "text") {
+        syncTextNodeContent(node, {
+          ...element,
+          text: textarea.value,
+          width: editorFrame.offsetWidth / scale,
+          height: editorFrame.offsetHeight / scale,
+        });
+      }
       transformer.forceUpdate();
       overlayLayer.batchDraw();
     };
@@ -3365,9 +3374,7 @@ export function createWhiteboardApp(root) {
     setEditorSize(editorWidth, editorHeight);
     editorFrame.style.minWidth = `${minEditorWidth}px`;
     editorFrame.style.minHeight = `${minEditorHeight}px`;
-    textarea.style.fontSize = `${element.fontSize * scale}px`;
-    textarea.style.padding = `0 ${horizontalPadding}px`;
-    textarea.style.color = element.type === "sticky" ? element.textFill : element.fill;
+    Object.assign(textarea.style, getTextEditorStyle({ element, scale, horizontalPadding }));
     if (element.type === "sticky") {
       const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;
       editorFrame.classList.add("is-sticky-editor");
@@ -3375,13 +3382,9 @@ export function createWhiteboardApp(root) {
       editorFrame.style.borderColor = getStickyBorderColor(stickyFill);
       textarea.style.padding = "10px";
     }
-    textarea.style.fontFamily = element.fontFamily;
-    textarea.style.fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
-    textarea.style.fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
-    textarea.style.textDecoration = element.textDecoration || "none";
     editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
     applyNodeSizeFromEditor();
-    node.hide();
+    if (element.type !== "text") node.hide();
     transformer.nodes([node]);
     transformer.visible(true);
     transformer.resizeEnabled(true);
