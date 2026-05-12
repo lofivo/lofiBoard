@@ -50,6 +50,9 @@ import {
   clampResizeAnchorPosition,
   getTextScaleCommitBox,
   getTextEditorStyle,
+  getStickyEditorCommitBox,
+  getStickyScaleCommitBox,
+  getStickyTextInsets,
   getTextTransformMinimumSize,
   getUniformScaledBoxForVerticalResize,
   getNormalizedTextBox,
@@ -1846,7 +1849,7 @@ export function createWhiteboardApp(root) {
 
   function applyElementToNode(element, node) {
     node.setAttrs(createNodeAttrs(element));
-    if (element.type === "text") {
+    if (["text", "sticky"].includes(element.type)) {
       syncTextNodeContent(node, element);
     }
   }
@@ -2104,6 +2107,21 @@ export function createWhiteboardApp(root) {
         fontSize: textCommit.fontSize,
         width: textCommit.width,
       });
+    }
+    if (element.type === "sticky") {
+      const stickyCommit = getStickyScaleCommitBox({
+        element,
+        nodeScaleX: node.scaleX(),
+        nodeScaleY: node.scaleY(),
+      });
+      board.elements[index] = {
+        ...board.elements[index],
+        width: stickyCommit.width,
+        height: stickyCommit.height,
+        fontSize: stickyCommit.fontSize,
+        scaleX: 1,
+        scaleY: 1,
+      };
     }
   }
 
@@ -3295,7 +3313,8 @@ export function createWhiteboardApp(root) {
 
     const box = stage.container().getBoundingClientRect();
     const absolute = node.getAbsolutePosition();
-    const scale = stage.scaleX() * (node.scaleX() || 1);
+    const stageScale = stage.scaleX();
+    const scale = stageScale * (node.scaleX() || 1);
     const editorPadding = Number(element.padding ?? 6);
     const horizontalPadding = editorPadding * scale;
     const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale + horizontalPadding * 2;
@@ -3357,7 +3376,7 @@ export function createWhiteboardApp(root) {
         : getEditorWidth();
       setEditorSize(nextWidth);
       applyNodeSizeFromEditor();
-      if (element.type === "text") {
+      if (["text", "sticky"].includes(element.type)) {
         syncTextNodeContent(node, {
           ...element,
           text: textarea.value,
@@ -3377,14 +3396,18 @@ export function createWhiteboardApp(root) {
     Object.assign(textarea.style, getTextEditorStyle({ element, scale, horizontalPadding }));
     if (element.type === "sticky") {
       const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;
+      const stickyInsets = getStickyTextInsets(element.fontSize);
       editorFrame.classList.add("is-sticky-editor");
-      editorFrame.style.background = stickyFill;
       editorFrame.style.borderColor = getStickyBorderColor(stickyFill);
-      textarea.style.padding = "10px";
+      textarea.style.padding = `${stickyInsets.y * scale}px ${stickyInsets.x * scale}px`;
     }
     editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
     applyNodeSizeFromEditor();
-    if (element.type !== "text") node.hide();
+    syncTextNodeContent(node, {
+      ...element,
+      width: editorFrame.offsetWidth / scale,
+      height: editorFrame.offsetHeight / scale,
+    });
     transformer.nodes([node]);
     transformer.visible(true);
     transformer.resizeEnabled(true);
@@ -3477,8 +3500,13 @@ export function createWhiteboardApp(root) {
           return committedElement;
         }
         if (item.type === "sticky") {
-          nextElement.width = Math.max(element.width, committedWidth / scale);
-          nextElement.height = Math.max(element.height, committedHeight / scale);
+          const stickyBox = getStickyEditorCommitBox({
+            committedWidth,
+            committedHeight,
+            stageScale,
+          });
+          nextElement.width = Math.max(element.width, stickyBox.width);
+          nextElement.height = Math.max(element.height, stickyBox.height);
           committedElement = nextElement;
         }
         return nextElement;

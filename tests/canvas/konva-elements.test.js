@@ -148,9 +148,12 @@ describe("konva elements", () => {
     const rect = node.findOne("Rect");
     expect(rect.fill()).toBe("#fef08a");
     expect(rect.stroke()).toBe("#eab308");
-    expect(rect.shadowBlur()).toBe(18);
-    expect(rect.shadowOffset()).toEqual({ x: 0, y: 10 });
+    expect(rect.shadowColor()).toBe("rgba(120, 113, 108, 0.24)");
+    expect(rect.shadowBlur()).toBe(36);
+    expect(rect.shadowOffset()).toEqual({ x: 0, y: 18 });
+    expect(rect.shadowOpacity()).toBe(1);
     expect(rect.cornerRadius()).toBe(6);
+    expect(rect.strokeWidth()).toBe(1);
 
     const blueNode = createElementNode({
       id: "sticky_2",
@@ -170,6 +173,106 @@ describe("konva elements", () => {
 
     expect(blueNode.findOne("Rect").stroke()).toBe(getStickyBorderColor("#bfdbfe"));
     expect(blueNode.findOne("Rect").stroke()).not.toBe("#eab308");
+  });
+
+  it("syncs sticky note text before resizing starts from the editor", () => {
+    const node = createElementNode({
+      id: "sticky_1",
+      type: "sticky",
+      x: 10,
+      y: 20,
+      width: 220,
+      height: 160,
+      text: "",
+      fontSize: 22,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      fill: "#fef08a",
+      textFill: "#1f2937",
+    }, baseHandlers);
+
+    syncTextNodeContent(node, {
+      id: "sticky_1",
+      type: "sticky",
+      text: "输入后的便签",
+      width: 260,
+      height: 190,
+      fontSize: 24,
+      fontFamily: "Georgia, serif",
+      fontStyle: "bold",
+      textDecoration: "underline",
+      fill: "#bfdbfe",
+      textFill: "#111827",
+    });
+
+    const rect = node.findOne("Rect");
+    const textNode = node.findOne("Text");
+    expect(node.width()).toBe(260);
+    expect(node.height()).toBe(190);
+    expect(rect.width()).toBe(260);
+    expect(rect.height()).toBe(190);
+    expect(rect.fill()).toBe("#bfdbfe");
+    expect(rect.stroke()).toBe(getStickyBorderColor("#bfdbfe"));
+    expect(rect.shadowColor()).toBe("rgba(120, 113, 108, 0.24)");
+    expect(rect.shadowBlur()).toBeCloseTo(39.2727, 4);
+    expect(rect.shadowOffset().x).toBe(0);
+    expect(rect.shadowOffset().y).toBeCloseTo(19.6364, 4);
+    expect(rect.shadowOpacity()).toBe(1);
+    expect(textNode.text()).toBe("输入后的便签");
+    expect(textNode.x()).toBeCloseTo(15.2727, 4);
+    expect(textNode.y()).toBeCloseTo(13.0909, 4);
+    expect(textNode.width()).toBeCloseTo(229.4545, 4);
+    expect(textNode.height()).toBeCloseTo(163.8182, 4);
+    expect(textNode.fontSize()).toBe(24);
+    expect(textNode.fontFamily()).toBe("Georgia, serif");
+    expect(textNode.fontStyle()).toBe("bold");
+    expect(textNode.textDecoration()).toBe("underline");
+    expect(textNode.fill()).toBe("#111827");
+  });
+
+  it("keeps sticky text insets visually stable after scale is committed to font size", () => {
+    const node = createElementNode({
+      id: "sticky_1",
+      type: "sticky",
+      x: 10,
+      y: 20,
+      width: 220,
+      height: 160,
+      text: "note",
+      fontSize: 22,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      fill: "#fef08a",
+      textFill: "#1f2937",
+    }, baseHandlers);
+
+    syncTextNodeContent(node, {
+      id: "sticky_1",
+      type: "sticky",
+      text: "note",
+      width: 440,
+      height: 320,
+      fontSize: 44,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      fill: "#fef08a",
+      textFill: "#1f2937",
+    });
+
+    const textNode = node.findOne("Text");
+    const rect = node.findOne("Rect");
+    expect(rect.cornerRadius()).toBe(12);
+    expect(rect.strokeWidth()).toBe(2);
+    expect(rect.shadowBlur()).toBe(72);
+    expect(rect.shadowOffset()).toEqual({ x: 0, y: 36 });
+    expect(rect.shadowOpacity()).toBe(1);
+    expect(textNode.x()).toBe(28);
+    expect(textNode.y()).toBe(24);
+    expect(textNode.width()).toBe(384);
+    expect(textNode.height()).toBe(272);
   });
 
   it("derives sticky note border colors from the fill color", () => {

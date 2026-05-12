@@ -7,6 +7,7 @@ import {
   STRUCTURE_ELEMENT_TYPES,
   TREE_STRUCTURE_STYLE,
 } from "../structures/structure-templates.js";
+import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 
 const imageCache = new Map();
 
@@ -43,7 +44,42 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
 
 export function syncTextNodeContent(node, element) {
   const textNode = node?.findOne?.("Text");
-  if (!textNode || element?.type !== "text") return;
+  if (!textNode || !["text", "sticky"].includes(element?.type)) return;
+  if (element.type === "sticky") {
+    const rect = node.findOne?.("Rect");
+    const nextWidth = Math.max(1, Number(element.width) || 1);
+    const nextHeight = Math.max(1, Number(element.height) || 1);
+    const metrics = getStickyVisualMetrics(element.fontSize);
+    const { insets } = metrics;
+    node.width(nextWidth);
+    node.height(nextHeight);
+    rect?.setAttrs({
+      width: nextWidth,
+      height: nextHeight,
+      fill: element.fill,
+      stroke: getStickyBorderColor(element.fill),
+      strokeWidth: metrics.strokeWidth,
+      shadowColor: metrics.shadowColor,
+      shadowBlur: metrics.shadowBlur,
+      shadowOffset: metrics.shadowOffset,
+      shadowOpacity: metrics.shadowOpacity,
+      cornerRadius: metrics.cornerRadius,
+    });
+    textNode.setAttrs({
+      x: insets.x,
+      y: insets.y,
+      width: Math.max(40, nextWidth - insets.x * 2),
+      height: Math.max(32, nextHeight - insets.y * 2),
+      text: element.text,
+      fontSize: element.fontSize,
+      fontFamily: element.fontFamily,
+      fontStyle: element.fontStyle ?? "normal",
+      textDecoration: element.textDecoration ?? "",
+      fill: element.textFill ?? "#1f2937",
+      lineHeight: 1.25,
+    });
+    return;
+  }
   textNode.setAttrs({
     text: element.text,
     fontSize: element.fontSize,
@@ -134,6 +170,8 @@ export function createElementNode(element, {
     }));
     syncTextNodeContent(node, element);
   } else if (element.type === "sticky") {
+    const metrics = getStickyVisualMetrics(element.fontSize);
+    const { insets } = metrics;
     node = new Konva.Group({
       ...common,
       x: element.x,
@@ -146,18 +184,18 @@ export function createElementNode(element, {
       height: element.height,
       fill: element.fill,
       stroke: getStickyBorderColor(element.fill),
-      strokeWidth: 1,
-      shadowColor: "rgba(120, 113, 108, 0.24)",
-      shadowBlur: 18,
-      shadowOffset: { x: 0, y: 10 },
-      shadowOpacity: 0.42,
-      cornerRadius: 6,
+      strokeWidth: metrics.strokeWidth,
+      shadowColor: metrics.shadowColor,
+      shadowBlur: metrics.shadowBlur,
+      shadowOffset: metrics.shadowOffset,
+      shadowOpacity: metrics.shadowOpacity,
+      cornerRadius: metrics.cornerRadius,
     }));
     node.add(new Konva.Text({
-      x: 14,
-      y: 12,
-      width: Math.max(40, element.width - 28),
-      height: Math.max(32, element.height - 24),
+      x: insets.x,
+      y: insets.y,
+      width: Math.max(40, element.width - insets.x * 2),
+      height: Math.max(32, element.height - insets.y * 2),
       text: element.text,
       fontSize: element.fontSize,
       fontFamily: element.fontFamily,

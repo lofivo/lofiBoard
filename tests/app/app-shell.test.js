@@ -204,21 +204,36 @@ describe("app shell", () => {
     expect(appSource).toContain("text: textarea.value");
   });
 
-  it("keeps plain text editor backgrounds transparent while sticky notes keep their fill", () => {
+  it("normalizes sticky note scale before editing commits clear transient scale", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("getStickyScaleCommitBox");
+    expect(appSource).toContain("getStickyEditorCommitBox");
+    expect(appSource).toContain('if (element.type === "sticky")');
+    expect(appSource).toContain("nodeScaleX: node.scaleX()");
+    expect(appSource).toContain("nodeScaleY: node.scaleY()");
+    expect(appSource).toContain("fontSize: stickyCommit.fontSize");
+    expect(appSource).toContain("stageScale");
+  });
+
+  it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
+    expect(styles).toMatch(/\.text-editor-frame\.is-sticky-editor \{[\s\S]*?box-shadow: none;/);
     expect(appSource).toContain('if (element.type === "sticky")');
     expect(appSource).toContain('editorFrame.classList.add("is-sticky-editor")');
     expect(appSource).toContain('const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;');
     expect(appSource).toContain('const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;');
     expect(appSource).toContain('element.type !== "sticky" && canAutoFitWidth && textarea.value');
     expect(appSource).toContain('const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;');
-    expect(appSource).toContain("editorFrame.style.background = stickyFill");
+    expect(appSource).toContain("const stickyInsets = getStickyTextInsets(element.fontSize)");
+    expect(appSource).toContain("textarea.style.padding = `${stickyInsets.y * scale}px ${stickyInsets.x * scale}px`");
+    expect(appSource).not.toContain("editorFrame.style.background = stickyFill");
     expect(appSource).toContain("editorFrame.style.borderColor = getStickyBorderColor(stickyFill)");
-    expect(appSource).toContain("Math.max(element.width, committedWidth / scale)");
-    expect(appSource).toContain("Math.max(element.height, committedHeight / scale)");
+    expect(appSource).toContain("Math.max(element.width, stickyBox.width)");
+    expect(appSource).toContain("Math.max(element.height, stickyBox.height)");
   });
 
   it("aligns the transparent fill checkbox with its label text", () => {

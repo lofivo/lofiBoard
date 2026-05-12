@@ -4,6 +4,10 @@ import {
   getTextTransformMinimumSize,
   getTextScaleCommitBox,
   getTextEditorStyle,
+  getStickyEditorCommitBox,
+  getStickyScaleCommitBox,
+  getStickyTextInsets,
+  getStickyVisualMetrics,
   getUniformScaledBoxForVerticalResize,
   getMinimumTextResizeWidth,
   getNormalizedTextBox,
@@ -181,7 +185,7 @@ describe("interaction rules", () => {
     expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
   });
 
-  it("keeps plain text visually rendered by Konva while the textarea edits input", () => {
+  it("keeps text visually rendered by Konva while the textarea edits input", () => {
     expect(getTextEditorStyle({
       element: {
         type: "text",
@@ -216,7 +220,59 @@ describe("interaction rules", () => {
       },
       scale: 2,
       horizontalPadding: 12,
-    }).color).toBe("#1f2937");
+    }).color).toBe("transparent");
+  });
+
+  it("commits sticky note scaling into size before editing", () => {
+    expect(getStickyScaleCommitBox({
+      element: { width: 220, height: 160, fontSize: 22 },
+      nodeScaleX: 2,
+      nodeScaleY: 1.5,
+    })).toEqual({ width: 440, height: 240, fontSize: 44 });
+
+    expect(getStickyScaleCommitBox({
+      element: { width: 220, height: 160, fontSize: 22 },
+      nodeScaleX: 0.2,
+      nodeScaleY: 0.2,
+    })).toEqual({ width: 44, height: 32, fontSize: 8 });
+
+    expect(getStickyScaleCommitBox({
+      element: { width: 220, height: 160, fontSize: 22 },
+      nodeScaleX: 0,
+      nodeScaleY: undefined,
+    })).toEqual({ width: 220, height: 160, fontSize: 22 });
+  });
+
+  it("commits sticky note editor pixels with only the stage scale", () => {
+    expect(getStickyEditorCommitBox({
+      committedWidth: 440,
+      committedHeight: 240,
+      stageScale: 1,
+    })).toEqual({ width: 440, height: 240 });
+
+    expect(getStickyEditorCommitBox({
+      committedWidth: 440,
+      committedHeight: 240,
+      stageScale: 2,
+    })).toEqual({ width: 220, height: 120 });
+  });
+
+  it("scales sticky note text insets with the committed font size", () => {
+    expect(getStickyTextInsets(22)).toEqual({ x: 14, y: 12 });
+    expect(getStickyTextInsets(44)).toEqual({ x: 28, y: 24 });
+    expect(getStickyTextInsets(11)).toEqual({ x: 7, y: 6 });
+  });
+
+  it("scales sticky note visual metrics with the committed font size", () => {
+    expect(getStickyVisualMetrics(44)).toEqual({
+      insets: { x: 28, y: 24 },
+      cornerRadius: 12,
+      strokeWidth: 2,
+      shadowColor: "rgba(120, 113, 108, 0.24)",
+      shadowBlur: 72,
+      shadowOffset: { x: 0, y: 36 },
+      shadowOpacity: 1,
+    });
   });
 
   it("adds an ellipsis when truncating layer labels", () => {

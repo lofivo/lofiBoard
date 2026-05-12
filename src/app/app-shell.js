@@ -61,7 +61,7 @@ export function renderShell() {
             <div class="inspector-section-content" data-section-content="appearance">
               <div class="brush-inspector" aria-label="画笔样式">
                 <div class="brush-field brush-field-color">
-                  <div class="brush-field-label">描边</div>
+                  <div class="brush-field-label">颜色</div>
                   <div class="brush-color-grid" role="group" aria-label="画笔颜色">
                     <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
                     <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>

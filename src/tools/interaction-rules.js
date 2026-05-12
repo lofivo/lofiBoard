@@ -129,6 +129,47 @@ export function getTextScaleCommitBox({
   };
 }
 
+export function getStickyScaleCommitBox({ element, nodeScaleX, nodeScaleY, minFontSize = 8 }) {
+  const scaleX = Number.isFinite(nodeScaleX) && nodeScaleX > 0 ? nodeScaleX : 1;
+  const scaleY = Number.isFinite(nodeScaleY) && nodeScaleY > 0 ? nodeScaleY : 1;
+  const fontSize = Number(element?.fontSize) || minFontSize;
+  const fontScale = Math.max(minFontSize / fontSize, Math.max(0.1, Math.max(scaleX, scaleY)));
+  return {
+    width: Math.max(1, (Number(element?.width) || 1) * scaleX),
+    height: Math.max(1, (Number(element?.height) || 1) * scaleY),
+    fontSize: fontSize * fontScale,
+  };
+}
+
+export function getStickyEditorCommitBox({ committedWidth, committedHeight, stageScale = 1 }) {
+  const scale = Number.isFinite(stageScale) && stageScale > 0 ? stageScale : 1;
+  return {
+    width: Math.max(1, (Number(committedWidth) || 1) / scale),
+    height: Math.max(1, (Number(committedHeight) || 1) / scale),
+  };
+}
+
+export function getStickyTextInsets(fontSize, baseFontSize = 22) {
+  const scale = Math.max(0.01, (Number(fontSize) || baseFontSize) / baseFontSize);
+  return {
+    x: 14 * scale,
+    y: 12 * scale,
+  };
+}
+
+export function getStickyVisualMetrics(fontSize, baseFontSize = 22) {
+  const scale = Math.max(0.01, (Number(fontSize) || baseFontSize) / baseFontSize);
+  return {
+    insets: getStickyTextInsets(fontSize, baseFontSize),
+    cornerRadius: 6 * scale,
+    strokeWidth: scale,
+    shadowColor: "rgba(120, 113, 108, 0.24)",
+    shadowBlur: 36 * scale,
+    shadowOffset: { x: 0, y: 18 * scale },
+    shadowOpacity: 1,
+  };
+}
+
 export function getTextTransformMinimumSize({
   element,
   anchor,
@@ -159,7 +200,7 @@ export function getTextEditorStyle({ element, scale = 1, horizontalPadding = 0, 
   return {
     fontSize: `${(Number(element?.fontSize) || 0) * scale}px`,
     padding: `0 ${horizontalPadding}px`,
-    color: element?.type === "sticky" ? element.textFill : "transparent",
+    color: "transparent",
     fontFamily: element?.fontFamily,
     fontStyle: fontStyle.includes("italic") ? "italic" : "normal",
     fontWeight: fontStyle.includes("bold") ? "700" : "400",
