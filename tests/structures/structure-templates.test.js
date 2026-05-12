@@ -11,6 +11,8 @@ import {
   moveArrayItem,
   updateArrayValues,
   setArrayHighlight,
+  setArrayPointer,
+  setArrayPointerVisibility,
   clearArrayHighlight,
   setLinearIndexOptions,
   addGraphNode,
@@ -222,8 +224,10 @@ describe("structure templates", () => {
       zIndexStart: 0,
     });
 
-    const highlighted = setArrayHighlight(array, { start: 2, end: 1, pointer: 2 });
-    expect(highlighted.markers).toEqual({ highlight: [1, 2], pointer: 2 });
+    const highlighted = setArrayHighlight(array, { start: 2, end: 1, pointer: 2, showPointer: true });
+    expect(highlighted.markers).toEqual({ highlight: [1, 2], pointer: 2, showPointer: true });
+    expect(setArrayPointer(highlighted, 0).markers).toEqual({ highlight: [1, 2], pointer: 0, showPointer: true });
+    expect(setArrayPointerVisibility(highlighted, false).markers).toEqual({ highlight: [1, 2], pointer: 2, showPointer: false });
     expect(clearArrayHighlight(highlighted).markers).toEqual({ highlight: [], pointer: null });
   });
 

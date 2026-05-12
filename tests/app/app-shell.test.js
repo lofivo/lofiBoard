@@ -40,29 +40,32 @@ describe("app shell", () => {
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
 
-    expect(markup).toContain('data-linear-field="current-index"');
-    expect(markup).toContain('data-linear-field="current-value"');
-    expect(markup).toContain('data-linear-field="insert-value"');
-    expect(markup).toContain('data-linear-field="insert-index"');
-    expect(markup).toContain('data-linear-field="swap-index"');
-    expect(markup).toContain('data-linear-field="move-index"');
+    expect(markup).not.toContain('data-linear-group="edit"');
+    expect(markup).not.toContain("基础编辑");
+    expect(markup).not.toContain('data-linear-field="current-index"');
+    expect(markup).not.toContain('data-linear-field="current-value"');
     expect(markup).toContain('data-linear-field="highlight-start"');
     expect(markup).toContain('data-linear-field="highlight-end"');
     expect(markup).toContain('data-linear-field="highlight-pointer"');
-    expect(markup).toContain('data-action="array-insert-start"');
-    expect(markup).toContain('data-action="array-insert-end"');
-    expect(markup).toContain('data-action="array-insert-at"');
-    expect(markup).toContain('data-action="array-delete-at"');
-    expect(markup).toContain('data-action="array-set-value"');
-    expect(markup).toContain('data-action="array-swap"');
-    expect(markup).toContain('data-action="array-move"');
+    expect(markup).not.toContain('data-linear-field="insert-value"');
+    expect(markup).not.toContain('data-linear-field="insert-index"');
+    expect(markup).not.toContain('data-linear-field="swap-index"');
+    expect(markup).not.toContain('data-linear-field="move-index"');
+    expect(markup).not.toContain('data-action="array-insert-start"');
+    expect(markup).not.toContain('data-action="array-insert-end"');
+    expect(markup).not.toContain('data-action="array-insert-at"');
+    expect(markup).not.toContain('data-action="array-delete-at"');
+    expect(markup).not.toContain('data-action="array-set-value"');
+    expect(markup).not.toContain('data-action="array-swap"');
+    expect(markup).not.toContain('data-action="array-move"');
     expect(markup).toContain('data-action="array-highlight"');
     expect(markup).toContain('data-action="array-clear-highlight"');
     expect(markup).toContain('data-action="linear-index-zero"');
     expect(markup).toContain('data-action="linear-index-one"');
     expect(markup).toContain('data-action="linear-index-show"');
     expect(markup).toContain('data-action="linear-index-hide"');
-    expect(markup).toContain('data-action="array-delete-end"');
+    expect(markup).toContain('data-action="linear-pointer-show"');
+    expect(markup).toContain('data-action="linear-pointer-hide"');
     expect(markup).toContain('data-action="graph-add-node"');
     expect(markup).toContain('data-action="graph-add-edge"');
     expect(markup).toContain('data-action="graph-connect-mode"');
@@ -125,7 +128,7 @@ describe("app shell", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(markup).toContain("linear-panel-fields-edit");
+    expect(markup).not.toContain("linear-panel-fields-edit");
     expect(markup).toContain("linear-panel-fields-highlight");
     expect(markup).toContain("quick-actions-compact");
     expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
@@ -142,18 +145,16 @@ describe("app shell", () => {
     const expandedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="false"/g) ?? [];
     const linearContentInnerBlocks = markup.match(/<div class="linear-panel-content" data-linear-content="[^"]+" aria-hidden="[^"]+">\s*<div class="linear-panel-content-inner">/g) ?? [];
 
-    expect(linearContentBlocks).toHaveLength(2);
-    expect(linearContentInnerBlocks).toHaveLength(2);
+    expect(linearContentBlocks).toHaveLength(1);
+    expect(linearContentInnerBlocks).toHaveLength(1);
     expect(expandedLinearGroups).toHaveLength(1);
-    expect(collapsedLinearGroups).toHaveLength(1);
+    expect(collapsedLinearGroups).toHaveLength(0);
     expect(markup).toContain("linear-panel-content-inner");
     expect(styles).toMatch(/\.inspector-section-content,\n\.linear-panel-content \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.inspector-section-content > \*,\n\.linear-panel-content > \* \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?overflow: hidden;/);
     expect(styles).toMatch(/\.linear-panel-fields \{[\s\S]*?min-width: 0;/);
-    expect(styles).toMatch(/\.linear-panel-fields-edit \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(styles).toMatch(/\.linear-panel-fields-edit \.linear-field-wide \{[\s\S]*?grid-column: 1 \/ -1;/);
     expect(styles).toMatch(/\.linear-panel-fields-highlight \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
     expect(styles).toMatch(/\.quick-actions \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?white-space: normal;/);
@@ -277,14 +278,16 @@ describe("app shell", () => {
     expect(markup).not.toContain('data-section-toggle="arrange"');
   });
 
-  it("styles transformer edge handles as invisible hit areas and scales vertical edge drags uniformly", () => {
+  it("styles transformer edge handles as invisible hit areas and applies type-aware resizing", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("anchorCornerRadius: 3");
     expect(appSource).toContain('anchor.hasName("top-center") || anchor.hasName("bottom-center")');
     expect(appSource).toContain('anchor.hasName("middle-left") || anchor.hasName("middle-right")');
     expect(appSource).toContain('anchor.fill("rgba(0,0,0,0)")');
-    expect(appSource).toContain("getUniformScaledBoxForVerticalResize");
+    expect(appSource).toContain("getUniformScaledBoxForResize");
+    expect(appSource).toContain("elements: getActiveTransformerElements()");
+    expect(appSource).toContain("function getActiveTransformerElements()");
   });
 
   it("commits text corner scaling without changing the text wrapping ratio", () => {
@@ -338,13 +341,22 @@ describe("app shell", () => {
     expect(appSource).toContain("selectionDrag = null");
   });
 
-  it("selects the array from index click without auto-activating an item", () => {
+  it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("selectIds([elementId])");
-    expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId })");
-    expect(appSource).not.toContain("function handleArrayStructureItemSelect({ elementId, index })");
-    expect(appSource).not.toContain("setActiveLinearItem(elementId, index);");
+    expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
+    expect(appSource).toContain("setActiveLinearItem(elementId, index, { rerender: false })");
+    expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
+    expect(appSource).toContain("syncLinearItemActiveVisual(elementId)");
+  });
+
+  it("clears array item active styling when the canvas selection is cleared", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const previousActive = activeLinearItem");
+    expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
+    expect(appSource).toContain("contentLayer.batchDraw()");
   });
 
   it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {
@@ -374,11 +386,81 @@ describe("app shell", () => {
     expect(appSource).not.toContain("itemNode.stop()");
   });
 
+  it("renders direct array item controls around the selected item", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(appSource).toContain("renderLinearItemControls");
+    expect(appSource).toContain("data-linear-item-action");
+    expect(appSource).toContain('"insert-before"');
+    expect(appSource).toContain('"insert-after"');
+    expect(appSource).toContain('"delete"');
+    expect(appSource).toContain('insertArrayItem(item, insertIndex, "0")');
+    expect(styles).toContain(".linear-item-controls");
+  });
+
+  it("only enables direct array item editing while the select tool is active", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT");
+  });
+
+  it("returns to the select tool after adding non-pen, non-eraser elements", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/function finishShape\(\) \{[\s\S]*?addElement\(element, "已添加形状"\);[\s\S]*?selectIds\(\[element\.id\]\);[\s\S]*?setTool\(TOOLS\.SELECT\);/);
+    expect(appSource).toMatch(/function finishStroke\(\) \{[\s\S]*?addElement\(element, "已添加笔触"\);[\s\S]*?\}/);
+    expect(appSource).toContain("setTool(nextToolAfterTextPlacement(currentTool))");
+    expect(appSource).toContain("setTool(TOOLS.SELECT)");
+  });
+
+  it("opens image import from the toolbar without switching drawing tools", () => {
+    const markup = renderShell();
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(markup).toContain('data-tool-action="import-image"');
+    expect(markup).toContain('data-image-input type="file" accept="image/*" hidden');
+    expect(appSource).toContain('root.querySelectorAll("[data-tool-action]")');
+    expect(appSource).toContain('runToolAction(button.dataset.toolAction)');
+    expect(appSource).toContain('"import-image": () => imageInput.click()');
+    expect(appSource).toContain('insertImageFile(file, "已导入图片", { preferViewportCenter: true })');
+    expect(appSource).toContain('anchor: preferViewportCenter ? "center" : "top-left"');
+  });
+
+  it("commits text and sticky editors when pointer down starts outside the editor", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("handleEditorOutsidePointerDown");
+    expect(appSource).toContain("window.addEventListener(\"pointerdown\", handleEditorOutsidePointerDown, { capture: true })");
+    expect(appSource).toContain("if (editorFrame.contains(event.target)) return;");
+    expect(appSource).toContain("commit();");
+  });
+
+  it("prevents array cell editor outside clicks from starting a tiny selection box", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("suppressNextCanvasSelection = container.contains(event.target)");
+    expect(appSource).toContain("if (suppressNextCanvasSelection) {");
+    expect(appSource).toContain("window.addEventListener(\"pointerdown\", handleCellEditorOutsidePointerDown, { capture: true })");
+    expect(appSource).toContain("window.removeEventListener(\"pointerdown\", handleCellEditorOutsidePointerDown, { capture: true })");
+  });
+
   it("starts whole-array drag from index press movement even when the array is already selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const pressedElementId = linearItemPressState.elementId");
     expect(appSource).toContain("if (!selectedIds.some((id) => targetIds.includes(id))) {");
     expect(appSource).toContain("beginSelectionDrag(pressStart)");
+  });
+
+  it("supports dragging the linear pointer and syncing the pointer field", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("onArrayPointerPress: handleArrayPointerPress");
+    expect(appSource).toContain("function beginLinearPointerDrag");
+    expect(appSource).toContain("function updateLinearPointerDrag");
+    expect(appSource).toContain("setArrayPointer(item, nextIndex)");
+    expect(appSource).toContain("linearPanelState = {");
+    expect(appSource).toContain("highlightPointer: String(nextIndex)");
   });
 });

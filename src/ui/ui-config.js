@@ -69,6 +69,7 @@ export const TOOL_ITEMS = [
   { id: TOOLS.ERASER_OBJECT, label: "对象橡皮", shortcut: "O", icon: Trash2 },
   { id: TOOLS.TEXT, label: "文字", shortcut: "T", icon: Type },
   { id: TOOLS.STICKY, label: "便签", shortcut: "N", icon: StickyNote },
+  { action: "import-image", label: "图片", icon: Image },
   { id: TOOLS.STRUCTURE, label: "结构", shortcut: "S", icon: Binary },
   { id: TOOLS.SHAPE, label: "图形", shortcut: "R / L / A", icon: Shapes },
 ];
@@ -140,8 +141,11 @@ export function toolButtonsMarkup() {
   return TOOL_ITEMS.map(
     (tool) => {
       const label = formatShortcutLabel(tool);
+      const actionAttr = tool.action
+        ? `data-tool-action="${tool.action}"`
+        : `data-tool="${tool.id}"`;
       return `
-      <button type="button" class="tool-button" data-tool="${tool.id}" title="${label}" aria-label="${label}">
+      <button type="button" class="tool-button" ${actionAttr} title="${label}" aria-label="${label}">
         ${icon(tool.icon)}
         <span class="tooltip" role="tooltip">${label}</span>
       </button>

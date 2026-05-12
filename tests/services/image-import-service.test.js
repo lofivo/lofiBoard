@@ -21,6 +21,18 @@ describe("image import service", () => {
     });
   });
 
+  it("can prefer the viewport center over the last pointer point", () => {
+    expect(getImageInsertPoint(
+      { x: 120, y: 80 },
+      { width: 800, height: 600 },
+      { x: 100, y: 50, scale: 2 },
+      { preferViewportCenter: true },
+    )).toEqual({
+      x: 150,
+      y: 125,
+    });
+  });
+
   it("falls back to viewport center in world coordinates", () => {
     expect(getImageInsertPoint(null, { width: 800, height: 600 }, { x: 100, y: 50, scale: 2 })).toEqual({
       x: 150,

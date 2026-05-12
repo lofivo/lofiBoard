@@ -105,11 +105,13 @@ export function createElementNode(element, {
   onEdit,
   onDragStart,
   onDragMove,
+  canEditArrayItems = true,
   onArrayItemMove,
   onArrayItemEdit,
   onArrayItemSelect,
   onArrayItemPress,
   onArrayItemRelease,
+  onArrayPointerPress,
   onGraphNodeMove,
   onGraphNodeClick,
   onGraphEdgeEdit,
@@ -270,10 +272,12 @@ export function createElementNode(element, {
     });
   } else if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
     node = createLinearStructureNode(element, common, {
+      canEditArrayItems,
       onArrayItemEdit,
       onArrayItemSelect,
       onArrayItemPress,
       onArrayItemRelease,
+      onArrayPointerPress,
     });
   } else if (element.type === "graph-structure") {
     node = createGraphStructureNode(element, common, {
@@ -387,10 +391,12 @@ export function createNodeAttrs(element) {
 }
 
 function createLinearStructureNode(element, common, {
+  canEditArrayItems = true,
   onArrayItemEdit,
   onArrayItemSelect,
   onArrayItemPress,
   onArrayItemRelease,
+  onArrayPointerPress,
 } = {}) {
   const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const showIndexes = element.settings?.showIndexes ?? element.type === STRUCTURE_ELEMENT_TYPES.ARRAY;
@@ -426,6 +432,7 @@ function createLinearStructureNode(element, common, {
   dropIndicator.x((Number.isInteger(dragGap) ? dragGap : 0) * cellWidth - 3);
 
   const itemGroups = [];
+  let activeItemGroup = null;
   let draggedItemGroup = null;
 
   (element.items ?? []).forEach((item, index) => {
@@ -543,41 +550,66 @@ function createLinearStructureNode(element, common, {
       });
     };
 
-    valueRect.on("dblclick dbltap", handleValueEdit);
-    valueText.on("dblclick dbltap", handleValueEdit);
-    valueRect.on("click tap mouseup touchend touchcancel", swallowValuePointer);
-    valueText.on("click tap mouseup touchend touchcancel", swallowValuePointer);
-    indexRect?.on("click tap", handleSelect);
-    indexText?.on("click tap", handleSelect);
-    indexRect?.on("mousedown touchstart", handlePress);
-    indexText?.on("mousedown touchstart", handlePress);
-    indexRect?.on("mouseup touchend touchcancel", handleRelease);
-    indexText?.on("mouseup touchend touchcancel", handleRelease);
+    if (canEditArrayItems) {
+      valueRect.on("dblclick dbltap", handleValueEdit);
+      valueText.on("dblclick dbltap", handleValueEdit);
+      valueRect.on("click tap", handleSelect);
+      valueText.on("click tap", handleSelect);
+      valueRect.on("mousedown touchstart", handlePress);
+      valueText.on("mousedown touchstart", handlePress);
+      valueRect.on("mouseup touchend touchcancel", swallowValuePointer);
+      valueText.on("mouseup touchend touchcancel", swallowValuePointer);
+      indexRect?.on("click tap", handleSelect);
+      indexText?.on("click tap", handleSelect);
+      indexRect?.on("mousedown touchstart", handlePress);
+      indexText?.on("mousedown touchstart", handlePress);
+      indexRect?.on("mouseup touchend touchcancel", handleRelease);
+      indexText?.on("mouseup touchend touchcancel", handleRelease);
+    }
     if (isDragging) {
       draggedItemGroup = itemGroup;
+    } else if (isActive) {
+      activeItemGroup = itemGroup;
     } else {
       itemGroups.push(itemGroup);
     }
   });
 
   itemGroups.forEach((itemGroup) => group.add(itemGroup));
+  if (activeItemGroup) group.add(activeItemGroup);
   if (draggedItemGroup) group.add(draggedItemGroup);
   group.add(dropIndicator);
 
   const pointerIndex = element.markers?.pointer;
-  if (Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
-    group.add(new Konva.RegularPolygon({
-      x: pointerIndex * cellWidth + cellWidth / 2,
-      y: -10,
+  const showPointer = element.markers?.showPointer ?? true;
+  if (showPointer && Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
+    const pointerGroup = new Konva.Group({
+      name: "array-pointer-hit",
+      linearIndex: pointerIndex,
+      x: pointerIndex * cellWidth,
+      y: -30,
+      width: cellWidth,
+      height: 64,
+    });
+    pointerGroup.add(new Konva.Rect({
+      name: "array-pointer-hit",
+      x: 0,
+      y: 0,
+      width: cellWidth,
+      height: 64,
+      fill: "rgba(0,0,0,0)",
+    }));
+    pointerGroup.add(new Konva.RegularPolygon({
+      x: cellWidth / 2,
+      y: 20,
       sides: 3,
       radius: 9,
       fill: style.pointerFill,
       rotation: 180,
-      listening: false,
     }));
-    group.add(new Konva.Text({
-      x: pointerIndex * cellWidth,
-      y: -30,
+    pointerGroup.add(new Konva.Text({
+      x: 0,
+      y: 0,
       width: cellWidth,
       height: 16,
       text: "i",
@@ -585,8 +617,20 @@ function createLinearStructureNode(element, common, {
       fontFamily: "Inter, system-ui, sans-serif",
       fill: style.pointerFill,
       align: "center",
-      listening: false,
     }));
+    if (canEditArrayItems) {
+      pointerGroup.on("mousedown touchstart", (event) => {
+        event.cancelBubble = true;
+        onArrayPointerPress?.({
+          elementId: element.id,
+          index: pointerIndex,
+        });
+      });
+      pointerGroup.on("click tap", (event) => {
+        event.cancelBubble = true;
+      });
+    }
+    group.add(pointerGroup);
   }
 
   addLinearEndpointLabels(group, element, style, cellWidth);

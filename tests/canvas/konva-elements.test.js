@@ -581,7 +581,7 @@ describe("konva elements", () => {
     });
   });
 
-  it("does not route value-cell click through array-item selection handlers", () => {
+  it("routes value-cell click through array-item selection handlers", () => {
     const onArrayItemSelect = vi.fn();
     const node = createElementNode({
       id: "array_1",
@@ -603,7 +603,67 @@ describe("konva elements", () => {
     const item = node.find(".array-item")[0];
     item.findOne(".array-item-value-hit").fire("click", { cancelBubble: false });
 
+    expect(onArrayItemSelect).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+  });
+
+  it("does not handle array item editing events when item editing is disabled", () => {
+    const onArrayItemSelect = vi.fn();
+    const onArrayItemEdit = vi.fn();
+    const onArrayItemPress = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      canEditArrayItems: false,
+      onArrayItemSelect,
+      onArrayItemEdit,
+      onArrayItemPress,
+    });
+
+    const item = node.find(".array-item")[0];
+    item.findOne(".array-item-value-hit").fire("click", { cancelBubble: false });
+    item.findOne(".array-item-value-hit").fire("dblclick", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("mousedown", { cancelBubble: false });
+
     expect(onArrayItemSelect).not.toHaveBeenCalled();
+    expect(onArrayItemEdit).not.toHaveBeenCalled();
+    expect(onArrayItemPress).not.toHaveBeenCalled();
+  });
+
+  it("renders the active array item above adjacent cells so its full border remains visible", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+        { id: "item_3", index: 2, value: "C" },
+      ],
+      runtime: { activeIndex: 1 },
+      style: {},
+    }, baseHandlers);
+
+    const itemNodes = node.find(".array-item");
+    expect(itemNodes.map((item) => item.getAttr("linearIndex"))).toEqual([0, 2, 1]);
+    expect(itemNodes.at(-1).getAttr("linearIndex")).toBe(1);
   });
 
   it("keeps value-cell pointer down available for selected-array drag while index press remains reserved for item drag", () => {
@@ -672,6 +732,34 @@ describe("konva elements", () => {
     expect(onArrayItemPress).toHaveBeenCalledTimes(1);
     expect(onArrayItemRelease).toHaveBeenCalledTimes(1);
     expect(onArrayItemSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes visible array pointer press events for dragging", () => {
+    const onArrayPointerPress = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      markers: { pointer: 1 },
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayPointerPress,
+    });
+
+    node.findOne(".array-pointer-hit").fire("mousedown", { cancelBubble: false });
+
+    expect(onArrayPointerPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 1,
+    });
   });
 
   it("renders graph structure elements with directed edges", () => {

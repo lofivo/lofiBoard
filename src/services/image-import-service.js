@@ -2,8 +2,8 @@ export function isImageFile(file) {
   return Boolean(file?.type?.startsWith("image/"));
 }
 
-export function getImageInsertPoint(lastPointerWorldPoint, stageSize, viewport) {
-  if (lastPointerWorldPoint) return lastPointerWorldPoint;
+export function getImageInsertPoint(lastPointerWorldPoint, stageSize, viewport, { preferViewportCenter = false } = {}) {
+  if (lastPointerWorldPoint && !preferViewportCenter) return lastPointerWorldPoint;
   return {
     x: (stageSize.width / 2 - viewport.x) / viewport.scale,
     y: (stageSize.height / 2 - viewport.y) / viewport.scale,

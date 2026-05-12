@@ -15,6 +15,8 @@ describe("ui config", () => {
     expect(markup).toContain("选择 (V)");
     expect(markup).toContain("平移 (H)");
     expect(markup).toContain("画笔 (B)");
+    expect(markup).toContain('data-tool-action="import-image"');
+    expect(markup).toContain("图片");
     expect(markup).toContain("结构 (S)");
     expect(markup).toContain("图形 (R / L / A)");
     expect(markup).not.toContain("套索");

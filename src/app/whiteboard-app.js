@@ -60,12 +60,13 @@ import {
   getStickyScaleCommitBox,
   getStickyTextInsets,
   getTextTransformMinimumSize,
-  getUniformScaledBoxForVerticalResize,
+  getUniformScaledBoxForResize,
   getNormalizedTextBox,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
   getTransformerAnchorsForSelection,
+  isTransformerTarget,
   measureTextareaContentHeight,
   isTextWidthResizeAnchor,
   nextToolAfterTextPlacement,
@@ -104,9 +105,10 @@ import {
   insertArrayItem,
   deleteArrayItem,
   updateArrayItemValue,
-  swapArrayItems,
   moveArrayItem,
   setArrayHighlight,
+  setArrayPointer,
+  setArrayPointerVisibility,
   clearArrayHighlight,
   setLinearIndexOptions,
   addGraphNode,
@@ -182,12 +184,6 @@ export function createWhiteboardApp(root) {
   const inspectorSectionButtons = Array.from(root.querySelectorAll("[data-section-toggle]"));
   const linearSectionButtons = Array.from(root.querySelectorAll("[data-linear-toggle]"));
   const linearFieldInputs = {
-    currentIndex: root.querySelector("[data-linear-field='current-index']"),
-    currentValue: root.querySelector("[data-linear-field='current-value']"),
-    insertValue: root.querySelector("[data-linear-field='insert-value']"),
-    insertIndex: root.querySelector("[data-linear-field='insert-index']"),
-    swapIndex: root.querySelector("[data-linear-field='swap-index']"),
-    moveIndex: root.querySelector("[data-linear-field='move-index']"),
     highlightStart: root.querySelector("[data-linear-field='highlight-start']"),
     highlightEnd: root.querySelector("[data-linear-field='highlight-end']"),
     highlightPointer: root.querySelector("[data-linear-field='highlight-pointer']"),
@@ -234,9 +230,13 @@ export function createWhiteboardApp(root) {
   let activeLinearItem = null;
   let linearItemPressState = null;
   let linearItemDragState = null;
+  let linearPointerPressState = null;
+  let linearPointerDragState = null;
   let linearItemLiftTween = null;
+  let linearItemControls = null;
   let suppressLinearItemSelect = null;
   let suppressSelectionDragOnce = false;
+  let suppressNextCanvasSelection = false;
   let suppressedNodeDragElementId = null;
   let inspectorSectionsState = {
     appearance: true,
@@ -245,17 +245,10 @@ export function createWhiteboardApp(root) {
     tree: false,
   };
   let linearGroupState = {
-    edit: true,
-    highlight: false,
+    highlight: true,
   };
   let activeInspectorContext = "appearance";
   let linearPanelState = {
-    currentIndex: "0",
-    currentValue: "",
-    insertValue: "",
-    insertIndex: "0",
-    swapIndex: "1",
-    moveIndex: "1",
     highlightStart: "0",
     highlightEnd: "0",
     highlightPointer: "0",
@@ -326,7 +319,8 @@ export function createWhiteboardApp(root) {
       const anchor = transformer.getActiveAnchor?.();
       const minWidth = getActiveTransformerMinWidth();
       const minHeight = getActiveTransformerMinHeight();
-      const nextBox = getUniformScaledBoxForVerticalResize({
+      const nextBox = getUniformScaledBoxForResize({
+        elements: getActiveTransformerElements(),
         anchor,
         oldBox,
         newBox,
@@ -430,12 +424,20 @@ export function createWhiteboardApp(root) {
         setStructurePanelOpen(button.dataset.tool === TOOLS.STRUCTURE);
       });
     }
+    for (const button of root.querySelectorAll("[data-tool-action]")) {
+      button.addEventListener("click", () => runToolAction(button.dataset.toolAction));
+    }
 
     menuButton.addEventListener("click", toggleMainMenu);
 
     for (const button of root.querySelectorAll("[data-action]")) {
       button.addEventListener("click", () => runAction(button.dataset.action));
     }
+    root.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-linear-item-action]");
+      if (!button) return;
+      runLinearItemAction(button.dataset.linearItemAction);
+    });
 
     for (const button of root.querySelectorAll("[data-background-mode]")) {
       button.addEventListener("click", () => setBackgroundMode(button.dataset.backgroundMode));
@@ -611,53 +613,19 @@ export function createWhiteboardApp(root) {
       "send-backward": sendSelectionBackward,
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
-      "array-insert-start": () => editSelectedArrayStructure((element) => insertArrayItem(
-        element,
-        activeLinearItem?.elementId === element.id ? getActiveLinearIndex(element, 0) : 0,
-        linearPanelState.insertValue,
-      )),
-      "array-insert-end": () => editSelectedArrayStructure((element) => insertArrayItem(
-        element,
-        activeLinearItem?.elementId === element.id
-          ? Math.min(element.items?.length ?? 0, getActiveLinearIndex(element, 0) + 1)
-          : (element.items?.length ?? 0),
-        linearPanelState.insertValue,
-      )),
-      "array-insert-at": () => editSelectedArrayStructure((element) => insertArrayItem(
-        element,
-        readLinearFieldNumber("insertIndex", element.items?.length ?? 0),
-        linearPanelState.insertValue,
-      )),
-      "array-delete-at": () => editSelectedArrayStructure((element) => deleteArrayItem(
-        element,
-        getActiveLinearIndex(element, readLinearFieldNumber("currentIndex", (element.items?.length ?? 1) - 1)),
-      )),
-      "array-delete-end": () => editSelectedArrayStructure((element) => deleteArrayItem(element)),
-      "array-set-value": () => editSelectedArrayStructure((element) => updateArrayItemValue(
-        element,
-        getActiveLinearIndex(element, readLinearFieldNumber("currentIndex", 0)),
-        linearPanelState.currentValue,
-      )),
-      "array-swap": () => editSelectedArrayStructure((element) => swapArrayItems(
-        element,
-        getActiveLinearIndex(element, readLinearFieldNumber("currentIndex", 0)),
-        readLinearFieldNumber("swapIndex", 1),
-      )),
-      "array-move": () => editSelectedArrayStructure((element) => moveArrayItem(
-        element,
-        getActiveLinearIndex(element, readLinearFieldNumber("currentIndex", 0)),
-        readLinearFieldNumber("moveIndex", (element.items?.length ?? 1) - 1),
-      )),
       "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
         start: readLinearFieldNumber("highlightStart", 0),
         end: readLinearFieldNumber("highlightEnd", Math.max(0, (element.items?.length ?? 1) - 1)),
         pointer: readLinearFieldNumber("highlightPointer", getActiveLinearIndex(element, 0)),
+        showPointer: element.markers?.showPointer ?? true,
       })),
       "array-clear-highlight": () => editSelectedArrayStructure(clearArrayHighlight),
       "linear-index-zero": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 0, showIndexes: element.settings?.showIndexes ?? true })),
       "linear-index-one": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 1, showIndexes: element.settings?.showIndexes ?? true })),
       "linear-index-show": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: true })),
       "linear-index-hide": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: false })),
+      "linear-pointer-show": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, true)),
+      "linear-pointer-hide": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, false)),
       "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
       "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
       "graph-connect-mode": beginGraphConnectMode,
@@ -703,6 +671,46 @@ export function createWhiteboardApp(root) {
     };
 
     actions[action]?.();
+  }
+
+  function runToolAction(action) {
+    const actions = {
+      "import-image": () => imageInput.click(),
+    };
+
+    actions[action]?.();
+  }
+
+  function runLinearItemAction(action) {
+    const elementId = activeLinearItem?.elementId;
+    const index = activeLinearItem?.index;
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isLinearStructureElement(element) || element.locked || !Number.isInteger(index)) return;
+
+    if (action === "insert-before" || action === "insert-after") {
+      const insertIndex = action === "insert-before" ? index : index + 1;
+      board.elements = board.elements.map((item) => (
+        item.id === elementId ? insertArrayItem(item, insertIndex, "0") : item
+      ));
+      renderBoard();
+      selectIds([elementId]);
+      setActiveLinearItem(elementId, insertIndex);
+      pushHistory("已插入数组项");
+      return;
+    }
+
+    if (action === "delete") {
+      board.elements = board.elements.map((item) => (
+        item.id === elementId ? deleteArrayItem(item, index) : item
+      ));
+      const updated = board.elements.find((item) => item.id === elementId);
+      renderBoard();
+      selectIds([elementId]);
+      if ((updated?.items?.length ?? 0) > 0) {
+        setActiveLinearItem(elementId, Math.min(index, updated.items.length - 1));
+      }
+      pushHistory("已删除数组项");
+    }
   }
 
   function runContextAction(action) {
@@ -839,8 +847,7 @@ export function createWhiteboardApp(root) {
 
   function getDefaultLinearGroupState() {
     return {
-      edit: true,
-      highlight: false,
+      highlight: true,
     };
   }
 
@@ -1239,6 +1246,31 @@ export function createWhiteboardApp(root) {
     if (!worldPoint) return;
     lastPointerWorldPoint = worldPoint;
 
+    if (linearPointerDragState) {
+      updateLinearPointerDrag(worldPoint);
+      return;
+    }
+
+    if (linearPointerPressState?.phase === "start" && linearPointerPressState.startWorldPoint) {
+      linearPointerPressState = {
+        ...linearPointerPressState,
+        currentWorldPoint: worldPoint,
+      };
+      const distance = Math.hypot(
+        worldPoint.x - linearPointerPressState.startWorldPoint.x,
+        worldPoint.y - linearPointerPressState.startWorldPoint.y,
+      );
+      if (distance > 6) {
+        beginLinearPointerDrag({
+          elementId: linearPointerPressState.elementId,
+          index: linearPointerPressState.index,
+          worldPoint,
+        });
+        resetLinearPointerPressState();
+        return;
+      }
+    }
+
     if (linearItemDragState) {
       updateLinearItemDrag(worldPoint);
       return;
@@ -1256,6 +1288,15 @@ export function createWhiteboardApp(root) {
         worldPoint.y - pressStart.y,
       );
       if (distance > 6) {
+        if (activeLinearItem?.elementId === pressedElementId && activeLinearItem.index === linearItemPressState.index) {
+          beginLinearItemDrag({
+            elementId: pressedElementId,
+            index: linearItemPressState.index,
+            worldPoint,
+          });
+          resetLinearItemPressState();
+          return;
+        }
         const targetIds = expandGroupedIds([pressedElementId]);
         if (!selectedIds.some((id) => targetIds.includes(id))) {
           selectIds([pressedElementId]);
@@ -1322,6 +1363,14 @@ export function createWhiteboardApp(root) {
   }
 
   function handlePointerUp() {
+    if (linearPointerDragState) {
+      resetLinearPointerPressState();
+      commitLinearPointerDrag();
+      return;
+    }
+
+    resetLinearPointerPressState();
+
     if (linearItemDragState) {
       resetLinearItemPressState();
       commitLinearItemDrag();
@@ -1423,6 +1472,10 @@ export function createWhiteboardApp(root) {
   }
 
   function handleSelectPointerDown(event, worldPoint) {
+    if (suppressNextCanvasSelection) {
+      suppressNextCanvasSelection = false;
+      return;
+    }
     if (suppressSelectionDragOnce) {
       suppressSelectionDragOnce = false;
       return;
@@ -1674,6 +1727,7 @@ export function createWhiteboardApp(root) {
     if (isTinyElement(element)) return;
     addElement(element, "已添加形状");
     selectIds([element.id]);
+    setTool(TOOLS.SELECT);
   }
 
   function getShapeElementOptions(start, end, existingId = null) {
@@ -1838,6 +1892,7 @@ export function createWhiteboardApp(root) {
         if (isElementLocked(getElementIdFromNode(node))) return;
         finishNodeDragSelection(node);
       },
+      canEditArrayItems: currentTool === TOOLS.SELECT,
       onSelect: (event, node) => {
         if (currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
@@ -1858,6 +1913,7 @@ export function createWhiteboardApp(root) {
       onArrayItemSelect: handleArrayStructureItemSelect,
       onArrayItemPress: handleArrayStructureItemPress,
       onArrayItemRelease: handleArrayStructureItemRelease,
+      onArrayPointerPress: handleArrayPointerPress,
       onGraphNodeMove: moveGraphStructureNode,
       onGraphNodeClick: handleGraphNodeClick,
       onGraphEdgeEdit: editGraphStructureEdge,
@@ -1882,6 +1938,7 @@ export function createWhiteboardApp(root) {
     }
     selectionRect.moveToTop();
     syncSelectionNodes();
+    renderLinearItemControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
   }
@@ -1907,6 +1964,7 @@ export function createWhiteboardApp(root) {
   }
 
   function selectIds(ids) {
+    const previousActive = activeLinearItem;
     selectedIds = [...new Set(ids)];
     const selectedLinear = getSelectedLinearStructure();
     if (!selectedLinear) {
@@ -1915,6 +1973,10 @@ export function createWhiteboardApp(root) {
       syncActiveLinearItemAfterEdit(selectedLinear.id);
     }
     syncSelectionNodes();
+    syncLinearItemActiveVisual(previousActive?.elementId);
+    syncLinearItemActiveVisual(activeLinearItem?.elementId);
+    renderLinearItemControls();
+    contentLayer.batchDraw();
     updateChrome();
   }
 
@@ -1940,7 +2002,9 @@ export function createWhiteboardApp(root) {
 
   function clearSelection() {
     cancelLinearItemDragPreview();
+    cancelLinearPointerDrag();
     resetLinearItemPressState();
+    hideLinearItemControls();
     selectIds([]);
   }
 
@@ -2022,6 +2086,12 @@ export function createWhiteboardApp(root) {
       }).minHeight;
     }
     return MIN_TRANSFORM_SIZE;
+  }
+
+  function getActiveTransformerElements() {
+    return transformer.nodes()
+      .map((node) => board.elements.find((item) => item.id === getElementIdFromNode(node)))
+      .filter(Boolean);
   }
 
   function updateDraggableState() {
@@ -2436,19 +2506,30 @@ export function createWhiteboardApp(root) {
     return Math.min(maxIndex, Math.max(0, fallback));
   }
 
-  function setActiveLinearItem(elementId, index, { syncPanel = true } = {}) {
+  function setActiveLinearItem(elementId, index, { syncPanel = true, rerender = true } = {}) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element)) {
+      const previousActive = activeLinearItem;
       activeLinearItem = null;
       if (syncPanel) syncLinearPanelState();
+      syncLinearItemActiveVisual(previousActive?.elementId);
       return;
     }
+    const previousActive = activeLinearItem;
     const maxIndex = Math.max(0, (element.items?.length ?? 1) - 1);
     activeLinearItem = {
       elementId,
       index: Math.min(maxIndex, Math.max(0, Number(index) || 0)),
     };
     if (syncPanel) syncLinearPanelState();
+    if (rerender) {
+      renderBoard();
+    } else {
+      syncLinearItemActiveVisual(previousActive?.elementId);
+      syncLinearItemActiveVisual(elementId);
+      renderLinearItemControls();
+      contentLayer.batchDraw();
+    }
   }
 
   function syncActiveLinearItemAfterEdit(elementId, preferredIndex = null) {
@@ -2481,24 +2562,19 @@ export function createWhiteboardApp(root) {
       return;
     }
     const itemCount = element.items?.length ?? 0;
-    const currentIndex = getActiveLinearIndex(element, readLinearFieldNumber("currentIndex", 0));
-    const currentValue = itemCount > 0 ? String(element.items?.[currentIndex]?.value ?? "") : "";
+    const currentIndex = getActiveLinearIndex(element, 0);
     const markers = element.markers ?? {};
     const highlight = Array.isArray(markers.highlight) ? markers.highlight : [];
     const firstHighlight = highlight[0] ?? currentIndex;
     const lastHighlight = highlight.at(-1) ?? currentIndex;
-    const pointer = Number.isInteger(markers.pointer) ? markers.pointer : currentIndex;
+    const pointer = Number.isInteger(markers.pointer)
+      ? Math.min(Math.max(0, itemCount - 1), Math.max(0, markers.pointer))
+      : currentIndex;
     linearPanelState = {
       ...linearPanelState,
-      currentIndex: String(currentIndex),
-      currentValue,
-      insertIndex: String(readLinearFieldNumber("insertIndex", currentIndex)),
-      swapIndex: String(readLinearFieldNumber("swapIndex", Math.min(currentIndex + 1, Math.max(0, itemCount - 1)))),
-      moveIndex: String(readLinearFieldNumber("moveIndex", Math.min(currentIndex + 1, Math.max(0, itemCount - 1)))),
-      highlightStart: String(readLinearFieldNumber("highlightStart", firstHighlight)),
-      highlightEnd: String(readLinearFieldNumber("highlightEnd", lastHighlight)),
-      highlightPointer: String(readLinearFieldNumber("highlightPointer", pointer)),
-      currentValue,
+      highlightStart: String(Math.min(Math.max(0, itemCount - 1), Math.max(0, firstHighlight))),
+      highlightEnd: String(Math.min(Math.max(0, itemCount - 1), Math.max(0, lastHighlight))),
+      highlightPointer: String(pointer),
     };
     applyLinearPanelState(linearPanelState);
   }
@@ -2513,10 +2589,84 @@ export function createWhiteboardApp(root) {
     });
   }
 
+  function ensureLinearItemControls() {
+    if (linearItemControls) return linearItemControls;
+    const controls = document.createElement("div");
+    controls.className = "linear-item-controls";
+    controls.hidden = true;
+    controls.innerHTML = `
+      <button type="button" data-linear-item-action="insert-before" title="前插" aria-label="前插">+左</button>
+      <button type="button" data-linear-item-action="insert-after" title="后插" aria-label="后插">+右</button>
+      <button type="button" data-linear-item-action="delete" title="删除" aria-label="删除">删除</button>
+    `;
+    root.appendChild(controls);
+    linearItemControls = controls;
+    return controls;
+  }
+
+  function hideLinearItemControls() {
+    if (linearItemControls) linearItemControls.hidden = true;
+  }
+
+  function renderLinearItemControls() {
+    const controls = ensureLinearItemControls();
+    const element = board.elements.find((item) => item.id === activeLinearItem?.elementId);
+    if (!isLinearStructureElement(element) || !selectedIds.includes(element.id) || linearItemDragState) {
+      controls.hidden = true;
+      return;
+    }
+    controls.hidden = false;
+    updateLinearItemControlsPosition();
+  }
+
+  function syncLinearItemActiveVisual(elementId) {
+    if (!elementId) return;
+    const element = board.elements.find((item) => item.id === elementId);
+    const group = contentLayer.findOne(`#${elementId}`);
+    if (!isLinearStructureElement(element) || !group) return;
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    group.find(".array-item").forEach((itemNode) => {
+      const index = getLinearItemNodeIndex(itemNode);
+      const isActive = activeLinearItem?.elementId === elementId && activeLinearItem.index === index;
+      itemNode.find(".array-item-index-hit").forEach((node) => {
+        if (node.getClassName?.() !== "Rect") return;
+        node.stroke(isActive ? "#2563eb" : style.stroke);
+        node.strokeWidth(isActive ? 3 : 2);
+      });
+      itemNode.find(".array-item-value-hit").forEach((node) => {
+        if (node.getClassName?.() !== "Rect") return;
+        node.stroke(isActive ? "#2563eb" : style.stroke);
+        node.strokeWidth(isActive ? 3 : 2);
+      });
+      if (isActive) itemNode.moveToTop();
+    });
+    group.findOne(".array-drop-indicator")?.moveToTop();
+  }
+
+  function updateLinearItemControlsPosition() {
+    if (!linearItemControls || linearItemControls.hidden || !activeLinearItem) return;
+    const group = contentLayer.findOne(`#${activeLinearItem.elementId}`);
+    const itemNode = findLinearItemNode(group, activeLinearItem.index);
+    if (!itemNode) {
+      linearItemControls.hidden = true;
+      return;
+    }
+    const box = itemNode.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    linearItemControls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
+    linearItemControls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+  }
+
   function clearLinearItemPressTimer() {
     if (!linearItemPressState?.holdTimer) return;
     window.clearTimeout(linearItemPressState.holdTimer);
     linearItemPressState.holdTimer = null;
+  }
+
+  function clearLinearPointerPressTimer() {
+    if (!linearPointerPressState?.holdTimer) return;
+    window.clearTimeout(linearPointerPressState.holdTimer);
+    linearPointerPressState.holdTimer = null;
   }
 
   function shouldElementBeDraggable(element) {
@@ -2527,7 +2677,10 @@ export function createWhiteboardApp(root) {
   }
 
   function isLinearPointerGestureElement(elementId) {
-    return linearItemPressState?.elementId === elementId || linearItemDragState?.elementId === elementId;
+    return linearItemPressState?.elementId === elementId
+      || linearItemDragState?.elementId === elementId
+      || linearPointerPressState?.elementId === elementId
+      || linearPointerDragState?.elementId === elementId;
   }
 
   function setElementDraggableState(elementId, enabled) {
@@ -2544,10 +2697,31 @@ export function createWhiteboardApp(root) {
     }
   }
 
+  function resetLinearPointerPressState() {
+    const elementId = linearPointerPressState?.elementId;
+    clearLinearPointerPressTimer();
+    linearPointerPressState = null;
+    if (elementId) {
+      const element = board.elements.find((item) => item.id === elementId);
+      setElementDraggableState(elementId, shouldElementBeDraggable(element) && !isLinearPointerGestureElement(elementId));
+    }
+  }
+
   function cancelLinearItemDragPreview() {
     if (!linearItemDragState) return;
     linearItemDragState = null;
     renderBoard();
+  }
+
+  function cancelLinearPointerDrag() {
+    const elementId = linearPointerDragState?.elementId ?? linearPointerPressState?.elementId;
+    clearLinearPointerPressTimer();
+    linearPointerPressState = null;
+    linearPointerDragState = null;
+    if (elementId) {
+      const element = board.elements.find((item) => item.id === elementId);
+      setElementDraggableState(elementId, shouldElementBeDraggable(element));
+    }
   }
 
   function getLinearStructureGeometry(element) {
@@ -2595,6 +2769,15 @@ export function createWhiteboardApp(root) {
       return baseX - cellWidth;
     }
     return baseX;
+  }
+
+  function getLinearPointerIndexFromWorldPoint(element, worldPoint) {
+    const length = element.items?.length ?? 0;
+    if (length <= 0) return null;
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const localX = worldPoint.x - (element.x ?? 0);
+    const centeredIndex = Math.floor(localX / cellWidth);
+    return Math.min(length - 1, Math.max(0, centeredIndex));
   }
 
   function animateLinearDragGapChange() {
@@ -2724,7 +2907,7 @@ export function createWhiteboardApp(root) {
       cancelled: false,
     };
     setElementDraggableState(elementId, false);
-    setActiveLinearItem(elementId, index, { syncPanel: false });
+    setActiveLinearItem(elementId, index, { syncPanel: false, rerender: false });
     renderBoard();
     animateLinearItemLift();
   }
@@ -2793,7 +2976,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === dragState.elementId);
     linearItemDragState = null;
     stopLinearItemLiftTween();
-    suppressSelectionDragOnce = true;
+    suppressSelectionDragOnce = false;
     suppressedNodeDragElementId = dragState.elementId;
     contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag();
     nodeDragSelection = null;
@@ -2821,6 +3004,60 @@ export function createWhiteboardApp(root) {
       });
     };
     animateLinearItemDrop(dragState, finishLinearItemDrop);
+    return true;
+  }
+
+  function beginLinearPointerDrag({ elementId, index, worldPoint }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isLinearStructureElement(element) || element.locked || (element.items?.length ?? 0) === 0) return;
+    const nextIndex = getLinearPointerIndexFromWorldPoint(element, worldPoint) ?? index;
+    const hadPointer = Number.isInteger(element.markers?.pointer);
+    linearPointerDragState = {
+      elementId,
+      fromIndex: index,
+      nextIndex,
+      didMove: nextIndex !== index || !hadPointer,
+    };
+    setElementDraggableState(elementId, false);
+    selectIds([elementId]);
+    updateLinearPointerDrag(worldPoint);
+  }
+
+  function updateLinearPointerDrag(worldPoint) {
+    if (!linearPointerDragState) return false;
+    const element = board.elements.find((item) => item.id === linearPointerDragState.elementId);
+    if (!isLinearStructureElement(element)) return false;
+    const nextIndex = getLinearPointerIndexFromWorldPoint(element, worldPoint);
+    if (!Number.isInteger(nextIndex) || nextIndex === linearPointerDragState.nextIndex) return true;
+    linearPointerDragState = {
+      ...linearPointerDragState,
+      nextIndex,
+      didMove: linearPointerDragState.didMove || nextIndex !== linearPointerDragState.fromIndex,
+    };
+    board.elements = board.elements.map((item) => (
+      item.id === linearPointerDragState.elementId ? setArrayPointer(item, nextIndex) : item
+    ));
+    linearPanelState = {
+      ...linearPanelState,
+      highlightPointer: String(nextIndex),
+    };
+    applyLinearPanelState(linearPanelState);
+    renderBoard();
+    selectIds([linearPointerDragState.elementId]);
+    return true;
+  }
+
+  function commitLinearPointerDrag() {
+    if (!linearPointerDragState) return false;
+    const dragState = linearPointerDragState;
+    linearPointerDragState = null;
+    const element = board.elements.find((item) => item.id === dragState.elementId);
+    setElementDraggableState(dragState.elementId, shouldElementBeDraggable(element));
+    renderBoard();
+    selectIds([dragState.elementId]);
+    if (dragState.didMove) {
+      pushHistory("已移动数组指针");
+    }
     return true;
   }
 
@@ -2987,7 +3224,7 @@ export function createWhiteboardApp(root) {
     pushHistory("已移动数组元素");
   }
 
-  function handleArrayStructureItemSelect({ elementId }) {
+  function handleArrayStructureItemSelect({ elementId, index }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (suppressLinearItemSelect?.elementId === elementId) {
@@ -2995,6 +3232,7 @@ export function createWhiteboardApp(root) {
       return;
     }
     selectIds([elementId]);
+    setActiveLinearItem(elementId, index, { rerender: false });
   }
 
   function handleArrayStructureItemPress({ elementId, index }) {
@@ -3029,6 +3267,37 @@ export function createWhiteboardApp(root) {
   function handleArrayStructureItemRelease() {
     if (linearItemDragState) return;
     resetLinearItemPressState();
+  }
+
+  function handleArrayPointerPress({ elementId, index }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isLinearStructureElement(element) || element.locked || (element.items?.length ?? 0) === 0) return;
+    const worldPoint = getWorldPointer(stage);
+    if (!worldPoint) return;
+    suppressSelectionDragOnce = true;
+    contentLayer.findOne(`#${elementId}`)?.stopDrag();
+    linearPointerPressState = {
+      elementId,
+      index,
+      phase: "start",
+      holdTimer: window.setTimeout(() => {
+        if (!linearPointerPressState || linearPointerPressState.elementId !== elementId || linearPointerPressState.index !== index) return;
+        linearPointerPressState = {
+          ...linearPointerPressState,
+          phase: "hold",
+          holdTimer: null,
+        };
+        beginLinearPointerDrag({
+          elementId,
+          index,
+          worldPoint: linearPointerPressState.currentWorldPoint ?? linearPointerPressState.startWorldPoint ?? worldPoint,
+        });
+      }, 250),
+      startWorldPoint: worldPoint,
+      currentWorldPoint: worldPoint,
+    };
+    setElementDraggableState(elementId, false);
+    selectIds([elementId]);
   }
 
   function editArrayStructureItem({ elementId, index, value }) {
@@ -3069,14 +3338,15 @@ export function createWhiteboardApp(root) {
       if (closed) return;
       closed = true;
       const nextValue = input.value;
+      window.removeEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
       input.remove();
       if (!commit) return;
       board.elements = board.elements.map((item) => (
         item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
       ));
-      activeLinearItem = null;
       renderBoard();
-      selectIds([]);
+      selectIds([elementId]);
+      setActiveLinearItem(elementId, index);
       pushHistory("已更新线性结构元素");
     };
 
@@ -3091,6 +3361,14 @@ export function createWhiteboardApp(root) {
       }
     });
     input.addEventListener("blur", () => close(true));
+
+    const handleCellEditorOutsidePointerDown = (event) => {
+      if (closed) return;
+      if (input.contains(event.target)) return;
+      suppressNextCanvasSelection = container.contains(event.target);
+      close(true);
+    };
+    window.addEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
   }
 
   function getLinearItemNodeIndex(node) {
@@ -3532,7 +3810,8 @@ export function createWhiteboardApp(root) {
     transformer.boundBoxFunc((oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
       const anchor = transformer.getActiveAnchor?.();
-      const nextBox = getUniformScaledBoxForVerticalResize({
+      const nextBox = getUniformScaledBoxForResize({
+        elements: [element],
         anchor,
         oldBox,
         newBox,
@@ -3555,8 +3834,15 @@ export function createWhiteboardApp(root) {
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
     let editorClosed = false;
+    const handleEditorOutsidePointerDown = (event) => {
+      if (editorClosed) return;
+      if (editorFrame.contains(event.target)) return;
+      if (isTransformerTarget(event.target)) return;
+      commit();
+    };
 
     const cleanupEditorTransformer = () => {
+      window.removeEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
       transformer.off(".editor");
       transformer.boundBoxFunc(previousBoundBoxFunc);
       transformer.anchorDragBoundFunc(previousAnchorDragBoundFunc);
@@ -3636,6 +3922,7 @@ export function createWhiteboardApp(root) {
       pushHistory("已编辑文字");
     };
     activeTextEditorCommit = () => commit();
+    window.addEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
 
     const exitEditorForTransform = () => {
       commit({ keepNode: true });
@@ -3715,7 +4002,7 @@ export function createWhiteboardApp(root) {
     const file = imageInput.files?.[0];
     imageInput.value = "";
     if (!file) return;
-    await insertImageFile(file, "已导入图片");
+    await insertImageFile(file, "已导入图片", { preferViewportCenter: true });
   }
 
   async function handlePaste(event) {
@@ -3778,7 +4065,7 @@ export function createWhiteboardApp(root) {
     selectIds([element.id]);
   }
 
-  async function insertImageFile(file, message) {
+  async function insertImageFile(file, message, { preferViewportCenter = false } = {}) {
     try {
       const src = await readFileAsDataUrl(file);
       const size = await readImageSize(src);
@@ -3789,13 +4076,14 @@ export function createWhiteboardApp(root) {
         x: stage.x(),
         y: stage.y(),
         scale: stage.scaleX(),
-      });
+      }, { preferViewportCenter });
       const element = buildImageElement({
         point,
         src,
         width: size.width,
         height: size.height,
         zIndex: board.elements.length,
+        anchor: preferViewportCenter ? "center" : "top-left",
       });
       addElement(element, message);
       setTool(TOOLS.SELECT);
@@ -3961,6 +4249,7 @@ export function createWhiteboardApp(root) {
     container.style.setProperty("--grid-size", `${size}px`);
     container.style.setProperty("--grid-x", `${stage.x()}px`);
     container.style.setProperty("--grid-y", `${stage.y()}px`);
+    updateLinearItemControlsPosition();
   }
 
   function updateChrome() {

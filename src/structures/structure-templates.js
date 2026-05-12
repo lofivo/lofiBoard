@@ -263,13 +263,13 @@ export function updateArrayValues(element, input) {
   });
 }
 
-export function setArrayHighlight(element, { start = 0, end = start, pointer = start } = {}) {
+export function setArrayHighlight(element, { start = 0, end = start, pointer = start, showPointer = element?.markers?.showPointer ?? true } = {}) {
   if (!isLinearStructureElement(element)) return element;
   const length = element.items?.length ?? 0;
   if (length === 0) {
     return {
       ...element,
-      markers: { highlight: [], pointer: null },
+      markers: { highlight: [], pointer: null, showPointer: Boolean(showPointer) },
     };
   }
   const safeStart = clampIndex(start, length - 1);
@@ -282,6 +282,41 @@ export function setArrayHighlight(element, { start = 0, end = start, pointer = s
       ...(element.markers ?? {}),
       highlight: Array.from({ length: max - min + 1 }, (_, offset) => min + offset),
       pointer: pointer === null || pointer === undefined ? null : clampIndex(pointer, length - 1),
+      showPointer: Boolean(showPointer),
+    },
+  };
+}
+
+export function setArrayPointer(element, pointer = 0) {
+  if (!isLinearStructureElement(element)) return element;
+  const length = element.items?.length ?? 0;
+  if (length === 0) {
+    return {
+      ...element,
+      markers: { ...(element.markers ?? {}), pointer: null },
+    };
+  }
+  return {
+    ...element,
+    markers: {
+      ...(element.markers ?? {}),
+      pointer: pointer === null || pointer === undefined ? null : clampIndex(pointer, length - 1),
+    },
+  };
+}
+
+export function setArrayPointerVisibility(element, showPointer = true) {
+  if (!isLinearStructureElement(element)) return element;
+  const length = element.items?.length ?? 0;
+  const currentPointer = Number.isInteger(element.markers?.pointer)
+    ? clampIndex(element.markers.pointer, Math.max(0, length - 1))
+    : 0;
+  return {
+    ...element,
+    markers: {
+      ...(element.markers ?? {}),
+      pointer: length > 0 ? currentPointer : null,
+      showPointer: Boolean(showPointer),
     },
   };
 }
@@ -290,11 +325,7 @@ export function clearArrayHighlight(element) {
   if (!isLinearStructureElement(element)) return element;
   return {
     ...element,
-    markers: {
-      ...(element.markers ?? {}),
-      highlight: [],
-      pointer: null,
-    },
+    markers: { highlight: [], pointer: null },
   };
 }
 

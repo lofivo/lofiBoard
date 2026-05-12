@@ -8,6 +8,7 @@ import {
   getStickyScaleCommitBox,
   getStickyTextInsets,
   getStickyVisualMetrics,
+  getUniformScaledBoxForResize,
   getUniformScaledBoxForVerticalResize,
   getMinimumTextResizeWidth,
   getNormalizedTextBox,
@@ -25,6 +26,7 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
+  shouldUseUniformTransformerResize,
   truncateWithEllipsis,
 } from "../../src/tools/interaction-rules.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
@@ -116,6 +118,44 @@ describe("interaction rules", () => {
       minWidth: 12,
       minHeight: 12,
     })).toEqual({ x: 100, y: 80, width: 120, height: 60, rotation: 0 });
+  });
+
+  it("stretches rectangle and ellipse edge handles without proportional scaling", () => {
+    const oldBox = { x: 100, y: 80, width: 200, height: 100, rotation: 0 };
+
+    expect(shouldUseUniformTransformerResize([{ type: "rect" }], "top-center")).toBe(false);
+    expect(shouldUseUniformTransformerResize([{ type: "ellipse" }], "middle-right")).toBe(false);
+    expect(getUniformScaledBoxForResize({
+      elements: [{ type: "rect" }],
+      anchor: "bottom-center",
+      oldBox,
+      newBox: { x: 100, y: 80, width: 200, height: 150, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 100, y: 80, width: 200, height: 150, rotation: 0 });
+  });
+
+  it("uses proportional scaling for sticky and structure horizontal edge handles", () => {
+    const oldBox = { x: 100, y: 80, width: 200, height: 100, rotation: 0 };
+
+    expect(shouldUseUniformTransformerResize([{ type: "sticky" }], "middle-right")).toBe(true);
+    expect(shouldUseUniformTransformerResize([{ type: "array-structure" }], "middle-right")).toBe(true);
+    expect(getUniformScaledBoxForResize({
+      elements: [{ type: "sticky" }],
+      anchor: "middle-right",
+      oldBox,
+      newBox: { x: 100, y: 80, width: 300, height: 100, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 100, y: 55, width: 300, height: 150, rotation: 0 });
+    expect(getUniformScaledBoxForResize({
+      elements: [{ type: "graph-structure" }],
+      anchor: "middle-left",
+      oldBox,
+      newBox: { x: 0, y: 80, width: 300, height: 100, rotation: 0 },
+      minWidth: 12,
+      minHeight: 12,
+    })).toEqual({ x: 0, y: 55, width: 300, height: 150, rotation: 0 });
   });
 
   it("honors minimum dimensions while keeping vertical edge scaling proportional", () => {

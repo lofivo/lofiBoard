@@ -65,6 +65,38 @@ export function isTransformerScaleAnchor(anchor) {
   return CORNER_TRANSFORMER_ANCHORS.includes(anchor) || isTransformerVerticalScaleAnchor(anchor);
 }
 
+export function shouldUseUniformTransformerResize(elements, anchor) {
+  if (!anchor || !Array.isArray(elements) || elements.length !== 1) return false;
+  const type = elements[0]?.type;
+  if (type === "text") {
+    return isTransformerScaleAnchor(anchor);
+  }
+  if (type === "sticky" || String(type ?? "").endsWith("-structure")) {
+    return CORNER_TRANSFORMER_ANCHORS.includes(anchor)
+      || isTransformerVerticalScaleAnchor(anchor)
+      || isTextWidthResizeAnchor(anchor);
+  }
+  return CORNER_TRANSFORMER_ANCHORS.includes(anchor);
+}
+
+export function getUniformScaledBoxForResize({
+  elements,
+  anchor,
+  oldBox,
+  newBox,
+  minWidth = 1,
+  minHeight = 1,
+}) {
+  if (!shouldUseUniformTransformerResize(elements, anchor)) return newBox;
+  return getUniformScaledBoxForVerticalResize({
+    anchor,
+    oldBox,
+    newBox,
+    minWidth,
+    minHeight,
+  });
+}
+
 export function getUniformScaledBoxForVerticalResize({
   anchor,
   oldBox,
@@ -72,7 +104,14 @@ export function getUniformScaledBoxForVerticalResize({
   minWidth = 1,
   minHeight = 1,
 }) {
-  if (!isTransformerScaleAnchor(anchor) || !oldBox || !newBox) return newBox;
+  if (
+    !(
+      isTransformerScaleAnchor(anchor)
+      || isTextWidthResizeAnchor(anchor)
+    )
+    || !oldBox
+    || !newBox
+  ) return newBox;
 
   const oldWidth = Math.max(1, Math.abs(Number(oldBox.width) || 1));
   const oldHeight = Math.max(1, Math.abs(Number(oldBox.height) || 1));
@@ -82,6 +121,8 @@ export function getUniformScaledBoxForVerticalResize({
   const requestedHeight = Math.max(minimumHeight, Math.abs(Number(newBox.height) || minimumHeight));
   const requestedScale = isTransformerVerticalScaleAnchor(anchor)
     ? requestedHeight / oldHeight
+    : isTextWidthResizeAnchor(anchor)
+      ? requestedWidth / oldWidth
     : Math.max(requestedWidth / oldWidth, requestedHeight / oldHeight);
   const scale = Math.max(requestedScale, minimumWidth / oldWidth, minimumHeight / oldHeight);
   const nextWidth = oldWidth * scale;
@@ -92,9 +133,12 @@ export function getUniformScaledBoxForVerticalResize({
     : anchor.includes("right")
       ? oldBox.x
       : centerX - nextWidth / 2;
+  const centerY = oldBox.y + oldHeight / 2;
   const nextY = anchor.includes("top")
     ? oldBox.y + oldHeight - nextHeight
-    : oldBox.y;
+    : anchor.includes("bottom")
+      ? oldBox.y
+      : centerY - nextHeight / 2;
 
   return {
     ...newBox,

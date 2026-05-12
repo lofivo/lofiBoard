@@ -184,52 +184,9 @@ export function renderShell() {
             <div class="inspector-section-content" data-section-content="linear">
               <div class="linear-structure-panel">
                 ${linearGroupMarkup({
-                  key: "edit",
-                  title: "基础编辑",
-                  expanded: true,
-                  content: `
-                    <div class="linear-panel-fields linear-panel-fields-edit">
-                      <label class="linear-field">
-                        当前位置
-                        <input data-linear-field="current-index" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label class="linear-field linear-field-wide">
-                        当前值
-                        <input data-linear-field="current-value" type="text" value="" />
-                      </label>
-                      <label class="linear-field linear-field-wide">
-                        插入值
-                        <input data-linear-field="insert-value" type="text" value="" />
-                      </label>
-                      <label class="linear-field">
-                        指定位置
-                        <input data-linear-field="insert-index" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label class="linear-field">
-                        交换到
-                        <input data-linear-field="swap-index" type="number" min="0" step="1" value="1" />
-                      </label>
-                      <label class="linear-field">
-                        移动到
-                        <input data-linear-field="move-index" type="number" min="0" step="1" value="1" />
-                      </label>
-                    </div>
-                    <div class="quick-actions quick-actions-linear quick-actions-compact">
-                      <button type="button" data-action="array-set-value">修改当前</button>
-                      <button type="button" data-action="array-delete-at">删除当前</button>
-                      <button type="button" data-action="array-delete-end">删末项</button>
-                      <button type="button" data-action="array-insert-start">前插</button>
-                      <button type="button" data-action="array-insert-end">后插</button>
-                      <button type="button" data-action="array-insert-at">指定插入</button>
-                      <button type="button" data-action="array-swap">交换元素</button>
-                      <button type="button" data-action="array-move">移动元素</button>
-                    </div>
-                  `,
-                })}
-                ${linearGroupMarkup({
                   key: "highlight",
                   title: "高亮与下标",
-                  expanded: false,
+                  expanded: true,
                   content: `
                     <div class="linear-panel-fields linear-panel-fields-highlight">
                       <label class="linear-field">
@@ -252,6 +209,8 @@ export function renderShell() {
                       <button type="button" data-action="linear-index-one">1 下标</button>
                       <button type="button" data-action="linear-index-show">显示下标</button>
                       <button type="button" data-action="linear-index-hide">隐藏下标</button>
+                      <button type="button" data-action="linear-pointer-show">显示指针</button>
+                      <button type="button" data-action="linear-pointer-hide">隐藏指针</button>
                     </div>
                   `,
                 })}

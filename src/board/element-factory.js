@@ -55,16 +55,18 @@ export function createStickyElement({ point, zIndex }) {
   };
 }
 
-export function createImageElement({ point, src, width, height, zIndex }) {
+export function createImageElement({ point, src, width, height, zIndex, anchor = "top-left" }) {
   const maxWidth = 420;
   const scale = width > maxWidth ? maxWidth / width : 1;
+  const displayWidth = Math.max(40, Math.round(width * scale));
+  const displayHeight = Math.max(40, Math.round(height * scale));
   return {
     id: createId("image"),
     type: "image",
-    x: point.x,
-    y: point.y,
-    width: Math.max(40, Math.round(width * scale)),
-    height: Math.max(40, Math.round(height * scale)),
+    x: anchor === "center" ? point.x - displayWidth / 2 : point.x,
+    y: anchor === "center" ? point.y - displayHeight / 2 : point.y,
+    width: displayWidth,
+    height: displayHeight,
     src,
     rotation: 0,
     scaleX: 1,

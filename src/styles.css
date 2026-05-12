@@ -995,14 +995,6 @@ button {
   gap: 6px;
 }
 
-.linear-panel-fields-edit {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.linear-panel-fields-edit .linear-field-wide {
-  grid-column: 1 / -1;
-}
-
 .linear-panel-fields-highlight {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1326,6 +1318,39 @@ button {
   box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
 }
 
+.linear-item-controls {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+  transform: translateX(-50%);
+}
+
+.linear-item-controls[hidden] {
+  display: none;
+}
+
+.linear-item-controls button {
+  height: 28px;
+  min-width: 38px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #0f172a;
+  background: #f1f5f9;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.linear-item-controls button:hover {
+  background: #dbeafe;
+}
+
 .text-editor-measure {
   position: fixed;
   left: -10000px;
@@ -1403,7 +1428,6 @@ button {
     width: auto;
   }
 
-  .linear-panel-fields-edit,
   .linear-panel-fields-highlight,
   .quick-actions-linear,
   .quick-actions-graph,
