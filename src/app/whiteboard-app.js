@@ -234,6 +234,7 @@ export function createWhiteboardApp(root) {
   let activeLinearItem = null;
   let linearItemPressState = null;
   let linearItemDragState = null;
+  let linearItemLiftTween = null;
   let suppressLinearItemSelect = null;
   let suppressSelectionDragOnce = false;
   let suppressedNodeDragElementId = null;
@@ -2606,6 +2607,10 @@ export function createWhiteboardApp(root) {
     const itemNodes = group.find(".array-item");
     itemNodes.forEach((node) => {
       const index = getLinearItemNodeIndex(node);
+      if (index === linearItemDragState.fromIndex) {
+        updateLinearDragVisualPosition();
+        return;
+      }
       const targetX = getLinearPreviewXForGap(
         index,
         linearItemDragState.fromIndex,
@@ -2613,13 +2618,10 @@ export function createWhiteboardApp(root) {
         linearItemDragState.dragX,
         cellWidth,
       );
-      const targetY = index === linearItemDragState.fromIndex
-        ? (linearItemDragState.cancelled ? 0 : linearItemDragState.dragY)
-        : 0;
       node.to({
         x: targetX,
-        y: targetY,
-        duration: index === linearItemDragState.fromIndex ? 0.04 : 0.16,
+        y: 0,
+        duration: 0.16,
         easing: Konva.Easings.EaseOut,
       });
     });
@@ -2633,6 +2635,72 @@ export function createWhiteboardApp(root) {
       });
     }
     contentLayer.batchDraw();
+  }
+
+  function animateLinearItemLift() {
+    if (!linearItemDragState) return;
+    const itemNode = findLinearItemNode(
+      contentLayer.findOne(`#${linearItemDragState.elementId}`),
+      linearItemDragState.fromIndex,
+    );
+    if (!itemNode) return;
+
+    stopLinearItemLiftTween();
+    linearItemLiftTween = new Konva.Tween({
+      node: itemNode,
+      y: -12,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      opacity: 0.96,
+      shadowBlur: 18,
+      shadowOpacity: 1,
+      shadowOffsetY: -8,
+      duration: 0.16,
+      easing: Konva.Easings.EaseOut,
+      onFinish: () => {
+        linearItemLiftTween?.destroy();
+        linearItemLiftTween = null;
+        if (!linearItemDragState) return;
+        linearItemDragState.longPressTriggered = true;
+      },
+    });
+    linearItemLiftTween.play();
+  }
+
+  function stopLinearItemLiftTween() {
+    linearItemLiftTween?.destroy();
+    linearItemLiftTween = null;
+  }
+
+  function animateLinearItemDrop(dragState, finishLinearItemDrop) {
+    const element = board.elements.find((item) => item.id === dragState.elementId);
+    const group = contentLayer.findOne(`#${dragState.elementId}`);
+    const itemNode = findLinearItemNode(group, dragState.fromIndex);
+    if (!isLinearStructureElement(element) || !itemNode) {
+      finishLinearItemDrop();
+      return;
+    }
+
+    const { cellWidth } = getLinearStructureGeometry(element);
+    const length = element.items?.length ?? 0;
+    const toIndex = dragState.cancelled
+      ? dragState.fromIndex
+      : getLinearDragInsertIndex(dragState.fromIndex, dragState.previewGap, length);
+    const targetX = toIndex * cellWidth;
+
+    itemNode.to({
+      x: targetX,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 1,
+      shadowBlur: 0,
+      shadowOpacity: 0,
+      shadowOffsetY: 0,
+      duration: 0.18,
+      easing: Konva.Easings.EaseOut,
+      onFinish: finishLinearItemDrop,
+    });
   }
 
   function beginLinearItemDrag({ elementId, index, worldPoint }) {
@@ -2652,12 +2720,13 @@ export function createWhiteboardApp(root) {
       dragY: 0,
       previewGap,
       lastAnimatedGap: previewGap,
-      longPressTriggered: true,
+      longPressTriggered: false,
       cancelled: false,
     };
     setElementDraggableState(elementId, false);
     setActiveLinearItem(elementId, index, { syncPanel: false });
     renderBoard();
+    animateLinearItemLift();
   }
 
   function updateLinearDragVisualPosition() {
@@ -2667,6 +2736,10 @@ export function createWhiteboardApp(root) {
     const indicator = group?.findOne(".array-drop-indicator");
     const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
     if (!itemNode) return;
+    stopLinearItemLiftTween();
+    if (!linearItemDragState.longPressTriggered) {
+      linearItemDragState.longPressTriggered = true;
+    }
     itemNode.x(linearItemDragState.dragX);
     itemNode.y(linearItemDragState.cancelled ? 0 : linearItemDragState.dragY);
     itemNode.setAttrs({
@@ -2719,6 +2792,7 @@ export function createWhiteboardApp(root) {
     const dragState = linearItemDragState;
     const element = board.elements.find((item) => item.id === dragState.elementId);
     linearItemDragState = null;
+    stopLinearItemLiftTween();
     suppressSelectionDragOnce = true;
     suppressedNodeDragElementId = dragState.elementId;
     contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag();
@@ -2733,17 +2807,20 @@ export function createWhiteboardApp(root) {
         suppressLinearItemSelect = null;
       }
     });
-    if (!isLinearStructureElement(element) || dragState.cancelled) {
-      renderBoard();
-      return true;
-    }
-    const length = element.items?.length ?? 0;
-    const toIndex = getLinearDragInsertIndex(dragState.fromIndex, dragState.previewGap, length);
-    moveArrayStructureItem({
-      elementId: dragState.elementId,
-      fromIndex: dragState.fromIndex,
-      toIndex,
-    });
+    const finishLinearItemDrop = () => {
+      if (!isLinearStructureElement(element) || dragState.cancelled) {
+        renderBoard();
+        return;
+      }
+      const length = element.items?.length ?? 0;
+      const toIndex = getLinearDragInsertIndex(dragState.fromIndex, dragState.previewGap, length);
+      moveArrayStructureItem({
+        elementId: dragState.elementId,
+        fromIndex: dragState.fromIndex,
+        toIndex,
+      });
+    };
+    animateLinearItemDrop(dragState, finishLinearItemDrop);
     return true;
   }
 

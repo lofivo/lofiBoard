@@ -448,11 +448,11 @@ function createLinearStructureNode(element, common, {
       draggable: false,
       scaleX: isDragging && dragLift ? 1.04 : 1,
       scaleY: isDragging && dragLift ? 1.04 : 1,
-      opacity: isDragging ? 0.96 : 1,
-      shadowColor: isDragging ? "rgba(37,99,235,0.28)" : "rgba(0,0,0,0)",
-      shadowBlur: isDragging ? 18 : 0,
-      shadowOpacity: isDragging ? 1 : 0,
-      shadowOffsetY: isDragging ? -8 : 0,
+      opacity: isDragging && dragLift ? 0.96 : 1,
+      shadowColor: isDragging && dragLift ? "rgba(37,99,235,0.28)" : "rgba(0,0,0,0)",
+      shadowBlur: isDragging && dragLift ? 18 : 0,
+      shadowOpacity: isDragging && dragLift ? 1 : 0,
+      shadowOffsetY: isDragging && dragLift ? -8 : 0,
     });
     let indexRect = null;
     let indexText = null;

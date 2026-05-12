@@ -355,6 +355,25 @@ describe("app shell", () => {
     expect(appSource).toContain("indicator.visible(false)");
   });
 
+  it("animates the long-press array item lift and drop states", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("animateLinearItemLift");
+    expect(appSource).toContain("animateLinearItemDrop");
+    expect(appSource).toContain("linearItemDragState.longPressTriggered = true");
+    expect(appSource).toContain("onFinish: finishLinearItemDrop");
+  });
+
+  it("keeps the dragged array item under direct pointer control during gap animations", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("if (index === linearItemDragState.fromIndex) {");
+    expect(appSource).toContain("updateLinearDragVisualPosition();");
+    expect(appSource).toContain("return;");
+    expect(appSource).toContain("linearItemLiftTween?.destroy()");
+    expect(appSource).not.toContain("itemNode.stop()");
+  });
+
   it("starts whole-array drag from index press movement even when the array is already selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
