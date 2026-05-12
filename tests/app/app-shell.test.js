@@ -114,6 +114,7 @@ describe("app shell", () => {
   it("keeps structure inspector groups compact when collapsed", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(markup).toContain("linear-panel-fields-edit");
     expect(markup).toContain("linear-panel-fields-highlight");
@@ -121,6 +122,7 @@ describe("app shell", () => {
     expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
     expect(styles).toContain('.linear-panel-group[data-collapsed="true"]');
     expect(styles).toContain(".quick-actions-linear");
+    expect(appSource).toContain('appearance: context === "appearance"');
   });
 
   it("prevents linear inspector controls from forcing the property panel wider", () => {

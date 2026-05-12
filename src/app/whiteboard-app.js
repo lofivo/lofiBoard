@@ -826,7 +826,7 @@ export function createWhiteboardApp(root) {
 
   function getVisibleInspectorSections(context) {
     return {
-      appearance: true,
+      appearance: context === "appearance",
       linear: context === "linear",
       graph: context === "graph",
       tree: context === "tree",
