@@ -27,6 +27,12 @@ import {
   supportsFileSystemAccess,
   writeWhiteboardFile,
 } from "../services/file-service.js";
+import {
+  LOCAL_DRAFT_FILE_NAME,
+  clearLocalDraft,
+  loadLocalDraft,
+  saveLocalDraft,
+} from "../services/draft-storage-service.js";
 import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
@@ -217,6 +223,10 @@ export function createWhiteboardApp(root) {
   let layerPanelAvailable = false;
   let statusTimer = null;
   let dirty = false;
+  let suppressNextTextHistory = false;
+  let activeTextEditorCommit = null;
+  let initialStatusMessage = null;
+  let draftSaveTimer = null;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
   let graphConnectState = null;
@@ -386,11 +396,13 @@ export function createWhiteboardApp(root) {
   overlayLayer.add(brushCursorDot);
   overlayLayer.add(brushCursorRing);
 
+  hydrateLocalDraft();
   hydrateControls();
   applyViewport(board.viewport);
   applyBackground();
   renderBoard();
   setTool(TOOLS.PEN);
+  if (initialStatusMessage) setStatus(initialStatusMessage);
   applyPanelState();
   updateChrome();
   bindStageEvents();
@@ -403,7 +415,10 @@ export function createWhiteboardApp(root) {
       getSelectedIds: () => [...selectedIds],
       getActiveLinearItem: () => (activeLinearItem ? { ...activeLinearItem } : null),
     },
-    destroy: () => stage.destroy(),
+    destroy: () => {
+      if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+      stage.destroy();
+    },
   };
 
   function hydrateControls() {
@@ -926,8 +941,26 @@ export function createWhiteboardApp(root) {
     });
 
     window.addEventListener("paste", handlePaste);
+    window.addEventListener("beforeunload", persistCurrentDraft);
     container.addEventListener("dragover", handleImageDragOver);
     container.addEventListener("drop", handleImageDrop);
+  }
+
+  function hydrateLocalDraft() {
+    const result = loadLocalDraft();
+    if (!result.ok) {
+      initialStatusMessage = "自动草稿恢复失败";
+      return;
+    }
+    if (!result.board) return;
+
+    board = result.board;
+    history = createHistory(board);
+    selectedIds = [];
+    fileHandle = null;
+    activeFileName = LOCAL_DRAFT_FILE_NAME;
+    dirty = true;
+    initialStatusMessage = "已恢复自动草稿";
   }
 
   function bindKeyboard() {
@@ -1082,6 +1115,7 @@ export function createWhiteboardApp(root) {
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateChrome();
+    schedulePersistCurrentDraft();
   }
 
   function zoomBy(multiplier) {
@@ -1110,6 +1144,7 @@ export function createWhiteboardApp(root) {
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateChrome();
+    schedulePersistCurrentDraft();
   }
 
   function handlePointerDown(event) {
@@ -1297,6 +1332,7 @@ export function createWhiteboardApp(root) {
     if (isPanning) {
       isPanning = false;
       panStart = null;
+      persistCurrentDraft();
       return;
     }
 
@@ -3211,6 +3247,7 @@ export function createWhiteboardApp(root) {
     applyBackground();
     renderBoard();
     updateChrome();
+    clearLocalDraft();
     setStatus("已新建白板");
   }
 
@@ -3219,8 +3256,9 @@ export function createWhiteboardApp(root) {
     board = serializeCurrentBoard();
     history.push(board);
     dirty = true;
+    const draftSaved = persistCurrentDraft();
     updateChrome();
-    setStatus("已重置视图");
+    if (draftSaved) setStatus("已重置视图");
   }
 
   function setBackgroundMode(backgroundMode) {
@@ -3457,6 +3495,7 @@ export function createWhiteboardApp(root) {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
+      activeTextEditorCommit = null;
       const nextText = textarea.value.trim();
       const committedWidth = editorFrame.offsetWidth;
       const committedHeight = editorFrame.offsetHeight;
@@ -3519,6 +3558,7 @@ export function createWhiteboardApp(root) {
       renderBoard();
       pushHistory("已编辑文字");
     };
+    activeTextEditorCommit = () => commit();
 
     const exitEditorForTransform = () => {
       commit({ keepNode: true });
@@ -3530,6 +3570,7 @@ export function createWhiteboardApp(root) {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
+      if (activeTextEditorCommit) activeTextEditorCommit = null;
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();
@@ -3583,8 +3624,9 @@ export function createWhiteboardApp(root) {
       applyBackground();
       renderBoard();
       dirty = false;
+      const draftSaved = persistCurrentDraft();
       updateChrome();
-      setStatus("已打开白板文件");
+      if (draftSaved) setStatus("已打开白板文件");
     } catch (error) {
       if (error?.name !== "AbortError") {
         setStatus(`打开失败：${error.message}`);
@@ -3776,8 +3818,13 @@ export function createWhiteboardApp(root) {
     board = serializeCurrentBoard();
     history.push(board);
     dirty = true;
+    const draftSaved = persistCurrentDraft();
     updateChrome();
-    setStatus(message);
+    if (suppressNextTextHistory) {
+      suppressNextTextHistory = false;
+      return;
+    }
+    if (draftSaved) setStatus(message);
   }
 
   function restoreFromHistory(nextBoard, message) {
@@ -3788,8 +3835,34 @@ export function createWhiteboardApp(root) {
     applyBackground();
     renderBoard();
     dirty = true;
+    const draftSaved = persistCurrentDraft();
     updateChrome();
-    setStatus(message);
+    if (draftSaved) setStatus(message);
+  }
+
+  function persistCurrentDraft() {
+    if (draftSaveTimer) {
+      window.clearTimeout(draftSaveTimer);
+      draftSaveTimer = null;
+    }
+    if (activeTextEditorCommit) {
+      suppressNextTextHistory = true;
+      activeTextEditorCommit();
+    }
+    const result = saveLocalDraft(serializeCurrentBoard());
+    if (!result.ok) {
+      setStatus("自动草稿保存失败");
+      return false;
+    }
+    return true;
+  }
+
+  function schedulePersistCurrentDraft() {
+    if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+    draftSaveTimer = window.setTimeout(() => {
+      draftSaveTimer = null;
+      persistCurrentDraft();
+    }, 150);
   }
 
   function applyViewport(viewport) {
