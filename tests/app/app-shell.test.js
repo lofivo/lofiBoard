@@ -63,13 +63,6 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="linear-index-show"');
     expect(markup).toContain('data-action="linear-index-hide"');
     expect(markup).toContain('data-action="array-delete-end"');
-    expect(markup).toContain('data-action="array-reload"');
-    expect(markup).toContain('data-action="stack-push"');
-    expect(markup).toContain('data-action="stack-pop"');
-    expect(markup).toContain('data-action="queue-enqueue"');
-    expect(markup).toContain('data-action="queue-dequeue"');
-    expect(markup).toContain('data-action="deque-push-left"');
-    expect(markup).toContain('data-action="deque-pop-right"');
     expect(markup).toContain('data-action="graph-add-node"');
     expect(markup).toContain('data-action="graph-add-edge"');
     expect(markup).toContain('data-action="graph-connect-mode"');
@@ -111,6 +104,22 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-reload"');
   });
 
+  it("removes secondary linear structure action groups from the property panel", () => {
+    const markup = renderShell();
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(markup).not.toContain('data-linear-group="semantic"');
+    expect(markup).not.toContain('data-linear-group="more"');
+    expect(markup).not.toContain("语义快捷操作");
+    expect(markup).not.toContain("更多操作");
+    expect(markup).not.toContain('data-action="linear-reload"');
+    expect(markup).not.toContain('data-action="stack-push"');
+    expect(markup).not.toContain('data-action="queue-enqueue"');
+    expect(markup).not.toContain('data-action="deque-push-left"');
+    expect(appSource).not.toContain("updateLinearControlVisibility()");
+    expect(appSource).not.toContain("root.querySelectorAll(\"[data-linear-types]\")");
+  });
+
   it("keeps structure inspector groups compact when collapsed", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
@@ -133,10 +142,10 @@ describe("app shell", () => {
     const expandedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="false"/g) ?? [];
     const linearContentInnerBlocks = markup.match(/<div class="linear-panel-content" data-linear-content="[^"]+" aria-hidden="[^"]+">\s*<div class="linear-panel-content-inner">/g) ?? [];
 
-    expect(linearContentBlocks).toHaveLength(4);
-    expect(linearContentInnerBlocks).toHaveLength(4);
+    expect(linearContentBlocks).toHaveLength(2);
+    expect(linearContentInnerBlocks).toHaveLength(2);
     expect(expandedLinearGroups).toHaveLength(1);
-    expect(collapsedLinearGroups).toHaveLength(3);
+    expect(collapsedLinearGroups).toHaveLength(1);
     expect(markup).toContain("linear-panel-content-inner");
     expect(styles).toMatch(/\.inspector-section-content,\n\.linear-panel-content \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.inspector-section-content > \*,\n\.linear-panel-content > \* \{[\s\S]*?min-width: 0;/);
@@ -303,7 +312,20 @@ describe("app shell", () => {
     expect(appSource).toContain("if (!selectedLinear) {");
     expect(appSource).toContain("activeLinearItem = null;");
     expect(appSource).toContain("} else if (activeLinearItem?.elementId === selectedLinear.id) {");
+    expect(appSource).toContain("if (activeLinearItem?.elementId !== elementId) {");
+    expect(appSource).toContain("activeLinearItem = null;");
+    expect(appSource).not.toContain("const fallbackIndex = activeLinearItem?.elementId === elementId ? activeLinearItem.index : 0;");
     expect(appSource).not.toContain("setActiveLinearItem(selectedLinear.id, 0, { syncPanel: false })");
+  });
+
+  it("ignores global delete shortcuts while typing in form controls", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("isTypingInEditableControl(event.target)");
+    expect(appSource).toContain("if (isTypingInEditableControl(event.target)) return;");
+    expect(appSource).toContain("target instanceof HTMLInputElement");
+    expect(appSource).toContain("target instanceof HTMLTextAreaElement");
+    expect(appSource).toContain("target?.isContentEditable");
   });
 
   it("cancels root-node drag state when committing a linear item reorder", () => {
@@ -316,12 +338,13 @@ describe("app shell", () => {
     expect(appSource).toContain("selectionDrag = null");
   });
 
-  it("selects the array from index click without auto-activating an item until the array is already selected", () => {
+  it("selects the array from index click without auto-activating an item", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (selectedIds.some((id) => targetIds.includes(id))) {");
-    expect(appSource).toContain("setActiveLinearItem(elementId, index)");
     expect(appSource).toContain("selectIds([elementId])");
+    expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId })");
+    expect(appSource).not.toContain("function handleArrayStructureItemSelect({ elementId, index })");
+    expect(appSource).not.toContain("setActiveLinearItem(elementId, index);");
   });
 
   it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {

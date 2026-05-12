@@ -100,7 +100,6 @@ import {
   updateArrayItemValue,
   swapArrayItems,
   moveArrayItem,
-  updateArrayValues,
   setArrayHighlight,
   clearArrayHighlight,
   setLinearIndexOptions,
@@ -237,8 +236,6 @@ export function createWhiteboardApp(root) {
   let linearGroupState = {
     edit: true,
     highlight: false,
-    semantic: false,
-    more: false,
   };
   let activeInspectorContext = "appearance";
   let linearPanelState = {
@@ -645,15 +642,6 @@ export function createWhiteboardApp(root) {
       "linear-index-one": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 1, showIndexes: element.settings?.showIndexes ?? true })),
       "linear-index-show": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: true })),
       "linear-index-hide": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: false })),
-      "stack-push": () => editSelectedStructure("stack-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, linearPanelState.insertValue), "已更新栈"),
-      "stack-pop": () => editSelectedStructure("stack-structure", (element) => deleteArrayItem(element, (element.items?.length ?? 1) - 1), "已更新栈"),
-      "queue-enqueue": () => editSelectedStructure("queue-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, linearPanelState.insertValue), "已更新队列"),
-      "queue-dequeue": () => editSelectedStructure("queue-structure", (element) => deleteArrayItem(element, 0), "已更新队列"),
-      "deque-push-left": () => editSelectedStructure("deque-structure", (element) => insertArrayItem(element, 0, linearPanelState.insertValue), "已更新双端队列"),
-      "deque-push-right": () => editSelectedStructure("deque-structure", (element) => insertArrayItem(element, element.items?.length ?? 0, linearPanelState.insertValue), "已更新双端队列"),
-      "deque-pop-left": () => editSelectedStructure("deque-structure", (element) => deleteArrayItem(element, 0), "已更新双端队列"),
-      "deque-pop-right": () => editSelectedStructure("deque-structure", (element) => deleteArrayItem(element, (element.items?.length ?? 1) - 1), "已更新双端队列"),
-      "array-reload": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInput.value)),
       "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
       "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
       "graph-connect-mode": beginGraphConnectMode,
@@ -837,8 +825,6 @@ export function createWhiteboardApp(root) {
     return {
       edit: true,
       highlight: false,
-      semantic: false,
-      more: false,
     };
   }
 
@@ -889,7 +875,7 @@ export function createWhiteboardApp(root) {
     });
 
     root.addEventListener("selectstart", (event) => {
-      if (event.target instanceof HTMLTextAreaElement) return;
+      if (isTypingInEditableControl(event.target)) return;
       event.preventDefault();
     });
 
@@ -946,7 +932,7 @@ export function createWhiteboardApp(root) {
 
   function bindKeyboard() {
     window.addEventListener("keydown", (event) => {
-      if (event.target instanceof HTMLTextAreaElement) return;
+      if (isTypingInEditableControl(event.target)) return;
 
       if (shouldSelectAll(event)) {
         event.preventDefault();
@@ -2434,12 +2420,16 @@ export function createWhiteboardApp(root) {
       activeLinearItem = null;
       return;
     }
-    const length = element.items?.length ?? 0;
-    if (length === 0) {
-      activeLinearItem = { elementId, index: 0 };
+    if (activeLinearItem?.elementId !== elementId) {
+      activeLinearItem = null;
       return;
     }
-    const fallbackIndex = activeLinearItem?.elementId === elementId ? activeLinearItem.index : 0;
+    const length = element.items?.length ?? 0;
+    if (length === 0) {
+      activeLinearItem = null;
+      return;
+    }
+    const fallbackIndex = activeLinearItem.index;
     const nextIndex = preferredIndex ?? fallbackIndex;
     activeLinearItem = {
       elementId,
@@ -2883,16 +2873,11 @@ export function createWhiteboardApp(root) {
     pushHistory("已移动数组元素");
   }
 
-  function handleArrayStructureItemSelect({ elementId, index }) {
+  function handleArrayStructureItemSelect({ elementId }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (suppressLinearItemSelect?.elementId === elementId) {
       suppressLinearItemSelect = null;
-      return;
-    }
-    const targetIds = expandGroupedIds([elementId]);
-    if (selectedIds.some((id) => targetIds.includes(id))) {
-      setActiveLinearItem(elementId, index);
       return;
     }
     selectIds([elementId]);
@@ -3605,7 +3590,7 @@ export function createWhiteboardApp(root) {
   }
 
   async function handlePaste(event) {
-    if (event.target instanceof HTMLTextAreaElement) return;
+    if (isTypingInEditableControl(event.target)) return;
     const file = getImageFileFromPasteEvent(event);
     if (!file) {
       const text = getTextFromPasteEvent(event);
@@ -3900,6 +3885,13 @@ export function createWhiteboardApp(root) {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function isTypingInEditableControl(target) {
+    return target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLSelectElement
+      || Boolean(target?.isContentEditable);
   }
 
   function getTokenSet(value) {

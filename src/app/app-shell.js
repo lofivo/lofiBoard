@@ -255,33 +255,6 @@ export function renderShell() {
                     </div>
                   `,
                 })}
-                ${linearGroupMarkup({
-                  key: "semantic",
-                  title: "语义快捷操作",
-                  expanded: false,
-                  content: `
-                    <div class="quick-actions quick-actions-linear quick-actions-compact">
-                      <button type="button" data-action="stack-push">Push</button>
-                      <button type="button" data-action="stack-pop">Pop</button>
-                      <button type="button" data-action="queue-enqueue">Enqueue</button>
-                      <button type="button" data-action="queue-dequeue">Dequeue</button>
-                      <button type="button" data-action="deque-push-left">左插</button>
-                      <button type="button" data-action="deque-push-right">右插</button>
-                      <button type="button" data-action="deque-pop-left">左删</button>
-                      <button type="button" data-action="deque-pop-right">右删</button>
-                    </div>
-                  `,
-                })}
-                ${linearGroupMarkup({
-                  key: "more",
-                  title: "更多操作",
-                  expanded: false,
-                  content: `
-                    <div class="quick-actions quick-actions-linear quick-actions-compact">
-                      <button type="button" data-action="array-reload">从输入框重载</button>
-                    </div>
-                  `,
-                })}
               </div>
             </div>
           </section>
