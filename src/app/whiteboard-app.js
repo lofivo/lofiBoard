@@ -233,7 +233,6 @@ export function createWhiteboardApp(root) {
     linear: false,
     graph: false,
     tree: false,
-    arrange: false,
   };
   let linearGroupState = {
     edit: true,
@@ -822,7 +821,6 @@ export function createWhiteboardApp(root) {
       linear: context === "linear",
       graph: context === "graph",
       tree: context === "tree",
-      arrange: false,
     };
   }
 
@@ -832,7 +830,6 @@ export function createWhiteboardApp(root) {
       linear: context === "linear",
       graph: context === "graph",
       tree: context === "tree",
-      arrange: selectedIds.length > 0,
     };
   }
 
@@ -2098,6 +2095,7 @@ export function createWhiteboardApp(root) {
     if (element.type === "text") {
       const textCommit = getTextScaleCommitBox({
         element,
+        nodeWidth: node.width(),
         nodeScaleX: node.scaleX(),
         nodeScaleY: node.scaleY(),
         anchor: lastTransformAnchor,

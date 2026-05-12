@@ -252,14 +252,18 @@ describe("app shell", () => {
     expect(appSource).toContain("transformer.visible(false)");
   });
 
-  it("wires layer ordering actions to inspector and context menu commands", () => {
+  it("keeps layer ordering available through context menu commands", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const markup = renderShell();
 
     expect(appSource).toContain('"bring-forward": bringSelectionForward');
     expect(appSource).toContain('"send-backward": sendSelectionBackward');
     expect(appSource).toContain('"bring-front": bringSelectionToFront');
     expect(appSource).toContain('"send-back": sendSelectionToBack');
     expect(appSource).toContain("moveElementsByLayer(board.elements, selectedIds, direction)");
+    expect(appSource).not.toContain("arrange:");
+    expect(appSource).not.toContain("arrange: selectedIds.length > 0");
+    expect(markup).not.toContain('data-section-toggle="arrange"');
   });
 
   it("styles transformer edge handles as invisible hit areas and scales vertical edge drags uniformly", () => {

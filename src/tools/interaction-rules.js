@@ -107,6 +107,7 @@ export function getUniformScaledBoxForVerticalResize({
 
 export function getTextScaleCommitBox({
   element,
+  nodeWidth,
   nodeScaleX,
   nodeScaleY,
   anchor,
@@ -114,9 +115,10 @@ export function getTextScaleCommitBox({
 }) {
   const scaleX = Math.abs(Number(nodeScaleX) || 1);
   const scaleY = Math.abs(Number(nodeScaleY) || 1);
+  const baseWidth = Number(element?.width) || 1;
   if (isTextWidthResizeAnchor(anchor)) {
     return {
-      width: Math.max(1, (Number(element?.width) || 1) * scaleX),
+      width: Math.max(1, Number.isFinite(nodeWidth) ? nodeWidth * scaleX : baseWidth * scaleX),
       fontSize: Number(element?.fontSize) || minFontSize,
     };
   }
@@ -124,7 +126,7 @@ export function getTextScaleCommitBox({
   const fontSize = Number(element?.fontSize) || minFontSize;
   const scale = Math.max(minFontSize / fontSize, Math.max(0.1, Math.max(scaleX, scaleY)));
   return {
-    width: Math.max(1, (Number(element?.width) || 1) * scale),
+    width: Math.max(1, baseWidth * scale),
     fontSize: fontSize * scale,
   };
 }

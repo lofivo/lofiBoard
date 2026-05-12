@@ -154,6 +154,14 @@ describe("interaction rules", () => {
 
     expect(getTextScaleCommitBox({
       element: { width: 200, fontSize: 24 },
+      nodeWidth: 320,
+      nodeScaleX: 1,
+      nodeScaleY: 1,
+      anchor: "middle-right",
+    })).toEqual({ width: 320, fontSize: 24 });
+
+    expect(getTextScaleCommitBox({
+      element: { width: 200, fontSize: 24 },
       nodeScaleX: 0.1,
       nodeScaleY: 0.1,
       anchor: "bottom-right",

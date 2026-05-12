@@ -53,7 +53,7 @@ describe("ui config", () => {
     expect(markup).toContain("data-brush-cap-option=\"round\"");
   });
 
-  it("renders layer ordering controls in context menu and property panel", () => {
+  it("renders layer ordering controls in the context menu only", () => {
     const shell = renderShell();
     const contextMenu = contextMenuMarkup();
 
@@ -61,9 +61,11 @@ describe("ui config", () => {
     expect(contextMenu).toContain('data-context-action="send-backward"');
     expect(contextMenu).toContain('data-context-action="bring-front"');
     expect(contextMenu).toContain('data-context-action="send-back"');
-    expect(shell).toContain('data-action="bring-forward"');
-    expect(shell).toContain('data-action="send-backward"');
-    expect(shell).toContain('data-action="bring-front"');
-    expect(shell).toContain('data-action="send-back"');
+    expect(contextMenu).toContain('data-context-action="group"');
+    expect(contextMenu).toContain('data-context-action="ungroup"');
+    expect(contextMenu).toContain('data-context-action="toggle-lock"');
+    expect(contextMenu).toContain('data-context-action="delete"');
+    expect(shell).not.toContain('data-inspector-section="arrange"');
+    expect(shell).not.toContain("排列与选择");
   });
 });

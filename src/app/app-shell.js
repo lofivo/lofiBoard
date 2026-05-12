@@ -356,30 +356,6 @@ export function renderShell() {
               </div>
             </div>
           </section>
-
-          <section class="inspector-section" data-inspector-section="arrange" data-panel-context="arrange">
-            <button
-              type="button"
-              class="inspector-section-toggle"
-              data-section-toggle="arrange"
-              aria-expanded="false"
-            >
-              <span class="inspector-section-title">排列与选择</span>
-              <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
-            </button>
-            <div class="inspector-section-content" data-section-content="arrange">
-              <div class="quick-actions quick-actions-arrange">
-                <button type="button" data-action="bring-forward">上移</button>
-                <button type="button" data-action="send-backward">下移</button>
-                <button type="button" data-action="bring-front">置顶</button>
-                <button type="button" data-action="send-back">置底</button>
-                <button type="button" data-action="toggle-lock">锁定</button>
-                <button type="button" data-action="group">分组</button>
-                <button type="button" data-action="ungroup">取消组</button>
-                <button type="button" data-action="delete-selection">删除</button>
-              </div>
-            </div>
-          </section>
         </div>
       </aside>
 
