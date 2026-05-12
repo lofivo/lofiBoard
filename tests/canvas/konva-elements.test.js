@@ -486,6 +486,29 @@ describe("konva elements", () => {
     expect(rightEdgeNode.findOne(".array-drop-indicator").visible()).toBe(false);
   });
 
+  it("renders the dragged array item above the other item cells", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+        { id: "item_3", index: 2, value: "C" },
+      ],
+      runtime: { dragIndex: 0, dragGap: 2, dragX: 88, dragY: -12, dragLift: true },
+      style: {},
+    }, baseHandlers);
+
+    const itemNodes = node.find(".array-item");
+    expect(itemNodes.map((item) => item.getAttr("linearIndex"))).toEqual([1, 2, 0]);
+    expect(itemNodes.at(-1).getAttr("linearIndex")).toBe(0);
+    expect(itemNodes.at(-1).getAttr("shadowBlur")).toBe(18);
+  });
+
   it("keeps value-cell double click editing separate from index-cell selection", () => {
     const onArrayItemEdit = vi.fn();
     const onArrayItemSelect = vi.fn();

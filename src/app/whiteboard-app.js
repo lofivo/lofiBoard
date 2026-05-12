@@ -2568,7 +2568,8 @@ export function createWhiteboardApp(root) {
     if (!isLinearStructureElement(element)) return;
     const { cellWidth } = getLinearStructureGeometry(element);
     const itemNodes = group.find(".array-item");
-    itemNodes.forEach((node, index) => {
+    itemNodes.forEach((node) => {
+      const index = getLinearItemNodeIndex(node);
       const targetX = getLinearPreviewXForGap(
         index,
         linearItemDragState.fromIndex,
@@ -2626,7 +2627,7 @@ export function createWhiteboardApp(root) {
   function updateLinearDragVisualPosition() {
     if (!linearItemDragState) return;
     const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
-    const itemNode = group?.find(".array-item")?.[linearItemDragState.fromIndex];
+    const itemNode = findLinearItemNode(group, linearItemDragState.fromIndex);
     const indicator = group?.findOne(".array-drop-indicator");
     const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
     if (!itemNode) return;
@@ -2930,7 +2931,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     const node = contentLayer.findOne(`#${elementId}`);
     if (!isLinearStructureElement(element) || !node) return;
-    const itemNode = node.find(".array-item")?.[index];
+    const itemNode = findLinearItemNode(node, index);
     if (!itemNode) return;
 
     const valueRect = itemNode.findOne(".array-item-value-hit");
@@ -2977,6 +2978,15 @@ export function createWhiteboardApp(root) {
       }
     });
     input.addEventListener("blur", () => close(true));
+  }
+
+  function getLinearItemNodeIndex(node) {
+    const linearIndex = node?.getAttr?.("linearIndex");
+    return Number.isInteger(linearIndex) ? linearIndex : 0;
+  }
+
+  function findLinearItemNode(group, index) {
+    return group?.find(".array-item")?.find((node) => getLinearItemNodeIndex(node) === index) ?? null;
   }
 
   function editTreeStructureNode({ elementId, index, value }) {

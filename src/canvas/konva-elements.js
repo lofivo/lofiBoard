@@ -425,6 +425,9 @@ function createLinearStructureNode(element, common, {
   });
   dropIndicator.x((Number.isInteger(dragGap) ? dragGap : 0) * cellWidth - 3);
 
+  const itemGroups = [];
+  let draggedItemGroup = null;
+
   (element.items ?? []).forEach((item, index) => {
     const isActive = element.runtime?.activeIndex === index;
     const isDragging = dragIndex === index;
@@ -437,6 +440,7 @@ function createLinearStructureNode(element, common, {
     });
     const itemGroup = new Konva.Group({
       name: "array-item",
+      linearIndex: index,
       x: previewX,
       y: isDragging ? dragY : 0,
       width: cellWidth,
@@ -549,9 +553,15 @@ function createLinearStructureNode(element, common, {
     indexText?.on("mousedown touchstart", handlePress);
     indexRect?.on("mouseup touchend touchcancel", handleRelease);
     indexText?.on("mouseup touchend touchcancel", handleRelease);
-    group.add(itemGroup);
+    if (isDragging) {
+      draggedItemGroup = itemGroup;
+    } else {
+      itemGroups.push(itemGroup);
+    }
   });
 
+  itemGroups.forEach((itemGroup) => group.add(itemGroup));
+  if (draggedItemGroup) group.add(draggedItemGroup);
   group.add(dropIndicator);
 
   const pointerIndex = element.markers?.pointer;
