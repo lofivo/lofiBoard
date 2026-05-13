@@ -56,9 +56,10 @@ export const TOOLS = {
   ELLIPSE: "ellipse",
   LINE: "line",
   ARROW: "arrow",
+  COORDINATE_PLANE: "coordinate-plane",
 };
 
-export const SHAPE_TOOLS = new Set([TOOLS.RECT, TOOLS.ELLIPSE, TOOLS.LINE, TOOLS.ARROW]);
+export const SHAPE_TOOLS = new Set([TOOLS.RECT, TOOLS.ELLIPSE, TOOLS.LINE, TOOLS.ARROW, TOOLS.COORDINATE_PLANE]);
 export const DEFAULT_SHAPE_TOOL = TOOLS.RECT;
 
 export const TOOL_ITEMS = [
@@ -79,6 +80,7 @@ export const SHAPE_ITEMS = [
   { id: TOOLS.ELLIPSE, label: "椭圆", icon: Circle },
   { id: TOOLS.LINE, label: "线段", shortcut: "L", icon: Minus },
   { id: TOOLS.ARROW, label: "箭头", shortcut: "A", icon: ArrowRight },
+  { id: TOOLS.COORDINATE_PLANE, label: "坐标系", icon: Grid2X2 },
 ];
 
 export const MAIN_MENU_ITEMS = [

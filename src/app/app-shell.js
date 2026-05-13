@@ -34,8 +34,8 @@ export function renderShell() {
             <div class="menu-section">
               <div class="menu-heading">${icon(BACKGROUND_ICON)}<span>画布背景</span></div>
               <div class="segmented-control" role="group" aria-label="画布背景">
-                <button type="button" data-background-mode="dots">点阵</button>
                 <button type="button" data-background-mode="plain">纯白</button>
+                <button type="button" data-background-mode="dots">点阵</button>
               </div>
             </div>
           </div>
@@ -178,7 +178,7 @@ export function renderShell() {
               data-section-toggle="linear"
               aria-expanded="true"
             >
-              <span class="inspector-section-title">线性结构</span>
+              <span class="inspector-section-title" data-linear-title>数组</span>
               <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="inspector-section-content" data-section-content="linear">

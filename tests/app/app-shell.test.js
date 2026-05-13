@@ -40,6 +40,7 @@ describe("app shell", () => {
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
 
+    expect(markup).toContain('data-linear-title');
     expect(markup).not.toContain('data-linear-group="edit"');
     expect(markup).not.toContain("基础编辑");
     expect(markup).not.toContain('data-linear-field="current-index"');
@@ -105,6 +106,18 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-move-subtree"');
     expect(markup).toContain('data-action="tree-delete-node"');
     expect(markup).toContain('data-action="tree-reload"');
+  });
+
+  it("updates the linear inspector title to the selected structure template name", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("linearTitle");
+    expect(appSource).toContain("function getLinearInspectorTitle");
+    expect(appSource).toContain('"array-structure": "数组"');
+    expect(appSource).toContain('"stack-structure": "栈"');
+    expect(appSource).toContain('"queue-structure": "队列"');
+    expect(appSource).toContain('"deque-structure": "双端队列"');
+    expect(appSource).toContain('linearTitle.textContent = getLinearInspectorTitle()');
   });
 
   it("removes secondary linear structure action groups from the property panel", () => {
@@ -290,6 +303,18 @@ describe("app shell", () => {
     expect(appSource).toContain("function getActiveTransformerElements()");
   });
 
+  it("rerenders coordinate plane internals during creation and resizing instead of stretching the group", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("function rerenderCoordinatePlaneNode");
+    expect(appSource).toContain('if (element.type === "coordinate-plane") {');
+    expect(appSource).toContain("rerenderCoordinatePlaneNode(element, node)");
+    expect(appSource).toContain("syncCoordinatePlaneTransformPreview");
+    expect(appSource).toContain('transformer.on("transform", syncCoordinatePlaneTransformPreview)');
+    expect(appSource).toContain("node.scaleX(1)");
+    expect(appSource).toContain("node.scaleY(1)");
+  });
+
   it("commits text corner scaling without changing the text wrapping ratio", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -460,7 +485,53 @@ describe("app shell", () => {
     expect(appSource).toContain("function beginLinearPointerDrag");
     expect(appSource).toContain("function updateLinearPointerDrag");
     expect(appSource).toContain("setArrayPointer(item, nextIndex)");
+    expect(appSource).toContain("animateLinearPointerDragVisual");
     expect(appSource).toContain("linearPanelState = {");
     expect(appSource).toContain("highlightPointer: String(nextIndex)");
+  });
+
+  it("cleans root drag state when committing a linear pointer drag", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?suppressedNodeDragElementId = dragState\.elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{dragState\.elementId\}`\)\?\.stopDrag\(\);[\s\S]*?nodeDragSelection = null;[\s\S]*?selectionDrag = null;/);
+    expect(appSource).toMatch(/function handleArrayPointerPress\(\{ elementId, index \}\) \{[\s\S]*?suppressedNodeDragElementId = elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{elementId\}`\)\?\.stopDrag\(\);/);
+  });
+
+  it("animates linear pointer movement without rerendering the full array on every index change", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("let linearPointerTween = null");
+    expect(appSource).toContain("function animateLinearPointerDragVisual");
+    expect(appSource).toContain("new Konva.Tween({");
+    expect(appSource).toMatch(/function updateLinearPointerDrag\(worldPoint\) \{[\s\S]*?animateLinearPointerDragVisual\(linearPointerDragState\.elementId, nextIndex\);[\s\S]*?return true;[\s\S]*?\}/);
+  });
+
+  it("lifts the linear pointer when dragging starts and drops it before rerendering on release", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const LINEAR_POINTER_BASE_Y = -30");
+    expect(appSource).toContain("const LINEAR_POINTER_DRAG_Y = -40");
+    expect(appSource).toContain("function animateLinearPointerLift");
+    expect(appSource).toContain("function animateLinearPointerDrop");
+    expect(appSource).toMatch(/function beginLinearPointerDrag\(\{ elementId, index, worldPoint \}\) \{[\s\S]*?animateLinearPointerLift\(elementId\);[\s\S]*?updateLinearPointerDrag\(worldPoint\);/);
+    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?const finishLinearPointerDrop = \(\) => \{[\s\S]*?renderBoard\(\);[\s\S]*?selectIds\(\[dragState\.elementId\]\);[\s\S]*?\};[\s\S]*?animateLinearPointerDrop\(dragState, finishLinearPointerDrop\);/);
+  });
+
+  it("hides transformer bounds while the linear pointer is being dragged", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("if (linearItemDragState || linearPointerDragState) {");
+    expect(appSource).toMatch(/if \(linearItemDragState \|\| linearPointerDragState\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
+  });
+
+  it("suppresses custom tool cursors while spacebar panning is active", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?isSpaceDown = true;[\s\S]*?hideToolCursors\(\);/);
+    expect(appSource).toContain("function isTemporaryPanActive()");
+    expect(appSource).toMatch(/function handlePointerMove\(event\) \{[\s\S]*?if \(isTemporaryPanActive\(\) && !isPanning\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?return;[\s\S]*?\}/);
+    expect(appSource).toMatch(/if \(isPanning && panStart\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?const pointer = stage\.getPointerPosition\(\);/);
+    expect(appSource).toMatch(/function updateBrushCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+    expect(appSource).toMatch(/function updateEraserCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
   });
 });

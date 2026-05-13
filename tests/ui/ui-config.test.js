@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderShell } from "../../src/app/app-shell.js";
-import { contextMenuMarkup, formatShortcutLabel, structurePanelMarkup, toolButtonsMarkup } from "../../src/ui/ui-config.js";
+import { contextMenuMarkup, formatShortcutLabel, shapePopoverMarkup, structurePanelMarkup, toolButtonsMarkup } from "../../src/ui/ui-config.js";
 import { getStructureItem } from "../../src/structures/structure-templates.js";
 
 describe("ui config", () => {
@@ -20,6 +20,19 @@ describe("ui config", () => {
     expect(markup).toContain("结构 (S)");
     expect(markup).toContain("图形 (R / L / A)");
     expect(markup).not.toContain("套索");
+  });
+
+  it("renders the coordinate plane in the shape popover", () => {
+    const markup = shapePopoverMarkup();
+
+    expect(markup).toContain('data-shape-tool="coordinate-plane"');
+    expect(markup).toContain("坐标系");
+  });
+
+  it("orders canvas background choices with plain before dots", () => {
+    const shell = renderShell();
+
+    expect(shell.indexOf('data-background-mode="plain"')).toBeLessThan(shell.indexOf('data-background-mode="dots"'));
   });
 
   it("renders structure template controls", () => {

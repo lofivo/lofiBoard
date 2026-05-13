@@ -320,6 +320,32 @@ describe("konva elements", () => {
     expect(node.lineCap()).toBe("round");
   });
 
+  it("renders coordinate plane axes, grid, ticks, and labels", () => {
+    const node = createElementNode({
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 240,
+      height: 160,
+      unitSize: 40,
+      origin: { x: 120, y: 80 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
+      rotation: 0,
+    }, baseHandlers);
+
+    expect(node.getClassName()).toBe("Group");
+    expect(node.find(".coordinate-plane-grid").length).toBeGreaterThan(0);
+    expect(node.find(".coordinate-plane-axis")).toHaveLength(2);
+    expect(node.find(".coordinate-plane-tick").length).toBeGreaterThan(0);
+    expect(node.find(".coordinate-plane-label").some((label) => label.text() === "O")).toBe(true);
+    expect(node.find(".coordinate-plane-label").some((label) => label.text() === "x")).toBe(true);
+    expect(node.find(".coordinate-plane-label").some((label) => label.text() === "y")).toBe(true);
+    expect(node.find(".coordinate-plane-label").some((label) => label.text() === "1")).toBe(true);
+    expect(node.find(".coordinate-plane-label").some((label) => label.text() === "-1")).toBe(true);
+  });
+
   it("reuses loaded image instances so rerendering does not flash blank", () => {
     const createdImages = [];
 
@@ -760,6 +786,50 @@ describe("konva elements", () => {
       elementId: "array_1",
       index: 1,
     });
+  });
+
+  it("tags the visible array pointer group for animated pointer movement", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      markers: { pointer: 1 },
+      style: {},
+    }, baseHandlers);
+
+    const pointerNode = node.findOne(".array-pointer-hit");
+
+    expect(pointerNode.hasName("array-pointer-group")).toBe(true);
+    expect(pointerNode.getAttr("linearIndex")).toBe(1);
+  });
+
+  it("keeps the array pointer hit area above the array cells", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      markers: { pointer: 1 },
+      style: {},
+    }, baseHandlers);
+
+    const pointerHitRect = node.findOne(".array-pointer-group").findOne("Rect");
+
+    expect(pointerHitRect.y()).toBe(0);
+    expect(pointerHitRect.height()).toBe(30);
   });
 
   it("renders graph structure elements with directed edges", () => {

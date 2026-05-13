@@ -2,7 +2,7 @@ export const BOARD_VERSION = 1;
 export const APP_NAME = "lofiBoard";
 
 const DEFAULT_VIEWPORT = Object.freeze({ x: 0, y: 0, scale: 1 });
-const DEFAULT_CANVAS = Object.freeze({ backgroundMode: "dots" });
+const DEFAULT_CANVAS = Object.freeze({ backgroundMode: "plain" });
 const BACKGROUND_MODES = new Set(["dots", "plain"]);
 
 const ELEMENT_DEFAULTS = {
@@ -90,6 +90,17 @@ const ELEMENT_DEFAULTS = {
     stroke: "#111827",
     fill: "#111827",
     strokeWidth: 4,
+    rotation: 0,
+  },
+  "coordinate-plane": {
+    x: 0,
+    y: 0,
+    width: 480,
+    height: 360,
+    unitSize: 40,
+    origin: { x: 240, y: 180 },
+    settings: { showGrid: true, showTicks: true, showLabels: true },
+    style: {},
     rotation: 0,
   },
   "array-structure": {
@@ -215,13 +226,24 @@ export function normalizeElement(element, fallbackIndex = 0) {
     throw new Error(`不支持的白板元素类型：${element.type}`);
   }
 
-  return {
+  const normalized = {
     ...clone(defaults),
     ...clone(element),
     id: String(element.id),
     type: element.type,
     zIndex: Number(element.zIndex ?? fallbackIndex),
   };
+  if (normalized.type === "coordinate-plane") {
+    normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };
+    normalized.style = { ...defaults.style, ...(element.style ?? {}) };
+    if (!element.origin) {
+      normalized.origin = {
+        x: Number(normalized.width ?? defaults.width) / 2,
+        y: Number(normalized.height ?? defaults.height) / 2,
+      };
+    }
+  }
+  return normalized;
 }
 
 export function serializeBoard(board, viewport) {

@@ -10,6 +10,7 @@ import {
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 
 const imageCache = new Map();
+const LINEAR_POINTER_BASE_Y = -30;
 
 export function getStickyBorderColor(fill) {
   const fallback = "#eab308";
@@ -270,6 +271,15 @@ export function createElementNode(element, {
       lineJoin: "round",
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
+  } else if (element.type === "coordinate-plane") {
+    node = new Konva.Group({
+      ...common,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    });
+    syncCoordinatePlaneNodeContent(node, element);
   } else if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
     node = createLinearStructureNode(element, common, {
       canEditArrayItems,
@@ -379,6 +389,15 @@ export function createNodeAttrs(element) {
       fill: element.fill ?? element.stroke,
     };
   }
+  if (element.type === "coordinate-plane") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      origin: element.origin,
+    };
+  }
   if (LINEAR_STRUCTURE_TYPES.includes(element.type) || element.type === "graph-structure" || element.type === "tree-structure") {
     return {
       x: element.x,
@@ -388,6 +407,16 @@ export function createNodeAttrs(element) {
     };
   }
   return {};
+}
+
+export function syncCoordinatePlaneNodeContent(group, element) {
+  if (!group || element?.type !== "coordinate-plane") return;
+  const width = Math.max(1, Number(element.width) || 1);
+  const height = Math.max(1, Number(element.height) || 1);
+  group.destroyChildren();
+  group.width(width);
+  group.height(height);
+  addCoordinatePlaneContent(group, element, width, height);
 }
 
 function createLinearStructureNode(element, common, {
@@ -584,19 +613,19 @@ function createLinearStructureNode(element, common, {
   const showPointer = element.markers?.showPointer ?? true;
   if (showPointer && Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
     const pointerGroup = new Konva.Group({
-      name: "array-pointer-hit",
+      name: "array-pointer-hit array-pointer-group",
       linearIndex: pointerIndex,
       x: pointerIndex * cellWidth,
-      y: -30,
+      y: LINEAR_POINTER_BASE_Y,
       width: cellWidth,
-      height: 64,
+      height: 30,
     });
     pointerGroup.add(new Konva.Rect({
       name: "array-pointer-hit",
       x: 0,
       y: 0,
       width: cellWidth,
-      height: 64,
+      height: 30,
       fill: "rgba(0,0,0,0)",
     }));
     pointerGroup.add(new Konva.RegularPolygon({
@@ -636,6 +665,139 @@ function createLinearStructureNode(element, common, {
   addLinearEndpointLabels(group, element, style, cellWidth);
 
   return group;
+}
+
+function addCoordinatePlaneContent(group, element, width, height) {
+  const unitSize = Math.max(8, Number(element.unitSize) || 40);
+  const origin = {
+    x: Number.isFinite(element.origin?.x) ? element.origin.x : width / 2,
+    y: Number.isFinite(element.origin?.y) ? element.origin.y : height / 2,
+  };
+  const settings = {
+    showGrid: element.settings?.showGrid ?? true,
+    showTicks: element.settings?.showTicks ?? true,
+    showLabels: element.settings?.showLabels ?? true,
+  };
+  const style = {
+    gridStroke: "#e5e7eb",
+    axisStroke: "#111827",
+    labelFill: "#64748b",
+    ...(element.style ?? {}),
+  };
+  group.add(new Konva.Rect({
+    width,
+    height,
+    fill: "rgba(255,255,255,0)",
+    listening: true,
+  }));
+
+  const startX = origin.x % unitSize;
+  const startY = origin.y % unitSize;
+  if (settings.showGrid) {
+    for (let x = startX; x <= width; x += unitSize) {
+      group.add(new Konva.Line({
+        name: "coordinate-plane-grid",
+        points: [x, 0, x, height],
+        stroke: style.gridStroke,
+        strokeWidth: 1,
+        listening: false,
+      }));
+    }
+    for (let y = startY; y <= height; y += unitSize) {
+      group.add(new Konva.Line({
+        name: "coordinate-plane-grid",
+        points: [0, y, width, y],
+        stroke: style.gridStroke,
+        strokeWidth: 1,
+        listening: false,
+      }));
+    }
+  }
+
+  group.add(new Konva.Arrow({
+    name: "coordinate-plane-axis",
+    points: [0, origin.y, width, origin.y],
+    stroke: style.axisStroke,
+    fill: style.axisStroke,
+    strokeWidth: 2,
+    pointerLength: 10,
+    pointerWidth: 10,
+    listening: false,
+  }));
+  group.add(new Konva.Arrow({
+    name: "coordinate-plane-axis",
+    points: [origin.x, height, origin.x, 0],
+    stroke: style.axisStroke,
+    fill: style.axisStroke,
+    strokeWidth: 2,
+    pointerLength: 10,
+    pointerWidth: 10,
+    listening: false,
+  }));
+
+  if (settings.showTicks) {
+    addCoordinatePlaneTicks(group, { width, height, unitSize, origin, style, showLabels: settings.showLabels });
+  }
+
+  if (settings.showLabels) {
+    addCoordinatePlaneLabel(group, "O", origin.x + 6, origin.y + 6, style);
+    addCoordinatePlaneLabel(group, "x", width - 16, origin.y + 8, style);
+    addCoordinatePlaneLabel(group, "y", origin.x + 8, 8, style);
+  }
+
+}
+
+function addCoordinatePlaneTicks(group, { width, height, unitSize, origin, style, showLabels }) {
+  const tickSize = 5;
+  const maxPositiveX = Math.floor((width - origin.x) / unitSize);
+  const maxNegativeX = Math.floor(origin.x / unitSize);
+  for (let value = -maxNegativeX; value <= maxPositiveX; value += 1) {
+    if (value === 0) continue;
+    const x = origin.x + value * unitSize;
+    group.add(new Konva.Line({
+      name: "coordinate-plane-tick",
+      points: [x, origin.y - tickSize, x, origin.y + tickSize],
+      stroke: style.axisStroke,
+      strokeWidth: 1.5,
+      listening: false,
+    }));
+    if (showLabels) {
+      addCoordinatePlaneLabel(group, String(value), x - 12, origin.y + 8, style);
+    }
+  }
+
+  const maxPositiveY = Math.floor(origin.y / unitSize);
+  const maxNegativeY = Math.floor((height - origin.y) / unitSize);
+  for (let value = -maxNegativeY; value <= maxPositiveY; value += 1) {
+    if (value === 0) continue;
+    const y = origin.y - value * unitSize;
+    group.add(new Konva.Line({
+      name: "coordinate-plane-tick",
+      points: [origin.x - tickSize, y, origin.x + tickSize, y],
+      stroke: style.axisStroke,
+      strokeWidth: 1.5,
+      listening: false,
+    }));
+    if (showLabels) {
+      addCoordinatePlaneLabel(group, String(value), origin.x + 8, y - 9, style);
+    }
+  }
+}
+
+function addCoordinatePlaneLabel(group, text, x, y, style) {
+  group.add(new Konva.Text({
+    name: "coordinate-plane-label",
+    x,
+    y,
+    width: 24,
+    height: 16,
+    text,
+    fontSize: 12,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fill: style.labelFill,
+    align: "center",
+    listening: false,
+  }));
 }
 
 function getLinearStructurePreviewX({

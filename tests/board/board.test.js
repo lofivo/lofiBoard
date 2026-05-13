@@ -15,7 +15,7 @@ describe("board model", () => {
     expect(board).toEqual({
       version: BOARD_VERSION,
       app: "lofiBoard",
-      canvas: { backgroundMode: "dots" },
+      canvas: { backgroundMode: "plain" },
       viewport: { x: 0, y: 0, scale: 1 },
       elements: [],
     });
@@ -31,7 +31,7 @@ describe("board model", () => {
     });
 
     expect(board.viewport).toEqual({ x: 0, y: 0, scale: 1 });
-    expect(board.canvas).toEqual({ backgroundMode: "dots" });
+    expect(board.canvas).toEqual({ backgroundMode: "plain" });
     expect(board.elements.map((element) => element.id)).toEqual(["a", "b"]);
     expect(board.elements[0]).toMatchObject({
       type: "text",
@@ -116,6 +116,35 @@ describe("board model", () => {
     expect(board.elements[0]).toMatchObject({
       height: 44,
       settings: { indexBase: 0, showIndexes: false },
+    });
+  });
+
+  it("normalizes coordinate plane defaults for older files", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        {
+          id: "plane_1",
+          type: "coordinate-plane",
+          x: 10,
+          y: 20,
+          width: 320,
+          height: 240,
+        },
+      ],
+    });
+
+    expect(board.elements[0]).toMatchObject({
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 320,
+      height: 240,
+      unitSize: 40,
+      origin: { x: 160, y: 120 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
     });
   });
 

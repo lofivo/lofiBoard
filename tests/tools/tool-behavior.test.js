@@ -79,6 +79,7 @@ describe("tool behavior", () => {
     expect(resolveActiveDrawingTool(TOOLS.SHAPE, TOOLS.ELLIPSE)).toBe(TOOLS.ELLIPSE);
     expect(resolveActiveDrawingTool(TOOLS.PEN, TOOLS.ELLIPSE)).toBe(TOOLS.PEN);
     expect(isShapeTool(TOOLS.ARROW)).toBe(true);
+    expect(isShapeTool(TOOLS.COORDINATE_PLANE)).toBe(true);
   });
 
   it("maps transparent fill selection to document fill values", () => {

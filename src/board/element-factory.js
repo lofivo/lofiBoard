@@ -12,6 +12,13 @@ export const DEFAULT_TEXT_STYLE = Object.freeze({
   padding: 6,
 });
 
+export const DEFAULT_COORDINATE_PLANE_STYLE = Object.freeze({
+  unitSize: 40,
+  gridStroke: "#e5e7eb",
+  axisStroke: "#111827",
+  labelFill: "#64748b",
+});
+
 export function createTextElement({ point, zIndex }) {
   return {
     id: createId("text"),
@@ -104,6 +111,31 @@ export function createShapeElement({ type, start, end, existingId, stroke, strok
     };
   }
 
+  if (type === TOOLS.COORDINATE_PLANE) {
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    return {
+      ...common,
+      type: "coordinate-plane",
+      x: rect.x,
+      y: rect.y,
+      width,
+      height,
+      unitSize: DEFAULT_COORDINATE_PLANE_STYLE.unitSize,
+      origin: { x: width / 2, y: height / 2 },
+      settings: {
+        showGrid: true,
+        showTicks: true,
+        showLabels: true,
+      },
+      style: {
+        gridStroke: DEFAULT_COORDINATE_PLANE_STYLE.gridStroke,
+        axisStroke: DEFAULT_COORDINATE_PLANE_STYLE.axisStroke,
+        labelFill: DEFAULT_COORDINATE_PLANE_STYLE.labelFill,
+      },
+    };
+  }
+
   return {
     ...common,
     type,
@@ -117,6 +149,7 @@ export function createShapeElement({ type, start, end, existingId, stroke, strok
 export function isTinyElement(element) {
   if (element.type === "rect") return element.width < 4 || element.height < 4;
   if (element.type === "ellipse") return element.radiusX < 3 || element.radiusY < 3;
+  if (element.type === "coordinate-plane") return element.width < 24 || element.height < 24;
   if (element.type === "line" || element.type === "arrow") {
     return Math.hypot(element.points[2] - element.points[0], element.points[3] - element.points[1]) < 4;
   }
