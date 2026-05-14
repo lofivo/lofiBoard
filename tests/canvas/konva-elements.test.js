@@ -636,6 +636,45 @@ describe("konva elements", () => {
     });
   });
 
+  it("releases value-cell press gestures so long-press drag timers can be cleared", () => {
+    const onArrayItemPress = vi.fn();
+    const onArrayItemRelease = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemPress,
+      onArrayItemRelease,
+    });
+
+    const valueCell = node.find(".array-item")[0].findOne(".array-item-value-hit");
+    const pointerUp = { cancelBubble: false };
+
+    valueCell.fire("mousedown", { cancelBubble: false });
+    valueCell.fire("mouseup", pointerUp);
+
+    expect(onArrayItemPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemRelease).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+    });
+    expect(pointerUp.cancelBubble).toBe(true);
+  });
+
   it("does not handle array item editing events when item editing is disabled", () => {
     const onArrayItemSelect = vi.fn();
     const onArrayItemEdit = vi.fn();

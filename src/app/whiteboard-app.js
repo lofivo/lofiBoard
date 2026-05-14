@@ -1006,7 +1006,7 @@ export function createWhiteboardApp(root) {
 
       if (event.code === "Space") {
         isSpaceDown = true;
-        stage.container().classList.add("is-panning");
+        stage.container().classList.add("is-pan-ready");
         hideToolCursors();
         event.preventDefault();
       }
@@ -1114,7 +1114,7 @@ export function createWhiteboardApp(root) {
     window.addEventListener("keyup", (event) => {
       if (event.code === "Space") {
         isSpaceDown = false;
-        stage.container().classList.remove("is-panning");
+        stage.container().classList.remove("is-pan-ready", "is-panning");
       }
     }, { capture: true });
   }
@@ -1192,6 +1192,7 @@ export function createWhiteboardApp(root) {
 
     if (isSpaceDown || currentTool === TOOLS.PAN || event.evt.button === 1) {
       isPanning = true;
+      stage.container().classList.add("is-panning");
       panStart = {
         pointer: stage.getPointerPosition(),
         stage: stage.position(),
@@ -1411,6 +1412,7 @@ export function createWhiteboardApp(root) {
     if (isPanning) {
       isPanning = false;
       panStart = null;
+      stage.container().classList.remove("is-panning");
       persistCurrentDraft();
       return;
     }

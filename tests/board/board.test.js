@@ -98,6 +98,53 @@ describe("board model", () => {
     });
   });
 
+  it("merges partial structure settings and styles with defaults", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        {
+          id: "array_1",
+          type: "array-structure",
+          items: [{ value: "A" }],
+          settings: { indexBase: 1 },
+          style: { stroke: "#2563eb" },
+        },
+        {
+          id: "graph_1",
+          type: "graph-structure",
+          nodes: [],
+          edges: [],
+          style: { nodeFill: "#dbeafe" },
+        },
+        {
+          id: "tree_1",
+          type: "tree-structure",
+          values: ["A"],
+          nodes: [{ id: "0", index: 0, value: "A", x: 24, y: 24, parentIndex: null }],
+          style: { nodeStroke: "#dc2626" },
+        },
+      ],
+    });
+
+    expect(board.elements[0].settings).toEqual({ indexBase: 1, showIndexes: true });
+    expect(board.elements[0].style).toMatchObject({
+      cellWidth: 72,
+      cellHeight: 44,
+      stroke: "#2563eb",
+      valueFill: "#ffffff",
+    });
+    expect(board.elements[1].style).toMatchObject({
+      nodeRadius: 26,
+      nodeFill: "#dbeafe",
+      stroke: "#94a3b8",
+    });
+    expect(board.elements[2].style).toMatchObject({
+      nodeRadius: 24,
+      nodeStroke: "#dc2626",
+      stroke: "#94a3b8",
+    });
+  });
+
   it("normalizes independent linear structure defaults", () => {
     const board = normalizeBoard({
       version: 1,

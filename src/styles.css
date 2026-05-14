@@ -1139,6 +1139,9 @@ button {
   --grid-size: 32px;
   --grid-x: 0px;
   --grid-y: 0px;
+  --cursor-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='%23fff' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z'/%3E%3C/svg%3E") 5 5, default;
+  --cursor-pan: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24' fill='%23fff' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab;
+  --cursor-panning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24' fill='%23fff' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4'/%3E%3Cpath d='M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5'/%3E%3Cpath d='M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0'/%3E%3C/svg%3E") 12 12, grabbing;
   position: fixed;
   inset: 0;
   cursor: crosshair;
@@ -1156,11 +1159,15 @@ button {
 }
 
 .stage-container[data-tool="select"] {
-  cursor: default;
+  cursor: var(--cursor-select);
 }
 
 .stage-container[data-tool="pan"] {
-  cursor: grab;
+  cursor: var(--cursor-pan);
+}
+
+.stage-container.is-pan-ready {
+  cursor: var(--cursor-pan);
 }
 
 .stage-container[data-tool="pen"] {
@@ -1174,7 +1181,7 @@ button {
 
 .stage-container.is-panning,
 .stage-container.is-panning * {
-  cursor: grabbing;
+  cursor: var(--cursor-panning);
 }
 
 .statusbar {

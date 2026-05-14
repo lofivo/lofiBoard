@@ -527,11 +527,33 @@ describe("app shell", () => {
   it("suppresses custom tool cursors while spacebar panning is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?isSpaceDown = true;[\s\S]*?hideToolCursors\(\);/);
+    expect(appSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?isSpaceDown = true;[\s\S]*?classList\.add\("is-pan-ready"\);[\s\S]*?hideToolCursors\(\);/);
+    expect(appSource).toMatch(/if \(isSpaceDown \|\| currentTool === TOOLS\.PAN \|\| event\.evt\.button === 1\) \{[\s\S]*?isPanning = true;[\s\S]*?classList\.add\("is-panning"\);/);
+    expect(appSource).toMatch(/if \(isPanning\) \{[\s\S]*?isPanning = false;[\s\S]*?classList\.remove\("is-panning"\);/);
+    expect(appSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?isSpaceDown = false;[\s\S]*?classList\.remove\("is-pan-ready", "is-panning"\);/);
     expect(appSource).toContain("function isTemporaryPanActive()");
     expect(appSource).toMatch(/function handlePointerMove\(event\) \{[\s\S]*?if \(isTemporaryPanActive\(\) && !isPanning\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?return;[\s\S]*?\}/);
     expect(appSource).toMatch(/if \(isPanning && panStart\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?const pointer = stage\.getPointerPosition\(\);/);
     expect(appSource).toMatch(/function updateBrushCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
     expect(appSource).toMatch(/function updateEraserCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+  });
+
+  it("uses custom SVG cursors for select and pan tools", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toContain("--cursor-select");
+    expect(styles).toContain("--cursor-pan");
+    expect(styles).toContain("--cursor-panning");
+    expect(styles).toContain("data:image/svg+xml");
+    expect(styles).toContain("fill='%23fff' stroke='%23334155'");
+    expect(styles).toContain("M4.037 4.688a.495.495 0 0 1 .651-.651");
+    expect(styles).toContain("M18 11V6a2 2 0 0 0-2-2");
+    expect(styles).toContain("M18 11.5V9a2 2 0 0 0-2-2");
+    expect(styles).not.toContain("stroke-width='5'");
+    expect(styles).not.toContain("--cursor-panning: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 24 24' fill='none' stroke='%232563eb'");
+    expect(styles).toMatch(/\.stage-container\[data-tool="select"\] \{[\s\S]*?cursor: var\(--cursor-select\);/);
+    expect(styles).toMatch(/\.stage-container\[data-tool="pan"\] \{[\s\S]*?cursor: var\(--cursor-pan\);/);
+    expect(styles).toMatch(/\.stage-container\.is-pan-ready \{[\s\S]*?cursor: var\(--cursor-pan\);/);
+    expect(styles).toMatch(/\.stage-container\.is-panning,[\s\S]*?\.stage-container\.is-panning \* \{[\s\S]*?cursor: var\(--cursor-panning\);/);
   });
 });

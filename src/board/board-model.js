@@ -5,6 +5,39 @@ const DEFAULT_VIEWPORT = Object.freeze({ x: 0, y: 0, scale: 1 });
 const DEFAULT_CANVAS = Object.freeze({ backgroundMode: "plain" });
 const BACKGROUND_MODES = new Set(["dots", "plain"]);
 
+const ARRAY_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
+  cellWidth: 72,
+  cellHeight: 44,
+  indexFill: "#eef2ff",
+  valueFill: "#ffffff",
+  highlightFill: "#fef3c7",
+  pointerFill: "#2563eb",
+  stroke: "#111827",
+  textFill: "#111827",
+  indexTextFill: "#475569",
+});
+
+const GRAPH_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
+  nodeRadius: 26,
+  stroke: "#94a3b8",
+  nodeStroke: "#111827",
+  nodeFill: "#f8fafc",
+  highlightFill: "#fef3c7",
+  edgeHighlightStroke: "#2563eb",
+  textFill: "#111827",
+});
+
+const TREE_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
+  nodeRadius: 24,
+  levelGap: 92,
+  leafGap: 74,
+  stroke: "#94a3b8",
+  nodeStroke: "#111827",
+  nodeFill: "#f8fafc",
+  highlightFill: "#fef3c7",
+  textFill: "#111827",
+});
+
 const ELEMENT_DEFAULTS = {
   stroke: {
     x: 0,
@@ -242,6 +275,22 @@ export function normalizeElement(element, fallbackIndex = 0) {
         y: Number(normalized.height ?? defaults.height) / 2,
       };
     }
+  }
+  if (["array-structure", "stack-structure", "queue-structure", "deque-structure"].includes(normalized.type)) {
+    normalized.settings = {
+      ...defaults.settings,
+      ...(element.settings ?? {}),
+      indexBase: Number(element.settings?.indexBase ?? defaults.settings.indexBase) === 1 ? 1 : 0,
+      showIndexes: element.settings?.showIndexes ?? defaults.settings.showIndexes,
+    };
+    normalized.style = { ...ARRAY_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
+  }
+  if (normalized.type === "graph-structure") {
+    normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };
+    normalized.style = { ...GRAPH_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
+  }
+  if (normalized.type === "tree-structure") {
+    normalized.style = { ...TREE_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
   }
   return normalized;
 }

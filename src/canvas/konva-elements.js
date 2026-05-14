@@ -573,6 +573,7 @@ function createLinearStructureNode(element, common, {
     };
 
     const handleRelease = (event) => {
+      event.cancelBubble = true;
       onArrayItemRelease?.({
         elementId: element.id,
         index,
@@ -586,8 +587,8 @@ function createLinearStructureNode(element, common, {
       valueText.on("click tap", handleSelect);
       valueRect.on("mousedown touchstart", handlePress);
       valueText.on("mousedown touchstart", handlePress);
-      valueRect.on("mouseup touchend touchcancel", swallowValuePointer);
-      valueText.on("mouseup touchend touchcancel", swallowValuePointer);
+      valueRect.on("mouseup touchend touchcancel", handleRelease);
+      valueText.on("mouseup touchend touchcancel", handleRelease);
       indexRect?.on("click tap", handleSelect);
       indexText?.on("click tap", handleSelect);
       indexRect?.on("mousedown touchstart", handlePress);
