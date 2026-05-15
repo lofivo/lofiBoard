@@ -1184,6 +1184,15 @@ button {
   cursor: var(--cursor-panning);
 }
 
+.text-latex-overlay {
+  user-select: none;
+  pointer-events: none;
+}
+
+.text-latex-overlay .katex-display {
+  margin: 0.35em 0;
+}
+
 .statusbar {
   position: fixed;
   z-index: 27;

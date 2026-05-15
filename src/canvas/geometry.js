@@ -62,6 +62,22 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   }));
 }
 
+export function getEraserPathSamples(fromPoint, toPoint, radius) {
+  if (!fromPoint || !toPoint) return toPoint ? [{ ...toPoint }] : [];
+  const distanceValue = distance(fromPoint, toPoint);
+  const step = Math.max(2, Math.max(1, Number(radius) || 1) * 0.65);
+  const segments = Math.max(1, Math.ceil(distanceValue / step));
+  const samples = [];
+  for (let index = 0; index <= segments; index += 1) {
+    const t = index / segments;
+    samples.push({
+      x: fromPoint.x + (toPoint.x - fromPoint.x) * t,
+      y: fromPoint.y + (toPoint.y - fromPoint.y) * t,
+    });
+  }
+  return samples;
+}
+
 function pointInSquare(point, center, halfSize) {
   return Math.abs(point.x - center.x) <= halfSize && Math.abs(point.y - center.y) <= halfSize;
 }

@@ -33,7 +33,8 @@ import {
   loadLocalDraft,
   saveLocalDraft,
 } from "../services/draft-storage-service.js";
-import { splitStrokeByEraser, flattenPoints, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
+import { createTextOverlayController } from "../services/text-overlay-service.js";
+import { splitStrokeByEraser, flattenPoints, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
 import {
@@ -285,6 +286,13 @@ export function createWhiteboardApp(root) {
   stage.add(contentLayer);
   stage.add(overlayLayer);
 
+  const textOverlayController = createTextOverlayController({
+    container,
+    contentLayer,
+    getContainerRect: () => container.getBoundingClientRect(),
+    getStageState: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
+  });
+
   const transformer = new Konva.Transformer({
     rotateEnabled: true,
     flipEnabled: false,
@@ -418,6 +426,7 @@ export function createWhiteboardApp(root) {
     },
     destroy: () => {
       if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+      textOverlayController.clear();
       stage.destroy();
     },
   };
@@ -582,6 +591,7 @@ export function createWhiteboardApp(root) {
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
     transformer.on("transform", syncTextWidthResize);
+    transformer.on("transform", syncTextTransformPreview);
     transformer.on("transform", syncCoordinatePlaneTransformPreview);
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
@@ -917,6 +927,7 @@ export function createWhiteboardApp(root) {
       stage.width(container.clientWidth);
       stage.height(container.clientHeight);
       updateGrid();
+      syncTextOverlays();
     });
 
     root.addEventListener("selectstart", (event) => {
@@ -1146,6 +1157,7 @@ export function createWhiteboardApp(root) {
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateChrome();
+    syncTextOverlays();
     schedulePersistCurrentDraft();
   }
 
@@ -1175,6 +1187,7 @@ export function createWhiteboardApp(root) {
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateChrome();
+    syncTextOverlays();
     schedulePersistCurrentDraft();
   }
 
@@ -1379,8 +1392,9 @@ export function createWhiteboardApp(root) {
     }
 
     if (currentTool === TOOLS.ERASER_STROKE && eraseSnapshot) {
+      const previousPoint = lastEraserPoint ? { x: lastEraserPoint.x, y: lastEraserPoint.y } : worldPoint;
       const radius = updateEraserRadius(worldPoint);
-      eraseStrokeAt(worldPoint, radius);
+      eraseStrokeAlongPath(previousPoint, worldPoint, radius);
       showEraser(worldPoint, radius);
       return;
     }
@@ -1647,7 +1661,17 @@ export function createWhiteboardApp(root) {
         y: original.y + dy,
       });
     }
+    board.elements = board.elements.map((element) => {
+      const original = nodeDragSelection.originals.find((item) => item.id === element.id);
+      if (!original) return element;
+      return {
+        ...element,
+        x: original.x + dx,
+        y: original.y + dy,
+      };
+    });
     contentLayer.batchDraw();
+    syncTextOverlays();
   }
 
   function finishNodeDragSelection(node) {
@@ -1817,6 +1841,12 @@ export function createWhiteboardApp(root) {
     }
   }
 
+  function eraseStrokeAlongPath(fromPoint, toPoint, radius) {
+    for (const point of getEraserPathSamples(fromPoint, toPoint, radius)) {
+      eraseStrokeAt(point, radius);
+    }
+  }
+
   function eraseObjectAt(target) {
     const id = getElementIdAtPointer(target);
     if (!id) return;
@@ -1974,6 +2004,37 @@ export function createWhiteboardApp(root) {
     syncCoordinatePlaneNodeContent(node, element);
   }
 
+  function getTextOverlayPreviewElements() {
+    const nodes = transformer.nodes();
+    if (nodes.length !== 1) return board.elements;
+    const node = nodes[0];
+    const id = getElementIdFromNode(node);
+    if (!id) return board.elements;
+    const anchor = transformer.getActiveAnchor?.();
+    return board.elements.map((element) => (
+      element.id === id && element.type === "text"
+        ? {
+          ...element,
+          x: node.x(),
+          y: node.y(),
+          width: node.width() * (node.scaleX() || 1),
+          height: node.height() * (node.scaleY() || 1),
+          fontSize: isTextWidthResizeAnchor(anchor)
+            ? element.fontSize
+            : Math.max(8, element.fontSize * Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1))),
+          rotation: node.rotation(),
+          scaleX: 1,
+          scaleY: 1,
+        }
+        : element
+    ));
+  }
+
+  function syncTextOverlays({ hiddenIds = isEditingText ? selectedIds : [], elements = board.elements } = {}) {
+    textOverlayController.setHiddenIds(hiddenIds);
+    textOverlayController.sync(elements);
+  }
+
   function renderBoard() {
     contentLayer.find(".element").forEach((node) => node.destroy());
     for (const element of reorderElements(board.elements)) {
@@ -1985,6 +2046,7 @@ export function createWhiteboardApp(root) {
     renderLinearItemControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
+    syncTextOverlays({ hiddenIds: isEditingText ? selectedIds : [] });
   }
 
   function buildRuntimeElement(element) {
@@ -2173,6 +2235,19 @@ export function createWhiteboardApp(root) {
     transformer.forceUpdate();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
+    syncTextOverlays({ elements: getTextOverlayPreviewElements() });
+  }
+
+  function syncTextTransformPreview() {
+    if (isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) return;
+    const nodes = transformer.nodes();
+    if (nodes.length !== 1) return;
+    const node = nodes[0];
+    const id = getElementIdFromNode(node);
+    const element = board.elements.find((item) => item.id === id);
+    if (element?.type !== "text") return;
+    const previewElements = getTextOverlayPreviewElements();
+    syncTextOverlays({ elements: previewElements });
   }
 
   function syncCoordinatePlaneTransformPreview() {
@@ -2226,13 +2301,13 @@ export function createWhiteboardApp(root) {
     });
   }
 
-  function normalizeTextElementBox(element) {
+  function normalizeTextElementBox(element, { preserveHeight = false } = {}) {
     if (element.type !== "text") return element;
     const box = getNormalizedTextElementBox(element);
     return {
       ...element,
       width: box.width,
-      height: box.height,
+      height: preserveHeight && Number.isFinite(element.height) ? element.height : box.height,
       scaleX: 1,
       scaleY: 1,
     };
@@ -2257,6 +2332,7 @@ export function createWhiteboardApp(root) {
       const textCommit = getTextScaleCommitBox({
         element,
         nodeWidth: node.width(),
+        nodeHeight: node.height(),
         nodeScaleX: node.scaleX(),
         nodeScaleY: node.scaleY(),
         anchor: lastTransformAnchor,
@@ -2265,7 +2341,8 @@ export function createWhiteboardApp(root) {
         ...board.elements[index],
         fontSize: textCommit.fontSize,
         width: textCommit.width,
-      });
+        height: textCommit.height,
+      }, { preserveHeight: Number.isFinite(textCommit.height) });
     }
     if (element.type === "sticky") {
       const stickyCommit = getStickyScaleCommitBox({
@@ -3854,6 +3931,7 @@ export function createWhiteboardApp(root) {
     if (!element || !node) return;
 
     isEditingText = true;
+    textOverlayController.setHiddenIds([id]);
     transformer.hide();
     contentLayer.draw();
 
@@ -4035,6 +4113,7 @@ export function createWhiteboardApp(root) {
       editorClosed = true;
       isEditingText = false;
       activeTextEditorCommit = null;
+      textOverlayController.setHiddenIds([]);
       const nextText = textarea.value.trim();
       const committedWidth = editorFrame.offsetWidth;
       const committedHeight = editorFrame.offsetHeight;
@@ -4111,6 +4190,7 @@ export function createWhiteboardApp(root) {
       editorClosed = true;
       isEditingText = false;
       if (activeTextEditorCommit) activeTextEditorCommit = null;
+      textOverlayController.setHiddenIds([]);
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();
@@ -4412,6 +4492,7 @@ export function createWhiteboardApp(root) {
     updateGrid();
     updateBrushCursorStyle();
     updateEraserCursorStyle();
+    syncTextOverlays();
   }
 
   function applyBackground() {
@@ -4426,6 +4507,7 @@ export function createWhiteboardApp(root) {
     container.style.setProperty("--grid-x", `${stage.x()}px`);
     container.style.setProperty("--grid-y", `${stage.y()}px`);
     updateLinearItemControlsPosition();
+    syncTextOverlays();
   }
 
   function updateChrome() {

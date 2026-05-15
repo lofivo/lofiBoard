@@ -10,11 +10,14 @@ vi.mock("html2canvas", () => ({
 
 import {
   clearLatexRenderCache,
+  containsRenderableLatex,
   getTextDisplayValue,
   isLatexText,
   parseLatexText,
+  renderLatexMixedToHtml,
   renderLatexToImageSource,
   renderLatexToHtml,
+  tokenizeLatexText,
 } from "../../src/services/latex-service.js";
 
 describe("latex service", () => {
@@ -60,13 +63,46 @@ describe("latex service", () => {
     expect(getTextDisplayValue("\\$x^2\\$")).toBe("$x^2$");
   });
 
+  it("tokenizes mixed text with explicit inline and block latex delimiters", () => {
+    expect(tokenizeLatexText("速度 $v=\\frac{s}{t}$\n$$x^2$$")).toEqual([
+      { type: "text", value: "速度 " },
+      { type: "math", value: "v=\\frac{s}{t}", displayMode: false, raw: "$v=\\frac{s}{t}$" },
+      { type: "text", value: "\n" },
+      { type: "math", value: "x^2", displayMode: true, raw: "$$x^2$$" },
+    ]);
+    expect(tokenizeLatexText("价格 \\$5，不是公式")).toEqual([
+      { type: "text", value: "价格 $5，不是公式" },
+    ]);
+    expect(tokenizeLatexText("$a\nb$")).toEqual([
+      { type: "text", value: "$a\nb$" },
+    ]);
+    expect(tokenizeLatexText("\\[a\nb\\]")).toEqual([
+      { type: "math", value: "a\nb", displayMode: true, raw: "\\[a\nb\\]" },
+    ]);
+  });
+
+  it("only treats explicit delimiters or whole-expression latex as renderable", () => {
+    expect(containsRenderableLatex("速度 $v=\\frac{s}{t}$")).toBe(true);
+    expect(containsRenderableLatex("速度 \\frac{s}{t}")).toBe(false);
+    expect(containsRenderableLatex("\\frac{s}{t}")).toBe(true);
+    expect(containsRenderableLatex("价格 \\$5")).toBe(false);
+  });
+
+  it("renders mixed latex text to vector html and falls back to plain text on invalid math", async () => {
+    const html = await renderLatexMixedToHtml("速度 $v=\\frac{s}{t}$");
+    expect(html).toContain("速度 ");
+    expect(html).toContain("katex");
+    expect(html).toContain("latex-text-fragment");
+    await expect(renderLatexMixedToHtml("坏公式 $\\notACommand$")).resolves.toBeNull();
+  });
+
   it("renders latex through katex without throwing on invalid expressions", async () => {
     await expect(renderLatexToHtml("$$\\frac{a}{b}$$")).resolves.toContain("katex");
     await expect(renderLatexToHtml("$$\\notACommand$$")).resolves.toContain("\\notACommand");
     await expect(renderLatexToHtml("plain text")).resolves.toBeNull();
   });
 
-  it("renders latex to a visible temporary html2canvas host and cleans it up", async () => {
+  it("renders latex with a non-visible temporary html2canvas host and cleans it up", async () => {
     const host = {
       className: "",
       style: {},
@@ -86,7 +122,9 @@ describe("latex service", () => {
     });
 
     expect(documentRef.body.appendChild).toHaveBeenCalledWith(host);
-    expect(host.style.zIndex).toBe("2147483647");
+    expect(host.style.left).toBe("-10000px");
+    expect(host.style.top).toBe("-10000px");
+    expect(host.style.zIndex).toBe("-1");
     expect(host.style.pointerEvents).toBe("none");
     expect(html2canvasMock).toHaveBeenCalledWith(host, expect.objectContaining({
       backgroundColor: null,

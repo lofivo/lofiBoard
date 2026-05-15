@@ -172,25 +172,25 @@ describe("interaction rules", () => {
 
   it("commits text proportional scaling without changing the text wrapping ratio", () => {
     expect(getTextScaleCommitBox({
-      element: { width: 200, fontSize: 24 },
+      element: { width: 200, height: 80, fontSize: 24 },
       nodeScaleX: 0.5,
       nodeScaleY: 0.5,
       anchor: "bottom-right",
-    })).toEqual({ width: 100, fontSize: 12 });
+    })).toEqual({ width: 100, fontSize: 12, height: 40 });
 
     expect(getTextScaleCommitBox({
-      element: { width: 200, fontSize: 24 },
+      element: { width: 200, height: 80, fontSize: 24 },
       nodeScaleX: 2,
       nodeScaleY: 2,
       anchor: "bottom-right",
-    })).toEqual({ width: 400, fontSize: 48 });
+    })).toEqual({ width: 400, fontSize: 48, height: 160 });
 
     expect(getTextScaleCommitBox({
       element: { width: 200, fontSize: 24 },
       nodeScaleX: 0.5,
       nodeScaleY: 1,
       anchor: "middle-right",
-    })).toEqual({ width: 100, fontSize: 24 });
+    })).toEqual({ width: 100, fontSize: 24, height: undefined });
 
     expect(getTextScaleCommitBox({
       element: { width: 200, fontSize: 24 },
@@ -198,14 +198,25 @@ describe("interaction rules", () => {
       nodeScaleX: 1,
       nodeScaleY: 1,
       anchor: "middle-right",
-    })).toEqual({ width: 320, fontSize: 24 });
+    })).toEqual({ width: 320, fontSize: 24, height: undefined });
 
     expect(getTextScaleCommitBox({
-      element: { width: 200, fontSize: 24 },
+      element: { width: 200, height: 80, fontSize: 24 },
       nodeScaleX: 0.1,
       nodeScaleY: 0.1,
       anchor: "bottom-right",
-    })).toEqual({ width: 200 * (8 / 24), fontSize: 8 });
+    })).toEqual({ width: 200 * (8 / 24), fontSize: 8, height: 80 * (8 / 24) });
+  });
+
+  it("commits text width resize with the previewed wrapped height", () => {
+    expect(getTextScaleCommitBox({
+      element: { width: 200, height: 60, fontSize: 24 },
+      nodeWidth: 320,
+      nodeHeight: 96,
+      nodeScaleX: 1,
+      nodeScaleY: 1,
+      anchor: "middle-right",
+    })).toEqual({ width: 320, height: 96, fontSize: 24 });
   });
 
   it("uses minimum font size for text corner scaling constraints", () => {

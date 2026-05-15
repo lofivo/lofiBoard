@@ -1,16 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const latexRenderer = vi.hoisted(() => vi.fn(async () => ({
-  src: "data:image/png;base64,AAAA",
-  width: 72,
-  height: 36,
-  html: '<span class="katex">x</span>',
-})));
-
 vi.mock("../../src/services/latex-service.js", () => ({
   getTextDisplayValue: (value) => String(value ?? "").replace(/\\\$/g, "$"),
-  isLatexText: (value) => /^\$\$[\s\S]+\$\$$/.test(String(value ?? "").trim()),
-  renderLatexToImageSource: latexRenderer,
 }));
 
 import { createElementNode, getStickyBorderColor, syncTextNodeContent, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
@@ -24,13 +15,6 @@ const baseHandlers = {
 
 describe("konva elements", () => {
   afterEach(() => {
-    latexRenderer.mockClear();
-    latexRenderer.mockResolvedValue({
-      src: "data:image/png;base64,AAAA",
-      width: 72,
-      height: 36,
-      html: '<span class="katex">x</span>',
-    });
     delete globalThis.window;
     delete globalThis.document;
   });
@@ -151,7 +135,7 @@ describe("konva elements", () => {
     expect(textNode.fill()).toBe("#2563eb");
   });
 
-  it("renders latex text as an image layer while keeping source text editable", () => {
+  it("keeps latex source text in Konva as an editable fallback for the vector overlay", () => {
     const node = createElementNode({
       id: "text_1",
       type: "text",
@@ -169,8 +153,8 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     expect(node.findOne("Text").visible()).toBe(true);
-    expect(node.findOne(".latex-image")).toBeTruthy();
-    expect(node.findOne(".latex-image").visible()).toBe(false);
+    expect(node.findOne("Text").text()).toBe("$$x^2$$");
+    expect(node.findOne(".latex-image")).toBeUndefined();
 
     syncTextNodeContent(node, {
       id: "text_1",
@@ -211,7 +195,6 @@ describe("konva elements", () => {
     expect(node.findOne("Text").visible()).toBe(true);
     expect(node.findOne("Text").text()).toBe("$x^2$");
     expect(node.findOne(".latex-image")).toBeUndefined();
-    expect(latexRenderer).not.toHaveBeenCalled();
   });
 
   it("can disable latex rendering while editing text", () => {
@@ -250,102 +233,7 @@ describe("konva elements", () => {
     expect(node.findOne(".latex-image")).toBeUndefined();
   });
 
-  it("does not restart latex rendering when text render inputs are unchanged", async () => {
-    const node = createElementNode({
-      id: "text_1",
-      type: "text",
-      x: 10,
-      y: 20,
-      text: "$$x^2$$",
-      width: 180,
-      height: 48,
-      fontSize: 28,
-      fontFamily: "Inter, sans-serif",
-      fontStyle: "normal",
-      textDecoration: "",
-      padding: 6,
-      fill: "#111827",
-    }, baseHandlers);
-    await Promise.resolve();
-    latexRenderer.mockClear();
-
-    syncTextNodeContent(node, {
-      id: "text_1",
-      type: "text",
-      text: "$$x^2$$",
-      width: 180,
-      height: 48,
-      fontSize: 28,
-      fontFamily: "Inter, sans-serif",
-      fontStyle: "normal",
-      textDecoration: "",
-      padding: 6,
-      fill: "#111827",
-    });
-
-    expect(latexRenderer).not.toHaveBeenCalled();
-  });
-
-  it("keeps source text visible until the latex image has loaded", async () => {
-    const imageInstances = [];
-    class MockImage {
-      constructor() {
-        imageInstances.push(this);
-      }
-
-      set src(value) {
-        this.source = value;
-      }
-    }
-    globalThis.window = { Image: MockImage };
-
-    const node = createElementNode({
-      id: "text_1",
-      type: "text",
-      x: 10,
-      y: 20,
-      text: "$$x^2$$",
-      width: 180,
-      height: 48,
-      fontSize: 28,
-      fontFamily: "Inter, sans-serif",
-      fontStyle: "normal",
-      textDecoration: "",
-      padding: 6,
-      fill: "#111827",
-    }, baseHandlers);
-
-    const textNode = node.findOne("Text");
-    const latexNode = node.findOne(".latex-image");
-    expect(textNode.visible()).toBe(true);
-    expect(latexNode.visible()).toBe(false);
-
-    await Promise.resolve();
-    expect(imageInstances).toHaveLength(1);
-    imageInstances[0].onload();
-
-    expect(latexNode.visible()).toBe(true);
-    expect(textNode.visible()).toBe(false);
-  });
-
-  it("keeps latex text editable through a stable hit area after rendering", async () => {
-    latexRenderer.mockResolvedValueOnce({
-      src: "data:image/png;base64,EDITABLE",
-      width: 72,
-      height: 36,
-      html: '<span class="katex">x</span>',
-    });
-    const imageInstances = [];
-    class MockImage {
-      constructor() {
-        imageInstances.push(this);
-      }
-
-      set src(value) {
-        this.source = value;
-      }
-    }
-    globalThis.window = { Image: MockImage };
+  it("keeps latex text editable through a stable hit area", () => {
     const handlers = {
       draggable: false,
       onMove: vi.fn(),
@@ -369,59 +257,12 @@ describe("konva elements", () => {
       fill: "#111827",
     }, handlers);
 
-    await Promise.resolve();
-    imageInstances[0].onload();
-    expect(node.findOne("Text").visible()).toBe(false);
-
     node.findOne(".text-hit-area").fire("dblclick", { cancelBubble: false }, true);
 
     expect(handlers.onEdit).toHaveBeenCalledWith(expect.objectContaining({ cancelBubble: false }), node);
   });
 
-  it("keeps plain text visible when latex image loading fails", async () => {
-    latexRenderer.mockResolvedValueOnce({
-      src: "data:image/png;base64,BBBB",
-      width: 72,
-      height: 36,
-      html: '<span class="katex">x</span>',
-    });
-    const imageInstances = [];
-    class MockImage {
-      constructor() {
-        imageInstances.push(this);
-      }
-
-      set src(value) {
-        this.source = value;
-      }
-    }
-    globalThis.window = { Image: MockImage };
-
-    const node = createElementNode({
-      id: "text_1",
-      type: "text",
-      x: 10,
-      y: 20,
-      text: "$$x^2$$",
-      width: 180,
-      height: 48,
-      fontSize: 28,
-      fontFamily: "Inter, sans-serif",
-      fontStyle: "normal",
-      textDecoration: "",
-      padding: 6,
-      fill: "#111827",
-    }, baseHandlers);
-
-    await Promise.resolve();
-    expect(imageInstances).toHaveLength(1);
-    imageInstances[0].onerror();
-
-    expect(node.findOne("Text").visible()).toBe(true);
-    expect(node.findOne(".latex-image")).toBeUndefined();
-  });
-
-  it("ignores stale latex renders after text changes back to plain text", async () => {
+  it("keeps text fallback visible after latex text changes back to plain text", () => {
     const node = createElementNode({
       id: "text_1",
       type: "text",
@@ -451,8 +292,6 @@ describe("konva elements", () => {
       padding: 6,
       fill: "#111827",
     });
-
-    await Promise.resolve();
 
     expect(node.findOne("Text").visible()).toBe(true);
     expect(node.findOne("Text").text()).toBe("plain text");

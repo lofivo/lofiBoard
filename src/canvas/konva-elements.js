@@ -8,22 +8,10 @@ import {
   TREE_STRUCTURE_STYLE,
 } from "../structures/structure-templates.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
-import { getTextDisplayValue, isLatexText, renderLatexToImageSource } from "../services/latex-service.js";
+import { getTextDisplayValue } from "../services/latex-service.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
-
-function getLatexRenderSignature(element) {
-  const padding = element?.padding ?? 0;
-  const width = Math.max(80, Math.max(1, Number(element?.width) || 1) - padding * 2);
-  return JSON.stringify({
-    text: String(element?.text ?? "").trim(),
-    fill: element?.fill,
-    fontSize: element?.fontSize,
-    maxWidth: width,
-    padding: 0,
-  });
-}
 
 export function getStickyBorderColor(fill) {
   const fallback = "#eab308";
@@ -61,13 +49,6 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
   textNode.height("auto");
   textNode.height(nextHeight);
 
-  const latexNode = node.findOne?.(".latex-image");
-  latexNode?.setAttrs({
-    x: horizontalPadding,
-    y: 0,
-    width: Math.max(1, nextWidth - horizontalPadding * 2),
-    height: nextHeight,
-  });
 }
 
 export function syncTextNodeContent(node, element, { renderLatex = true } = {}) {
@@ -132,86 +113,10 @@ export function syncTextNodeContent(node, element, { renderLatex = true } = {}) 
     textNode.visible(true);
     return;
   }
-  syncLatexNodeContent(node, element);
-}
-
-export function syncLatexNodeContent(node, element) {
-  if (!node || element?.type !== "text") return false;
-  const textNode = node.findOne?.("Text");
-  if (!textNode) return false;
-  const existingLatexNode = node.findOne?.(".latex-image");
-  if (!isLatexText(element.text)) {
-    node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
-    node.setAttr("latexRenderSignature", null);
-    existingLatexNode?.destroy();
-    textNode.visible(true);
-    return false;
-  }
-
-  const renderSignature = getLatexRenderSignature(element);
-  if (existingLatexNode && node.getAttr("latexRenderSignature") === renderSignature) {
-    textNode.visible(!existingLatexNode.visible());
-    return true;
-  }
-
-  const renderVersion = (node.getAttr("latexRenderVersion") ?? 0) + 1;
-  node.setAttr("latexRenderVersion", renderVersion);
-  node.setAttr("latexRenderSignature", renderSignature);
-  const padding = element.padding ?? 0;
-  const nextWidth = Math.max(1, Number(element.width) || 1);
-  const nextHeight = Math.max(1, Number(element.height) || 1);
-  const latexNode = existingLatexNode ?? new Konva.Image({
-    name: "latex-image",
-    x: padding,
-    y: 0,
-    width: Math.max(1, nextWidth - padding * 2),
-    height: nextHeight,
-    listening: false,
-  });
-  if (!existingLatexNode) node.add(latexNode);
-  latexNode.setAttrs({
-    x: padding,
-    y: 0,
-    width: Math.max(1, nextWidth - padding * 2),
-    height: nextHeight,
-    visible: false,
-  });
+  node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
+  node.setAttr("latexRenderSignature", null);
+  node.findOne?.(".latex-image")?.destroy();
   textNode.visible(true);
-  renderLatexToImageSource(element.text, {
-    fill: element.fill,
-    fontSize: element.fontSize,
-    maxWidth: Math.max(80, nextWidth - padding * 2),
-    padding: 0,
-  }).then((imageSource) => {
-    if (!imageSource || latexNode.isDestroyed?.()) return;
-    if (node.getAttr("latexRenderVersion") !== renderVersion) return;
-    latexNode.width(Math.max(1, imageSource.width));
-    latexNode.height(Math.max(1, imageSource.height));
-    node.width(Math.max(nextWidth, imageSource.width + padding * 2));
-    node.height(Math.max(nextHeight, imageSource.height));
-    attachCachedImage(latexNode, imageSource.src, {
-      onLoad: () => {
-        if (latexNode.isDestroyed?.()) return;
-        if (node.getAttr("latexRenderVersion") !== renderVersion) return;
-        latexNode.visible(true);
-        textNode.visible(false);
-        node.getLayer()?.batchDraw();
-      },
-      onError: () => {
-        if (node.getAttr("latexRenderVersion") !== renderVersion) return;
-        latexNode.destroy();
-        textNode.visible(true);
-        node.getLayer()?.batchDraw();
-      },
-    });
-    node.getLayer()?.batchDraw();
-  }).catch(() => {
-    if (node.getAttr("latexRenderVersion") !== renderVersion) return;
-    latexNode.destroy();
-    textNode.visible(true);
-    node.getLayer()?.batchDraw();
-  });
-  return true;
 }
 
 export function createElementNode(element, {

@@ -230,6 +230,16 @@ describe("app shell", () => {
     expect(appSource).toContain("}, { renderLatex: false });");
   });
 
+  it("uses a DOM vector overlay for rendered latex text while editing keeps source input", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("createTextOverlayController");
+    expect(appSource).toContain("textOverlayController.sync(elements)");
+    expect(appSource).toContain("textOverlayController.setHiddenIds([id])");
+    expect(styles).toMatch(/\.text-latex-overlay \{[\s\S]*?pointer-events: none;/);
+  });
+
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -322,7 +332,36 @@ describe("app shell", () => {
     expect(appSource).toContain("getTextScaleCommitBox");
     expect(appSource).toContain("fontSize: textCommit.fontSize");
     expect(appSource).toContain("width: textCommit.width");
+    expect(appSource).toContain("height: textCommit.height");
     expect(appSource).not.toContain("width: node.width() * Math.abs(node.scaleX() || 1)");
+  });
+
+  it("previews latex text resize through the vector overlay instead of hiding it", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const resizePreviewSource = appSource.slice(
+      appSource.indexOf("function syncTextWidthResize()"),
+      appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
+    );
+
+    expect(resizePreviewSource).toContain("syncTextOverlays({ elements: getTextOverlayPreviewElements() })");
+    expect(resizePreviewSource).not.toContain("textOverlayController.setHiddenIds([id])");
+    expect(appSource).toContain("transformer.on(\"transform\", syncTextTransformPreview)");
+    expect(appSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
+    const transformPreviewSource = appSource.slice(
+      appSource.indexOf("function syncTextTransformPreview()"),
+      appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
+    );
+    expect(transformPreviewSource).not.toContain("node.scaleX(1)");
+    expect(transformPreviewSource).not.toContain("node.scaleY(1)");
+    expect(transformPreviewSource).not.toContain("syncTextNodeContent(node, previewElement");
+  });
+
+  it("samples fast eraser movement instead of erasing only the latest pointer position", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("getEraserPathSamples");
+    expect(appSource).toContain("function eraseStrokeAlongPath");
+    expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
   });
 
   it("lets value-cell pointer down start whole-array drag only when the array is already selected", () => {

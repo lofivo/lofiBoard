@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitStrokeByEraser } from "../../src/canvas/geometry.js";
+import { getEraserPathSamples, splitStrokeByEraser } from "../../src/canvas/geometry.js";
 
 describe("geometry", () => {
   it("splits a stroke into editable fragments when the eraser crosses it", () => {
@@ -83,5 +83,21 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
 
     expect(fragments).toEqual([]);
+  });
+
+  it("samples a fast eraser move so it does not skip gaps between pointer events", () => {
+    const samples = getEraserPathSamples(
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      10,
+    );
+
+    expect(samples[0]).toEqual({ x: 0, y: 0 });
+    expect(samples.at(-1)).toEqual({ x: 100, y: 0 });
+    expect(samples.length).toBeGreaterThan(6);
+    expect(samples.every((point, index) => {
+      if (index === 0) return true;
+      return Math.hypot(point.x - samples[index - 1].x, point.y - samples[index - 1].y) <= 8;
+    })).toBe(true);
   });
 });
