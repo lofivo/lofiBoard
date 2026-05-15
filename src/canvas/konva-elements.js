@@ -51,6 +51,37 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
 
 }
 
+export function syncTextNodeScalePreview(node, element, {
+  scaleX = node?.scaleX?.() ?? 1,
+  scaleY = node?.scaleY?.() ?? 1,
+} = {}) {
+  const textNode = node?.findOne?.("Text");
+  if (!textNode || element?.type !== "text") return;
+
+  const visualScaleX = Math.max(0.01, Math.abs(Number(scaleX) || 1));
+  const visualScaleY = Math.max(0.01, Math.abs(Number(scaleY) || 1));
+  const nextWidth = Math.max(1, Number(element.width) || 1);
+  const nextHeight = Math.max(1, Number(element.height) || 1);
+  const horizontalPadding = Math.max(0, Number(element.padding) || 0);
+  const displayText = getTextDisplayValue(element.text);
+
+  textNode.setAttrs({
+    x: horizontalPadding / visualScaleX,
+    y: 0,
+    text: displayText,
+    width: Math.max(1, (nextWidth - horizontalPadding * 2) / visualScaleX),
+    height: Math.max(1, nextHeight / visualScaleY),
+    fontSize: Math.max(1, Number(element.fontSize) || 1) / visualScaleY,
+    fontFamily: element.fontFamily,
+    fontStyle: element.fontStyle ?? "normal",
+    textDecoration: element.textDecoration ?? "",
+    fill: element.fill,
+    align: element.align ?? "left",
+    lineHeight: 1.25,
+    padding: 0,
+  });
+}
+
 export function syncTextNodeContent(node, element, { renderLatex = true } = {}) {
   const textNode = node?.findOne?.("Text");
   if (!textNode || !["text", "sticky"].includes(element?.type)) return;

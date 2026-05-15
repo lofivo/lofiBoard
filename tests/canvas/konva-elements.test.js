@@ -4,7 +4,13 @@ vi.mock("../../src/services/latex-service.js", () => ({
   getTextDisplayValue: (value) => String(value ?? "").replace(/\\\$/g, "$"),
 }));
 
-import { createElementNode, getStickyBorderColor, syncTextNodeContent, syncTextNodeSize } from "../../src/canvas/konva-elements.js";
+import {
+  createElementNode,
+  getStickyBorderColor,
+  syncTextNodeContent,
+  syncTextNodeScalePreview,
+  syncTextNodeSize,
+} from "../../src/canvas/konva-elements.js";
 
 const baseHandlers = {
   draggable: false,
@@ -93,6 +99,51 @@ describe("konva elements", () => {
     expect(textNode.height()).toBe(105);
     expect(node.findOne(".text-hit-area").width()).toBe(160);
     expect(node.findOne(".text-hit-area").height()).toBe(105);
+  });
+
+  it("previews plain text scaling with the committed font layout without resetting group scale", () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Hello world",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+    node.scaleX(2);
+    node.scaleY(2);
+
+    syncTextNodeScalePreview(node, {
+      id: "text_1",
+      type: "text",
+      text: "Hello world",
+      width: 240,
+      height: 80,
+      fontSize: 56,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, {
+      scaleX: node.scaleX(),
+      scaleY: node.scaleY(),
+    });
+
+    const textNode = node.findOne("Text");
+    expect(node.scaleX()).toBe(2);
+    expect(node.scaleY()).toBe(2);
+    expect(textNode.x()).toBe(3);
+    expect(textNode.width()).toBe(114);
+    expect(textNode.height()).toBe(40);
+    expect(textNode.fontSize()).toBe(28);
   });
 
   it("syncs grouped text content and font changes before drawing", () => {

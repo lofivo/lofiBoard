@@ -43,6 +43,7 @@ import {
   getStickyBorderColor,
   syncCoordinatePlaneNodeContent,
   syncTextNodeContent,
+  syncTextNodeScalePreview,
   syncTextNodeSize,
 } from "../canvas/konva-elements.js";
 import {
@@ -2247,6 +2248,14 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === id);
     if (element?.type !== "text") return;
     const previewElements = getTextOverlayPreviewElements();
+    const previewElement = previewElements.find((item) => item.id === id);
+    if (previewElement) {
+      syncTextNodeScalePreview(node, previewElement, {
+        scaleX: node.scaleX(),
+        scaleY: node.scaleY(),
+      });
+      contentLayer.batchDraw();
+    }
     syncTextOverlays({ elements: previewElements });
   }
 
