@@ -616,6 +616,8 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.stage-container\[data-tool="select"\] \{[\s\S]*?cursor: var\(--cursor-select\);/);
     expect(styles).toMatch(/\.stage-container\[data-tool="pan"\] \{[\s\S]*?cursor: var\(--cursor-pan\);/);
     expect(styles).toMatch(/\.stage-container\.is-pan-ready \{[\s\S]*?cursor: var\(--cursor-pan\);/);
+    expect(styles.indexOf(".stage-container.is-pan-ready")).toBeGreaterThan(styles.indexOf(".stage-container[data-tool=\"pen\"]"));
+    expect(styles.indexOf(".stage-container.is-pan-ready")).toBeGreaterThan(styles.indexOf(".stage-container[data-tool=\"eraser-object\"]"));
     expect(styles).toMatch(/\.stage-container\.is-panning,[\s\S]*?\.stage-container\.is-panning \* \{[\s\S]*?cursor: var\(--cursor-panning\);/);
   });
 });

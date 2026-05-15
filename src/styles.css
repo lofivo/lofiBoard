@@ -1166,10 +1166,6 @@ button {
   cursor: var(--cursor-pan);
 }
 
-.stage-container.is-pan-ready {
-  cursor: var(--cursor-pan);
-}
-
 .stage-container[data-tool="pen"] {
   cursor: none;
 }
@@ -1177,6 +1173,10 @@ button {
 .stage-container[data-tool="eraser-stroke"],
 .stage-container[data-tool="eraser-object"] {
   cursor: none;
+}
+
+.stage-container.is-pan-ready {
+  cursor: var(--cursor-pan);
 }
 
 .stage-container.is-panning,
