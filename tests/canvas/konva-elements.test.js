@@ -8,6 +8,7 @@ const latexRenderer = vi.hoisted(() => vi.fn(async () => ({
 })));
 
 vi.mock("../../src/services/latex-service.js", () => ({
+  getTextDisplayValue: (value) => String(value ?? "").replace(/\\\$/g, "$"),
   isLatexText: (value) => /^\$\$[\s\S]+\$\$$/.test(String(value ?? "").trim()),
   renderLatexToImageSource: latexRenderer,
 }));
@@ -190,6 +191,29 @@ describe("konva elements", () => {
     expect(node.findOne(".latex-image")).toBeUndefined();
   });
 
+  it("shows escaped dollar delimiters as literal text instead of latex", () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "\\$x^2\\$",
+      width: 180,
+      height: 48,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+
+    expect(node.findOne("Text").visible()).toBe(true);
+    expect(node.findOne("Text").text()).toBe("$x^2$");
+    expect(node.findOne(".latex-image")).toBeUndefined();
+    expect(latexRenderer).not.toHaveBeenCalled();
+  });
+
   it("can disable latex rendering while editing text", () => {
     const node = createElementNode({
       id: "text_1",
@@ -224,6 +248,42 @@ describe("konva elements", () => {
     expect(node.findOne("Text").visible()).toBe(true);
     expect(node.findOne("Text").text()).toBe("$$x^2$$");
     expect(node.findOne(".latex-image")).toBeUndefined();
+  });
+
+  it("does not restart latex rendering when text render inputs are unchanged", async () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "$$x^2$$",
+      width: 180,
+      height: 48,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+    await Promise.resolve();
+    latexRenderer.mockClear();
+
+    syncTextNodeContent(node, {
+      id: "text_1",
+      type: "text",
+      text: "$$x^2$$",
+      width: 180,
+      height: 48,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    });
+
+    expect(latexRenderer).not.toHaveBeenCalled();
   });
 
   it("keeps source text visible until the latex image has loaded", async () => {

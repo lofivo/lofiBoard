@@ -9,6 +9,8 @@ vi.mock("html2canvas", () => ({
 }));
 
 import {
+  clearLatexRenderCache,
+  getTextDisplayValue,
   isLatexText,
   parseLatexText,
   renderLatexToImageSource,
@@ -17,6 +19,7 @@ import {
 
 describe("latex service", () => {
   afterEach(() => {
+    clearLatexRenderCache();
     html2canvasMock.mockClear();
     html2canvasMock.mockResolvedValue({
       toDataURL: () => "data:image/png;base64,AAAA",
@@ -45,6 +48,16 @@ describe("latex service", () => {
       displayMode: false,
     });
     expect(isLatexText("plain text")).toBe(false);
+  });
+
+  it("treats escaped dollar delimiters as literal text", () => {
+    expect(parseLatexText("\\$x^2\\$")).toEqual({
+      ok: false,
+      expression: "",
+      displayMode: false,
+    });
+    expect(isLatexText("\\$x^2\\$")).toBe(false);
+    expect(getTextDisplayValue("\\$x^2\\$")).toBe("$x^2$");
   });
 
   it("renders latex through katex without throwing on invalid expressions", async () => {
@@ -81,6 +94,44 @@ describe("latex service", () => {
       height: 31,
     }));
     expect(host.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses cached latex image captures for matching render inputs", async () => {
+    const hosts = [];
+    const documentRef = {
+      body: { appendChild: vi.fn() },
+      createElement: vi.fn(() => {
+        const host = {
+          className: "",
+          style: {},
+          innerHTML: "",
+          getBoundingClientRect: () => ({ width: 90, height: 30 }),
+          remove: vi.fn(),
+        };
+        hosts.push(host);
+        return host;
+      }),
+    };
+
+    const first = await renderLatexToImageSource("$$x^2$$", {
+      documentRef,
+      fill: "#111827",
+      fontSize: 28,
+      maxWidth: 180,
+      padding: 0,
+    });
+    const second = await renderLatexToImageSource("$$x^2$$", {
+      documentRef,
+      fill: "#111827",
+      fontSize: 28,
+      maxWidth: 180,
+      padding: 0,
+    });
+
+    expect(second).toBe(first);
+    expect(html2canvasMock).toHaveBeenCalledTimes(1);
+    expect(documentRef.body.appendChild).toHaveBeenCalledTimes(1);
+    expect(hosts).toHaveLength(1);
   });
 
   it("removes the temporary latex host when html2canvas fails", async () => {

@@ -8,10 +8,22 @@ import {
   TREE_STRUCTURE_STYLE,
 } from "../structures/structure-templates.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
-import { isLatexText, renderLatexToImageSource } from "../services/latex-service.js";
+import { getTextDisplayValue, isLatexText, renderLatexToImageSource } from "../services/latex-service.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
+
+function getLatexRenderSignature(element) {
+  const padding = element?.padding ?? 0;
+  const width = Math.max(80, Math.max(1, Number(element?.width) || 1) - padding * 2);
+  return JSON.stringify({
+    text: String(element?.text ?? "").trim(),
+    fill: element?.fill,
+    fontSize: element?.fontSize,
+    maxWidth: width,
+    padding: 0,
+  });
+}
 
 export function getStickyBorderColor(fill) {
   const fallback = "#eab308";
@@ -61,6 +73,7 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
 export function syncTextNodeContent(node, element, { renderLatex = true } = {}) {
   const textNode = node?.findOne?.("Text");
   if (!textNode || !["text", "sticky"].includes(element?.type)) return;
+  const displayText = renderLatex ? getTextDisplayValue(element.text) : element.text;
   if (element.type === "sticky") {
     const rect = node.findOne?.("Rect");
     const nextWidth = Math.max(1, Number(element.width) || 1);
@@ -86,7 +99,7 @@ export function syncTextNodeContent(node, element, { renderLatex = true } = {}) 
       y: insets.y,
       width: Math.max(40, nextWidth - insets.x * 2),
       height: Math.max(32, nextHeight - insets.y * 2),
-      text: element.text,
+      text: displayText,
       fontSize: element.fontSize,
       fontFamily: element.fontFamily,
       fontStyle: element.fontStyle ?? "normal",
@@ -97,7 +110,7 @@ export function syncTextNodeContent(node, element, { renderLatex = true } = {}) 
     return;
   }
   textNode.setAttrs({
-    text: element.text,
+    text: displayText,
     fontSize: element.fontSize,
     fontFamily: element.fontFamily,
     fontStyle: element.fontStyle ?? "normal",
@@ -114,6 +127,7 @@ export function syncTextNodeContent(node, element, { renderLatex = true } = {}) 
   });
   if (!renderLatex) {
     node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
+    node.setAttr("latexRenderSignature", null);
     node.findOne?.(".latex-image")?.destroy();
     textNode.visible(true);
     return;
@@ -128,13 +142,21 @@ export function syncLatexNodeContent(node, element) {
   const existingLatexNode = node.findOne?.(".latex-image");
   if (!isLatexText(element.text)) {
     node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
+    node.setAttr("latexRenderSignature", null);
     existingLatexNode?.destroy();
     textNode.visible(true);
     return false;
   }
 
+  const renderSignature = getLatexRenderSignature(element);
+  if (existingLatexNode && node.getAttr("latexRenderSignature") === renderSignature) {
+    textNode.visible(!existingLatexNode.visible());
+    return true;
+  }
+
   const renderVersion = (node.getAttr("latexRenderVersion") ?? 0) + 1;
   node.setAttr("latexRenderVersion", renderVersion);
+  node.setAttr("latexRenderSignature", renderSignature);
   const padding = element.padding ?? 0;
   const nextWidth = Math.max(1, Number(element.width) || 1);
   const nextHeight = Math.max(1, Number(element.height) || 1);

@@ -1,9 +1,29 @@
 import katexCss from "katex/dist/katex.min.css?raw";
 
 const DEFAULT_PADDING = 8;
+const latexImageSourceCache = new Map();
+
+function getLatexImageSourceCacheKey(value, { fill, fontSize, maxWidth, padding }) {
+  return JSON.stringify({
+    value: String(value ?? "").trim(),
+    fill,
+    fontSize: Math.max(8, Number(fontSize) || 28),
+    maxWidth: Math.max(80, Number(maxWidth) || 640),
+    padding: Math.max(0, Number(padding) || 0),
+    devicePixelRatio: Math.max(1, Math.min(3, globalThis.devicePixelRatio || 2)),
+  });
+}
+
+export function clearLatexRenderCache() {
+  latexImageSourceCache.clear();
+}
 
 export function parseLatexText(value) {
   const text = String(value ?? "").trim();
+  if (/\\[$]/.test(text)) {
+    return { ok: false, expression: "", displayMode: false };
+  }
+
   const blockMatch = /^\$\$([\s\S]+)\$\$$/.exec(text);
   if (blockMatch) {
     return { ok: true, expression: blockMatch[1].trim(), displayMode: true };
@@ -30,6 +50,10 @@ export function isLatexText(value) {
   return parseLatexText(value).ok;
 }
 
+export function getTextDisplayValue(value) {
+  return String(value ?? "").replace(/\\\$/g, "$");
+}
+
 export async function renderLatexToHtml(value, options = {}) {
   const parsed = parseLatexText(value);
   if (!parsed.ok || !parsed.expression) return null;
@@ -52,6 +76,11 @@ export async function renderLatexToImageSource(value, {
 } = {}) {
   if (!documentRef?.createElement || !documentRef.body) {
     return null;
+  }
+
+  const cacheKey = getLatexImageSourceCacheKey(value, { fill, fontSize, maxWidth, padding });
+  if (latexImageSourceCache.has(cacheKey)) {
+    return latexImageSourceCache.get(cacheKey);
   }
 
   const html = await renderLatexToHtml(value);
@@ -87,12 +116,14 @@ export async function renderLatexToImageSource(value, {
       height,
     });
     const src = canvas.toDataURL("image/png");
-    return {
+    const imageSource = {
       src,
       width,
       height,
       html,
     };
+    latexImageSourceCache.set(cacheKey, imageSource);
+    return imageSource;
   } finally {
     host.remove();
   }
