@@ -7,7 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "preview:host": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "serve": "vite preview --host ${HOST:-127.0.0.1} --port ${PORT:-4173} --strictPort",
+    "test": "vitest run",
+    "start": "bash ./start.sh",
+    "stop": "bash ./stop.sh",
+    "start:dev": "bash ./start-dev.sh",
+    "stop:dev": "bash ./stop-dev.sh",
+    "deploy:build": "bash ./build.sh",
+    "deploy:static": "bash ./deploy-static.sh"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

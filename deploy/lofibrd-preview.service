@@ -1,0 +1,15 @@
+[Unit]
+Description=lofiBoard Vite preview server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/lofibrd/app
+Environment=HOST=127.0.0.1
+Environment=PORT=4173
+ExecStart=/usr/bin/npm run serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

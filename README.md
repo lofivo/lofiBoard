@@ -20,6 +20,54 @@ npm run preview
 
 构建产物在 `dist/`，可通过本地或静态服务器离线运行。
 
+常用脚本：
+
+```bash
+npm test             # 运行测试
+npm run start        # 后台构建并启动本地 preview 服务，默认 127.0.0.1:4173
+npm run stop         # 停止后台 preview 服务
+npm run start:dev    # 后台启动开发服务，默认 127.0.0.1:5173
+npm run stop:dev     # 停止后台开发服务
+npm run deploy:static # 构建并同步 dist/ 到 DEPLOY_DIR
+```
+
+`start.sh` 和 `start-dev.sh` 支持环境变量：
+
+```bash
+HOST=127.0.0.1 PORT=4173 npm run start
+HOST=0.0.0.0 PORT=5173 npm run start:dev
+```
+
+## 生产部署
+
+推荐生产方式是让 Nginx 直接托管 `dist/` 静态文件，不需要常驻 Node 进程：
+
+```bash
+npm ci
+sudo mkdir -p /var/www/lofibrd/dist
+sudo env DEPLOY_DIR=/var/www/lofibrd/dist npm run deploy:static
+sudo cp deploy/nginx/lofibrd-static.conf /etc/nginx/sites-available/lofibrd.conf
+sudo ln -s /etc/nginx/sites-available/lofibrd.conf /etc/nginx/sites-enabled/lofibrd.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+部署前需要修改 `deploy/nginx/lofibrd-static.conf` 里的：
+
+- `server_name board.example.com;`
+- `root /var/www/lofibrd/dist;`
+
+如果确实需要 Nginx 反代本机 preview 服务，可以使用：
+
+```bash
+HOST=127.0.0.1 PORT=4173 npm run start
+sudo cp deploy/nginx/lofibrd-proxy.conf /etc/nginx/sites-available/lofibrd.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+完整部署说明见 [docs/deployment.md](docs/deployment.md)。
+
 ## 功能
 
 - 无限画布：滚轮缩放，按住空格或中键拖拽平移。
