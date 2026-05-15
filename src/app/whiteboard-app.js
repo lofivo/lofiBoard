@@ -1331,15 +1331,6 @@ export function createWhiteboardApp(root) {
         worldPoint.y - pressStart.y,
       );
       if (distance > 6) {
-        if (activeLinearItem?.elementId === pressedElementId && activeLinearItem.index === linearItemPressState.index) {
-          beginLinearItemDrag({
-            elementId: pressedElementId,
-            index: linearItemPressState.index,
-            worldPoint,
-          });
-          resetLinearItemPressState();
-          return;
-        }
         const targetIds = expandGroupedIds([pressedElementId]);
         if (!selectedIds.some((id) => targetIds.includes(id))) {
           selectIds([pressedElementId]);

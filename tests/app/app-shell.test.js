@@ -374,6 +374,28 @@ describe("app shell", () => {
     expect(appSource).toContain("beginSelectionDrag(worldPoint)");
   });
 
+  it("requires a long press before selected linear items can start item reordering", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerMoveSource = appSource.slice(
+      appSource.indexOf("function handlePointerMove(event)"),
+      appSource.indexOf("function handlePointerUp()"),
+    );
+    const itemPressMoveSource = pointerMoveSource.slice(
+      pointerMoveSource.indexOf("if (linearItemPressState?.phase === \"start\""),
+      pointerMoveSource.indexOf("if (isPanning && panStart)"),
+    );
+    const itemPressHandlerSource = appSource.slice(
+      appSource.indexOf("function handleArrayStructureItemPress"),
+      appSource.indexOf("function handleArrayStructureItemRelease"),
+    );
+
+    expect(itemPressMoveSource).not.toContain("activeLinearItem?.elementId");
+    expect(itemPressMoveSource).not.toContain("beginLinearItemDrag({");
+    expect(itemPressMoveSource).toContain("beginSelectionDrag(pressStart)");
+    expect(itemPressHandlerSource).toContain("window.setTimeout(() =>");
+    expect(itemPressHandlerSource).toContain("beginLinearItemDrag({");
+  });
+
   it("does not auto-activate the first linear item just because the array itself became selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
