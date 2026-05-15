@@ -227,6 +227,7 @@ describe("app shell", () => {
     expect(appSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
     expect(appSource).toContain("syncTextNodeContent(node, {");
     expect(appSource).toContain("text: textarea.value");
+    expect(appSource).toContain("}, { renderLatex: false });");
   });
 
   it("normalizes sticky note scale before editing commits clear transient scale", () => {

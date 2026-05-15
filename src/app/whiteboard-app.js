@@ -3944,7 +3944,7 @@ export function createWhiteboardApp(root) {
           text: textarea.value,
           width: editorFrame.offsetWidth / scale,
           height: editorFrame.offsetHeight / scale,
-        });
+        }, { renderLatex: false });
       }
       transformer.forceUpdate();
       overlayLayer.batchDraw();
@@ -3969,7 +3969,7 @@ export function createWhiteboardApp(root) {
       ...element,
       width: editorFrame.offsetWidth / scale,
       height: editorFrame.offsetHeight / scale,
-    });
+    }, { renderLatex: false });
     transformer.nodes([node]);
     transformer.visible(true);
     transformer.resizeEnabled(true);

@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
+    "katex": "^0.16.46",
     "konva": "^10.0.12",
     "lucide-static": "^1.11.0"
   },

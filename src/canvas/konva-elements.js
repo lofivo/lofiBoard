@@ -8,6 +8,7 @@ import {
   TREE_STRUCTURE_STYLE,
 } from "../structures/structure-templates.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
+import { isLatexText, renderLatexToImageSource } from "../services/latex-service.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
@@ -34,6 +35,12 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
   node.width(nextWidth);
   node.height(nextHeight);
 
+  const hitArea = node.findOne?.(".text-hit-area");
+  hitArea?.setAttrs({
+    width: nextWidth,
+    height: nextHeight,
+  });
+
   const textNode = node.findOne?.("Text");
   if (!textNode) return;
   textNode.x(horizontalPadding);
@@ -41,9 +48,17 @@ export function syncTextNodeSize(node, { width, height, padding = 0 }) {
   textNode.width(Math.max(1, nextWidth - horizontalPadding * 2));
   textNode.height("auto");
   textNode.height(nextHeight);
+
+  const latexNode = node.findOne?.(".latex-image");
+  latexNode?.setAttrs({
+    x: horizontalPadding,
+    y: 0,
+    width: Math.max(1, nextWidth - horizontalPadding * 2),
+    height: nextHeight,
+  });
 }
 
-export function syncTextNodeContent(node, element) {
+export function syncTextNodeContent(node, element, { renderLatex = true } = {}) {
   const textNode = node?.findOne?.("Text");
   if (!textNode || !["text", "sticky"].includes(element?.type)) return;
   if (element.type === "sticky") {
@@ -97,6 +112,84 @@ export function syncTextNodeContent(node, element) {
     height: element.height,
     padding: element.padding ?? 0,
   });
+  if (!renderLatex) {
+    node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
+    node.findOne?.(".latex-image")?.destroy();
+    textNode.visible(true);
+    return;
+  }
+  syncLatexNodeContent(node, element);
+}
+
+export function syncLatexNodeContent(node, element) {
+  if (!node || element?.type !== "text") return false;
+  const textNode = node.findOne?.("Text");
+  if (!textNode) return false;
+  const existingLatexNode = node.findOne?.(".latex-image");
+  if (!isLatexText(element.text)) {
+    node.setAttr("latexRenderVersion", (node.getAttr("latexRenderVersion") ?? 0) + 1);
+    existingLatexNode?.destroy();
+    textNode.visible(true);
+    return false;
+  }
+
+  const renderVersion = (node.getAttr("latexRenderVersion") ?? 0) + 1;
+  node.setAttr("latexRenderVersion", renderVersion);
+  const padding = element.padding ?? 0;
+  const nextWidth = Math.max(1, Number(element.width) || 1);
+  const nextHeight = Math.max(1, Number(element.height) || 1);
+  const latexNode = existingLatexNode ?? new Konva.Image({
+    name: "latex-image",
+    x: padding,
+    y: 0,
+    width: Math.max(1, nextWidth - padding * 2),
+    height: nextHeight,
+    listening: false,
+  });
+  if (!existingLatexNode) node.add(latexNode);
+  latexNode.setAttrs({
+    x: padding,
+    y: 0,
+    width: Math.max(1, nextWidth - padding * 2),
+    height: nextHeight,
+    visible: false,
+  });
+  textNode.visible(true);
+  renderLatexToImageSource(element.text, {
+    fill: element.fill,
+    fontSize: element.fontSize,
+    maxWidth: Math.max(80, nextWidth - padding * 2),
+    padding: 0,
+  }).then((imageSource) => {
+    if (!imageSource || latexNode.isDestroyed?.()) return;
+    if (node.getAttr("latexRenderVersion") !== renderVersion) return;
+    latexNode.width(Math.max(1, imageSource.width));
+    latexNode.height(Math.max(1, imageSource.height));
+    node.width(Math.max(nextWidth, imageSource.width + padding * 2));
+    node.height(Math.max(nextHeight, imageSource.height));
+    attachCachedImage(latexNode, imageSource.src, {
+      onLoad: () => {
+        if (latexNode.isDestroyed?.()) return;
+        if (node.getAttr("latexRenderVersion") !== renderVersion) return;
+        latexNode.visible(true);
+        textNode.visible(false);
+        node.getLayer()?.batchDraw();
+      },
+      onError: () => {
+        if (node.getAttr("latexRenderVersion") !== renderVersion) return;
+        latexNode.destroy();
+        textNode.visible(true);
+        node.getLayer()?.batchDraw();
+      },
+    });
+    node.getLayer()?.batchDraw();
+  }).catch(() => {
+    if (node.getAttr("latexRenderVersion") !== renderVersion) return;
+    latexNode.destroy();
+    textNode.visible(true);
+    node.getLayer()?.batchDraw();
+  });
+  return true;
 }
 
 export function createElementNode(element, {
@@ -156,6 +249,13 @@ export function createElementNode(element, {
       width: element.width,
       height: element.height,
     });
+    node.add(new Konva.Rect({
+      name: "text-hit-area",
+      width: element.width,
+      height: element.height,
+      fill: "rgba(0,0,0,0)",
+      strokeEnabled: false,
+    }));
     node.add(new Konva.Text({
       x: horizontalPadding,
       y: 0,
@@ -1167,12 +1267,22 @@ function resolveFill(fill) {
   return fill === "transparent" ? "rgba(0,0,0,0)" : fill;
 }
 
-function attachCachedImage(node, src) {
+function attachCachedImage(node, src, callbacks = {}) {
   const entry = getCachedImage(src);
   node.image(entry.image);
 
-  if (entry.loaded) return;
+  if (entry.loaded) {
+    callbacks.onLoad?.(entry.image);
+    return entry;
+  }
+  if (entry.failed) {
+    callbacks.onError?.();
+    return entry;
+  }
   entry.waitingNodes.add(node);
+  if (callbacks.onLoad) entry.loadCallbacks.add(callbacks.onLoad);
+  if (callbacks.onError) entry.errorCallbacks.add(callbacks.onError);
+  return entry;
 }
 
 function getCachedImage(src) {
@@ -1183,16 +1293,30 @@ function getCachedImage(src) {
   const entry = {
     image,
     loaded: false,
+    failed: false,
     waitingNodes: new Set(),
+    loadCallbacks: new Set(),
+    errorCallbacks: new Set(),
   };
 
   image.onload = () => {
     entry.loaded = true;
     for (const node of entry.waitingNodes) {
+      if (node.isDestroyed?.()) continue;
       node.image(image);
       node.getLayer()?.batchDraw();
     }
+    for (const callback of entry.loadCallbacks) callback(image);
     entry.waitingNodes.clear();
+    entry.loadCallbacks.clear();
+    entry.errorCallbacks.clear();
+  };
+  image.onerror = () => {
+    entry.failed = true;
+    for (const callback of entry.errorCallbacks) callback();
+    entry.waitingNodes.clear();
+    entry.loadCallbacks.clear();
+    entry.errorCallbacks.clear();
   };
   image.src = src;
   imageCache.set(src, entry);
