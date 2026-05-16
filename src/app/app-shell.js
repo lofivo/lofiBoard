@@ -76,10 +76,9 @@ export function renderShell() {
                 </div>
                 <div class="brush-field">
                   <div class="brush-field-label">粗细</div>
-                  <div class="brush-preset-row" role="group" aria-label="画笔粗细">
-                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="2" title="细" aria-label="细"><span style="--stroke-size: 2px"></span></button>
-                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="6" title="中" aria-label="中"><span style="--stroke-size: 6px"></span></button>
-                    <button type="button" class="brush-preset-button brush-width-preset" data-brush-width="14" title="粗" aria-label="粗"><span style="--stroke-size: 12px"></span></button>
+                  <div class="brush-width-control">
+                    <input data-brush-width-slider type="range" min="1" max="28" step="1" value="6" aria-label="画笔粗细" />
+                    <span class="brush-width-value" data-brush-width-value>6</span>
                   </div>
                 </div>
                 <div class="brush-field">

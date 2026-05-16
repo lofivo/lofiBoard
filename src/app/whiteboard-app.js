@@ -178,6 +178,8 @@ export function createWhiteboardApp(root) {
   const brushCapInput = root.querySelector("[data-control='brush-cap']");
   const brushStyleInput = root.querySelector("[data-control='brush-style']");
   const brushCustomColorInput = root.querySelector("[data-brush-custom-color]");
+  const brushWidthSlider = root.querySelector("[data-brush-width-slider]");
+  const brushWidthValue = root.querySelector("[data-brush-width-value]");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
   const fontFamilyInput = root.querySelector("[data-control='font-family']");
   const zoomLabel = root.querySelector("[data-zoom]");
@@ -494,6 +496,7 @@ export function createWhiteboardApp(root) {
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
     widthInput.addEventListener("input", updateBrushCursorStyle);
+    widthInput.addEventListener("input", syncBrushWidthControl);
     widthInput.addEventListener("input", syncBrushPresetButtons);
     brushOpacityInput.addEventListener("input", applyStyleToSelection);
     brushSmoothingInput.addEventListener("input", applyStyleToSelection);
@@ -514,11 +517,9 @@ export function createWhiteboardApp(root) {
       setBrushControlValue(colorInput, brushCustomColorInput.value, "input");
       updateBrushCursorStyle();
     });
-    root.querySelectorAll("[data-brush-width]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setBrushControlValue(widthInput, button.dataset.brushWidth, "input");
-        updateBrushCursorStyle();
-      });
+    brushWidthSlider?.addEventListener("input", () => {
+      setBrushControlValue(widthInput, brushWidthSlider.value, "input");
+      updateBrushCursorStyle();
     });
     root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -4714,6 +4715,7 @@ export function createWhiteboardApp(root) {
       fillInput.value = "#fef08a";
       fillTransparentInput.checked = false;
     }
+    syncBrushWidthControl();
     syncBrushPresetButtons();
     updateBrushCursorStyle();
   }
@@ -4723,6 +4725,7 @@ export function createWhiteboardApp(root) {
     brushSmoothingInput.value = String(Math.round((element.smoothing ?? 0.45) * 100));
     brushCapInput.value = element.lineCap ?? "round";
     brushStyleInput.value = element.brushStyle ?? "solid";
+    syncBrushWidthControl();
     syncBrushPresetButtons();
   }
 
@@ -4731,6 +4734,12 @@ export function createWhiteboardApp(root) {
     input.value = value;
     input.dispatchEvent(new Event(eventName, { bubbles: true }));
     syncBrushPresetButtons();
+  }
+
+  function syncBrushWidthControl() {
+    const value = String(Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width)));
+    if (brushWidthSlider && brushWidthSlider.value !== value) brushWidthSlider.value = value;
+    if (brushWidthValue) brushWidthValue.textContent = value;
   }
 
   function syncBrushPresetButtons() {
@@ -4745,9 +4754,6 @@ export function createWhiteboardApp(root) {
     });
     root.querySelectorAll(".brush-custom-color").forEach((control) => {
       setBrushPresetActive(control, customColorActive);
-    });
-    root.querySelectorAll("[data-brush-width]").forEach((button) => {
-      setBrushPresetActive(button, Number(button.dataset.brushWidth) === Number(widthInput.value));
     });
     root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
       setBrushPresetActive(button, button.dataset.brushStyleOption === brushStyleInput.value);

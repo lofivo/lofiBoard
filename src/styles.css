@@ -807,6 +807,34 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.brush-width-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brush-width-control input {
+  width: 100%;
+  min-width: 0;
+  accent-color: #2563eb;
+}
+
+.brush-width-value {
+  display: grid;
+  height: 24px;
+  min-width: 0;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
 .brush-style-row {
   overflow: hidden;
   gap: 0;
@@ -904,14 +932,6 @@ button {
   box-shadow:
     inset 0 0 0 2px rgba(37, 99, 235, 0.55),
     0 1px 4px rgba(15, 23, 42, 0.08);
-}
-
-.brush-width-preset span {
-  width: 42px;
-  height: var(--stroke-size);
-  max-height: 12px;
-  border-radius: 999px;
-  background: #111827;
 }
 
 .brush-style-line {

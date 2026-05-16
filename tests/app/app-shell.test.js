@@ -174,23 +174,30 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?overflow-wrap: anywhere;/);
   });
 
-  it("renders an Excalidraw-like brush inspector with preset controls", () => {
+  it("renders a brush inspector with a horizontal width slider", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(markup).toContain("brush-inspector");
     expect(markup).toContain("brush-preset-row");
-    expect(markup).toContain("data-brush-width=\"2\"");
-    expect(markup).toContain("data-brush-width=\"14\"");
+    expect(markup).toContain("data-brush-width-slider");
+    expect(markup).toContain("data-brush-width-value");
+    expect(markup).toContain('aria-label="画笔粗细"');
+    expect(markup).not.toContain("data-brush-width=\"2\"");
+    expect(markup).not.toContain("data-brush-width=\"14\"");
     expect(markup).toContain("data-brush-style-option=\"dot\"");
     expect(markup).toContain("data-brush-custom-color");
     expect(styles).toContain(".brush-inspector");
+    expect(styles).toContain(".brush-width-control");
+    expect(styles).toContain(".brush-width-value");
     expect(styles).toContain(".brush-preset-button");
     expect(styles).toContain(".brush-custom-color");
     expect(styles).toContain(".brush-style-preset.active");
     expect(styles).toContain("repeating-linear-gradient");
-    expect(appSource).toContain("[data-brush-width]");
+    expect(appSource).toContain("brushWidthSlider");
+    expect(appSource).toContain("syncBrushWidthControl");
+    expect(appSource).not.toContain("[data-brush-width]");
     expect(appSource).toContain("brushCustomColorInput");
     expect(appSource).toContain("syncBrushPresetButtons");
   });
