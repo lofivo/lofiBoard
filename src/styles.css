@@ -515,6 +515,11 @@ button {
   padding-block: 14px;
 }
 
+[data-panel-mode="multi"] .style-panel {
+  max-height: calc(100vh - 64px);
+  padding-block: 14px;
+}
+
 .style-panel[hidden],
 .layer-panel[hidden] {
   display: none;
@@ -667,6 +672,13 @@ button {
   display: none;
 }
 
+[data-panel-mode="multi"] .panel-body {
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+
 .inspector-section {
   display: grid;
   gap: 8px;
@@ -779,6 +791,15 @@ button {
   box-shadow: none;
 }
 
+[data-panel-mode="multi"] .inspector-section[data-inspector-section="appearance"] {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 [data-panel-mode="brush"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
 [data-panel-mode="text"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
 [data-panel-mode="tool-text"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
@@ -791,6 +812,10 @@ button {
   display: none;
 }
 
+[data-panel-mode="multi"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle {
+  display: none;
+}
+
 [data-panel-mode="brush"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="text"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="tool-text"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
@@ -800,6 +825,11 @@ button {
 [data-panel-mode="linear-tool"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="element"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="linear"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+[data-panel-mode="multi"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content {
   grid-template-rows: 1fr;
   opacity: 1;
 }
@@ -939,6 +969,16 @@ button {
   grid-template-columns: 1fr 1fr !important;
 }
 
+[data-panel-mode="multi"][data-selection-has-drawing="true"] .brush-inspector {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+}
+
+[data-panel-mode="multi"][data-selection-has-coordinate="true"] .coordinate-inspector {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+}
+
 [data-panel-mode="tool"] .brush-field-cap,
 [data-panel-mode="tool"] .brush-field-style,
 [data-panel-mode="tool"] .brush-field-opacity,
@@ -956,10 +996,26 @@ button {
   display: none !important;
 }
 
+[data-panel-mode="multi"] .brush-field-cap,
+[data-panel-mode="multi"] .brush-field-style,
+[data-panel-mode="multi"] .brush-field-opacity {
+  display: none !important;
+}
+
+[data-panel-mode="multi"][data-selection-has-stroke="true"] .brush-field-cap,
+[data-panel-mode="multi"][data-selection-has-stroke="true"] .brush-field-style,
+[data-panel-mode="multi"][data-selection-has-stroke="true"] .brush-field-opacity {
+  display: grid !important;
+}
+
 [data-panel-mode="tool"] .brush-preview-card,
 [data-panel-mode="linear-tool"] .brush-preview-card,
 [data-panel-mode="element"] .brush-preview-card,
 [data-panel-mode="linear"] .brush-preview-card {
+  display: none;
+}
+
+[data-panel-mode="multi"] .brush-preview-card {
   display: none;
 }
 
@@ -975,6 +1031,11 @@ button {
 
 [data-panel-mode="sticky"] .sticky-inspector,
 [data-panel-mode="tool-sticky"] .sticky-inspector {
+  display: grid !important;
+}
+
+[data-panel-mode="multi"][data-selection-has-text="true"] .text-inspector,
+[data-panel-mode="multi"][data-selection-has-sticky="true"] .sticky-inspector {
   display: grid !important;
 }
 
@@ -996,6 +1057,10 @@ button {
 [data-panel-mode="linear-tool"] .brush-inspector,
 [data-panel-mode="element"] .brush-inspector,
 [data-panel-mode="linear"] .brush-inspector {
+  gap: 10px;
+}
+
+[data-panel-mode="multi"] .brush-inspector {
   gap: 10px;
 }
 
@@ -1044,8 +1109,8 @@ button {
   align-self: end;
 }
 
-[data-active-shape="line"] .shape-fill-inspector,
-[data-active-shape="arrow"] .shape-fill-inspector {
+[data-panel-mode]:not([data-panel-mode="multi"])[data-active-shape="line"] .shape-fill-inspector,
+[data-panel-mode]:not([data-panel-mode="multi"])[data-active-shape="arrow"] .shape-fill-inspector {
   display: none !important;
 }
 
@@ -1056,9 +1121,14 @@ button {
   display: none !important;
 }
 
-[data-active-shape="rect"] .shape-endpoint-inspector,
-[data-active-shape="ellipse"] .shape-endpoint-inspector,
-[data-active-shape="line"] .shape-endpoint-inspector {
+[data-panel-mode="multi"][data-selection-has-fill-shape="false"] .shape-fill-inspector,
+[data-panel-mode="multi"][data-selection-has-arrow="false"] .shape-endpoint-inspector {
+  display: none !important;
+}
+
+[data-panel-mode]:not([data-panel-mode="multi"])[data-active-shape="rect"] .shape-endpoint-inspector,
+[data-panel-mode]:not([data-panel-mode="multi"])[data-active-shape="ellipse"] .shape-endpoint-inspector,
+[data-panel-mode]:not([data-panel-mode="multi"])[data-active-shape="line"] .shape-endpoint-inspector {
   display: none !important;
 }
 
@@ -1075,12 +1145,24 @@ button {
   display: grid;
 }
 
+[data-panel-mode="multi"][data-selection-has-fill-shape="true"] .shape-fill-inspector {
+  display: grid !important;
+}
+
 [data-panel-mode="linear-tool"][data-active-shape="arrow"] .shape-endpoint-inspector,
 [data-panel-mode="linear"][data-active-shape="arrow"] .shape-endpoint-inspector {
   display: grid;
 }
 
+[data-panel-mode="multi"][data-selection-has-arrow="true"] .shape-endpoint-inspector {
+  display: grid !important;
+}
+
 [data-panel-mode="coordinate-tool"] .brush-inspector {
+  display: none !important;
+}
+
+[data-panel-mode="multi"][data-selection-has-drawing="false"] .brush-inspector {
   display: none !important;
 }
 
@@ -1107,10 +1189,18 @@ button {
   display: none;
 }
 
+[data-panel-mode="multi"][data-selection-has-fill-shape="true"][data-selection-has-stroke="false"] .brush-color-label-default {
+  display: none;
+}
+
 [data-panel-mode="tool"][data-active-shape="rect"] .brush-color-label-border,
 [data-panel-mode="tool"][data-active-shape="ellipse"] .brush-color-label-border,
 [data-panel-mode="element"][data-active-shape="rect"] .brush-color-label-border,
 [data-panel-mode="element"][data-active-shape="ellipse"] .brush-color-label-border {
+  display: inline;
+}
+
+[data-panel-mode="multi"][data-selection-has-fill-shape="true"][data-selection-has-stroke="false"] .brush-color-label-border {
   display: inline;
 }
 

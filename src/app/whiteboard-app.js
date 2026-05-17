@@ -506,6 +506,7 @@ export function createWhiteboardApp(root) {
     colorInput.addEventListener("input", updateBrushCursorStyle);
     colorInput.addEventListener("input", syncBrushPresetButtons);
     fillInput.addEventListener("input", applyStyleToSelection);
+    fillTransparentInput.addEventListener("change", () => syncFillTransparentControls(fillTransparentInput.checked));
     fillTransparentInput.addEventListener("change", applyStyleToSelection);
     widthInput.addEventListener("input", applyStyleToSelection);
     widthInput.addEventListener("input", updateBrushCursorStyle);
@@ -547,21 +548,23 @@ export function createWhiteboardApp(root) {
       const controlName = uiInput.dataset.uiControl;
       let masterInput = root.querySelector(`[data-control="${controlName}"]`);
       
-      if (controlName === 'sticky-font-size') masterInput = fontSizeInput;
-      if (controlName === 'sticky-font-family') masterInput = fontFamilyInput;
-      if (controlName === 'text-color') masterInput = colorInput;
+      if (controlName === "sticky-font-size") masterInput = fontSizeInput;
+      if (controlName === "sticky-font-family") masterInput = fontFamilyInput;
+      if (controlName === "text-color") masterInput = colorInput;
       
       if (!masterInput) return;
 
       uiInput.addEventListener("input", () => {
         if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
+        if (controlName === "fill") syncFillTransparentControls(false);
         setBrushControlValue(masterInput, uiInput.value, "input");
-        if (controlName === 'color' || controlName === 'width') {
+        if (controlName === "color" || controlName === "width") {
           updateBrushCursorStyle();
         }
       });
       uiInput.addEventListener("change", () => {
         if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
+        if (controlName === "fill") syncFillTransparentControls(false);
         setBrushControlValue(masterInput, uiInput.value, "change");
       });
     });
@@ -569,7 +572,7 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-brush-color]").forEach((button) => {
       button.addEventListener("click", () => {
         const mode = root.dataset.panelMode;
-        const isSticky = mode === 'sticky' || mode === 'tool-sticky';
+        const isSticky = mode === 'sticky' || mode === 'tool-sticky' || Boolean(closestElement(button, ".sticky-inspector"));
         const targetInput = isSticky ? fillInput : colorInput;
         setBrushControlValue(targetInput, button.dataset.brushColor, "input");
         if (!isSticky) updateBrushCursorStyle();
@@ -583,12 +586,8 @@ export function createWhiteboardApp(root) {
     });
     root.querySelectorAll("[data-shape-fill-color]").forEach((button) => {
       button.addEventListener("click", () => {
-        fillTransparentInput.checked = false;
-        root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
-          input.checked = false;
-        });
+        syncFillTransparentControls(false);
         setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");
-        applyStyleToSelection();
       });
     });
     brushCustomColorInput?.addEventListener("input", () => {
@@ -2626,6 +2625,7 @@ export function createWhiteboardApp(root) {
       if (element.type === "line") {
         return { ...element, ...strokeStyle };
       }
+      if (element.type === "coordinate-plane" || element.type.endsWith?.("-structure")) return element;
       return {
         ...element,
         stroke: colorInput.value,
@@ -4803,8 +4803,13 @@ export function createWhiteboardApp(root) {
     const first = selectedElements[0];
 
     if (first) {
-      hydrateControlsFromElement(first);
-      const mode = selectedElements.every((element) => element.type === "text")
+      const hydrateSource = getSelectionHydrateSource(selectedElements) ?? first;
+      hydrateControlsFromElement(hydrateSource);
+      const capabilities = getSelectionInspectorCapabilities(selectedElements);
+      syncSelectionInspectorDataset(capabilities);
+      const mode = selectedElements.length > 1
+        ? "multi"
+        : selectedElements.every((element) => element.type === "text")
         ? "text"
         : selectedElements.every((element) => element.type === "sticky")
           ? "sticky"
@@ -4828,6 +4833,7 @@ export function createWhiteboardApp(root) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
+      syncSelectionInspectorDataset(getToolInspectorCapabilities(drawingTool, currentTool));
       root.dataset.panelMode = currentTool === TOOLS.TEXT
         ? "tool-text"
         : currentTool === TOOLS.STICKY
@@ -4847,7 +4853,52 @@ export function createWhiteboardApp(root) {
     stylePanelAvailable = false;
     root.dataset.panelMode = "hidden";
     root.dataset.structureSelection = "none";
+    syncSelectionInspectorDataset(getSelectionInspectorCapabilities([]));
     applyPanelState();
+  }
+
+  function getSelectionInspectorCapabilities(elements) {
+    return {
+      text: elements.some((element) => element.type === "text"),
+      sticky: elements.some((element) => element.type === "sticky"),
+      stroke: elements.some((element) => element.type === "stroke"),
+      drawing: elements.some((element) => ["stroke", "line", "arrow", "rect", "ellipse"].includes(element.type)),
+      fillShape: elements.some((element) => ["rect", "ellipse"].includes(element.type)),
+      arrow: elements.some((element) => element.type === "arrow"),
+      coordinate: elements.some((element) => element.type === "coordinate-plane"),
+    };
+  }
+
+  function getSelectionHydrateSource(elements) {
+    return elements.find((element) => ["rect", "ellipse"].includes(element.type))
+      ?? elements.find((element) => element.type === "arrow")
+      ?? elements.find((element) => element.type === "line")
+      ?? elements.find((element) => element.type === "stroke")
+      ?? elements.find((element) => element.type === "sticky")
+      ?? elements.find((element) => element.type === "text")
+      ?? elements.find((element) => element.type === "coordinate-plane");
+  }
+
+  function getToolInspectorCapabilities(drawingTool, currentToolName) {
+    return {
+      text: currentToolName === TOOLS.TEXT,
+      sticky: currentToolName === TOOLS.STICKY,
+      stroke: currentToolName === TOOLS.PEN,
+      drawing: currentToolName === TOOLS.PEN || ["rect", "ellipse", "line", "arrow"].includes(drawingTool),
+      fillShape: ["rect", "ellipse"].includes(drawingTool),
+      arrow: drawingTool === "arrow",
+      coordinate: drawingTool === TOOLS.COORDINATE_PLANE,
+    };
+  }
+
+  function syncSelectionInspectorDataset(capabilities) {
+    root.dataset.selectionHasText = String(capabilities.text);
+    root.dataset.selectionHasSticky = String(capabilities.sticky);
+    root.dataset.selectionHasStroke = String(capabilities.stroke);
+    root.dataset.selectionHasDrawing = String(capabilities.drawing);
+    root.dataset.selectionHasFillShape = String(capabilities.fillShape);
+    root.dataset.selectionHasArrow = String(capabilities.arrow);
+    root.dataset.selectionHasCoordinate = String(capabilities.coordinate);
   }
 
   function hydrateControlsFromElement(element) {
@@ -4963,6 +5014,13 @@ export function createWhiteboardApp(root) {
   function syncShapeEndpointControls() {
     root.querySelectorAll("[data-ui-control='arrow-double-ended']").forEach((input) => {
       input.checked = arrowDoubleEndedInput.checked;
+    });
+  }
+
+  function syncFillTransparentControls(checked) {
+    fillTransparentInput.checked = checked;
+    root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
+      input.checked = checked;
     });
   }
 

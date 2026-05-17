@@ -300,9 +300,9 @@ describe("app shell", () => {
     expect(markup).toContain('data-ui-control="coordinate-grid-color"');
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="coordinate-tool"\] \.coordinate-inspector,[\s\S]*?\[data-panel-mode="coordinate"\] \.coordinate-inspector \{[\s\S]*?display: grid !important;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\]\[data-active-shape="rect"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="element"\]\[data-active-shape="ellipse"\] \.shape-fill-inspector \{[\s\S]*?display: grid;/);
-    expect(styles).toMatch(/\[data-active-shape="line"\] \.shape-fill-inspector,[\s\S]*?\[data-active-shape="arrow"\] \.shape-fill-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\[data-panel-mode\]:not\(\[data-panel-mode="multi"\]\)\[data-active-shape="line"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode\]:not\(\[data-panel-mode="multi"\]\)\[data-active-shape="arrow"\] \.shape-fill-inspector \{[\s\S]*?display: none !important;/);
     expect(styles).toMatch(/\[data-panel-mode="linear-tool"\]\[data-active-shape="arrow"\] \.shape-endpoint-inspector,[\s\S]*?\[data-panel-mode="linear"\]\[data-active-shape="arrow"\] \.shape-endpoint-inspector \{[\s\S]*?display: grid;/);
-    expect(styles).toMatch(/\[data-active-shape="rect"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="ellipse"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="line"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\[data-panel-mode\]:not\(\[data-panel-mode="multi"\]\)\[data-active-shape="rect"\] \.shape-endpoint-inspector,[\s\S]*?\[data-panel-mode\]:not\(\[data-panel-mode="multi"\]\)\[data-active-shape="ellipse"\] \.shape-endpoint-inspector,[\s\S]*?\[data-panel-mode\]:not\(\[data-panel-mode="multi"\]\)\[data-active-shape="line"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="element"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear"\] \.brush-preview-card \{[\s\S]*?display: none;/);
     expect(styles).toMatch(/\.shape-width-fill-row \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
     expect(styles).toMatch(/\.shape-width-fill-row > \.brush-field-width,[\s\S]*?\.shape-width-fill-row > \.shape-fill-inspector,[\s\S]*?\.shape-width-fill-row > \.shape-endpoint-inspector \{[\s\S]*?grid-column: auto;/);
@@ -350,6 +350,45 @@ describe("app shell", () => {
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="element"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear"\] \.brush-inspector \{[\s\S]*?gap: 10px;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="linear-tool"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="element"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="linear"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?gap: 0;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="linear-tool"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="element"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="linear"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle \{[\s\S]*?display: none;/);
+  });
+
+  it("shows combined property controls for multi-selection and grouped selections", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("function getSelectionInspectorCapabilities");
+    expect(appSource).toContain('root.dataset.selectionHasText = String(capabilities.text)');
+    expect(appSource).toContain('root.dataset.selectionHasSticky = String(capabilities.sticky)');
+    expect(appSource).toContain('root.dataset.selectionHasDrawing = String(capabilities.drawing)');
+    expect(appSource).toContain('root.dataset.selectionHasStroke = String(capabilities.stroke)');
+    expect(appSource).toContain('root.dataset.selectionHasFillShape = String(capabilities.fillShape)');
+    expect(appSource).toContain('root.dataset.selectionHasArrow = String(capabilities.arrow)');
+    expect(appSource).toContain('root.dataset.selectionHasCoordinate = String(capabilities.coordinate)');
+    expect(appSource).toContain('selectedElements.length > 1');
+    expect(appSource).toContain('? "multi"');
+    expect(appSource).toContain('["rect", "ellipse"].includes(element.type)');
+    expect(appSource).toContain('if (element.type === "coordinate-plane" || element.type.endsWith?.("-structure")) return element;');
+
+    expect(styles).toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\] \.panel-body \{[\s\S]*?overflow-y: auto;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-drawing="true"\] \.brush-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toContain('[data-panel-mode="multi"][data-selection-has-text="true"] .text-inspector');
+    expect(styles).toContain('[data-panel-mode="multi"][data-selection-has-sticky="true"] .sticky-inspector');
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-text="true"\] \.text-inspector,[\s\S]*?\[data-panel-mode="multi"\]\[data-selection-has-sticky="true"\] \.sticky-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-coordinate="true"\] \.coordinate-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-fill-shape="true"\] \.shape-fill-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-arrow="true"\] \.shape-endpoint-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-stroke="true"\] \.brush-field-cap,[\s\S]*?\[data-panel-mode="multi"\]\[data-selection-has-stroke="true"\] \.brush-field-style,[\s\S]*?\[data-panel-mode="multi"\]\[data-selection-has-stroke="true"\] \.brush-field-opacity \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-fill-shape="true"\]\[data-selection-has-stroke="false"\] \.brush-color-label-default \{[\s\S]*?display: none;/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-fill-shape="true"\]\[data-selection-has-stroke="false"\] \.brush-color-label-border \{[\s\S]*?display: inline;/);
+    expect(styles).not.toContain('[data-panel-mode="multi"][data-selection-has-fill-shape="true"] .brush-color-label-default');
+    expect(appSource).toContain('if (controlName === "fill") syncFillTransparentControls(false);');
+    expect(appSource).toContain('function syncFillTransparentControls(checked)');
+    expect(appSource).toContain('const hydrateSource = getSelectionHydrateSource(selectedElements) ?? first;');
+    expect(appSource).toContain('function getSelectionHydrateSource(elements)');
+    expect(appSource).toContain('return elements.find((element) => ["rect", "ellipse"].includes(element.type))');
+    expect(appSource).toContain('setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");');
+    expect(appSource).not.toMatch(/setBrushControlValue\(fillInput, button\.dataset\.shapeFillColor, "input"\);\s*applyStyleToSelection\(\);/);
   });
 
   it("resets property panel controls and section state when switching tools", () => {
