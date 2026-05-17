@@ -17,6 +17,19 @@ import {
 export function renderShell() {
   return `
     <div class="app-shell">
+      <div class="property-storage" hidden aria-hidden="true">
+        <input data-control="color" type="color" value="#111827" />
+        <input data-control="fill" type="color" value="#ffffff" />
+        <input data-control="fill-transparent" type="checkbox" checked />
+        <input data-control="width" type="range" min="1" max="28" value="6" />
+        <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
+        <input data-control="brush-smoothing" type="range" min="0" max="100" value="45" />
+        <input data-control="brush-cap" type="text" value="round" />
+        <input data-control="brush-style" type="text" value="solid" />
+        <input data-control="font-size" type="range" min="12" max="96" value="28" />
+        <input data-control="font-family" type="text" value="Inter, system-ui, sans-serif" />
+      </div>
+
       <header class="topbar">
         <div class="brand-menu">
           <button type="button" class="board-trigger" data-menu-trigger aria-haspopup="true" aria-expanded="false">
@@ -48,118 +61,94 @@ export function renderShell() {
           <button type="button" class="panel-toggle" data-panel-toggle="style" title="收起/展开属性" aria-label="收起/展开属性">‹</button>
         </div>
         <div class="panel-body" data-panel-body>
-          <section class="inspector-section" data-inspector-section="appearance" data-panel-context="appearance">
-            <button
-              type="button"
-              class="inspector-section-toggle"
-              data-section-toggle="appearance"
-              aria-expanded="true"
-            >
-              <span class="inspector-section-title">外观</span>
-              <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
-            </button>
-            <div class="inspector-section-content" data-section-content="appearance">
-              <div class="brush-inspector" aria-label="画笔样式">
-                <div class="brush-field brush-field-color">
-                  <div class="brush-field-label">颜色</div>
-                  <div class="brush-color-grid" role="group" aria-label="画笔颜色">
-                    <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
-                    <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
-                    <button type="button" class="brush-color-swatch" data-brush-color="#dc2626" style="--swatch-color: #dc2626" title="红色" aria-label="红色"></button>
-                    <button type="button" class="brush-color-swatch" data-brush-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
-                    <button type="button" class="brush-color-swatch" data-brush-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
-                    <button type="button" class="brush-color-swatch" data-brush-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
-                    <label class="brush-custom-color" title="自定义颜色" aria-label="自定义颜色">
-                      <input data-brush-custom-color type="color" value="#111827" />
-                    </label>
-                  </div>
-                </div>
-                <div class="brush-field">
-                  <div class="brush-field-label">粗细</div>
-                  <div class="brush-width-control">
-                    <input data-brush-width-slider type="range" min="1" max="28" step="1" value="6" aria-label="画笔粗细" />
-                    <span class="brush-width-value" data-brush-width-value>6</span>
-                  </div>
-                </div>
-                <div class="brush-field">
-                  <div class="brush-field-label">线型</div>
-                  <div class="brush-preset-row brush-style-row" role="group" aria-label="画笔线型">
-                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="solid" title="实线" aria-label="实线"><span class="brush-style-line brush-style-line-solid"></span></button>
-                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dash" title="虚线" aria-label="虚线"><span class="brush-style-line brush-style-line-dash"></span></button>
-                    <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dot" title="点线" aria-label="点线"><span class="brush-style-line brush-style-line-dot"></span></button>
-                  </div>
-                </div>
-                <div class="brush-field">
-                  <div class="brush-field-label">笔头</div>
-                  <div class="brush-preset-row" role="group" aria-label="画笔笔头">
-                    <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="round" title="圆头" aria-label="圆头"><span class="brush-cap-preview brush-cap-preview-round"></span></button>
-                    <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="square" title="方头" aria-label="方头"><span class="brush-cap-preview brush-cap-preview-square"></span></button>
-                  </div>
-                </div>
-                <label class="brush-field brush-slider-field control-brush-opacity">
-                  <span class="brush-field-label">不透明度</span>
-                  <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
-                </label>
-                <div class="brush-field">
-                  <div class="brush-field-label">平滑</div>
-                  <div class="brush-preset-row" role="group" aria-label="画笔平滑">
-                    <button type="button" class="brush-preset-button" data-brush-smoothing="15">低</button>
-                    <button type="button" class="brush-preset-button" data-brush-smoothing="45">中</button>
-                    <button type="button" class="brush-preset-button" data-brush-smoothing="75">高</button>
-                  </div>
+          <div class="inspector-section" data-inspector-section="appearance" data-panel-context="appearance">
+            <div class="brush-inspector" aria-label="画笔样式">
+              <div class="brush-preview-card" aria-hidden="true">
+                <svg class="brush-preview-canvas" viewBox="0 0 280 48" focusable="false">
+                  <path data-brush-preview-path d="M 14,24 C 72,10 132,38 266,24" fill="none" stroke="#111827" stroke-width="6" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="brush-field brush-field-color">
+                <div class="brush-field-label">颜色</div>
+                <div class="brush-color-grid" role="group" aria-label="画笔颜色">
+                  <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#dc2626" style="--swatch-color: #dc2626" title="红色" aria-label="红色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
+                  <div class="brush-color-divider" aria-hidden="true"></div>
+                  <label class="brush-custom-color" title="自定义颜色" aria-label="自定义颜色">
+                    <input data-brush-custom-color type="color" value="#111827" />
+                  </label>
                 </div>
               </div>
-              <div class="inspector-section-grid inspector-section-grid-appearance">
-                <label class="control-line">
-                  颜色
-                  <input data-control="color" type="color" value="#111827" />
-                </label>
-                <label class="control-fill">
-                  填充
-                  <input data-control="fill" type="color" value="#ffffff" />
-                </label>
-                <label class="control-fill-transparent">
-                  <input data-control="fill-transparent" type="checkbox" checked />
-                  透明填充
-                </label>
-                <label class="control-width">
-                  粗细
-                  <input data-control="width" type="range" min="1" max="28" value="6" />
-                </label>
-                <label class="control-brush-smoothing">
-                  平滑
-                  <input data-control="brush-smoothing" type="range" min="0" max="100" value="45" />
-                </label>
-                <label class="control-brush-cap">
-                  笔头
-                  <select data-control="brush-cap">
-                    <option value="round">圆头</option>
-                    <option value="square">方头</option>
-                  </select>
-                </label>
-                <label class="control-brush-style">
-                  线型
-                  <select data-control="brush-style">
-                    <option value="solid">实线</option>
-                    <option value="dash">虚线</option>
-                    <option value="dot">点线</option>
-                  </select>
-                </label>
-                <label class="control-font">
-                  字号
-                  <input data-control="font-size" type="range" min="12" max="96" value="28" />
-                </label>
-                <label class="control-font-family">
-                  字体
-                  <select data-control="font-family">
-                    <option value="Inter, system-ui, sans-serif">Inter</option>
-                    <option value="Arial, Helvetica, sans-serif">Arial</option>
-                    <option value="Georgia, serif">Georgia</option>
-                    <option value="'Times New Roman', Times, serif">Times</option>
-                    <option value="'Courier New', Courier, monospace">Courier</option>
-                    <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">中文黑体</option>
-                  </select>
-                </label>
+              <div class="brush-field brush-field-width">
+                <div class="brush-field-header">
+                  <div class="brush-field-label">粗细</div>
+                </div>
+                <div class="brush-width-control">
+                  <input data-brush-width-slider type="range" min="1" max="28" step="1" value="6" aria-label="画笔粗细" />
+                </div>
+              </div>
+              <div class="brush-field brush-field-cap">
+                <div class="brush-field-label">笔头</div>
+                <div class="brush-preset-row brush-cap-row" role="group" aria-label="画笔笔头">
+                  <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="round" title="圆头" aria-label="圆头">
+                    <span class="brush-cap-preview brush-cap-preview-round"></span>
+                  </button>
+                  <button type="button" class="brush-preset-button brush-cap-preset" data-brush-cap-option="square" title="平头" aria-label="平头">
+                    <span class="brush-cap-preview brush-cap-preview-square"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="brush-field brush-field-style">
+                <div class="brush-field-label">线型</div>
+                <div class="brush-preset-row brush-style-row" role="group" aria-label="画笔线型">
+                  <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="solid" title="实线" aria-label="实线"><span class="brush-style-line brush-style-line-solid"></span></button>
+                  <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dash" title="虚线" aria-label="虚线"><span class="brush-style-line brush-style-line-dash"></span></button>
+                  <button type="button" class="brush-preset-button brush-style-preset" data-brush-style-option="dot" title="点线" aria-label="点线"><span class="brush-style-line brush-style-line-dot"></span></button>
+                </div>
+              </div>
+              <label class="brush-field brush-slider-field brush-field-opacity control-brush-opacity">
+                <span class="brush-field-header">
+                  <span class="brush-field-label">不透明度</span>
+                </span>
+                <span class="brush-slider-row">
+                  <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
+                </span>
+              </label>
+            </div>
+
+            <div class="text-inspector" aria-label="文字样式">
+              <div class="brush-field brush-field-color">
+                <div class="brush-field-label">颜色</div>
+                <div class="brush-color-grid" role="group" aria-label="文字颜色">
+                  <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#dc2626" style="--swatch-color: #dc2626" title="红色" aria-label="红色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
+                  <div class="brush-color-divider" aria-hidden="true"></div>
+                  <label class="brush-custom-color" title="自定义颜色" aria-label="自定义颜色">
+                    <input data-ui-control="color" type="color" value="#111827" />
+                  </label>
+                </div>
+              </div>
+              <div class="brush-field brush-field-font-family">
+                <div class="brush-field-label">字体</div>
+                <select data-ui-control="font-family">
+                  <option value="Inter, system-ui, sans-serif">Inter</option>
+                  <option value="Arial, Helvetica, sans-serif">Arial</option>
+                  <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">中文黑体</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="'Times New Roman', Times, serif">Times</option>
+                  <option value="'Courier New', Courier, monospace">Courier</option>
+                </select>
+              </div>
+              <div class="brush-field brush-field-text-format">
+                <div class="brush-field-label">样式</div>
                 <div class="control-text-format" role="group" aria-label="文字样式">
                   <button type="button" data-text-style="bold" title="加粗" aria-label="加粗">${icon(TEXT_FORMAT_ICONS.bold)}</button>
                   <button type="button" data-text-style="italic" title="斜体" aria-label="斜体">${icon(TEXT_FORMAT_ICONS.italic)}</button>
@@ -167,8 +156,68 @@ export function renderShell() {
                   <button type="button" data-text-style="strike" title="删除线" aria-label="删除线">${icon(TEXT_FORMAT_ICONS.strike)}</button>
                 </div>
               </div>
+              <div class="brush-field brush-field-font-size">
+                <div class="brush-field-label">字号</div>
+                <input data-ui-control="font-size" type="range" min="12" max="96" value="28" />
+              </div>
             </div>
-          </section>
+
+            <div class="sticky-inspector" aria-label="便签样式">
+              <div class="brush-field brush-field-color">
+                <div class="brush-field-label">背景颜色</div>
+                <div class="brush-color-grid" role="group" aria-label="便签背景颜色">
+                  <button type="button" class="brush-color-swatch" data-brush-color="#fef08a" style="--swatch-color: #fef08a" title="黄色" aria-label="黄色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#bbf7d0" style="--swatch-color: #bbf7d0" title="绿色" aria-label="绿色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#bfdbfe" style="--swatch-color: #bfdbfe" title="蓝色" aria-label="蓝色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#fecaca" style="--swatch-color: #fecaca" title="红色" aria-label="红色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#ddd6fe" style="--swatch-color: #ddd6fe" title="紫色" aria-label="紫色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-color="#fed7aa" style="--swatch-color: #fed7aa" title="橙色" aria-label="橙色"></button>
+                  <div class="brush-color-divider" aria-hidden="true"></div>
+                  <label class="brush-custom-color" title="自定义背景颜色" aria-label="自定义背景颜色">
+                    <input data-ui-control="fill" type="color" value="#fef08a" />
+                  </label>
+                </div>
+              </div>
+              <div class="brush-field brush-field-text-color">
+                <div class="brush-field-label">字体颜色</div>
+                <div class="brush-color-grid" role="group" aria-label="便签字体颜色">
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#dc2626" style="--swatch-color: #dc2626" title="红色" aria-label="红色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#16a34a" style="--swatch-color: #16a34a" title="绿色" aria-label="绿色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#f59e0b" style="--swatch-color: #f59e0b" title="黄色" aria-label="黄色"></button>
+                  <button type="button" class="brush-color-swatch" data-brush-text-color="#7c3aed" style="--swatch-color: #7c3aed" title="紫色" aria-label="紫色"></button>
+                  <div class="brush-color-divider" aria-hidden="true"></div>
+                  <label class="brush-custom-color" title="自定义字体颜色" aria-label="自定义字体颜色">
+                    <input data-ui-control="text-color" type="color" value="#1f2937" />
+                  </label>
+                </div>
+              </div>
+              <div class="brush-field brush-field-font-family">
+                <div class="brush-field-label">字体</div>
+                <select data-ui-control="sticky-font-family">
+                  <option value="Inter, system-ui, sans-serif">Inter</option>
+                  <option value="Arial, Helvetica, sans-serif">Arial</option>
+                  <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">中文黑体</option>
+                  <option value="Georgia, serif">Georgia</option>
+                </select>
+              </div>
+              <div class="brush-field brush-field-text-format">
+                <div class="brush-field-label">样式</div>
+                <div class="control-text-format" role="group" aria-label="文字样式">
+                  <button type="button" data-text-style="bold" title="加粗" aria-label="加粗">${icon(TEXT_FORMAT_ICONS.bold)}</button>
+                  <button type="button" data-text-style="italic" title="斜体" aria-label="斜体">${icon(TEXT_FORMAT_ICONS.italic)}</button>
+                  <button type="button" data-text-style="underline" title="下划线" aria-label="下划线">${icon(TEXT_FORMAT_ICONS.underline)}</button>
+                  <button type="button" data-text-style="strike" title="删除线" aria-label="删除线">${icon(TEXT_FORMAT_ICONS.strike)}</button>
+                </div>
+              </div>
+              <div class="brush-field brush-field-font-size">
+                <div class="brush-field-label">字号</div>
+                <input data-ui-control="sticky-font-size" type="range" min="12" max="64" value="24" />
+              </div>
+            </div>
+          </div>
+          </div>
 
           <section class="inspector-section" data-inspector-section="linear" data-panel-context="linear">
             <button

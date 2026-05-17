@@ -19,6 +19,19 @@ const baseHandlers = {
   onEditText: vi.fn(),
 };
 
+function createMockCanvasContext() {
+  return {
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    arc: vi.fn(),
+    stroke: vi.fn(),
+    fill: vi.fn(),
+    setAttr: vi.fn(),
+    setLineDash: vi.fn(),
+  };
+}
+
 describe("konva elements", () => {
   afterEach(() => {
     delete globalThis.window;
@@ -587,13 +600,65 @@ describe("konva elements", () => {
       stroke: "#111827",
       strokeWidth: 10,
       opacity: 1,
-      lineCap: "round",
+      lineCap: "square",
       brushStyle: "dot",
       smoothing: 0.45,
     }, baseHandlers);
 
     expect(node.dash()).toEqual([0.01, 18]);
     expect(node.lineCap()).toBe("round");
+  });
+
+  it("draws dashed pressure stroke previews as separated path segments", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      forcePressureStroke: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 20, y: 0, pressure: 0.5 },
+        { x: 40, y: 0, pressure: 0.5 },
+        { x: 60, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 6,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "dash",
+      smoothing: 0.45,
+    }, baseHandlers);
+    const context = createMockCanvasContext();
+
+    node.sceneFunc()(context, node);
+
+    expect(node.getClassName()).toBe("Shape");
+    expect(context.lineTo.mock.calls.length).toBeGreaterThan(1);
+    expect(context.lineTo).not.toHaveBeenCalledWith(60, 0);
+  });
+
+  it("draws dotted pressure stroke previews as round dots", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      forcePressureStroke: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 20, y: 0, pressure: 0.5 },
+        { x: 40, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 8,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "dot",
+      smoothing: 0.45,
+    }, baseHandlers);
+    const context = createMockCanvasContext();
+
+    node.sceneFunc()(context, node);
+
+    expect(context.arc.mock.calls.length).toBeGreaterThan(2);
+    expect(context.stroke).not.toHaveBeenCalled();
   });
 
   it("renders coordinate plane axes, grid, ticks, and labels", () => {

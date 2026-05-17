@@ -181,6 +181,8 @@ export function createWhiteboardApp(root) {
   const brushCustomColorInput = root.querySelector("[data-brush-custom-color]");
   const brushWidthSlider = root.querySelector("[data-brush-width-slider]");
   const brushWidthValue = root.querySelector("[data-brush-width-value]");
+  const brushOpacityValue = root.querySelector("[data-brush-opacity-value]");
+  const brushPreviewPath = root.querySelector("[data-brush-preview-path]");
   const fontSizeInput = root.querySelector("[data-control='font-size']");
   const fontFamilyInput = root.querySelector("[data-control='font-family']");
   const zoomLabel = root.querySelector("[data-zoom]");
@@ -453,7 +455,7 @@ export function createWhiteboardApp(root) {
       button.addEventListener("click", () => runAction(button.dataset.action));
     }
     root.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-linear-item-action]");
+      const button = closestElement(event.target, "[data-linear-item-action]");
       if (!button) return;
       runLinearItemAction(button.dataset.linearItemAction);
     });
@@ -500,18 +502,55 @@ export function createWhiteboardApp(root) {
     widthInput.addEventListener("input", syncBrushWidthControl);
     widthInput.addEventListener("input", syncBrushPresetButtons);
     brushOpacityInput.addEventListener("input", applyStyleToSelection);
+    brushOpacityInput.addEventListener("input", syncBrushWidthControl);
+    brushOpacityInput.addEventListener("input", syncBrushPreview);
     brushSmoothingInput.addEventListener("input", applyStyleToSelection);
     brushSmoothingInput.addEventListener("input", syncBrushPresetButtons);
+    brushSmoothingInput.addEventListener("input", syncBrushPreview);
     brushCapInput.addEventListener("change", applyStyleToSelection);
     brushCapInput.addEventListener("change", syncBrushPresetButtons);
+    brushCapInput.addEventListener("change", syncBrushPreview);
     brushStyleInput.addEventListener("change", applyStyleToSelection);
     brushStyleInput.addEventListener("change", syncBrushPresetButtons);
+    brushStyleInput.addEventListener("change", syncBrushPreview);
     fontSizeInput.addEventListener("input", applyStyleToSelection);
     fontFamilyInput.addEventListener("change", applyStyleToSelection);
+
+    // Sync new UI controls to master controls
+    root.querySelectorAll("[data-ui-control]").forEach((uiInput) => {
+      const controlName = uiInput.dataset.uiControl;
+      let masterInput = root.querySelector(`[data-control="${controlName}"]`);
+      
+      if (controlName === 'sticky-font-size') masterInput = fontSizeInput;
+      if (controlName === 'sticky-font-family') masterInput = fontFamilyInput;
+      if (controlName === 'text-color') masterInput = colorInput;
+      
+      if (!masterInput) return;
+
+      uiInput.addEventListener("input", () => {
+        setBrushControlValue(masterInput, uiInput.value, "input");
+        if (controlName === 'color' || controlName === 'width') {
+          updateBrushCursorStyle();
+        }
+      });
+      uiInput.addEventListener("change", () => {
+        setBrushControlValue(masterInput, uiInput.value, "change");
+      });
+    });
+
     root.querySelectorAll("[data-brush-color]").forEach((button) => {
       button.addEventListener("click", () => {
-        setBrushControlValue(colorInput, button.dataset.brushColor, "input");
-        updateBrushCursorStyle();
+        const mode = root.dataset.panelMode;
+        const isSticky = mode === 'sticky' || mode === 'tool-sticky';
+        const targetInput = isSticky ? fillInput : colorInput;
+        setBrushControlValue(targetInput, button.dataset.brushColor, "input");
+        if (!isSticky) updateBrushCursorStyle();
+      });
+    });
+
+    root.querySelectorAll("[data-brush-text-color]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setBrushControlValue(colorInput, button.dataset.brushTextColor, "input");
       });
     });
     brushCustomColorInput?.addEventListener("input", () => {
@@ -521,6 +560,17 @@ export function createWhiteboardApp(root) {
     brushWidthSlider?.addEventListener("input", () => {
       setBrushControlValue(widthInput, brushWidthSlider.value, "input");
       updateBrushCursorStyle();
+    });
+    root.querySelectorAll("[data-brush-width-step]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const step = Number(button.dataset.brushWidthStep) || 0;
+        const current = Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width));
+        const min = Number(brushWidthSlider?.min ?? widthInput.min ?? 1);
+        const max = Number(brushWidthSlider?.max ?? widthInput.max ?? 28);
+        const next = Math.max(min, Math.min(max, current + step));
+        setBrushControlValue(widthInput, String(next), "input");
+        updateBrushCursorStyle();
+      });
     });
     root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -577,7 +627,7 @@ export function createWhiteboardApp(root) {
       });
     });
     layerList.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-layer-id]");
+      const button = closestElement(event.target, "[data-layer-id]");
       if (!button) return;
       setTool(TOOLS.SELECT);
       selectElementById(button.dataset.layerId, event.shiftKey);
@@ -946,7 +996,7 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (!isMainMenuOpen) return;
-      if (event.target.closest("[data-main-menu], [data-menu-trigger]")) {
+      if (closestElement(event.target, "[data-main-menu], [data-menu-trigger]")) {
         return;
       }
       closeMainMenu();
@@ -954,7 +1004,7 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (shapePopover.hidden) return;
-      if (event.target.closest("[data-shape-popover], [data-tool='shape']")) {
+      if (closestElement(event.target, "[data-shape-popover], [data-tool='shape']")) {
         return;
       }
       setShapePopoverOpen(false);
@@ -962,7 +1012,7 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (structurePanel.hidden) return;
-      if (event.target.closest("[data-structure-panel], [data-tool='structure']")) {
+      if (closestElement(event.target, "[data-structure-panel], [data-tool='structure']")) {
         return;
       }
       setStructurePanelOpen(false);
@@ -970,7 +1020,7 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (!isZoomMenuOpen) return;
-      if (event.target.closest("[data-zoom-menu], [data-zoom-trigger]")) {
+      if (closestElement(event.target, "[data-zoom-menu], [data-zoom-trigger]")) {
         return;
       }
       setZoomMenuOpen(false);
@@ -978,7 +1028,7 @@ export function createWhiteboardApp(root) {
 
     window.addEventListener("pointerdown", (event) => {
       if (contextMenu.hidden) return;
-      if (event.target.closest("[data-context-menu]")) {
+      if (closestElement(event.target, "[data-context-menu]")) {
         return;
       }
       hideContextMenu();
@@ -2558,9 +2608,14 @@ export function createWhiteboardApp(root) {
   }
 
   function selectAllElements() {
-    if (board.elements.length === 0) return;
-    selectIds(board.elements.map((element) => element.id));
-    setStatus("已选择全部元素");
+    const selectableIds = board.elements.filter((el) => !el.locked).map((el) => el.id);
+    if (selectableIds.length === 0) return;
+    
+    // Clear any native browser selection that might have happened on UI text
+    window.getSelection()?.removeAllRanges();
+    
+    selectIds(selectableIds);
+    setStatus(`已选择全部对象 (${selectableIds.length})`);
   }
 
   function copySelection() {
@@ -4604,6 +4659,11 @@ export function createWhiteboardApp(root) {
       || Boolean(target?.isContentEditable);
   }
 
+  function closestElement(target, selector) {
+    if (target instanceof Element) return target.closest(selector);
+    return target?.parentElement?.closest?.(selector) ?? null;
+  }
+
   function getTokenSet(value) {
     return new Set(String(value ?? "").split(/\s+/).filter((token) => token && token !== "normal" && token !== "none"));
   }
@@ -4648,13 +4708,15 @@ export function createWhiteboardApp(root) {
       hydrateControlsFromElement(first);
       const mode = selectedElements.every((element) => element.type === "text")
         ? "text"
-        : selectedElements.every((element) => element.type === "stroke")
-          ? "stroke"
-        : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
-          ? "linear"
-        : selectedElements.every((element) => isLinearStructureElement(element) || ["graph-structure", "tree-structure"].includes(element.type))
-          ? "structure"
-          : "element";
+        : selectedElements.every((element) => element.type === "sticky")
+          ? "sticky"
+          : selectedElements.every((element) => element.type === "stroke")
+            ? "stroke"
+          : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
+            ? "linear"
+          : selectedElements.every((element) => isLinearStructureElement(element) || ["graph-structure", "tree-structure"].includes(element.type))
+            ? "structure"
+            : "element";
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       root.dataset.panelMode = mode;
@@ -4662,17 +4724,19 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if ([TOOLS.PEN, TOOLS.STICKY, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
+    if ([TOOLS.PEN, TOOLS.STICKY, TOOLS.TEXT, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
-      root.dataset.panelMode = [TOOLS.TEXT, TOOLS.STICKY].includes(currentTool)
+      root.dataset.panelMode = currentTool === TOOLS.TEXT
         ? "tool-text"
-        : currentTool === TOOLS.PEN
-          ? "brush"
-        : ["line", "arrow"].includes(drawingTool)
-          ? "linear-tool"
-          : "tool";
+        : currentTool === TOOLS.STICKY
+          ? "tool-sticky"
+          : currentTool === TOOLS.PEN
+            ? "brush"
+          : ["line", "arrow"].includes(drawingTool)
+            ? "linear-tool"
+            : "tool";
       applyPanelState();
       return;
     }
@@ -4734,13 +4798,17 @@ export function createWhiteboardApp(root) {
     if (!input || value === undefined) return;
     input.value = value;
     input.dispatchEvent(new Event(eventName, { bubbles: true }));
+    syncBrushWidthControl();
     syncBrushPresetButtons();
+    syncBrushPreview();
   }
 
   function syncBrushWidthControl() {
     const value = String(Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width)));
     if (brushWidthSlider && brushWidthSlider.value !== value) brushWidthSlider.value = value;
     if (brushWidthValue) brushWidthValue.textContent = value;
+    if (brushOpacityValue) brushOpacityValue.textContent = String(Math.round(Number(brushOpacityInput.value) || 100));
+    syncBrushPreview();
   }
 
   function syncBrushPresetButtons() {
@@ -4762,9 +4830,31 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-brush-cap-option]").forEach((button) => {
       setBrushPresetActive(button, button.dataset.brushCapOption === brushCapInput.value);
     });
-    root.querySelectorAll("[data-brush-smoothing]").forEach((button) => {
-      setBrushPresetActive(button, Number(button.dataset.brushSmoothing) === Number(brushSmoothingInput.value));
-    });
+    syncBrushPreview();
+  }
+
+  function syncBrushPreview() {
+    if (!brushPreviewPath) return;
+    const width = Math.max(1, Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width)));
+    const smoothing = Number(brushSmoothingInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.brushSmoothing);
+    brushPreviewPath.setAttribute("stroke", colorInput.value);
+    brushPreviewPath.setAttribute("stroke-width", String(width));
+    brushPreviewPath.setAttribute("stroke-opacity", String(getBrushOpacityValue()));
+    brushPreviewPath.setAttribute("stroke-linecap", brushStyleInput.value === "dot" ? "round" : brushCapInput.value);
+    if (brushStyleInput.value === "dash") {
+      brushPreviewPath.setAttribute("stroke-dasharray", `${Math.max(8, width * 3)},${Math.max(6, width * 2)}`);
+    } else if (brushStyleInput.value === "dot") {
+      brushPreviewPath.setAttribute("stroke-dasharray", `0.1,${Math.max(8, width * 1.8)}`);
+    } else {
+      brushPreviewPath.removeAttribute("stroke-dasharray");
+    }
+    if (smoothing < 30) {
+      brushPreviewPath.setAttribute("d", "M 14,24 L 72,10 L 132,38 L 266,24");
+    } else if (smoothing < 60) {
+      brushPreviewPath.setAttribute("d", "M 14,24 Q 72,10 132,24 T 266,24");
+    } else {
+      brushPreviewPath.setAttribute("d", "M 14,24 C 72,10 132,38 266,24");
+    }
   }
 
   function setBrushPresetActive(button, active) {

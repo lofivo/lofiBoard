@@ -108,6 +108,99 @@ function getPressureStrokeWidth(strokeWidth, pressure) {
   return Math.max(1, baseWidth * (0.35 + normalizePressureValue(pressure) * 1.15));
 }
 
+function getBrushLineCap(element) {
+  if (element.brushStyle === "dot") return "round";
+  return element.lineCap ?? "round";
+}
+
+function getPointAtDistance(start, end, distanceValue) {
+  const segmentLength = Math.hypot(end.x - start.x, end.y - start.y);
+  if (segmentLength <= 0) return { ...start };
+  const ratio = Math.max(0, Math.min(1, distanceValue / segmentLength));
+  return {
+    x: start.x + (end.x - start.x) * ratio,
+    y: start.y + (end.y - start.y) * ratio,
+    pressure: normalizePressureValue(start.pressure + (end.pressure - start.pressure) * ratio),
+  };
+}
+
+function drawStrokeSegment(context, start, end, width) {
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.lineTo(end.x, end.y);
+  context.setAttr("lineWidth", width);
+  context.stroke();
+}
+
+function drawPressureSolidStroke(context, points, strokeWidth, hit = false) {
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const point = points[index];
+    const width = hit
+      ? Math.max(strokeWidth + 14, 22)
+      : getPressureStrokeWidth(strokeWidth, (previous.pressure + point.pressure) / 2);
+    drawStrokeSegment(context, previous, point, width);
+  }
+}
+
+function drawPressureDashedStroke(context, points, strokeWidth, hit = false) {
+  const dashLength = strokeWidth * 3;
+  const gapLength = strokeWidth * 2;
+  const cycleLength = dashLength + gapLength;
+  let travelled = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const segmentStart = points[index - 1];
+    const segmentEnd = points[index];
+    const segmentLength = Math.hypot(segmentEnd.x - segmentStart.x, segmentEnd.y - segmentStart.y);
+    if (segmentLength <= 0) continue;
+    let distanceValue = 0;
+    while (distanceValue < segmentLength) {
+      const absoluteDistance = travelled + distanceValue;
+      const cyclePosition = absoluteDistance % cycleLength;
+      if (cyclePosition < dashLength) {
+        const visibleLength = dashLength - cyclePosition;
+        const nextDistance = Math.min(segmentLength, distanceValue + visibleLength);
+        const startPoint = getPointAtDistance(segmentStart, segmentEnd, distanceValue);
+        const endPoint = getPointAtDistance(segmentStart, segmentEnd, nextDistance);
+        const width = hit
+          ? Math.max(strokeWidth + 14, 22)
+          : getPressureStrokeWidth(strokeWidth, (startPoint.pressure + endPoint.pressure) / 2);
+        drawStrokeSegment(context, startPoint, endPoint, width);
+        distanceValue = nextDistance;
+      } else {
+        const hiddenLength = cycleLength - cyclePosition;
+        distanceValue += Math.min(segmentLength - distanceValue, hiddenLength);
+      }
+    }
+    travelled += segmentLength;
+  }
+}
+
+function drawPressureDottedStroke(context, shape, points, strokeWidth, hit = false) {
+  const spacing = Math.max(4, strokeWidth * 1.8);
+  let nextDotAt = 0;
+  let travelled = 0;
+  context.setAttr("fillStyle", hit ? shape.colorKey : shape.stroke());
+  for (let index = 1; index < points.length; index += 1) {
+    const segmentStart = points[index - 1];
+    const segmentEnd = points[index];
+    const segmentLength = Math.hypot(segmentEnd.x - segmentStart.x, segmentEnd.y - segmentStart.y);
+    if (segmentLength <= 0) continue;
+    while (nextDotAt <= travelled + segmentLength) {
+      const localDistance = nextDotAt - travelled;
+      const dotPoint = getPointAtDistance(segmentStart, segmentEnd, localDistance);
+      const width = hit
+        ? Math.max(strokeWidth + 14, 22)
+        : getPressureStrokeWidth(strokeWidth, dotPoint.pressure);
+      context.beginPath();
+      context.arc(dotPoint.x, dotPoint.y, width / 2, 0, Math.PI * 2);
+      context.fill();
+      nextDotAt += spacing;
+    }
+    travelled += segmentLength;
+  }
+}
+
 function getPressureStrokeRect(points, strokeWidth = 1) {
   if (points.length === 0) {
     return { x: 0, y: 0, width: 0, height: 0 };
@@ -138,22 +231,22 @@ function drawPressureStroke(context, shape, { hit = false } = {}) {
   context.setAttr("strokeStyle", strokeColor);
   context.setAttr("lineCap", shape.lineCap() ?? "round");
   context.setAttr("lineJoin", "round");
-  const dash = hit ? [] : (shape.dash() ?? []);
-  context.setLineDash(dash);
+  context.setLineDash([]);
   context.setAttr("lineDashOffset", shape.dashOffset?.() ?? 0);
-
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const point = points[index];
-    const width = hit
-      ? Math.max(strokeWidth + 14, 22)
-      : getPressureStrokeWidth(strokeWidth, (previous.pressure + point.pressure) / 2);
-    context.beginPath();
-    context.moveTo(previous.x, previous.y);
-    context.lineTo(point.x, point.y);
-    context.setAttr("lineWidth", width);
-    context.stroke();
+  if (hit) {
+    drawPressureSolidStroke(context, points, strokeWidth, true);
+    return;
   }
+  const brushStyle = shape.getAttr("brushStyle") ?? "solid";
+  if (brushStyle === "dash") {
+    drawPressureDashedStroke(context, points, strokeWidth);
+    return;
+  }
+  if (brushStyle === "dot") {
+    drawPressureDottedStroke(context, shape, points, strokeWidth);
+    return;
+  }
+  drawPressureSolidStroke(context, points, strokeWidth);
 }
 
 function createPressureStrokeNode(element, common) {
@@ -166,8 +259,9 @@ function createPressureStrokeNode(element, common) {
     stroke: element.stroke,
     strokeWidth: element.strokeWidth,
     opacity: element.opacity ?? 1,
-    lineCap: element.lineCap ?? "round",
+    lineCap: getBrushLineCap(element),
     lineJoin: "round",
+    brushStyle: element.brushStyle ?? "solid",
     dash: getBrushDash(element),
     hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     perfectDrawEnabled: false,
@@ -281,25 +375,8 @@ export function createElementNode(element, {
     scaleY: element.scaleY ?? 1,
   };
 
-  if (element.type === "stroke" && (element[PRESSURE_STROKE_PREVIEW_ATTR] || hasPressureVariation(element.points ?? []))) {
+  if (element.type === "stroke") {
     node = createPressureStrokeNode(element, common);
-  } else if (element.type === "stroke") {
-    node = new Konva.Line({
-      ...common,
-      x: element.x ?? 0,
-      y: element.y ?? 0,
-      points: flattenPoints(element.points ?? []),
-      stroke: element.stroke,
-      strokeWidth: element.strokeWidth,
-      opacity: element.opacity ?? 1,
-      lineCap: element.lineCap ?? "round",
-      lineJoin: "round",
-      tension: element.smoothing ?? 0.45,
-      dash: getBrushDash(element),
-      hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
-      perfectDrawEnabled: false,
-      shadowForStrokeEnabled: false,
-    });
   } else if (element.type === "text") {
     const horizontalPadding = element.padding ?? 0;
     node = new Konva.Group({
@@ -536,8 +613,9 @@ export function createNodeAttrs(element) {
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       opacity: element.opacity ?? 1,
-      lineCap: element.lineCap ?? "round",
+      lineCap: getBrushLineCap(element),
       lineJoin: "round",
+      brushStyle: element.brushStyle ?? "solid",
       tension: element.smoothing ?? 0.45,
       dash: getBrushDash(element),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),

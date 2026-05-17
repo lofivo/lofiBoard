@@ -29,6 +29,49 @@ describe("app shell", () => {
     expect(styles).toContain("white-space: nowrap");
   });
 
+  it("uses Fluent-style acrylic side panels without gradient decoration", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const sidePanelStyles = [
+      styles.match(/\.style-panel \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.layer-panel \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.inspector-section \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.layer-item(?:,\n\.inspector-section-toggle)? \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.brush-custom-color::before \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.brush-style-line-dash \{[\s\S]*?\n\}/)?.[0] ?? "",
+      styles.match(/\.brush-style-line-dot \{[\s\S]*?\n\}/)?.[0] ?? "",
+    ].join("\n");
+
+    expect(styles).toContain("--fluent-panel-bg");
+    expect(styles).toContain("--fluent-radius-lg");
+    expect(sidePanelStyles).toContain("backdrop-filter: blur(24px)");
+    expect(sidePanelStyles).toContain("border-radius: 24px");
+    expect(sidePanelStyles).not.toMatch(/gradient\(/);
+    expect(styles).toMatch(/\.layer-item\.active \{[\s\S]*?box-shadow: 0 1px 5px rgba\(15, 23, 42, 0\.08\);/);
+  });
+
+  it("uses the lightweight white property panel language across inspectors", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?border-radius: 24px;/);
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?background: #ffffff;/);
+    expect(styles).toMatch(/\.inspector-section \{[\s\S]*?background: transparent;/);
+    expect(styles).toMatch(/\.brush-preset-row \{[\s\S]*?background: #f8fafc;/);
+    expect(styles).toMatch(/\.control-text-format \{[\s\S]*?background: #f8fafc;/);
+    expect(styles).toMatch(/\.quick-actions \{[\s\S]*?background: #f8fafc;/);
+    expect(styles).toMatch(/\.brush-style-preset\.active \{[\s\S]*?background: #ffffff;/);
+    expect(styles).toMatch(/\.control-text-format button\.active \{[\s\S]*?background: #ffffff;/);
+    expect(styles).toMatch(/\.quick-actions button\.active \{[\s\S]*?background: #ffffff;/);
+    expect(styles).toMatch(/\.layer-item \{[\s\S]*?border-radius: 12px;/);
+  });
+
+  it("keeps side panels compact for the whiteboard workspace", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?width: 304px;/);
+    expect(styles).toMatch(/\[data-panel-mode="structure"\] \.style-panel \{[\s\S]*?width: 284px;/);
+    expect(styles).toMatch(/\.layer-panel \{[\s\S]*?width: 236px;/);
+  });
+
   it("keeps the current selection when pointer down starts on an already selected element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -183,6 +226,11 @@ describe("app shell", () => {
     expect(markup).toContain("brush-preset-row");
     expect(markup).toContain("data-brush-width-slider");
     expect(markup).toContain("data-brush-width-value");
+    expect(markup).toContain("brush-preview-card");
+    expect(markup).toContain("data-brush-preview-path");
+    expect(markup).toContain("data-brush-width-step=\"1\"");
+    expect(markup).toContain("data-brush-width-step=\"-1\"");
+    expect(markup).toContain("data-brush-opacity-value");
     expect(markup).toContain('aria-label="画笔粗细"');
     expect(markup).not.toContain("data-brush-width=\"2\"");
     expect(markup).not.toContain("data-brush-width=\"14\"");
@@ -190,16 +238,37 @@ describe("app shell", () => {
     expect(markup).toContain("data-brush-custom-color");
     expect(styles).toContain(".brush-inspector");
     expect(styles).toContain(".brush-width-control");
-    expect(styles).toContain(".brush-width-value");
+    expect(styles).toContain(".brush-value-pill");
+    expect(styles).toContain(".brush-preview-card");
+    expect(styles).toContain(".brush-slider-row");
+    expect(styles).toContain(".brush-stepper");
     expect(styles).toContain(".brush-preset-button");
     expect(styles).toContain(".brush-custom-color");
     expect(styles).toContain(".brush-style-preset.active");
-    expect(styles).toContain("repeating-linear-gradient");
+    expect(styles).toContain("border-top: 4px dashed");
+    expect(styles).toContain(".brush-style-line-dot::before");
+    expect(styles).toContain("10px 0 0 #111827");
+    expect(styles).toMatch(/\.brush-inspector \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(styles).toMatch(/\.brush-field-color,\n\.brush-field-width,\n\.brush-field-style \{[\s\S]*?grid-column: 1 \/ -1;/);
+    expect(styles).toMatch(/\.brush-field-opacity,\n\.brush-field-smoothing \{[\s\S]*?align-self: end;/);
     expect(appSource).toContain("brushWidthSlider");
+    expect(appSource).toContain("brushPreviewPath");
+    expect(appSource).toContain("syncBrushPreview");
+    expect(appSource).toContain('brushPreviewPath.setAttribute("stroke-opacity", String(getBrushOpacityValue()))');
+    expect(appSource).not.toContain("getBrushOpacity()");
+    expect(appSource).toContain("[data-brush-width-step]");
     expect(appSource).toContain("syncBrushWidthControl");
     expect(appSource).not.toContain("[data-brush-width]");
     expect(appSource).toContain("brushCustomColorInput");
     expect(appSource).toContain("syncBrushPresetButtons");
+  });
+
+  it("flattens the brush tool inspector without the appearance section chrome", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?border: 0;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?background: transparent;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle \{[\s\S]*?display: none;/);
   });
 
   it("resets property panel controls and section state when switching tools", () => {
@@ -210,6 +279,16 @@ describe("app shell", () => {
     expect(appSource).toContain("colorInput.value = DEFAULT_PROPERTY_CONTROLS.color");
     expect(appSource).toContain("brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle");
     expect(appSource).toContain("fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize");
+  });
+
+  it("uses safe closest lookups for delegated app interactions", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("function closestElement(target, selector)");
+    expect(appSource).toContain('closestElement(event.target, "[data-linear-item-action]")');
+    expect(appSource).toContain('closestElement(event.target, "[data-layer-id]")');
+    expect(appSource).toContain('closestElement(event.target, "[data-main-menu], [data-menu-trigger]")');
+    expect(appSource).not.toContain("event.target.closest(");
   });
 
   it("starts a drag gesture immediately after selecting an unselected text element", () => {
