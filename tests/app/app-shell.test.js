@@ -512,6 +512,8 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("anchorCornerRadius: 3");
+    expect(appSource).toContain("rotateLineVisible: false");
+    expect(appSource).toContain("rotateAnchorOffset: 28");
     expect(appSource).toContain('anchor.hasName("top-center") || anchor.hasName("bottom-center")');
     expect(appSource).toContain('anchor.hasName("middle-left") || anchor.hasName("middle-right")');
     expect(appSource).toContain('anchor.fill("rgba(0,0,0,0)")');

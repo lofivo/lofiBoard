@@ -311,6 +311,8 @@ export function createWhiteboardApp(root) {
 
   const transformer = new Konva.Transformer({
     rotateEnabled: true,
+    rotateLineVisible: false,
+    rotateAnchorOffset: 28,
     flipEnabled: false,
     borderStroke: "#2563eb",
     borderStrokeWidth: 1.5,
