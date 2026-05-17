@@ -77,7 +77,10 @@ export function renderShell() {
                 </svg>
               </div>
               <div class="brush-field brush-field-color">
-                <div class="brush-field-label">边框颜色</div>
+                <div class="brush-field-label">
+                  <span class="brush-color-label-default">颜色</span>
+                  <span class="brush-color-label-border">边框颜色</span>
+                </div>
                 <div class="brush-color-grid" role="group" aria-label="画笔颜色">
                   <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
                   <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
@@ -121,6 +124,12 @@ export function renderShell() {
                     <span>透明填充</span>
                   </span>
                 </label>
+                <label class="brush-field shape-endpoint-inspector">
+                  <span class="control-fill-transparent">
+                    <input data-ui-control="arrow-double-ended" type="checkbox" />
+                    <span>双箭头</span>
+                  </span>
+                </label>
               </div>
               <div class="brush-field brush-field-cap">
                 <div class="brush-field-label">笔头</div>
@@ -147,13 +156,6 @@ export function renderShell() {
                 </span>
                 <span class="brush-slider-row">
                   <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
-                </span>
-              </label>
-              <label class="brush-field shape-endpoint-inspector">
-                <span class="brush-field-label">端点</span>
-                <span class="control-fill-transparent">
-                  <input data-ui-control="arrow-double-ended" type="checkbox" />
-                  <span>双箭头</span>
                 </span>
               </label>
             </div>

@@ -620,6 +620,8 @@ export function createNodeAttrs(element) {
   }
   if (element.type === "stroke") {
     return {
+      x: element.x ?? 0,
+      y: element.y ?? 0,
       pressurePoints: getStrokePressurePoints(element),
       points: flattenPoints(element.points ?? []),
       stroke: element.stroke,

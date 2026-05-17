@@ -1703,8 +1703,13 @@ export function createWhiteboardApp(root) {
       nodeDragSelection = null;
       return;
     }
-    if (!id || !selectedIds.includes(id)) {
+    if (!id) {
       nodeDragSelection = null;
+      return;
+    }
+    if (!selectedIds.includes(id)) {
+      selectIds([id]);
+      beginNodeDragSelection(node);
       return;
     }
 
@@ -1802,10 +1807,13 @@ export function createWhiteboardApp(root) {
   }
 
   function startStroke(worldPoint, pressure = 0.5) {
-    const points = [{ ...worldPoint, pressure: normalizePressure(pressure) }];
+    const origin = { x: worldPoint.x, y: worldPoint.y };
+    const points = [{ x: 0, y: 0, pressure: normalizePressure(pressure) }];
     const element = {
       id: createId("stroke"),
       type: "stroke",
+      x: origin.x,
+      y: origin.y,
       points,
       stroke: colorInput.value,
       strokeWidth: Number(widthInput.value),
@@ -1821,12 +1829,16 @@ export function createWhiteboardApp(root) {
 
     const node = createNode({ ...element, [PRESSURE_STROKE_PREVIEW_ATTR]: true });
     contentLayer.add(node);
-    strokeDraft = { element, node };
+    strokeDraft = { element, node, origin };
   }
 
   function appendStroke(worldPoint, pressure = 0.5) {
     const previousPoint = strokeDraft.element.points.at(-1);
-    const nextPoint = { ...worldPoint, pressure: normalizePressure(pressure) };
+    const nextPoint = {
+      x: worldPoint.x - strokeDraft.origin.x,
+      y: worldPoint.y - strokeDraft.origin.y,
+      pressure: normalizePressure(pressure),
+    };
     const minDistance = Math.max(0.7, Number(widthInput.value) * 0.08) / stage.scaleX();
     if (!shouldAppendStrokePoint(previousPoint, nextPoint, minDistance)) return;
 
@@ -4683,7 +4695,9 @@ export function createWhiteboardApp(root) {
   }
 
   function renderLayerPanel() {
-    const elements = reorderElements(board.elements).slice().reverse();
+    const orderedElements = reorderElements(board.elements);
+    const layerLevels = new Map(orderedElements.map((element, index) => [element.id, index]));
+    const elements = orderedElements.slice().reverse();
     layerList.innerHTML = elements.map((element) => {
       const active = selectedIds.includes(element.id) ? " active" : "";
       const label = getElementLabel(element);
@@ -4691,8 +4705,9 @@ export function createWhiteboardApp(root) {
         element.locked ? "锁定" : "",
         element.groupId ? "分组" : "",
       ].filter(Boolean).join(" · ");
+      const level = layerLevels.get(element.id) ?? 0;
       return `
-        <button type="button" class="layer-item${active}" data-layer-id="${element.id}" title="${escapeHtml(label)}">
+        <button type="button" class="layer-item${active}" data-layer-id="${element.id}" data-layer-level="${level}" title="${escapeHtml(label)}">
           <span class="layer-label">${escapeHtml(label)}</span>
           <span class="layer-meta">${escapeHtml(meta)}</span>
         </button>
@@ -4794,7 +4809,7 @@ export function createWhiteboardApp(root) {
         : selectedElements.every((element) => element.type === "sticky")
           ? "sticky"
           : selectedElements.every((element) => element.type === "stroke")
-            ? "stroke"
+            ? "brush"
           : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
             ? "linear"
           : selectedElements.every((element) => element.type === "coordinate-plane")

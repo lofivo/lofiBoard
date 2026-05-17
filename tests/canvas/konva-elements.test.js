@@ -541,6 +541,8 @@ describe("konva elements", () => {
     const node = createElementNode({
       id: "stroke_1",
       type: "stroke",
+      x: 30,
+      y: 40,
       points: [
         { x: 0, y: 0, pressure: 0.5 },
         { x: 20, y: 20, pressure: 0.5 },
@@ -554,6 +556,8 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     expect(node.getClassName()).toBe("Line");
+    expect(node.x()).toBe(30);
+    expect(node.y()).toBe(40);
     expect(node.points()).toEqual([0, 0, 20, 20]);
     expect(node.strokeWidth()).toBe(8);
   });

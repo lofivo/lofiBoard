@@ -24,9 +24,16 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("layer-label");
+    expect(appSource).toContain("data-layer-level");
+    expect(appSource).toContain("const orderedElements = reorderElements(board.elements)");
+    expect(appSource).toContain("const layerLevels = new Map(orderedElements.map((element, index) => [element.id, index]))");
     expect(styles).toContain(".layer-label");
+    expect(styles).toContain(".layer-item::after");
+    expect(styles).toContain("content: attr(data-layer-level)");
     expect(styles).toContain("text-overflow: ellipsis");
     expect(styles).toContain("white-space: nowrap");
+    expect(styles).toMatch(/\.layer-item \{[\s\S]*?position: relative;[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;[\s\S]*?padding: 8px 44px 8px 10px;/);
+    expect(styles).toMatch(/\.layer-item::after \{[\s\S]*?content: attr\(data-layer-level\);[\s\S]*?position: absolute;[\s\S]*?top: 50%;[\s\S]*?right: 10px;/);
   });
 
   it("uses Fluent-style acrylic side panels without gradient decoration", () => {
@@ -281,6 +288,8 @@ describe("app shell", () => {
     expect(markup).toContain("shape-endpoint-inspector");
     expect(markup).toContain('data-control="arrow-double-ended"');
     expect(markup).toContain("brush-field-fill");
+    expect(markup).toContain("brush-color-label-default");
+    expect(markup).toContain("brush-color-label-border");
     expect(markup).toContain("边框颜色");
     expect(markup).toContain("填充颜色");
     expect(markup).toContain("shape-width-fill-row");
@@ -296,8 +305,11 @@ describe("app shell", () => {
     expect(styles).toMatch(/\[data-active-shape="rect"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="ellipse"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="line"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="element"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear"\] \.brush-preview-card \{[\s\S]*?display: none;/);
     expect(styles).toMatch(/\.shape-width-fill-row \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
-    expect(styles).toMatch(/\.shape-width-fill-row > \.brush-field-width,[\s\S]*?\.shape-width-fill-row > \.shape-fill-inspector \{[\s\S]*?grid-column: auto;/);
-    expect(styles).toMatch(/\.shape-width-fill-row > \.shape-fill-inspector \{[\s\S]*?grid-column: auto;/);
+    expect(styles).toMatch(/\.shape-width-fill-row > \.brush-field-width,[\s\S]*?\.shape-width-fill-row > \.shape-fill-inspector,[\s\S]*?\.shape-width-fill-row > \.shape-endpoint-inspector \{[\s\S]*?grid-column: auto;/);
+    expect(styles).toMatch(/\[data-panel-mode="stroke"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="stroke"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\.brush-color-label-border \{[\s\S]*?display: none;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\]\[data-active-shape="rect"\] \.brush-color-label-default,[\s\S]*?\[data-panel-mode="element"\]\[data-active-shape="ellipse"\] \.brush-color-label-default \{[\s\S]*?display: none;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\]\[data-active-shape="rect"\] \.brush-color-label-border,[\s\S]*?\[data-panel-mode="element"\]\[data-active-shape="ellipse"\] \.brush-color-label-border \{[\s\S]*?display: inline;/);
     expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-field-cap,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-field-style,[\s\S]*?\[data-panel-mode="coordinate-tool"\] \.brush-inspector \{[\s\S]*?display: none !important;/);
     expect(appSource).toContain("arrowDoubleEndedInput");
     expect(appSource).toContain("coordinateUnitSizeInput");
@@ -316,7 +328,17 @@ describe("app shell", () => {
     expect(styles).not.toMatch(/^\[data-active-shape="ellipse"\] \.shape-fill-inspector/m);
     expect(styles).not.toMatch(/^\[data-active-shape="arrow"\] \.shape-endpoint-inspector/m);
     expect(styles).not.toMatch(/^\[data-active-shape="arrow"\] \.shape-endpoint-inspector \.control-fill-transparent/m);
-    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="brush"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="brush"\] \.shape-endpoint-inspector,[\s\S]*?\[data-panel-mode="stroke"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="stroke"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+  });
+
+  it("keeps selected brush strokes in the brush-style inspector instead of shape controls", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "brush"/);
+    expect(appSource).not.toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "stroke"/);
+    expect(appSource).toContain("if (!selectedIds.includes(id)) {");
+    expect(appSource).toContain("selectIds([id]);");
+    expect(appSource).toContain("beginNodeDragSelection(node);");
   });
 
   it("keeps shape inspectors tall enough without appearance section chrome", () => {
