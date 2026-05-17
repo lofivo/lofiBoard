@@ -16,6 +16,7 @@ import {
   getSingleLineTextEditorHeight,
   getTransformerAnchorsForSelection,
   isTransformerVerticalScaleAnchor,
+  isNativeTextEditingTarget,
   isTransformerScaleAnchor,
   isTransformerTarget,
   isTextWidthResizeAnchor,
@@ -26,6 +27,7 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
+  shouldUseBrowserSelectAll,
   shouldUseUniformTransformerResize,
   truncateWithEllipsis,
 } from "../../src/tools/interaction-rules.js";
@@ -532,6 +534,53 @@ describe("interaction rules", () => {
     expect(shouldSelectAll({ key: "a", altKey: false, ctrlKey: true, metaKey: false })).toBe(true);
     expect(shouldSelectAll({ key: "a", altKey: false, ctrlKey: false, metaKey: true })).toBe(true);
     expect(shouldSelectAll({ key: "b", code: "KeyB", altKey: true, ctrlKey: false, metaKey: false })).toBe(false);
+  });
+
+  it("allows browser select-all only inside editable controls", () => {
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      ctrlKey: true,
+      target: { tagName: "DIV", isContentEditable: false },
+    })).toBe(false);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      metaKey: true,
+      target: { tagName: "INPUT", type: "text", isContentEditable: false },
+    })).toBe(true);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      metaKey: true,
+      target: { tagName: "TEXTAREA", isContentEditable: false },
+    })).toBe(true);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      ctrlKey: true,
+      target: { tagName: "INPUT", type: "color", isContentEditable: false },
+    })).toBe(false);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      ctrlKey: true,
+      target: { tagName: "INPUT", type: "range", isContentEditable: false },
+    })).toBe(false);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      ctrlKey: true,
+      target: { tagName: "SELECT", isContentEditable: false },
+    })).toBe(false);
+    expect(shouldUseBrowserSelectAll({
+      key: "a",
+      ctrlKey: true,
+      target: { tagName: "DIV", isContentEditable: true },
+    })).toBe(true);
+  });
+
+  it("recognizes only real text-editing controls as native text targets", () => {
+    expect(isNativeTextEditingTarget({ tagName: "INPUT", type: "text" })).toBe(true);
+    expect(isNativeTextEditingTarget({ tagName: "TEXTAREA" })).toBe(true);
+    expect(isNativeTextEditingTarget({ tagName: "DIV", isContentEditable: true })).toBe(true);
+    expect(isNativeTextEditingTarget({ tagName: "INPUT", type: "color" })).toBe(false);
+    expect(isNativeTextEditingTarget({ tagName: "INPUT", type: "range" })).toBe(false);
+    expect(isNativeTextEditingTarget({ tagName: "SELECT" })).toBe(false);
   });
 
   it("treats the whole selected bounds as a draggable hit area", () => {

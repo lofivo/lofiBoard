@@ -36,6 +36,8 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 button,
@@ -57,6 +59,20 @@ button {
   height: 100%;
   background: #f8fafc;
   user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-shell input[type="text"],
+.app-shell input[type="search"],
+.app-shell input[type="url"],
+.app-shell input[type="tel"],
+.app-shell input[type="email"],
+.app-shell input[type="password"],
+.app-shell input[type="number"],
+.app-shell textarea,
+.app-shell [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .icon {
@@ -914,11 +930,14 @@ button {
 .brush-preview-card,
 .brush-field-color,
 .brush-field-width,
-.brush-field-style,
 .brush-field-opacity,
 .brush-field-font-family,
 .brush-field-font-size,
 .brush-field-text-format {
+  grid-column: 1 / -1;
+}
+
+.brush-field-text-color {
   grid-column: 1 / -1;
 }
 
@@ -1173,7 +1192,7 @@ button {
 
 .brush-style-line {
   display: block;
-  width: 44px;
+  width: 26px;
   height: 4px;
   border-radius: 999px;
   background: #111827;
@@ -1203,9 +1222,8 @@ button {
   border-radius: 999px;
   background: #111827;
   box-shadow:
-    10px 0 0 #111827,
-    20px 0 0 #111827,
-    30px 0 0 #111827;
+    9px 0 0 #111827,
+    18px 0 0 #111827;
 }
 
 .brush-cap-preview {

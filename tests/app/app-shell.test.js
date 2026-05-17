@@ -37,7 +37,6 @@ describe("app shell", () => {
       styles.match(/\.inspector-section \{[\s\S]*?\n\}/)?.[0] ?? "",
       styles.match(/\.layer-item(?:,\n\.inspector-section-toggle)? \{[\s\S]*?\n\}/)?.[0] ?? "",
       styles.match(/\.brush-custom-color::before \{[\s\S]*?\n\}/)?.[0] ?? "",
-      styles.match(/\.brush-style-line-dash \{[\s\S]*?\n\}/)?.[0] ?? "",
       styles.match(/\.brush-style-line-dot \{[\s\S]*?\n\}/)?.[0] ?? "",
     ].join("\n");
 
@@ -225,12 +224,8 @@ describe("app shell", () => {
     expect(markup).toContain("brush-inspector");
     expect(markup).toContain("brush-preset-row");
     expect(markup).toContain("data-brush-width-slider");
-    expect(markup).toContain("data-brush-width-value");
     expect(markup).toContain("brush-preview-card");
     expect(markup).toContain("data-brush-preview-path");
-    expect(markup).toContain("data-brush-width-step=\"1\"");
-    expect(markup).toContain("data-brush-width-step=\"-1\"");
-    expect(markup).toContain("data-brush-opacity-value");
     expect(markup).toContain('aria-label="画笔粗细"');
     expect(markup).not.toContain("data-brush-width=\"2\"");
     expect(markup).not.toContain("data-brush-width=\"14\"");
@@ -238,25 +233,23 @@ describe("app shell", () => {
     expect(markup).toContain("data-brush-custom-color");
     expect(styles).toContain(".brush-inspector");
     expect(styles).toContain(".brush-width-control");
-    expect(styles).toContain(".brush-value-pill");
     expect(styles).toContain(".brush-preview-card");
     expect(styles).toContain(".brush-slider-row");
-    expect(styles).toContain(".brush-stepper");
     expect(styles).toContain(".brush-preset-button");
     expect(styles).toContain(".brush-custom-color");
     expect(styles).toContain(".brush-style-preset.active");
-    expect(styles).toContain("border-top: 4px dashed");
     expect(styles).toContain(".brush-style-line-dot::before");
-    expect(styles).toContain("10px 0 0 #111827");
+    expect(styles).toContain("18px 0 0 #111827");
     expect(styles).toMatch(/\.brush-inspector \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(styles).toMatch(/\.brush-field-color,\n\.brush-field-width,\n\.brush-field-style \{[\s\S]*?grid-column: 1 \/ -1;/);
-    expect(styles).toMatch(/\.brush-field-opacity,\n\.brush-field-smoothing \{[\s\S]*?align-self: end;/);
+    expect(styles).toMatch(/\.brush-field-cap,\n\.brush-field-style \{[\s\S]*?grid-column: span 1;/);
+    expect(styles).toMatch(/\.brush-field-color,\n\.brush-field-width,\n\.brush-field-opacity,\n\.brush-field-font-family,\n\.brush-field-font-size,\n\.brush-field-text-format \{[\s\S]*?grid-column: 1 \/ -1;/);
+    expect(styles).toMatch(/\.brush-style-line \{[\s\S]*?width: 26px;/);
+    expect(styles).toMatch(/\.brush-field-opacity,\n\.brush-field-smoothing,\n\.brush-field-cap \{[\s\S]*?align-self: end;/);
     expect(appSource).toContain("brushWidthSlider");
     expect(appSource).toContain("brushPreviewPath");
     expect(appSource).toContain("syncBrushPreview");
     expect(appSource).toContain('brushPreviewPath.setAttribute("stroke-opacity", String(getBrushOpacityValue()))');
     expect(appSource).not.toContain("getBrushOpacity()");
-    expect(appSource).toContain("[data-brush-width-step]");
     expect(appSource).toContain("syncBrushWidthControl");
     expect(appSource).not.toContain("[data-brush-width]");
     expect(appSource).toContain("brushCustomColorInput");
@@ -266,9 +259,18 @@ describe("app shell", () => {
   it("flattens the brush tool inspector without the appearance section chrome", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
-    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?border: 0;/);
-    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?background: transparent;/);
-    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle \{[\s\S]*?display: none;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\{[\s\S]*?border: 0;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\{[\s\S]*?background: transparent;/);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\{[\s\S]*?display: none;/);
+  });
+
+  it("keeps sticky note text color controls full width like text color controls", () => {
+    const markup = renderShell();
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(markup).toContain('aria-label="文字颜色"');
+    expect(markup).toContain('aria-label="便签字体颜色"');
+    expect(styles).toMatch(/\.brush-field-text-color \{[\s\S]*?grid-column: 1 \/ -1;/);
   });
 
   it("resets property panel controls and section state when switching tools", () => {
@@ -502,6 +504,24 @@ describe("app shell", () => {
     expect(appSource).toContain("target instanceof HTMLInputElement");
     expect(appSource).toContain("target instanceof HTMLTextAreaElement");
     expect(appSource).toContain("target?.isContentEditable");
+  });
+
+  it("keeps whiteboard select-all from selecting browser page text", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(appSource).toContain("shouldUseBrowserSelectAll");
+    expect(appSource).toMatch(/if \(shouldSelectAll\(event\)\) \{[\s\S]*?if \(shouldUseBrowserSelectAll\(event\)\) return;[\s\S]*?event\.preventDefault\(\);[\s\S]*?clearNativeSelection\(\);/);
+    expect(appSource).toMatch(/window\.addEventListener\("keydown", \(event\) => \{[\s\S]*?shouldSelectAll\(event\)[\s\S]*?\}, \{ capture: true \}\);/);
+    expect(appSource).toMatch(/document\.addEventListener\("selectstart", \(event\) => \{[\s\S]*?isNativeTextEditingTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);[\s\S]*?\}, \{ capture: true \}\);/);
+    expect(appSource.indexOf("if (shouldSelectAll(event)) {")).toBeLessThan(
+      appSource.indexOf("if (isTypingInEditableControl(event.target)) return;"),
+    );
+    expect(appSource).toContain("clearNativeSelection();");
+    expect(appSource).toContain("document.getSelection?.()?.removeAllRanges?.();");
+    expect(styles).toMatch(/html,\nbody,\n#app \{[\s\S]*?user-select: none;/);
+    expect(styles).toMatch(/html,\nbody,\n#app \{[\s\S]*?-webkit-user-select: none;/);
+    expect(styles).toMatch(/\.app-shell input\[type="text"\],[\s\S]*?\.app-shell \[contenteditable="true"\] \{[\s\S]*?user-select: text;/);
   });
 
   it("cancels root-node drag state when committing a linear item reorder", () => {

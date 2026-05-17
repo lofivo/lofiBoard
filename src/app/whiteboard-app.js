@@ -70,6 +70,7 @@ import {
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
   getTransformerAnchorsForSelection,
+  isNativeTextEditingTarget,
   isTransformerTarget,
   measureTextareaContentHeight,
   isTextWidthResizeAnchor,
@@ -78,6 +79,7 @@ import {
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
+  shouldUseBrowserSelectAll,
   truncateWithEllipsis,
 } from "../tools/interaction-rules.js";
 import {
@@ -983,10 +985,10 @@ export function createWhiteboardApp(root) {
       syncTextOverlays();
     });
 
-    root.addEventListener("selectstart", (event) => {
-      if (isTypingInEditableControl(event.target)) return;
+    document.addEventListener("selectstart", (event) => {
+      if (isNativeTextEditingTarget(event.target)) return;
       event.preventDefault();
-    });
+    }, { capture: true });
 
     window.addEventListener("wheel", (event) => {
       if (shouldPreventBrowserZoom(event)) {
@@ -1059,14 +1061,17 @@ export function createWhiteboardApp(root) {
 
   function bindKeyboard() {
     window.addEventListener("keydown", (event) => {
-      if (isTypingInEditableControl(event.target)) return;
-
       if (shouldSelectAll(event)) {
+        if (shouldUseBrowserSelectAll(event)) return;
         event.preventDefault();
         event.stopPropagation();
+        clearNativeSelection();
         selectAllElements();
+        clearNativeSelection();
         return;
       }
+
+      if (isTypingInEditableControl(event.target)) return;
 
       if (event.code === "Space") {
         isSpaceDown = true;
@@ -2610,10 +2615,7 @@ export function createWhiteboardApp(root) {
   function selectAllElements() {
     const selectableIds = board.elements.filter((el) => !el.locked).map((el) => el.id);
     if (selectableIds.length === 0) return;
-    
-    // Clear any native browser selection that might have happened on UI text
-    window.getSelection()?.removeAllRanges();
-    
+
     selectIds(selectableIds);
     setStatus(`已选择全部对象 (${selectableIds.length})`);
   }
@@ -4657,6 +4659,11 @@ export function createWhiteboardApp(root) {
       || target instanceof HTMLTextAreaElement
       || target instanceof HTMLSelectElement
       || Boolean(target?.isContentEditable);
+  }
+
+  function clearNativeSelection() {
+    window.getSelection?.()?.removeAllRanges?.();
+    document.getSelection?.()?.removeAllRanges?.();
   }
 
   function closestElement(target, selector) {

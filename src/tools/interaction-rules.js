@@ -405,6 +405,21 @@ export function shouldSelectAll(event) {
   return isAKey && (event.ctrlKey || event.metaKey);
 }
 
+export function shouldUseBrowserSelectAll(event) {
+  if (!shouldSelectAll(event)) return false;
+  return isNativeTextEditingTarget(event.target);
+}
+
+export function isNativeTextEditingTarget(target) {
+  if (target?.isContentEditable) return true;
+  const tagName = String(target?.tagName ?? "").toLowerCase();
+  if (tagName === "textarea") return true;
+  if (tagName !== "input") return false;
+  return ["text", "search", "url", "tel", "email", "password", "number"].includes(
+    String(target?.type ?? "text").toLowerCase(),
+  );
+}
+
 export function shouldPreventBrowserZoom(event) {
   return Boolean(event.ctrlKey || event.metaKey);
 }
