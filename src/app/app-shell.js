@@ -297,48 +297,34 @@ export function renderShell() {
           </div>
 
           <section class="inspector-section" data-inspector-section="linear" data-panel-context="linear">
-            <button
-              type="button"
-              class="inspector-section-toggle"
-              data-section-toggle="linear"
-              aria-expanded="true"
-            >
-              <span class="inspector-section-title" data-linear-title>数组</span>
-              <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
-            </button>
             <div class="inspector-section-content" data-section-content="linear">
               <div class="linear-structure-panel">
-                ${linearGroupMarkup({
-                  key: "highlight",
-                  title: "高亮与下标",
-                  expanded: true,
-                  content: `
-                    <div class="linear-panel-fields linear-panel-fields-highlight">
-                      <label class="linear-field">
-                        高亮起点
-                        <input data-linear-field="highlight-start" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label class="linear-field">
-                        高亮终点
-                        <input data-linear-field="highlight-end" type="number" min="0" step="1" value="0" />
-                      </label>
-                      <label class="linear-field">
-                        指针
-                        <input data-linear-field="highlight-pointer" type="number" min="0" step="1" value="0" />
-                      </label>
-                    </div>
-                    <div class="quick-actions quick-actions-linear quick-actions-compact">
-                      <button type="button" data-action="array-highlight">应用高亮</button>
-                      <button type="button" data-action="array-clear-highlight">清除高亮</button>
-                      <button type="button" data-action="linear-index-zero">0 下标</button>
-                      <button type="button" data-action="linear-index-one">1 下标</button>
-                      <button type="button" data-action="linear-index-show">显示下标</button>
-                      <button type="button" data-action="linear-index-hide">隐藏下标</button>
-                      <button type="button" data-action="linear-pointer-show">显示指针</button>
-                      <button type="button" data-action="linear-pointer-hide">隐藏指针</button>
-                    </div>
-                  `,
-                })}
+                <div class="linear-panel-content-inner">
+                  <div class="linear-panel-fields linear-panel-fields-highlight">
+                    <label class="linear-field">
+                      高亮起点
+                      <input data-linear-field="highlight-start" type="number" min="0" step="1" value="0" />
+                    </label>
+                    <label class="linear-field">
+                      高亮终点
+                      <input data-linear-field="highlight-end" type="number" min="0" step="1" value="0" />
+                    </label>
+                    <label class="linear-field">
+                      指针
+                      <input data-linear-field="highlight-pointer" type="number" min="0" step="1" value="0" />
+                    </label>
+                  </div>
+                  <div class="quick-actions quick-actions-linear quick-actions-compact">
+                    <button type="button" data-action="array-highlight">应用高亮</button>
+                    <button type="button" data-action="array-clear-highlight">清除高亮</button>
+                    <button type="button" data-action="linear-index-zero">0 下标</button>
+                    <button type="button" data-action="linear-index-one">1 下标</button>
+                    <button type="button" data-action="linear-index-show">显示下标</button>
+                    <button type="button" data-action="linear-index-hide">隐藏下标</button>
+                    <button type="button" data-action="linear-pointer-show">显示指针</button>
+                    <button type="button" data-action="linear-pointer-hide">隐藏指针</button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -464,26 +450,5 @@ export function renderShell() {
         </div>
       </footer>
     </div>
-  `;
-}
-
-function linearGroupMarkup({ key, title, expanded, content }) {
-  return `
-    <section class="linear-panel-group" data-linear-group="${key}" data-collapsed="${expanded ? "false" : "true"}">
-      <button
-        type="button"
-        class="linear-panel-toggle"
-        data-linear-toggle="${key}"
-        aria-expanded="${expanded ? "true" : "false"}"
-      >
-        <span class="linear-panel-heading">${title}</span>
-        <span class="linear-panel-chevron" aria-hidden="true">⌄</span>
-      </button>
-      <div class="linear-panel-content" data-linear-content="${key}" aria-hidden="${expanded ? "false" : "true"}">
-        <div class="linear-panel-content-inner">
-          ${content}
-        </div>
-      </div>
-    </section>
   `;
 }

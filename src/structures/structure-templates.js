@@ -107,6 +107,10 @@ export function normalizeStructureInput(type, input) {
 }
 
 export function parseArrayInput(input) {
+  const trimmedInput = String(input ?? "").trim();
+  if (trimmedInput.length >= 2 && trimmedInput.startsWith('"') && trimmedInput.endsWith('"')) {
+    return Array.from(trimmedInput.slice(1, -1)).map((value) => value || " ");
+  }
   return splitCommaValues(input).map((value) => value || " ");
 }
 

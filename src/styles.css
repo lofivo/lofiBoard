@@ -694,8 +694,7 @@ button {
   display: none;
 }
 
-.inspector-section-toggle,
-.linear-panel-toggle {
+.inspector-section-toggle {
   display: flex;
   width: 100%;
   min-width: 0;
@@ -712,21 +711,18 @@ button {
     color 160ms ease;
 }
 
-.inspector-section-toggle:hover,
-.linear-panel-toggle:hover {
+.inspector-section-toggle:hover {
   color: var(--fluent-accent-hover);
   background: #f8fafc;
 }
 
-.inspector-section-title,
-.linear-panel-heading {
+.inspector-section-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--fluent-text-secondary);
 }
 
-.inspector-section-chevron,
-.linear-panel-chevron {
+.inspector-section-chevron {
   flex: 0 0 auto;
   color: var(--fluent-text-tertiary);
   font-size: 14px;
@@ -734,13 +730,11 @@ button {
   transition: transform 140ms ease;
 }
 
-.inspector-section[data-collapsed="false"] .inspector-section-chevron,
-.linear-panel-group[data-collapsed="false"] .linear-panel-chevron {
+.inspector-section[data-collapsed="false"] .inspector-section-chevron {
   transform: rotate(180deg);
 }
 
-.inspector-section-content,
-.linear-panel-content {
+.inspector-section-content {
   display: grid;
   min-width: 0;
   min-height: 0;
@@ -751,14 +745,12 @@ button {
     opacity 140ms ease;
 }
 
-.inspector-section[data-collapsed="true"] .inspector-section-content,
-.linear-panel-group[data-collapsed="true"] .linear-panel-content {
+.inspector-section[data-collapsed="true"] .inspector-section-content {
   grid-template-rows: 0fr;
   opacity: 0;
 }
 
-.inspector-section-content > *,
-.linear-panel-content > * {
+.inspector-section-content > * {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1521,20 +1513,6 @@ button {
   overflow: hidden;
 }
 
-.linear-panel-group {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.linear-panel-group[data-collapsed="true"] {
-  gap: 0;
-}
-
 .linear-panel-fields {
   display: grid;
   min-width: 0;
@@ -1901,9 +1879,7 @@ button {
   .style-panel,
   .layer-panel,
   .inspector-section-content,
-  .linear-panel-content,
-  .inspector-section-chevron,
-  .linear-panel-chevron {
+  .inspector-section-chevron {
     transition: none;
   }
 }

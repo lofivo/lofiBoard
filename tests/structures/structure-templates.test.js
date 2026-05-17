@@ -52,6 +52,10 @@ describe("structure templates", () => {
     expect(parseArrayInput("10, 20, 30")).toEqual(["10", "20", "30"]);
   });
 
+  it("parses a quoted array input string into character items", () => {
+    expect(parseArrayInput('"hello"')).toEqual(["h", "e", "l", "l", "o"]);
+  });
+
   it("creates a two-row array with indexes and values", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.ARRAY,

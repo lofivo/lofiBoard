@@ -3,6 +3,14 @@ import { renderShell } from "../../src/app/app-shell.js";
 import { readFileSync } from "node:fs";
 
 describe("app shell", () => {
+  function extractLinearInspectorMarkup(markup) {
+    const start = markup.indexOf('data-inspector-section="linear"');
+    const end = markup.indexOf('data-inspector-section="graph"', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    return markup.slice(start, end);
+  }
+
   it("renders edge expand buttons for collapsed side panels", () => {
     const markup = renderShell();
 
@@ -88,8 +96,10 @@ describe("app shell", () => {
 
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
+    const linearMarkup = extractLinearInspectorMarkup(markup);
 
-    expect(markup).toContain('data-linear-title');
+    expect(linearMarkup).not.toContain('data-linear-title');
+    expect(linearMarkup).not.toContain("数组</span>");
     expect(markup).not.toContain('data-linear-group="edit"');
     expect(markup).not.toContain("基础编辑");
     expect(markup).not.toContain('data-linear-field="current-index"');
@@ -116,6 +126,11 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="linear-index-hide"');
     expect(markup).toContain('data-action="linear-pointer-show"');
     expect(markup).toContain('data-action="linear-pointer-hide"');
+    expect(markup).not.toContain('data-linear-group=');
+    expect(markup).not.toContain('data-linear-toggle=');
+    expect(markup).not.toContain("linear-panel-heading");
+    expect(markup).not.toContain("linear-panel-chevron");
+    expect(markup).not.toContain("高亮与下标");
     expect(markup).toContain('data-action="graph-add-node"');
     expect(markup).toContain('data-action="graph-add-edge"');
     expect(markup).toContain('data-action="graph-connect-mode"');
@@ -157,16 +172,18 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-reload"');
   });
 
-  it("updates the linear inspector title to the selected structure template name", () => {
+  it("renders the linear structure inspector without an outer category title", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const markup = renderShell();
+    const linearMarkup = extractLinearInspectorMarkup(markup);
 
-    expect(appSource).toContain("linearTitle");
-    expect(appSource).toContain("function getLinearInspectorTitle");
-    expect(appSource).toContain('"array-structure": "数组"');
-    expect(appSource).toContain('"stack-structure": "栈"');
-    expect(appSource).toContain('"queue-structure": "队列"');
-    expect(appSource).toContain('"deque-structure": "双端队列"');
-    expect(appSource).toContain('linearTitle.textContent = getLinearInspectorTitle()');
+    expect(linearMarkup).toContain('data-inspector-section="linear"');
+    expect(linearMarkup).toContain('data-section-content="linear"');
+    expect(linearMarkup).not.toContain('data-section-toggle="linear"');
+    expect(linearMarkup).not.toContain('data-linear-title');
+    expect(linearMarkup).not.toContain("数组</span>");
+    expect(appSource).not.toContain("linearTitle");
+    expect(appSource).not.toContain("function getLinearInspectorTitle");
   });
 
   it("removes secondary linear structure action groups from the property panel", () => {
@@ -185,7 +202,7 @@ describe("app shell", () => {
     expect(appSource).not.toContain("root.querySelectorAll(\"[data-linear-types]\")");
   });
 
-  it("keeps structure inspector groups compact when collapsed", () => {
+  it("renders linear structure controls flat without inner categories or folding", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
@@ -193,27 +210,26 @@ describe("app shell", () => {
     expect(markup).not.toContain("linear-panel-fields-edit");
     expect(markup).toContain("linear-panel-fields-highlight");
     expect(markup).toContain("quick-actions-compact");
+    expect(markup).not.toContain("linear-panel-group");
+    expect(markup).not.toContain('class="linear-panel-content"');
+    expect(markup).not.toContain("linear-panel-toggle");
     expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
-    expect(styles).toContain('.linear-panel-group[data-collapsed="true"]');
+    expect(styles).not.toContain('.linear-panel-group[data-collapsed="true"]');
     expect(styles).toContain(".quick-actions-linear");
     expect(appSource).toContain('appearance: context === "appearance"');
+    expect(appSource).not.toContain("function applyLinearGroupState()");
+    expect(appSource).not.toContain("linearGroupState");
   });
 
   it("prevents linear inspector controls from forcing the property panel wider", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
-    const linearContentBlocks = markup.match(/class="linear-panel-content"/g) ?? [];
-    const collapsedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="true"/g) ?? [];
-    const expandedLinearGroups = markup.match(/class="linear-panel-group" data-linear-group="[^"]+" data-collapsed="false"/g) ?? [];
-    const linearContentInnerBlocks = markup.match(/<div class="linear-panel-content" data-linear-content="[^"]+" aria-hidden="[^"]+">\s*<div class="linear-panel-content-inner">/g) ?? [];
 
-    expect(linearContentBlocks).toHaveLength(1);
-    expect(linearContentInnerBlocks).toHaveLength(1);
-    expect(expandedLinearGroups).toHaveLength(1);
-    expect(collapsedLinearGroups).toHaveLength(0);
     expect(markup).toContain("linear-panel-content-inner");
-    expect(styles).toMatch(/\.inspector-section-content,\n\.linear-panel-content \{[\s\S]*?min-width: 0;/);
-    expect(styles).toMatch(/\.inspector-section-content > \*,\n\.linear-panel-content > \* \{[\s\S]*?min-width: 0;/);
+    expect(markup).not.toContain('class="linear-panel-content"');
+    expect(markup).not.toContain("data-linear-content");
+    expect(styles).toMatch(/\.inspector-section-content \{[\s\S]*?min-width: 0;/);
+    expect(styles).toMatch(/\.inspector-section-content > \* \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.linear-panel-content-inner \{[\s\S]*?overflow: hidden;/);
     expect(styles).toMatch(/\.linear-panel-fields \{[\s\S]*?min-width: 0;/);
@@ -221,6 +237,16 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.quick-actions \{[\s\S]*?min-width: 0;/);
     expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?white-space: normal;/);
     expect(styles).toMatch(/\.quick-actions-compact button \{[\s\S]*?overflow-wrap: anywhere;/);
+  });
+
+  it("keeps linear panel indexes in sync with zero-based and one-based settings", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("function getLinearIndexBase(element)");
+    expect(appSource).toContain("function toLinearDisplayIndex(element, index)");
+    expect(appSource).toContain("function readLinearDisplayIndexField(fieldName, element, fallback = 0)");
+    expect(appSource).toContain('highlightPointer: String(toLinearDisplayIndex(element, pointer))');
+    expect(appSource).toContain('pointer: readLinearDisplayIndexField("highlightPointer", element, getActiveLinearIndex(element, 0))');
   });
 
   it("renders a brush inspector with a horizontal width slider", () => {

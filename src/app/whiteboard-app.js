@@ -203,13 +203,11 @@ export function createWhiteboardApp(root) {
   const imageInput = root.querySelector("[data-image-input]");
   const layerList = root.querySelector("[data-layer-list]");
   const inspectorSectionButtons = Array.from(root.querySelectorAll("[data-section-toggle]"));
-  const linearSectionButtons = Array.from(root.querySelectorAll("[data-linear-toggle]"));
   const linearFieldInputs = {
     highlightStart: root.querySelector("[data-linear-field='highlight-start']"),
     highlightEnd: root.querySelector("[data-linear-field='highlight-end']"),
     highlightPointer: root.querySelector("[data-linear-field='highlight-pointer']"),
   };
-  const linearTitle = root.querySelector("[data-linear-title]");
 
   let board = createEmptyBoard();
   let history = createHistory(board);
@@ -266,9 +264,6 @@ export function createWhiteboardApp(root) {
     linear: false,
     graph: false,
     tree: false,
-  };
-  let linearGroupState = {
-    highlight: true,
   };
   let activeInspectorContext = "appearance";
   let linearPanelState = {
@@ -646,16 +641,6 @@ export function createWhiteboardApp(root) {
         applyInspectorSectionState();
       });
     });
-    linearSectionButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const key = button.dataset.linearToggle;
-        linearGroupState = {
-          ...linearGroupState,
-          [key]: !linearGroupState[key],
-        };
-        applyLinearGroupState();
-      });
-    });
     Object.entries(linearFieldInputs).forEach(([key, input]) => {
       if (!input) return;
       input.addEventListener("input", () => {
@@ -723,9 +708,9 @@ export function createWhiteboardApp(root) {
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
       "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
-        start: readLinearFieldNumber("highlightStart", 0),
-        end: readLinearFieldNumber("highlightEnd", Math.max(0, (element.items?.length ?? 1) - 1)),
-        pointer: readLinearFieldNumber("highlightPointer", getActiveLinearIndex(element, 0)),
+        start: readLinearDisplayIndexField("highlightStart", element, 0),
+        end: readLinearDisplayIndexField("highlightEnd", element, Math.max(0, (element.items?.length ?? 1) - 1)),
+        pointer: readLinearDisplayIndexField("highlightPointer", element, getActiveLinearIndex(element, 0)),
         showPointer: element.markers?.showPointer ?? true,
       })),
       "array-clear-highlight": () => editSelectedArrayStructure(clearArrayHighlight),
@@ -954,28 +939,7 @@ export function createWhiteboardApp(root) {
     };
   }
 
-  function getLinearInspectorTitle() {
-    const selectedLinearElements = board.elements.filter((element) => selectedIds.includes(element.id) && isLinearStructureElement(element));
-    const selectedTypes = [...new Set(selectedLinearElements.map((element) => element.type))];
-    if (selectedTypes.length !== 1) return "线性结构";
-    return {
-      "array-structure": "数组",
-      "stack-structure": "栈",
-      "queue-structure": "队列",
-      "deque-structure": "双端队列",
-    }[selectedTypes[0]] ?? "线性结构";
-  }
-
-  function getDefaultLinearGroupState() {
-    return {
-      highlight: true,
-    };
-  }
-
   function applyInspectorSectionState() {
-    if (linearTitle) {
-      linearTitle.textContent = getLinearInspectorTitle();
-    }
     const visibleSections = getVisibleInspectorSections(activeInspectorContext);
     root.querySelectorAll("[data-inspector-section]").forEach((section) => {
       const key = section.dataset.inspectorSection;
@@ -990,27 +954,13 @@ export function createWhiteboardApp(root) {
     });
   }
 
-  function applyLinearGroupState() {
-    root.querySelectorAll("[data-linear-group]").forEach((group) => {
-      const key = group.dataset.linearGroup;
-      const expanded = Boolean(linearGroupState[key]);
-      group.dataset.collapsed = expanded ? "false" : "true";
-      const button = group.querySelector("[data-linear-toggle]");
-      const content = group.querySelector("[data-linear-content]");
-      button?.setAttribute("aria-expanded", String(expanded));
-      content?.setAttribute("aria-hidden", String(!expanded));
-    });
-  }
-
   function syncInspectorPanelState({ forceReset = false } = {}) {
     const nextContext = getInspectorContext();
     if (forceReset || nextContext !== activeInspectorContext) {
       activeInspectorContext = nextContext;
       inspectorSectionsState = getDefaultInspectorSections(nextContext);
-      linearGroupState = getDefaultLinearGroupState();
     }
     applyInspectorSectionState();
-    applyLinearGroupState();
     panelBody?.scrollTo?.(0, 0);
   }
 
@@ -2801,6 +2751,22 @@ export function createWhiteboardApp(root) {
     return Number.isFinite(parsed) ? Math.max(0, parsed) : Math.max(0, fallback);
   }
 
+  function getLinearIndexBase(element) {
+    return Number(element?.settings?.indexBase) === 1 ? 1 : 0;
+  }
+
+  function toLinearDisplayIndex(element, index) {
+    return Math.max(0, Number(index) || 0) + getLinearIndexBase(element);
+  }
+
+  function fromLinearDisplayIndex(element, index) {
+    return Math.max(0, (Number(index) || 0) - getLinearIndexBase(element));
+  }
+
+  function readLinearDisplayIndexField(fieldName, element, fallback = 0) {
+    return fromLinearDisplayIndex(element, readLinearFieldNumber(fieldName, toLinearDisplayIndex(element, fallback)));
+  }
+
   function getActiveLinearIndex(element, fallback = 0) {
     const maxIndex = Math.max(0, (element?.items?.length ?? 1) - 1);
     if (activeLinearItem?.elementId === element?.id) {
@@ -2875,9 +2841,9 @@ export function createWhiteboardApp(root) {
       : currentIndex;
     linearPanelState = {
       ...linearPanelState,
-      highlightStart: String(Math.min(Math.max(0, itemCount - 1), Math.max(0, firstHighlight))),
-      highlightEnd: String(Math.min(Math.max(0, itemCount - 1), Math.max(0, lastHighlight))),
-      highlightPointer: String(pointer),
+      highlightStart: String(toLinearDisplayIndex(element, Math.min(Math.max(0, itemCount - 1), Math.max(0, firstHighlight)))),
+      highlightEnd: String(toLinearDisplayIndex(element, Math.min(Math.max(0, itemCount - 1), Math.max(0, lastHighlight)))),
+      highlightPointer: String(toLinearDisplayIndex(element, pointer)),
     };
     applyLinearPanelState(linearPanelState);
   }
