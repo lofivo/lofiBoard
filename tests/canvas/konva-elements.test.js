@@ -524,6 +524,61 @@ describe("konva elements", () => {
     expect(node.dash()).toEqual([24, 16]);
   });
 
+  it("keeps fixed-width strokes as Konva lines when pressure is uniform", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 20, y: 20, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 8,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "solid",
+      smoothing: 0.45,
+    }, baseHandlers);
+
+    expect(node.getClassName()).toBe("Line");
+    expect(node.points()).toEqual([0, 0, 20, 20]);
+    expect(node.strokeWidth()).toBe(8);
+  });
+
+  it("renders pressure-sensitive strokes with a custom shape", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.1 },
+        { x: 20, y: 0, pressure: 0.9 },
+        { x: 40, y: 0, pressure: 0.4 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 10,
+      opacity: 0.7,
+      lineCap: "round",
+      brushStyle: "solid",
+      smoothing: 0.45,
+    }, baseHandlers);
+
+    expect(node.getClassName()).toBe("Shape");
+    expect(node.getAttr("pressurePoints")).toEqual([
+      { x: 0, y: 0, pressure: 0.1 },
+      { x: 20, y: 0, pressure: 0.9 },
+      { x: 40, y: 0, pressure: 0.4 },
+    ]);
+    expect(node.stroke()).toBe("#111827");
+    expect(node.strokeWidth()).toBe(10);
+    expect(node.opacity()).toBe(0.7);
+    expect(node.getClientRect({ skipTransform: true, skipStroke: true })).toMatchObject({
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 0,
+    });
+  });
+
   it("uses rounded dotted brush dashes for dot strokes", () => {
     const node = createElementNode({
       id: "stroke_1",

@@ -12,6 +12,8 @@ import { getTextDisplayValue } from "../services/latex-service.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
+const PRESSURE_VARIATION_THRESHOLD = 0.08;
+export const PRESSURE_STROKE_PREVIEW_ATTR = "forcePressureStroke";
 
 export function getStickyBorderColor(fill) {
   const fallback = "#eab308";
@@ -80,6 +82,104 @@ export function syncTextNodeScalePreview(node, element, {
     lineHeight: 1.25,
     padding: 0,
   });
+}
+
+function normalizePressureValue(pressure) {
+  if (!Number.isFinite(pressure) || pressure <= 0) return 0.5;
+  return Math.min(1, Math.max(0.05, pressure));
+}
+
+function getStrokePressurePoints(element) {
+  return (element.points ?? []).map((point) => ({
+    x: Number(point.x) || 0,
+    y: Number(point.y) || 0,
+    pressure: normalizePressureValue(point.pressure),
+  }));
+}
+
+function hasPressureVariation(points) {
+  if (points.length < 2) return false;
+  const firstPressure = normalizePressureValue(points[0].pressure);
+  return points.some((point) => Math.abs(normalizePressureValue(point.pressure) - firstPressure) > PRESSURE_VARIATION_THRESHOLD);
+}
+
+function getPressureStrokeWidth(strokeWidth, pressure) {
+  const baseWidth = Math.max(1, Number(strokeWidth) || 1);
+  return Math.max(1, baseWidth * (0.35 + normalizePressureValue(pressure) * 1.15));
+}
+
+function getPressureStrokeRect(points, strokeWidth = 1) {
+  if (points.length === 0) {
+    return { x: 0, y: 0, width: 0, height: 0 };
+  }
+  let minX = points[0].x;
+  let maxX = points[0].x;
+  let minY = points[0].y;
+  let maxY = points[0].y;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+function drawPressureStroke(context, shape, { hit = false } = {}) {
+  const points = shape.getAttr("pressurePoints") ?? [];
+  if (points.length < 2) return;
+  const strokeWidth = Math.max(1, Number(shape.strokeWidth()) || 1);
+  const strokeColor = hit ? shape.colorKey : shape.stroke();
+  context.setAttr("strokeStyle", strokeColor);
+  context.setAttr("lineCap", shape.lineCap() ?? "round");
+  context.setAttr("lineJoin", "round");
+  const dash = hit ? [] : (shape.dash() ?? []);
+  context.setLineDash(dash);
+  context.setAttr("lineDashOffset", shape.dashOffset?.() ?? 0);
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const point = points[index];
+    const width = hit
+      ? Math.max(strokeWidth + 14, 22)
+      : getPressureStrokeWidth(strokeWidth, (previous.pressure + point.pressure) / 2);
+    context.beginPath();
+    context.moveTo(previous.x, previous.y);
+    context.lineTo(point.x, point.y);
+    context.setAttr("lineWidth", width);
+    context.stroke();
+  }
+}
+
+function createPressureStrokeNode(element, common) {
+  const pressurePoints = getStrokePressurePoints(element);
+  const shape = new Konva.Shape({
+    ...common,
+    x: element.x ?? 0,
+    y: element.y ?? 0,
+    pressurePoints,
+    stroke: element.stroke,
+    strokeWidth: element.strokeWidth,
+    opacity: element.opacity ?? 1,
+    lineCap: element.lineCap ?? "round",
+    lineJoin: "round",
+    dash: getBrushDash(element),
+    hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
+    perfectDrawEnabled: false,
+    shadowForStrokeEnabled: false,
+    sceneFunc: (context, pressureShape) => drawPressureStroke(context, pressureShape),
+    hitFunc: (context, pressureShape) => drawPressureStroke(context, pressureShape, { hit: true }),
+  });
+  shape.getSelfRect = function getSelfRect() {
+    return getPressureStrokeRect(this.getAttr("pressurePoints") ?? [], this.strokeWidth());
+  };
+  shape._attrsAffectingSize = ["pressurePoints"];
+  return shape;
 }
 
 export function syncTextNodeContent(node, element, { renderLatex = true } = {}) {
@@ -181,7 +281,9 @@ export function createElementNode(element, {
     scaleY: element.scaleY ?? 1,
   };
 
-  if (element.type === "stroke") {
+  if (element.type === "stroke" && (element[PRESSURE_STROKE_PREVIEW_ATTR] || hasPressureVariation(element.points ?? []))) {
+    node = createPressureStrokeNode(element, common);
+  } else if (element.type === "stroke") {
     node = new Konva.Line({
       ...common,
       x: element.x ?? 0,
@@ -429,11 +531,13 @@ export function createNodeAttrs(element) {
   }
   if (element.type === "stroke") {
     return {
+      pressurePoints: getStrokePressurePoints(element),
       points: flattenPoints(element.points ?? []),
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       opacity: element.opacity ?? 1,
       lineCap: element.lineCap ?? "round",
+      lineJoin: "round",
       tension: element.smoothing ?? 0.45,
       dash: getBrushDash(element),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),

@@ -34,13 +34,14 @@ import {
   saveLocalDraft,
 } from "../services/draft-storage-service.js";
 import { createTextOverlayController } from "../services/text-overlay-service.js";
-import { splitStrokeByEraser, flattenPoints, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
+import { splitStrokeByEraser, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
 import {
   createElementNode,
   createNodeAttrs,
   getStickyBorderColor,
+  PRESSURE_STROKE_PREVIEW_ATTR,
   syncCoordinatePlaneNodeContent,
   syncTextNodeContent,
   syncTextNodeScalePreview,
@@ -1727,7 +1728,7 @@ export function createWhiteboardApp(root) {
       zIndex: board.elements.length,
     };
 
-    const node = createNode(element);
+    const node = createNode({ ...element, [PRESSURE_STROKE_PREVIEW_ATTR]: true });
     contentLayer.add(node);
     strokeDraft = { element, node };
   }
@@ -1739,7 +1740,7 @@ export function createWhiteboardApp(root) {
     if (!shouldAppendStrokePoint(previousPoint, nextPoint, minDistance)) return;
 
     strokeDraft.element.points.push(smoothStrokePoint(previousPoint, nextPoint, getBrushInputSmoothingValue()));
-    strokeDraft.node.points(flattenPoints(strokeDraft.element.points));
+    strokeDraft.node.setAttrs(createNodeAttrs(strokeDraft.element));
     contentLayer.batchDraw();
   }
 
