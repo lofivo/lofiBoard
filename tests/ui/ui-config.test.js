@@ -27,6 +27,8 @@ describe("ui config", () => {
 
     expect(markup).toContain('data-shape-tool="coordinate-plane"');
     expect(markup).toContain("坐标系");
+    expect(markup).toContain("直线 (L)");
+    expect(markup).not.toContain("线段");
   });
 
   it("orders canvas background choices with plain before dots", () => {

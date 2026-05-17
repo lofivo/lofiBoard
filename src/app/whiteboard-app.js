@@ -180,6 +180,14 @@ export function createWhiteboardApp(root) {
   const brushSmoothingInput = root.querySelector("[data-control='brush-smoothing']");
   const brushCapInput = root.querySelector("[data-control='brush-cap']");
   const brushStyleInput = root.querySelector("[data-control='brush-style']");
+  const arrowDoubleEndedInput = root.querySelector("[data-control='arrow-double-ended']");
+  const coordinateUnitSizeInput = root.querySelector("[data-control='coordinate-unit-size']");
+  const coordinateShowGridInput = root.querySelector("[data-control='coordinate-show-grid']");
+  const coordinateShowTicksInput = root.querySelector("[data-control='coordinate-show-ticks']");
+  const coordinateShowLabelsInput = root.querySelector("[data-control='coordinate-show-labels']");
+  const coordinateGridColorInput = root.querySelector("[data-control='coordinate-grid-color']");
+  const coordinateAxisColorInput = root.querySelector("[data-control='coordinate-axis-color']");
+  const coordinateLabelColorInput = root.querySelector("[data-control='coordinate-label-color']");
   const brushCustomColorInput = root.querySelector("[data-brush-custom-color]");
   const brushWidthSlider = root.querySelector("[data-brush-width-slider]");
   const brushWidthValue = root.querySelector("[data-brush-width-value]");
@@ -515,6 +523,22 @@ export function createWhiteboardApp(root) {
     brushStyleInput.addEventListener("change", applyStyleToSelection);
     brushStyleInput.addEventListener("change", syncBrushPresetButtons);
     brushStyleInput.addEventListener("change", syncBrushPreview);
+    arrowDoubleEndedInput.addEventListener("change", applyStyleToSelection);
+    arrowDoubleEndedInput.addEventListener("change", syncShapeEndpointControls);
+    [
+      coordinateUnitSizeInput,
+      coordinateShowGridInput,
+      coordinateShowTicksInput,
+      coordinateShowLabelsInput,
+      coordinateGridColorInput,
+      coordinateAxisColorInput,
+      coordinateLabelColorInput,
+    ].forEach((input) => input.addEventListener("input", applyCoordinateStyleToSelection));
+    [
+      coordinateShowGridInput,
+      coordinateShowTicksInput,
+      coordinateShowLabelsInput,
+    ].forEach((input) => input.addEventListener("change", applyCoordinateStyleToSelection));
     fontSizeInput.addEventListener("input", applyStyleToSelection);
     fontFamilyInput.addEventListener("change", applyStyleToSelection);
 
@@ -530,12 +554,14 @@ export function createWhiteboardApp(root) {
       if (!masterInput) return;
 
       uiInput.addEventListener("input", () => {
+        if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
         setBrushControlValue(masterInput, uiInput.value, "input");
         if (controlName === 'color' || controlName === 'width') {
           updateBrushCursorStyle();
         }
       });
       uiInput.addEventListener("change", () => {
+        if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
         setBrushControlValue(masterInput, uiInput.value, "change");
       });
     });
@@ -553,6 +579,16 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-brush-text-color]").forEach((button) => {
       button.addEventListener("click", () => {
         setBrushControlValue(colorInput, button.dataset.brushTextColor, "input");
+      });
+    });
+    root.querySelectorAll("[data-shape-fill-color]").forEach((button) => {
+      button.addEventListener("click", () => {
+        fillTransparentInput.checked = false;
+        root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
+          input.checked = false;
+        });
+        setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");
+        applyStyleToSelection();
       });
     });
     brushCustomColorInput?.addEventListener("input", () => {
@@ -1844,6 +1880,10 @@ export function createWhiteboardApp(root) {
       strokeWidth: Number(widthInput.value),
       fillColor: fillInput.value,
       transparentFill: fillTransparentInput.checked,
+      opacity: getBrushOpacityValue(),
+      lineCap: brushCapInput.value,
+      brushStyle: brushStyleInput.value,
+      doubleArrow: arrowDoubleEndedInput.checked,
       zIndex: board.elements.length,
     };
   }
@@ -2560,9 +2600,10 @@ export function createWhiteboardApp(root) {
       if (element.type === "arrow") {
         return {
           ...element,
-          stroke: colorInput.value,
+          ...strokeStyle,
           fill: colorInput.value,
-          strokeWidth: Number(widthInput.value),
+          pointerAtBeginning: arrowDoubleEndedInput.checked,
+          pointerAtEnding: true,
         };
       }
       if (element.type === "stroke") {
@@ -2571,7 +2612,7 @@ export function createWhiteboardApp(root) {
           : { ...element, stroke: colorInput.value, strokeWidth: Number(widthInput.value) };
       }
       if (element.type === "line") {
-        return { ...element, stroke: colorInput.value, strokeWidth: Number(widthInput.value) };
+        return { ...element, ...strokeStyle };
       }
       return {
         ...element,
@@ -2583,6 +2624,38 @@ export function createWhiteboardApp(root) {
 
     renderBoard();
     pushHistory("已更新样式");
+  }
+
+  function applyCoordinateStyleToSelection() {
+    const selectedCoordinateIds = selectedIds.filter((id) => {
+      const element = board.elements.find((item) => item.id === id);
+      return element?.type === "coordinate-plane" && !element.locked;
+    });
+    if (selectedCoordinateIds.length === 0) return;
+
+    const unitSize = Math.max(8, Number(coordinateUnitSizeInput.value) || 40);
+    board.elements = board.elements.map((element) => {
+      if (!selectedCoordinateIds.includes(element.id)) return element;
+      return {
+        ...element,
+        unitSize,
+        settings: {
+          ...(element.settings ?? {}),
+          showGrid: coordinateShowGridInput.checked,
+          showTicks: coordinateShowTicksInput.checked,
+          showLabels: coordinateShowLabelsInput.checked,
+        },
+        style: {
+          ...(element.style ?? {}),
+          gridStroke: coordinateGridColorInput.value,
+          axisStroke: coordinateAxisColorInput.value,
+          labelFill: coordinateLabelColorInput.value,
+        },
+      };
+    });
+
+    renderBoard();
+    pushHistory("已更新坐标系");
   }
 
   function toggleTextStyle(style) {
@@ -3976,10 +4049,10 @@ export function createWhiteboardApp(root) {
       [TOOLS.TEXT]: "文字：点击画布添加文字",
       [TOOLS.STICKY]: "便签：点击画布添加便签",
       [TOOLS.STRUCTURE]: "结构：选择数组、图或树并填写初始内容",
-      [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、线段或箭头",
+      [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、直线或箭头",
       [TOOLS.RECT]: "矩形：拖动创建",
       [TOOLS.ELLIPSE]: "椭圆：拖动创建",
-      [TOOLS.LINE]: "线段：拖动创建",
+      [TOOLS.LINE]: "直线：拖动创建",
       [TOOLS.ARROW]: "箭头：拖动创建",
     }[tool];
   }
@@ -4583,6 +4656,9 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-shape-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.shapeTool === activeShapeTool);
     });
+    root.dataset.activeShape = selectedIds.length === 1
+      ? board.elements.find((element) => element.id === selectedIds[0])?.type ?? activeShapeTool
+      : activeShapeTool;
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });
@@ -4632,7 +4708,7 @@ export function createWhiteboardApp(root) {
       image: "图片",
       rect: "矩形",
       ellipse: "椭圆",
-      line: "线段",
+      line: "直线",
       arrow: "箭头",
       "coordinate-plane": "坐标系",
       "array-structure": `数组：${element.items?.length ?? 0} 项`,
@@ -4721,6 +4797,8 @@ export function createWhiteboardApp(root) {
             ? "stroke"
           : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
             ? "linear"
+          : selectedElements.every((element) => element.type === "coordinate-plane")
+            ? "coordinate"
           : selectedElements.every((element) => isLinearStructureElement(element) || ["graph-structure", "tree-structure"].includes(element.type))
             ? "structure"
             : "element";
@@ -4741,6 +4819,8 @@ export function createWhiteboardApp(root) {
           ? "tool-sticky"
           : currentTool === TOOLS.PEN
             ? "brush"
+          : drawingTool === TOOLS.COORDINATE_PLANE
+            ? "coordinate-tool"
           : ["line", "arrow"].includes(drawingTool)
             ? "linear-tool"
             : "tool";
@@ -4762,10 +4842,24 @@ export function createWhiteboardApp(root) {
     fillTransparentInput.checked = !element.fill || element.fill === "transparent";
     if (element.fill && element.type === "text") colorInput.value = element.fill;
     if (element.strokeWidth) widthInput.value = String(element.strokeWidth);
-    if (element.type === "stroke") hydrateBrushControlsFromElement(element);
+    if (["stroke", "line", "arrow"].includes(element.type)) hydrateBrushControlsFromElement(element);
+    if (element.type === "coordinate-plane") hydrateCoordinateControlsFromElement(element);
+    arrowDoubleEndedInput.checked = element.type === "arrow" && Boolean(element.pointerAtBeginning);
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
     if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
     updateTextStyleButtons(element);
+    syncShapeEndpointControls();
+  }
+
+  function hydrateCoordinateControlsFromElement(element) {
+    coordinateUnitSizeInput.value = String(Math.max(8, Number(element.unitSize) || 40));
+    coordinateShowGridInput.checked = element.settings?.showGrid ?? true;
+    coordinateShowTicksInput.checked = element.settings?.showTicks ?? true;
+    coordinateShowLabelsInput.checked = element.settings?.showLabels ?? true;
+    coordinateGridColorInput.value = element.style?.gridStroke ?? "#e5e7eb";
+    coordinateAxisColorInput.value = element.style?.axisStroke ?? "#111827";
+    coordinateLabelColorInput.value = element.style?.labelFill ?? "#64748b";
+    syncCoordinateControls();
   }
 
   function resetPropertyControlsForTool(tool) {
@@ -4777,6 +4871,14 @@ export function createWhiteboardApp(root) {
     brushSmoothingInput.value = DEFAULT_PROPERTY_CONTROLS.brushSmoothing;
     brushCapInput.value = DEFAULT_PROPERTY_CONTROLS.brushCap;
     brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle;
+    arrowDoubleEndedInput.checked = false;
+    coordinateUnitSizeInput.value = "40";
+    coordinateShowGridInput.checked = true;
+    coordinateShowTicksInput.checked = true;
+    coordinateShowLabelsInput.checked = true;
+    coordinateGridColorInput.value = "#e5e7eb";
+    coordinateAxisColorInput.value = "#111827";
+    coordinateLabelColorInput.value = "#64748b";
     fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize;
     fontFamilyInput.value = DEFAULT_PROPERTY_CONTROLS.fontFamily;
     updateTextStyleButtons({
@@ -4789,6 +4891,8 @@ export function createWhiteboardApp(root) {
     }
     syncBrushWidthControl();
     syncBrushPresetButtons();
+    syncShapeEndpointControls();
+    syncCoordinateControls();
     updateBrushCursorStyle();
   }
 
@@ -4799,6 +4903,7 @@ export function createWhiteboardApp(root) {
     brushStyleInput.value = element.brushStyle ?? "solid";
     syncBrushWidthControl();
     syncBrushPresetButtons();
+    syncShapeEndpointControls();
   }
 
   function setBrushControlValue(input, value, eventName) {
@@ -4838,6 +4943,24 @@ export function createWhiteboardApp(root) {
       setBrushPresetActive(button, button.dataset.brushCapOption === brushCapInput.value);
     });
     syncBrushPreview();
+  }
+
+  function syncShapeEndpointControls() {
+    root.querySelectorAll("[data-ui-control='arrow-double-ended']").forEach((input) => {
+      input.checked = arrowDoubleEndedInput.checked;
+    });
+  }
+
+  function syncCoordinateControls() {
+    root.querySelectorAll("[data-ui-control^='coordinate-']").forEach((input) => {
+      const masterInput = root.querySelector(`[data-control="${input.dataset.uiControl}"]`);
+      if (!masterInput) return;
+      if (input.type === "checkbox") {
+        input.checked = masterInput.checked;
+      } else {
+        input.value = masterInput.value;
+      }
+    });
   }
 
   function syncBrushPreview() {

@@ -376,7 +376,13 @@ export function createElementNode(element, {
   };
 
   if (element.type === "stroke") {
-    node = createPressureStrokeNode(element, common);
+    const pressurePoints = getStrokePressurePoints(element);
+    node = (element[PRESSURE_STROKE_PREVIEW_ATTR] || hasPressureVariation(pressurePoints))
+      ? createPressureStrokeNode(element, common)
+      : new Konva.Line({
+        ...common,
+        ...createNodeAttrs(element),
+      });
   } else if (element.type === "text") {
     const horizontalPadding = element.padding ?? 0;
     node = new Konva.Group({
@@ -489,8 +495,10 @@ export function createElementNode(element, {
       points: element.points,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      lineCap: "round",
+      opacity: element.opacity ?? 1,
+      lineCap: getBrushLineCap(element),
       lineJoin: "round",
+      dash: getBrushDash(element),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
   } else if (element.type === "arrow") {
@@ -502,10 +510,14 @@ export function createElementNode(element, {
       stroke: element.stroke,
       fill: element.fill ?? element.stroke,
       strokeWidth: element.strokeWidth,
+      opacity: element.opacity ?? 1,
       pointerLength: 18,
       pointerWidth: 18,
-      lineCap: "round",
+      pointerAtBeginning: element.pointerAtBeginning ?? false,
+      pointerAtEnding: element.pointerAtEnding ?? true,
+      lineCap: getBrushLineCap(element),
       lineJoin: "round",
+      dash: getBrushDash(element),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     });
   } else if (element.type === "coordinate-plane") {
@@ -626,7 +638,14 @@ export function createNodeAttrs(element) {
       points: element.points,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
+      opacity: element.opacity ?? 1,
+      lineCap: getBrushLineCap(element),
+      lineJoin: "round",
+      brushStyle: element.brushStyle ?? "solid",
+      dash: getBrushDash(element),
       fill: element.fill ?? element.stroke,
+      pointerAtBeginning: element.pointerAtBeginning ?? false,
+      pointerAtEnding: element.pointerAtEnding ?? true,
     };
   }
   if (element.type === "coordinate-plane") {

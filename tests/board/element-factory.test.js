@@ -54,4 +54,54 @@ describe("element factory", () => {
       },
     });
   });
+
+  it("creates linear shapes with stroke styling and arrow endpoint settings", () => {
+    const line = createShapeElement({
+      type: TOOLS.LINE,
+      start: { x: 10, y: 20 },
+      end: { x: 90, y: 70 },
+      stroke: "#2563eb",
+      strokeWidth: 8,
+      fillColor: "#ffffff",
+      transparentFill: true,
+      opacity: 0.6,
+      lineCap: "square",
+      brushStyle: "dash",
+      zIndex: 3,
+    });
+    const arrow = createShapeElement({
+      type: TOOLS.ARROW,
+      start: { x: 10, y: 20 },
+      end: { x: 90, y: 70 },
+      stroke: "#dc2626",
+      strokeWidth: 6,
+      fillColor: "#ffffff",
+      transparentFill: true,
+      opacity: 0.8,
+      lineCap: "round",
+      brushStyle: "dot",
+      doubleArrow: true,
+      zIndex: 4,
+    });
+
+    expect(line).toMatchObject({
+      type: "line",
+      points: [10, 20, 90, 70],
+      stroke: "#2563eb",
+      strokeWidth: 8,
+      opacity: 0.6,
+      lineCap: "square",
+      brushStyle: "dash",
+    });
+    expect(arrow).toMatchObject({
+      type: "arrow",
+      points: [10, 20, 90, 70],
+      fill: "#dc2626",
+      opacity: 0.8,
+      lineCap: "round",
+      brushStyle: "dot",
+      pointerAtBeginning: true,
+      pointerAtEnding: true,
+    });
+  });
 });

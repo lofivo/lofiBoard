@@ -78,7 +78,7 @@ export const TOOL_ITEMS = [
 export const SHAPE_ITEMS = [
   { id: TOOLS.RECT, label: "矩形", shortcut: "R", icon: Square },
   { id: TOOLS.ELLIPSE, label: "椭圆", icon: Circle },
-  { id: TOOLS.LINE, label: "线段", shortcut: "L", icon: Minus },
+  { id: TOOLS.LINE, label: "直线", shortcut: "L", icon: Minus },
   { id: TOOLS.ARROW, label: "箭头", shortcut: "A", icon: ArrowRight },
   { id: TOOLS.COORDINATE_PLANE, label: "坐标系", icon: Grid2X2 },
 ];

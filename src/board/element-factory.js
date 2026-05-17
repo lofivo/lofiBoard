@@ -82,7 +82,21 @@ export function createImageElement({ point, src, width, height, zIndex, anchor =
   };
 }
 
-export function createShapeElement({ type, start, end, existingId, stroke, strokeWidth, fillColor, transparentFill, zIndex }) {
+export function createShapeElement({
+  type,
+  start,
+  end,
+  existingId,
+  stroke,
+  strokeWidth,
+  fillColor,
+  transparentFill,
+  opacity = 1,
+  lineCap = "round",
+  brushStyle = "solid",
+  doubleArrow = false,
+  zIndex,
+}) {
   const rect = normalizeRect(start, end);
   const common = {
     id: existingId ?? createId(type),
@@ -143,6 +157,15 @@ export function createShapeElement({ type, start, end, existingId, stroke, strok
     y: 0,
     points: [start.x, start.y, end.x, end.y],
     fill: stroke,
+    opacity,
+    lineCap,
+    brushStyle,
+    ...(type === TOOLS.ARROW
+      ? {
+        pointerAtBeginning: Boolean(doubleArrow),
+        pointerAtEnding: true,
+      }
+      : {}),
   };
 }
 

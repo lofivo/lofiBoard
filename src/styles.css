@@ -507,6 +507,14 @@ button {
   width: 284px;
 }
 
+[data-panel-mode="tool"] .style-panel,
+[data-panel-mode="linear-tool"] .style-panel,
+[data-panel-mode="element"] .style-panel,
+[data-panel-mode="linear"] .style-panel {
+  max-height: calc(100vh - 64px);
+  padding-block: 14px;
+}
+
 .style-panel[hidden],
 .layer-panel[hidden] {
   display: none;
@@ -643,6 +651,22 @@ button {
   scrollbar-color: rgba(100, 116, 139, 0.34) transparent;
 }
 
+[data-panel-mode="tool"] .panel-body,
+[data-panel-mode="linear-tool"] .panel-body,
+[data-panel-mode="element"] .panel-body,
+[data-panel-mode="linear"] .panel-body {
+  gap: 8px;
+  padding-right: 0;
+  scrollbar-width: none;
+}
+
+[data-panel-mode="tool"] .panel-body::-webkit-scrollbar,
+[data-panel-mode="linear-tool"] .panel-body::-webkit-scrollbar,
+[data-panel-mode="element"] .panel-body::-webkit-scrollbar,
+[data-panel-mode="linear"] .panel-body::-webkit-scrollbar {
+  display: none;
+}
+
 .inspector-section {
   display: grid;
   gap: 8px;
@@ -742,7 +766,11 @@ button {
 [data-panel-mode="text"] .inspector-section[data-inspector-section="appearance"],
 [data-panel-mode="tool-text"] .inspector-section[data-inspector-section="appearance"],
 [data-panel-mode="tool-sticky"] .inspector-section[data-inspector-section="appearance"],
-[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"] {
+[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"],
+[data-panel-mode="tool"] .inspector-section[data-inspector-section="appearance"],
+[data-panel-mode="linear-tool"] .inspector-section[data-inspector-section="appearance"],
+[data-panel-mode="element"] .inspector-section[data-inspector-section="appearance"],
+[data-panel-mode="linear"] .inspector-section[data-inspector-section="appearance"] {
   gap: 0;
   padding: 0;
   border: 0;
@@ -755,7 +783,11 @@ button {
 [data-panel-mode="text"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
 [data-panel-mode="tool-text"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
 [data-panel-mode="tool-sticky"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
-[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle {
+[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
+[data-panel-mode="tool"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
+[data-panel-mode="linear-tool"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
+[data-panel-mode="element"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle,
+[data-panel-mode="linear"] .inspector-section[data-inspector-section="appearance"] > .inspector-section-toggle {
   display: none;
 }
 
@@ -763,7 +795,11 @@ button {
 [data-panel-mode="text"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="tool-text"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
 [data-panel-mode="tool-sticky"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
-[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content {
+[data-panel-mode="sticky"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
+[data-panel-mode="tool"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
+[data-panel-mode="linear-tool"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
+[data-panel-mode="element"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content,
+[data-panel-mode="linear"] .inspector-section[data-inspector-section="appearance"] .inspector-section-content {
   grid-template-rows: 1fr;
   opacity: 1;
 }
@@ -892,9 +928,39 @@ button {
 }
 
 [data-panel-mode="brush"] .brush-inspector,
-[data-panel-mode="stroke"] .brush-inspector {
+[data-panel-mode="stroke"] .brush-inspector,
+[data-panel-mode="tool"] .brush-inspector,
+[data-panel-mode="linear-tool"] .brush-inspector,
+[data-panel-mode="element"] .brush-inspector,
+[data-panel-mode="linear"] .brush-inspector,
+[data-panel-mode="coordinate-tool"] .coordinate-inspector,
+[data-panel-mode="coordinate"] .coordinate-inspector {
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
+}
+
+[data-panel-mode="tool"] .brush-field-cap,
+[data-panel-mode="tool"] .brush-field-style,
+[data-panel-mode="tool"] .brush-field-opacity,
+[data-panel-mode="linear-tool"] .brush-field-cap,
+[data-panel-mode="linear-tool"] .brush-field-style,
+[data-panel-mode="linear-tool"] .brush-field-opacity,
+[data-panel-mode="element"] .brush-field-cap,
+[data-panel-mode="element"] .brush-field-style,
+[data-panel-mode="element"] .brush-field-opacity,
+[data-panel-mode="linear"] .brush-field-cap,
+[data-panel-mode="linear"] .brush-field-style,
+[data-panel-mode="linear"] .brush-field-opacity,
+[data-panel-mode="coordinate-tool"] .brush-inspector,
+[data-panel-mode="coordinate"] .brush-inspector {
+  display: none !important;
+}
+
+[data-panel-mode="tool"] .brush-preview-card,
+[data-panel-mode="linear-tool"] .brush-preview-card,
+[data-panel-mode="element"] .brush-preview-card,
+[data-panel-mode="linear"] .brush-preview-card {
+  display: none;
 }
 
 .brush-field-cap,
@@ -914,17 +980,42 @@ button {
 
 .brush-inspector,
 .text-inspector,
-.sticky-inspector {
+.sticky-inspector,
+.coordinate-inspector {
   display: none;
   min-width: 0;
   gap: 14px 10px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.brush-inspector {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-panel-mode="tool"] .brush-inspector,
+[data-panel-mode="linear-tool"] .brush-inspector,
+[data-panel-mode="element"] .brush-inspector,
+[data-panel-mode="linear"] .brush-inspector {
+  gap: 10px;
 }
 
 .brush-field {
   display: grid;
   min-width: 0;
   gap: 7px;
+}
+
+.shape-width-fill-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.shape-width-fill-row > .brush-field-width,
+.shape-width-fill-row > .shape-fill-inspector {
+  grid-column: auto;
 }
 
 .brush-preview-card,
@@ -937,6 +1028,11 @@ button {
   grid-column: 1 / -1;
 }
 
+.brush-field-fill,
+.brush-field-coordinate-unit {
+  grid-column: 1 / -1;
+}
+
 .brush-field-text-color {
   grid-column: 1 / -1;
 }
@@ -945,6 +1041,49 @@ button {
 .brush-field-smoothing,
 .brush-field-cap {
   align-self: end;
+}
+
+[data-active-shape="line"] .shape-fill-inspector,
+[data-active-shape="arrow"] .shape-fill-inspector {
+  display: none !important;
+}
+
+[data-panel-mode="brush"] .shape-fill-inspector,
+[data-panel-mode="brush"] .shape-endpoint-inspector {
+  display: none !important;
+}
+
+[data-active-shape="rect"] .shape-endpoint-inspector,
+[data-active-shape="ellipse"] .shape-endpoint-inspector,
+[data-active-shape="line"] .shape-endpoint-inspector {
+  display: none !important;
+}
+
+.shape-endpoint-inspector,
+.shape-fill-inspector {
+  display: none;
+  grid-column: 1 / -1;
+}
+
+[data-panel-mode="tool"][data-active-shape="rect"] .shape-fill-inspector,
+[data-panel-mode="tool"][data-active-shape="ellipse"] .shape-fill-inspector,
+[data-panel-mode="element"][data-active-shape="rect"] .shape-fill-inspector,
+[data-panel-mode="element"][data-active-shape="ellipse"] .shape-fill-inspector {
+  display: grid;
+}
+
+[data-panel-mode="linear-tool"][data-active-shape="arrow"] .shape-endpoint-inspector,
+[data-panel-mode="linear"][data-active-shape="arrow"] .shape-endpoint-inspector {
+  display: grid;
+}
+
+[data-panel-mode="coordinate-tool"] .brush-inspector {
+  display: none !important;
+}
+
+.coordinate-toggle-field,
+.brush-field-coordinate-color {
+  grid-column: span 1;
 }
 
 .brush-field-label {
@@ -989,7 +1128,7 @@ button {
 }
 
 .brush-preview-card::before {
-  content: "LIVE PREVIEW";
+  content: "笔触预览";
   position: absolute;
   top: 8px;
   left: 10px;

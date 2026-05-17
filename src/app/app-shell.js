@@ -26,6 +26,14 @@ export function renderShell() {
         <input data-control="brush-smoothing" type="range" min="0" max="100" value="45" />
         <input data-control="brush-cap" type="text" value="round" />
         <input data-control="brush-style" type="text" value="solid" />
+        <input data-control="arrow-double-ended" type="checkbox" />
+        <input data-control="coordinate-unit-size" type="range" min="16" max="120" value="40" />
+        <input data-control="coordinate-show-grid" type="checkbox" checked />
+        <input data-control="coordinate-show-ticks" type="checkbox" checked />
+        <input data-control="coordinate-show-labels" type="checkbox" checked />
+        <input data-control="coordinate-grid-color" type="color" value="#e5e7eb" />
+        <input data-control="coordinate-axis-color" type="color" value="#111827" />
+        <input data-control="coordinate-label-color" type="color" value="#64748b" />
         <input data-control="font-size" type="range" min="12" max="96" value="28" />
         <input data-control="font-family" type="text" value="Inter, system-ui, sans-serif" />
       </div>
@@ -69,7 +77,7 @@ export function renderShell() {
                 </svg>
               </div>
               <div class="brush-field brush-field-color">
-                <div class="brush-field-label">颜色</div>
+                <div class="brush-field-label">边框颜色</div>
                 <div class="brush-color-grid" role="group" aria-label="画笔颜色">
                   <button type="button" class="brush-color-swatch" data-brush-color="#111827" style="--swatch-color: #111827" title="黑色" aria-label="黑色"></button>
                   <button type="button" class="brush-color-swatch" data-brush-color="#2563eb" style="--swatch-color: #2563eb" title="蓝色" aria-label="蓝色"></button>
@@ -83,13 +91,36 @@ export function renderShell() {
                   </label>
                 </div>
               </div>
-              <div class="brush-field brush-field-width">
-                <div class="brush-field-header">
-                  <div class="brush-field-label">粗细</div>
+              <div class="brush-field brush-field-fill shape-fill-inspector">
+                <div class="brush-field-label">填充颜色</div>
+                <div class="brush-color-grid" role="group" aria-label="填充颜色">
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#ffffff" style="--swatch-color: #ffffff" title="白色" aria-label="白色"></button>
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#dbeafe" style="--swatch-color: #dbeafe" title="蓝色" aria-label="蓝色"></button>
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#fee2e2" style="--swatch-color: #fee2e2" title="红色" aria-label="红色"></button>
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#dcfce7" style="--swatch-color: #dcfce7" title="绿色" aria-label="绿色"></button>
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#fef3c7" style="--swatch-color: #fef3c7" title="黄色" aria-label="黄色"></button>
+                  <button type="button" class="brush-color-swatch" data-shape-fill-color="#ede9fe" style="--swatch-color: #ede9fe" title="紫色" aria-label="紫色"></button>
+                  <div class="brush-color-divider" aria-hidden="true"></div>
+                  <label class="brush-custom-color" title="自定义填充颜色" aria-label="自定义填充颜色">
+                    <input data-ui-control="fill" type="color" value="#ffffff" />
+                  </label>
                 </div>
-                <div class="brush-width-control">
-                  <input data-brush-width-slider type="range" min="1" max="28" step="1" value="6" aria-label="画笔粗细" />
+              </div>
+              <div class="shape-width-fill-row">
+                <div class="brush-field brush-field-width">
+                  <div class="brush-field-header">
+                    <div class="brush-field-label">粗细</div>
+                  </div>
+                  <div class="brush-width-control">
+                    <input data-brush-width-slider type="range" min="1" max="28" step="1" value="6" aria-label="画笔粗细" />
+                  </div>
                 </div>
+                <label class="brush-field shape-fill-inspector">
+                  <span class="control-fill-transparent">
+                    <input data-ui-control="fill-transparent" type="checkbox" checked />
+                    <span>透明填充</span>
+                  </span>
+                </label>
               </div>
               <div class="brush-field brush-field-cap">
                 <div class="brush-field-label">笔头</div>
@@ -117,6 +148,50 @@ export function renderShell() {
                 <span class="brush-slider-row">
                   <input data-control="brush-opacity" type="range" min="10" max="100" value="100" />
                 </span>
+              </label>
+              <label class="brush-field shape-endpoint-inspector">
+                <span class="brush-field-label">端点</span>
+                <span class="control-fill-transparent">
+                  <input data-ui-control="arrow-double-ended" type="checkbox" />
+                  <span>双箭头</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="coordinate-inspector" aria-label="坐标系设置">
+              <label class="brush-field brush-field-coordinate-unit">
+                <span class="brush-field-label">单位间距</span>
+                <input data-ui-control="coordinate-unit-size" type="range" min="16" max="120" value="40" />
+              </label>
+              <label class="brush-field coordinate-toggle-field">
+                <span class="control-fill-transparent">
+                  <input data-ui-control="coordinate-show-grid" type="checkbox" checked />
+                  <span>显示网格</span>
+                </span>
+              </label>
+              <label class="brush-field coordinate-toggle-field">
+                <span class="control-fill-transparent">
+                  <input data-ui-control="coordinate-show-ticks" type="checkbox" checked />
+                  <span>显示刻度</span>
+                </span>
+              </label>
+              <label class="brush-field coordinate-toggle-field">
+                <span class="control-fill-transparent">
+                  <input data-ui-control="coordinate-show-labels" type="checkbox" checked />
+                  <span>显示标签</span>
+                </span>
+              </label>
+              <label class="brush-field brush-field-coordinate-color">
+                <span class="brush-field-label">网格颜色</span>
+                <input data-ui-control="coordinate-grid-color" type="color" value="#e5e7eb" />
+              </label>
+              <label class="brush-field brush-field-coordinate-color">
+                <span class="brush-field-label">坐标轴颜色</span>
+                <input data-ui-control="coordinate-axis-color" type="color" value="#111827" />
+              </label>
+              <label class="brush-field brush-field-coordinate-color">
+                <span class="brush-field-label">标签颜色</span>
+                <input data-ui-control="coordinate-label-color" type="color" value="#64748b" />
               </label>
             </div>
 

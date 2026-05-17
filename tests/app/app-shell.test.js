@@ -273,6 +273,63 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.brush-field-text-color \{[\s\S]*?grid-column: 1 \/ -1;/);
   });
 
+  it("shows tailored shape and coordinate-plane controls in the property panel", () => {
+    const markup = renderShell();
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(markup).toContain("shape-endpoint-inspector");
+    expect(markup).toContain('data-control="arrow-double-ended"');
+    expect(markup).toContain("brush-field-fill");
+    expect(markup).toContain("边框颜色");
+    expect(markup).toContain("填充颜色");
+    expect(markup).toContain("shape-width-fill-row");
+    expect(markup).toContain("双箭头");
+    expect(markup).toContain("coordinate-inspector");
+    expect(markup).toContain('data-ui-control="coordinate-unit-size"');
+    expect(markup).toContain('data-ui-control="coordinate-show-grid"');
+    expect(markup).toContain('data-ui-control="coordinate-grid-color"');
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="coordinate-tool"\] \.coordinate-inspector,[\s\S]*?\[data-panel-mode="coordinate"\] \.coordinate-inspector \{[\s\S]*?display: grid !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\]\[data-active-shape="rect"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="element"\]\[data-active-shape="ellipse"\] \.shape-fill-inspector \{[\s\S]*?display: grid;/);
+    expect(styles).toMatch(/\[data-active-shape="line"\] \.shape-fill-inspector,[\s\S]*?\[data-active-shape="arrow"\] \.shape-fill-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="linear-tool"\]\[data-active-shape="arrow"\] \.shape-endpoint-inspector,[\s\S]*?\[data-panel-mode="linear"\]\[data-active-shape="arrow"\] \.shape-endpoint-inspector \{[\s\S]*?display: grid;/);
+    expect(styles).toMatch(/\[data-active-shape="rect"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="ellipse"\] \.shape-endpoint-inspector,[\s\S]*?\[data-active-shape="line"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="element"\] \.brush-preview-card,[\s\S]*?\[data-panel-mode="linear"\] \.brush-preview-card \{[\s\S]*?display: none;/);
+    expect(styles).toMatch(/\.shape-width-fill-row \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
+    expect(styles).toMatch(/\.shape-width-fill-row > \.brush-field-width,[\s\S]*?\.shape-width-fill-row > \.shape-fill-inspector \{[\s\S]*?grid-column: auto;/);
+    expect(styles).toMatch(/\.shape-width-fill-row > \.shape-fill-inspector \{[\s\S]*?grid-column: auto;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-field-cap,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-field-style,[\s\S]*?\[data-panel-mode="coordinate-tool"\] \.brush-inspector \{[\s\S]*?display: none !important;/);
+    expect(appSource).toContain("arrowDoubleEndedInput");
+    expect(appSource).toContain("coordinateUnitSizeInput");
+    expect(appSource).toContain("applyCoordinateStyleToSelection");
+    expect(appSource).toContain("hydrateCoordinateControlsFromElement");
+    expect(appSource).toContain("syncShapeEndpointControls()");
+    expect(appSource).toContain("masterInput.checked = uiInput.checked");
+    expect(appSource).toContain("pointerAtBeginning");
+    expect(appSource).toContain("pointerAtEnding");
+  });
+
+  it("does not leak shape-only fill controls into the brush inspector", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).not.toMatch(/^\[data-active-shape="rect"\] \.shape-fill-inspector,/m);
+    expect(styles).not.toMatch(/^\[data-active-shape="ellipse"\] \.shape-fill-inspector/m);
+    expect(styles).not.toMatch(/^\[data-active-shape="arrow"\] \.shape-endpoint-inspector/m);
+    expect(styles).not.toMatch(/^\[data-active-shape="arrow"\] \.shape-endpoint-inspector \.control-fill-transparent/m);
+    expect(styles).toMatch(/\[data-panel-mode="brush"\] \.shape-fill-inspector,[\s\S]*?\[data-panel-mode="brush"\] \.shape-endpoint-inspector \{[\s\S]*?display: none !important;/);
+  });
+
+  it("keeps shape inspectors tall enough without appearance section chrome", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.style-panel,[\s\S]*?\[data-panel-mode="linear-tool"\] \.style-panel,[\s\S]*?\[data-panel-mode="element"\] \.style-panel,[\s\S]*?\[data-panel-mode="linear"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.style-panel,[\s\S]*?\[data-panel-mode="linear-tool"\] \.style-panel,[\s\S]*?\[data-panel-mode="element"\] \.style-panel,[\s\S]*?\[data-panel-mode="linear"\] \.style-panel \{[\s\S]*?padding-block: 14px;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.panel-body,[\s\S]*?\[data-panel-mode="linear-tool"\] \.panel-body,[\s\S]*?\[data-panel-mode="element"\] \.panel-body,[\s\S]*?\[data-panel-mode="linear"\] \.panel-body \{[\s\S]*?gap: 8px;[\s\S]*?padding-right: 0;[\s\S]*?scrollbar-width: none;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear-tool"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="element"\] \.brush-inspector,[\s\S]*?\[data-panel-mode="linear"\] \.brush-inspector \{[\s\S]*?gap: 10px;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="linear-tool"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="element"\] \.inspector-section\[data-inspector-section="appearance"\],[\s\S]*?\[data-panel-mode="linear"\] \.inspector-section\[data-inspector-section="appearance"\] \{[\s\S]*?gap: 0;/);
+    expect(styles).toMatch(/\[data-panel-mode="tool"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="linear-tool"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="element"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle,[\s\S]*?\[data-panel-mode="linear"\] \.inspector-section\[data-inspector-section="appearance"\] > \.inspector-section-toggle \{[\s\S]*?display: none;/);
+  });
+
   it("resets property panel controls and section state when switching tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 

@@ -609,6 +609,45 @@ describe("konva elements", () => {
     expect(node.lineCap()).toBe("round");
   });
 
+  it("applies linear shape style controls to straight lines and arrows", () => {
+    const line = createElementNode({
+      id: "line_1",
+      type: "line",
+      x: 0,
+      y: 0,
+      points: [0, 0, 100, 20],
+      stroke: "#2563eb",
+      strokeWidth: 8,
+      opacity: 0.5,
+      lineCap: "square",
+      brushStyle: "dash",
+    }, baseHandlers);
+    const arrow = createElementNode({
+      id: "arrow_1",
+      type: "arrow",
+      x: 0,
+      y: 0,
+      points: [0, 0, 100, 20],
+      stroke: "#dc2626",
+      fill: "#dc2626",
+      strokeWidth: 10,
+      opacity: 0.7,
+      lineCap: "round",
+      brushStyle: "dot",
+      pointerAtBeginning: true,
+      pointerAtEnding: true,
+    }, baseHandlers);
+
+    expect(line.opacity()).toBe(0.5);
+    expect(line.lineCap()).toBe("square");
+    expect(line.dash()).toEqual([24, 16]);
+    expect(arrow.opacity()).toBe(0.7);
+    expect(arrow.lineCap()).toBe("round");
+    expect(arrow.dash()).toEqual([0.01, 18]);
+    expect(arrow.pointerAtBeginning()).toBe(true);
+    expect(arrow.pointerAtEnding()).toBe(true);
+  });
+
   it("draws dashed pressure stroke previews as separated path segments", () => {
     const node = createElementNode({
       id: "stroke_1",
@@ -685,6 +724,31 @@ describe("konva elements", () => {
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "y")).toBe(true);
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "1")).toBe(true);
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "-1")).toBe(true);
+  });
+
+  it("applies coordinate plane style and visibility settings", () => {
+    const node = createElementNode({
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 240,
+      height: 160,
+      unitSize: 24,
+      origin: { x: 120, y: 80 },
+      settings: { showGrid: false, showTicks: true, showLabels: false },
+      style: {
+        gridStroke: "#bae6fd",
+        axisStroke: "#dc2626",
+        labelFill: "#16a34a",
+      },
+      rotation: 0,
+    }, baseHandlers);
+
+    expect(node.find(".coordinate-plane-grid")).toHaveLength(0);
+    expect(node.find(".coordinate-plane-tick").length).toBeGreaterThan(0);
+    expect(node.find(".coordinate-plane-label")).toHaveLength(0);
+    expect(node.find(".coordinate-plane-axis").every((axis) => axis.stroke() === "#dc2626")).toBe(true);
   });
 
   it("reuses loaded image instances so rerendering does not flash blank", () => {
