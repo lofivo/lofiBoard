@@ -38,8 +38,18 @@ export function isTransformerTarget(target) {
   return false;
 }
 
+export function isTransformerAnchorTarget(target) {
+  let node = target;
+  while (node) {
+    if (node.hasName?.("_anchor")) return true;
+    if (node.getClassName?.() === "Transformer") return false;
+    node = node.getParent?.();
+  }
+  return false;
+}
+
 export function shouldIgnoreCanvasPointerDown({ target, isEditingText }) {
-  return Boolean(isEditingText || isTransformerTarget(target));
+  return Boolean(isEditingText || isTransformerAnchorTarget(target));
 }
 
 export function nextToolAfterTextPlacement(tool) {

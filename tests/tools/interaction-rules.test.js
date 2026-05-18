@@ -17,6 +17,7 @@ import {
   getTransformerAnchorsForSelection,
   isTransformerVerticalScaleAnchor,
   isNativeTextEditingTarget,
+  isTransformerAnchorTarget,
   isTransformerScaleAnchor,
   isTransformerTarget,
   isTextWidthResizeAnchor,
@@ -36,6 +37,7 @@ import { TOOLS } from "../../src/ui/ui-config.js";
 function makeNode(className, parent = null) {
   return {
     getClassName: () => className,
+    hasName: (name) => name === className,
     getParent: () => parent,
   };
 }
@@ -46,6 +48,16 @@ describe("interaction rules", () => {
     const anchor = makeNode("Rect", transformer);
 
     expect(isTransformerTarget(anchor)).toBe(true);
+    expect(isTransformerAnchorTarget(anchor)).toBe(false);
+    expect(shouldIgnoreCanvasPointerDown({ target: anchor, isEditingText: false })).toBe(false);
+  });
+
+  it("keeps transformer anchors from starting a canvas drag or selection", () => {
+    const transformer = makeNode("Transformer");
+    const anchor = makeNode("_anchor", transformer);
+
+    expect(isTransformerTarget(anchor)).toBe(true);
+    expect(isTransformerAnchorTarget(anchor)).toBe(true);
     expect(shouldIgnoreCanvasPointerDown({ target: anchor, isEditingText: false })).toBe(true);
   });
 

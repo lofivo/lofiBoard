@@ -95,6 +95,14 @@ describe("app shell", () => {
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
   });
 
+  it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("shouldOverdrawWholeArea: true");
+    expect(appSource).toContain("isTransformerAnchorTarget");
+    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+  });
+
   it("reuses ordinary Konva nodes across board renders", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 

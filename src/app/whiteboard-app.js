@@ -72,6 +72,7 @@ import {
   getMinimumTextResizeWidth,
   getTransformerAnchorsForSelection,
   isNativeTextEditingTarget,
+  isTransformerAnchorTarget,
   isTransformerTarget,
   measureTextareaContentHeight,
   isTextWidthResizeAnchor,
@@ -339,6 +340,7 @@ export function createWhiteboardApp(root) {
     anchorCornerRadius: 3,
     padding: 6,
     ignoreStroke: true,
+    shouldOverdrawWholeArea: true,
     anchorStyleFunc: (anchor) => {
       if (anchor.hasName("top-center") || anchor.hasName("bottom-center")) {
         const width = Math.max(36, transformer.width() - 28);
@@ -1311,6 +1313,10 @@ export function createWhiteboardApp(root) {
     }
 
     if (currentTool === TOOLS.SELECT) {
+      if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
+        beginSelectionDrag(worldPoint);
+        return;
+      }
       handleSelectPointerDown(event, worldPoint);
       return;
     }
