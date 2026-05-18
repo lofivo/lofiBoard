@@ -233,6 +233,7 @@ describe("structure templates", () => {
     expect(getStructureItem(STRUCTURE_TYPES.BINARY_TREE)).toMatchObject({
       id: STRUCTURE_TYPES.BINARY_TREE,
       label: "二叉树",
+      defaultInput: "1->2, 1->3, 2->4, 2->5, 3->6, 3->7",
     });
 
     const [manual] = createStructureElements({
@@ -263,6 +264,25 @@ describe("structure templates", () => {
       { from: id("3"), to: id("6") },
       { from: id("3"), to: id("7") },
     ]);
+  });
+
+  it("lays out binary tree parents centered over left and right children", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B\nA->C\nB->D\nB->E\nC->F\nC->G",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const node = (label) => tree.nodes.find((item) => item.label === label);
+
+    expect(node("A").x).toBeCloseTo((node("B").x + node("C").x) / 2);
+    expect(node("B").x).toBeCloseTo((node("D").x + node("E").x) / 2);
+    expect(node("C").x).toBeCloseTo((node("F").x + node("G").x) / 2);
+    expect(node("B").y).toBe(node("C").y);
+    expect(node("D").y).toBe(node("E").y);
+    expect(Math.abs(node("A").x - node("B").x)).toBeCloseTo(Math.abs(node("C").x - node("A").x));
+    expect(Math.abs(node("B").x - node("D").x)).toBeCloseTo(Math.abs(node("E").x - node("B").x));
+    expect(Math.abs(node("C").x - node("F").x)).toBeCloseTo(Math.abs(node("G").x - node("C").x));
   });
 
   it("computes general tree traversal orders without binary inorder", () => {

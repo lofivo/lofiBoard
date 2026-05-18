@@ -60,14 +60,14 @@ export const STRUCTURE_ITEMS = [
   {
     id: STRUCTURE_TYPES.TREE,
     label: "树",
-    defaultInput: "A->B, A->C, B->D, B->E",
-    placeholder: "A->B, A->C, B->D",
+    defaultInput: "1->2, 1->3, 2->4, 2->5",
+    placeholder: "1->2, 1->3, 2->4",
   },
   {
     id: STRUCTURE_TYPES.BINARY_TREE,
     label: "二叉树",
-    defaultInput: "A->B, A->C, B->D, B->E",
-    placeholder: "A->B, A->C, B->D",
+    defaultInput: "1->2, 1->3, 2->4, 2->5, 3->6, 3->7",
+    placeholder: "1->2, 1->3, 2->4",
   },
 ];
 
@@ -1263,6 +1263,9 @@ function getTreeChildrenMap(element) {
 function layoutTree(element, { levelGap, leafGap, nodeRadius }) {
   const nodes = element.nodes ?? [];
   if (nodes.length === 0) return element;
+  if (isBinaryTreeStructure(element)) {
+    return layoutBinaryTree(element, { levelGap, leafGap, nodeRadius });
+  }
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const children = getTreeChildrenMap(element);
   const rootId = element.settings?.rootId ?? getDefaultTreeRootId(nodes.map((node) => node.id), element.edges ?? []);
@@ -1300,6 +1303,63 @@ function layoutTree(element, { levelGap, leafGap, nodeRadius }) {
     ...element,
     width,
     height: Math.max(nodeRadius * 2, levels.length * levelGap),
+    nodes: laidOut,
+  };
+}
+
+function layoutBinaryTree(element, { levelGap, leafGap, nodeRadius }) {
+  const nodes = element.nodes ?? [];
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const children = getTreeChildrenMap(element);
+  const rootId = element.settings?.rootId ?? getDefaultTreeRootId(nodes.map((node) => node.id), element.edges ?? []);
+  const positions = new Map();
+  const depths = new Map();
+  const visited = new Set();
+  let leafIndex = 0;
+  let maxDepth = 0;
+
+  const visit = (id, depth) => {
+    if (!id || visited.has(id) || !nodeById.has(id)) return null;
+    visited.add(id);
+    depths.set(id, depth);
+    maxDepth = Math.max(maxDepth, depth);
+    const childIds = (children.get(id) ?? []).filter((childId) => nodeById.has(childId)).slice(0, 2);
+    if (childIds.length === 0) {
+      const x = nodeRadius + leafIndex * leafGap;
+      leafIndex += 1;
+      positions.set(id, x);
+      return x;
+    }
+    const childXs = childIds.map((childId) => visit(childId, depth + 1)).filter((x) => Number.isFinite(x));
+    const x = childXs.length > 0
+      ? childXs.reduce((sum, value) => sum + value, 0) / childXs.length
+      : nodeRadius + leafIndex++ * leafGap;
+    positions.set(id, x);
+    return x;
+  };
+
+  visit(rootId, 0);
+  for (const node of nodes) {
+    if (visited.has(node.id)) continue;
+    const depth = maxDepth + 1;
+    depths.set(node.id, depth);
+    maxDepth = Math.max(maxDepth, depth);
+    positions.set(node.id, nodeRadius + leafIndex * leafGap);
+    leafIndex += 1;
+  }
+
+  const minX = Math.min(...nodes.map((node) => positions.get(node.id) ?? nodeRadius));
+  const maxX = Math.max(...nodes.map((node) => positions.get(node.id) ?? nodeRadius));
+  const offsetX = nodeRadius - minX;
+  const laidOut = nodes.map((node) => ({
+    ...node,
+    x: (positions.get(node.id) ?? nodeRadius) + offsetX,
+    y: nodeRadius + (depths.get(node.id) ?? 0) * levelGap,
+  }));
+  return {
+    ...element,
+    width: Math.max(nodeRadius * 4, maxX - minX + nodeRadius * 2),
+    height: Math.max(nodeRadius * 2, (maxDepth + 1) * levelGap),
     nodes: laidOut,
   };
 }

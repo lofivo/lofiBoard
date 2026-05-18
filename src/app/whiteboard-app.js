@@ -181,6 +181,7 @@ export function createWhiteboardApp(root) {
   const linearInitPanel = root.querySelector("[data-linear-init-panel]");
   const arrayRandomFields = root.querySelector("[data-array-random-fields]");
   const arrayRandomCountInput = root.querySelector("[data-array-random-count]");
+  const graphStructureInput = root.querySelector("[data-graph-structure-input]");
   const treeStructureInput = root.querySelector("[data-tree-structure-input]");
   const contextMenu = root.querySelector("[data-context-menu]");
   const layerPanel = root.querySelector("[data-layer-panel]");
@@ -221,6 +222,7 @@ export function createWhiteboardApp(root) {
     highlightEnd: root.querySelector("[data-linear-field='highlight-end']"),
     highlightPointer: root.querySelector("[data-linear-field='highlight-pointer']"),
   };
+  const linearValuesTitle = root.querySelector("[data-linear-values-title]");
   const linearValuesInput = root.querySelector("[data-linear-values-input]");
 
   let board = createEmptyBoard();
@@ -287,6 +289,7 @@ export function createWhiteboardApp(root) {
     highlightPointer: "0",
   };
   let linearValuesDraft = "";
+  let graphStructureDraft = "";
   const nodeRegistry = new Map();
   const nodeRenderSnapshots = new Map();
   const elementRenderSnapshotValues = new WeakMap();
@@ -484,6 +487,9 @@ export function createWhiteboardApp(root) {
     }
     linearValuesInput?.addEventListener("input", () => {
       linearValuesDraft = linearValuesInput.value;
+    });
+    graphStructureInput?.addEventListener("input", () => {
+      graphStructureDraft = graphStructureInput.value;
     });
     root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-linear-item-action]");
@@ -758,6 +764,7 @@ export function createWhiteboardApp(root) {
       "graph-delete-node": () => editSelectedStructure("graph-structure", deleteGraphNode, "已更新图"),
       "graph-delete-edge": () => editSelectedStructure("graph-structure", deleteLastGraphEdge, "已更新图"),
       "graph-edit-edge": () => editSelectedStructure("graph-structure", (element) => editGraphEdgeData(element), "已更新图"),
+      "graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft), "已更新图"),
       "graph-directed-on": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, true), "已更新图"),
       "graph-directed-off": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, false), "已更新图"),
       "graph-highlight": () => editSelectedStructure("graph-structure", (element) => setGraphHighlight(element, {
@@ -774,7 +781,7 @@ export function createWhiteboardApp(root) {
       "graph-export-adjacency-matrix": () => copySelectedGraphExport("adjacency-matrix"),
       "graph-import-adjacency-list": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接表", exportGraph(element, "adjacency-list")), "adjacency-list"), "已导入图"),
       "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
-      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInput.value), "已更新图"),
+      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft || structureInput.value), "已更新图"),
       "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, ""), "已更新树"),
       "tree-connect-mode": beginTreeConnectMode,
       "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
@@ -2855,6 +2862,15 @@ export function createWhiteboardApp(root) {
     return board.elements.find((element) => selectedIds.includes(element.id) && isLinearStructureElement(element));
   }
 
+  function getLinearStructureDisplayName(type) {
+    return {
+      "array-structure": "数组",
+      "stack-structure": "栈",
+      "queue-structure": "队列",
+      "deque-structure": "双端队列",
+    }[type] ?? "线性";
+  }
+
   function readLinearFieldNumber(fieldName, fallback = 0) {
     const raw = linearPanelState[fieldName];
     const parsed = Number.parseInt(String(raw ?? ""), 10);
@@ -2937,12 +2953,18 @@ export function createWhiteboardApp(root) {
   function syncLinearPanelState() {
     const element = getSelectedLinearStructure();
     if (!element) {
+      if (linearValuesTitle) {
+        linearValuesTitle.textContent = "当前结构";
+      }
       if (linearValuesInput && document.activeElement !== linearValuesInput) {
         linearValuesInput.value = "";
         linearValuesDraft = "";
       }
       applyLinearPanelState(linearPanelState);
       return;
+    }
+    if (linearValuesTitle) {
+      linearValuesTitle.textContent = `当前${getLinearStructureDisplayName(element.type)}结构`;
     }
     if (linearValuesInput && document.activeElement !== linearValuesInput) {
       linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",");
@@ -3797,7 +3819,6 @@ export function createWhiteboardApp(root) {
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
     beginSelectionDrag(worldPoint);
-    group.startDrag?.();
   }
 
   function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
@@ -4949,6 +4970,7 @@ export function createWhiteboardApp(root) {
       );
     });
     syncLinearPanelState();
+    syncGraphStructurePanelState();
     syncTreeStructurePanelState();
     syncInspectorPanelState();
     syncBrushPresetButtons();
@@ -4962,6 +4984,15 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
     treeStructureInput.value = element ? exportTree(element) : "";
     root.dataset.treeKind = element?.settings?.treeKind === "binary" ? "binary" : "general";
+  }
+
+  function syncGraphStructurePanelState() {
+    if (!graphStructureInput) return;
+    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure");
+    if (document.activeElement !== graphStructureInput) {
+      graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";
+      graphStructureDraft = graphStructureInput.value;
+    }
   }
 
   function updateLayerPanelAvailability() {

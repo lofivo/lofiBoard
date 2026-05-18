@@ -138,7 +138,8 @@ describe("app shell", () => {
     expect(markup).not.toContain('data-linear-field="swap-index"');
     expect(markup).not.toContain('data-linear-field="move-index"');
     expect(markup).toContain('data-linear-values-input');
-    expect(markup).toContain("当前数组结构");
+    expect(markup).toContain('data-linear-values-title');
+    expect(markup).toContain("当前结构");
     expect(markup).toContain('data-action="linear-apply-values"');
     expect(markup.indexOf('data-action="linear-apply-values"')).toBeLessThan(markup.indexOf('data-linear-field="highlight-start"'));
     expect(markup).toContain('class="linear-values-header"');
@@ -183,6 +184,11 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="graph-import-adjacency-list"');
     expect(markup).toContain('data-action="graph-import-adjacency-matrix"');
     expect(markup).toContain('data-action="graph-reload"');
+    expect(markup).toContain('data-graph-structure-input');
+    expect(markup).toContain("当前图结构");
+    expect(markup).toContain('data-action="graph-apply-structure"');
+    expect(markup.indexOf('data-action="graph-apply-structure"')).toBeLessThan(markup.indexOf('data-action="graph-add-node"'));
+    expect(markup).toContain('class="structure-values-header"');
     expect(markup).toContain('data-action="tree-add-node"');
     expect(markup).toContain('data-action="tree-connect-mode"');
     expect(markup).not.toContain('data-action="tree-add-left"');
@@ -206,6 +212,10 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-reload"');
     expect(markup).toContain('data-tree-structure-input');
     expect(markup).toContain('data-action="tree-apply-structure"');
+    expect(markup.indexOf('data-action="tree-apply-structure"')).toBeLessThan(markup.indexOf('data-action="tree-add-node"'));
+    expect(markup).toContain('class="structure-values-header"');
+    expect(markup).not.toContain('data-section-toggle="tree"');
+    expect(markup).not.toContain('class="inspector-section-title">树结构</span>');
     expect(markup).toContain('data-structure-type="binary-tree"');
   });
 
@@ -235,6 +245,18 @@ describe("app shell", () => {
     expect(appSource).not.toContain('runAction("linear-apply-values")');
     expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
     expect(appSource).toContain('linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",")');
+    expect(appSource).toContain('linearValuesTitle.textContent = `当前${getLinearStructureDisplayName(element.type)}结构`;');
+    expect(appSource).not.toContain('[data-structure-selection]:not([data-structure-selection="array-structure"]) [data-linear-values-field]');
+  });
+
+  it("syncs and applies graph structure input from the property panel", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain('const graphStructureInput = root.querySelector("[data-graph-structure-input]")');
+    expect(appSource).toContain('graphStructureInput?.addEventListener("input", () => {');
+    expect(appSource).toContain("graphStructureDraft = graphStructureInput.value;");
+    expect(appSource).toContain('"graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft), "已更新图")');
+    expect(appSource).toContain('graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";');
   });
 
   it("removes secondary linear structure action groups from the property panel", () => {
@@ -987,6 +1009,8 @@ describe("app shell", () => {
     expect(appSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");
+    expect(appSource).toContain("function handleTreeStructureNodePress(event, group)");
+    expect(appSource).not.toContain("group.startDrag");
     expect(appSource).toContain("onGraphNodeConnect: connectGraphStructureNodes");
     expect(appSource).toContain("onTreeNodeMove: moveTreeStructureNode");
     expect(appSource).toContain("onTreeNodeConnect: connectTreeStructureNodes");

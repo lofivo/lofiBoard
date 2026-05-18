@@ -302,10 +302,10 @@ export function renderShell() {
                 <div class="linear-panel-content-inner">
                   <div class="linear-values-field" data-linear-values-field>
                     <div class="linear-values-header">
-                      <span>当前数组结构</span>
+                      <span data-linear-values-title>当前结构</span>
                       <button type="button" data-action="linear-apply-values" data-linear-values-action>应用结构</button>
                     </div>
-                    <textarea data-linear-values-input rows="3" spellcheck="false" placeholder="1,2,3" aria-label="当前数组结构"></textarea>
+                    <textarea data-linear-values-input rows="3" spellcheck="false" placeholder="1,2,3" aria-label="当前结构"></textarea>
                   </div>
                   <div class="linear-panel-fields linear-panel-fields-highlight">
                     <label class="linear-field">
@@ -347,6 +347,13 @@ export function renderShell() {
               <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="inspector-section-content" data-section-content="graph">
+              <label class="structure-values-field">
+                <span class="structure-values-header">
+                  <span>当前图结构</span>
+                  <button type="button" data-action="graph-apply-structure">应用结构</button>
+                </span>
+                <textarea data-graph-structure-input rows="5" spellcheck="false" placeholder="A->B&#10;A-C"></textarea>
+              </label>
               <div class="quick-actions quick-actions-graph">
                 <button type="button" data-action="graph-add-node">加点</button>
                 <button type="button" data-action="graph-add-edge">连边</button>
@@ -374,18 +381,12 @@ export function renderShell() {
           </section>
 
           <section class="inspector-section" data-inspector-section="tree" data-panel-context="tree">
-            <button
-              type="button"
-              class="inspector-section-toggle"
-              data-section-toggle="tree"
-              aria-expanded="false"
-            >
-              <span class="inspector-section-title">树结构</span>
-              <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
-            </button>
             <div class="inspector-section-content" data-section-content="tree">
-              <label class="tree-structure-field">
-                <span>当前树结构</span>
+              <label class="structure-values-field">
+                <span class="structure-values-header">
+                  <span>当前树结构</span>
+                  <button type="button" data-action="tree-apply-structure">应用结构</button>
+                </span>
                 <textarea data-tree-structure-input rows="5" spellcheck="false" placeholder="A->B&#10;A->C"></textarea>
               </label>
               <div class="quick-actions quick-actions-tree">
@@ -407,7 +408,6 @@ export function renderShell() {
                 <button type="button" data-action="tree-delete-node">删节点</button>
                 <button type="button" data-action="tree-layout">树形布局</button>
                 <button type="button" data-action="tree-reload">树重载</button>
-                <button type="button" data-action="tree-apply-structure">应用结构</button>
               </div>
             </div>
           </section>
