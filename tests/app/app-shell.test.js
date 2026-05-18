@@ -98,9 +98,35 @@ describe("app shell", () => {
   it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("shouldOverdrawWholeArea: true");
+    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element)))");
+    expect(appSource).toContain("transformer.forceUpdate()");
     expect(appSource).toContain("isTransformerAnchorTarget");
+    expect(appSource).toContain("function disableTransformerHitAreaDrag()");
+    expect(appSource).toContain('transformer.findOne?.(".back")?.draggable(false)');
     expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+  });
+
+  it("keeps transformer hit area from covering selected linear structure cells", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const syncSelectionSource = appSource.slice(
+      appSource.indexOf("function syncSelectionNodes()"),
+      appSource.indexOf("function disableTransformerHitAreaDrag()"),
+    );
+
+    expect(syncSelectionSource).toContain("selectedElements.some((element) => isLinearStructureElement(element))");
+    expect(syncSelectionSource).toContain("transformer.shouldOverdrawWholeArea");
+  });
+
+  it("renders newly inserted structures after switching back to select so array cells are interactive immediately", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const insertSource = appSource.slice(
+      appSource.indexOf("function insertStructureFromPanel()"),
+      appSource.indexOf("function isRandomStructureInitSupported"),
+    );
+
+    expect(insertSource.indexOf("setTool(TOOLS.SELECT)")).toBeGreaterThan(-1);
+    expect(insertSource.indexOf("renderBoard()")).toBeGreaterThan(insertSource.indexOf("setTool(TOOLS.SELECT)"));
+    expect(insertSource.indexOf("selectIds(elements.map((element) => element.id))")).toBeGreaterThan(insertSource.indexOf("renderBoard()"));
   });
 
   it("reuses ordinary Konva nodes across board renders", () => {

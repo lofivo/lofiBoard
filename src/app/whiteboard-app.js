@@ -340,7 +340,6 @@ export function createWhiteboardApp(root) {
     anchorCornerRadius: 3,
     padding: 6,
     ignoreStroke: true,
-    shouldOverdrawWholeArea: true,
     anchorStyleFunc: (anchor) => {
       if (anchor.hasName("top-center") || anchor.hasName("bottom-center")) {
         const width = Math.max(36, transformer.width() - 28);
@@ -2290,6 +2289,7 @@ export function createWhiteboardApp(root) {
       transformer.resizeEnabled(false);
       transformer.rotateEnabled(false);
       transformer.enabledAnchors([]);
+      disableTransformerHitAreaDrag();
       return;
     }
     const nodes = selectedIds
@@ -2303,6 +2303,13 @@ export function createWhiteboardApp(root) {
     transformer.resizeEnabled(canTransform);
     transformer.rotateEnabled(canTransform);
     transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
+    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element)));
+    transformer.forceUpdate();
+    disableTransformerHitAreaDrag();
+  }
+
+  function disableTransformerHitAreaDrag() {
+    transformer.findOne?.(".back")?.draggable(false);
   }
 
   function clampTransformerAnchorDrag(oldAbsPos, newAbsPos) {
@@ -2820,9 +2827,9 @@ export function createWhiteboardApp(root) {
     if (elements.length === 0) return;
 
     board.elements = reorderElements([...board.elements, ...elements]);
-    renderBoard();
     setStructurePanelOpen(false);
     setTool(TOOLS.SELECT);
+    renderBoard();
     selectIds(elements.map((element) => element.id));
     pushHistory(`已添加${getStructureItem(activeStructureType).label}`);
   }

@@ -1314,7 +1314,7 @@ describe("konva elements", () => {
       onArrayItemPress,
     });
 
-    const item = node.find(".array-item")[0];
+    const item = node.find(".array-item").find((itemNode) => itemNode.getAttr("linearIndex") === 0);
     item.findOne(".array-item-value-hit").fire("dblclick", { cancelBubble: false });
     item.findOne(".array-item-index-hit").fire("click", { cancelBubble: false });
     item.findOne(".array-item-index-hit").fire("mousedown", { cancelBubble: false });
@@ -1357,7 +1357,7 @@ describe("konva elements", () => {
       onArrayItemSelect,
     });
 
-    const item = node.find(".array-item")[0];
+    const item = node.find(".array-item").find((itemNode) => itemNode.getAttr("linearIndex") === 0);
     item.findOne(".array-item-value-hit").fire("click", { cancelBubble: false });
 
     expect(onArrayItemSelect).toHaveBeenCalledWith({
@@ -1494,6 +1494,51 @@ describe("konva elements", () => {
       elementId: "array_1",
       index: 0,
       value: "A",
+    });
+  });
+
+  it("keeps selected linear item cells clickable and pressable for active selection and long press drag", () => {
+    const onArrayItemSelect = vi.fn();
+    const onArrayItemPress = vi.fn();
+    const onArrayItemRelease = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { activeIndex: 0 },
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemSelect,
+      onArrayItemPress,
+      onArrayItemRelease,
+    });
+
+    const item = node.find(".array-item").find((itemNode) => itemNode.getAttr("linearIndex") === 0);
+    item.findOne(".array-item-index-hit").fire("click", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("mousedown", { cancelBubble: false });
+    item.findOne(".array-item-index-hit").fire("mouseup", { cancelBubble: false });
+
+    expect(onArrayItemSelect).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemRelease).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
     });
   });
 
