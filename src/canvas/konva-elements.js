@@ -369,6 +369,7 @@ export function createElementNode(element, {
   const common = {
     id: element.id,
     name: "element",
+    elementType: element.type,
     draggable,
     rotation: element.rotation ?? 0,
     scaleX: element.scaleX ?? 1,
@@ -571,6 +572,54 @@ export function createElementNode(element, {
   return node;
 }
 
+const SYNCABLE_ELEMENT_TYPES = new Set([
+  "rect",
+  "ellipse",
+  "line",
+  "arrow",
+  "text",
+  "sticky",
+  "stroke",
+  "image",
+  "coordinate-plane",
+  ...LINEAR_STRUCTURE_TYPES,
+  "graph-structure",
+  "tree-structure",
+]);
+
+export function syncElementNode(node, element, handlers = {}) {
+  if (!node || !element || !SYNCABLE_ELEMENT_TYPES.has(element.type)) return false;
+  if (node.getAttr("elementType") !== element.type) return false;
+  node.setAttrs({
+    id: element.id,
+    name: "element",
+    draggable: node.draggable(),
+    rotation: element.rotation ?? 0,
+    scaleX: element.scaleX ?? 1,
+    scaleY: element.scaleY ?? 1,
+    ...createNodeAttrs(element),
+  });
+  if (["text", "sticky"].includes(element.type)) {
+    syncTextNodeContent(node, element);
+  }
+  if (element.type === "image") {
+    if (element.src && typeof window !== "undefined") attachCachedImage(node, element.src);
+  }
+  if (element.type === "coordinate-plane") {
+    syncCoordinatePlaneNodeContent(node, element);
+  }
+  if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
+    syncLinearStructureNodeContent(node, element, handlers);
+  }
+  if (element.type === "graph-structure") {
+    syncGraphStructureNodeContent(node, element, handlers);
+  }
+  if (element.type === "tree-structure") {
+    syncTreeStructureNodeContent(node, element, handlers);
+  }
+  return true;
+}
+
 export function createNodeAttrs(element) {
   if (element.type === "rect") {
     return {
@@ -678,6 +727,101 @@ export function syncCoordinatePlaneNodeContent(group, element) {
   group.width(width);
   group.height(height);
   addCoordinatePlaneContent(group, element, width, height);
+}
+
+function syncLinearStructureNodeContent(group, element, handlers) {
+  const reusableItems = new Map();
+  group.find(".array-item").forEach((itemGroup) => {
+    const index = itemGroup.getAttr("linearIndex");
+    if (Number.isInteger(index)) reusableItems.set(index, itemGroup);
+  });
+  [...group.getChildren()].forEach((child) => {
+    if (child.getAttr("name")?.split(" ").includes("array-item")) {
+      child.remove();
+      return;
+    }
+    child.destroy();
+  });
+  const nextGroup = createLinearStructureNode(element, {
+    id: element.id,
+    name: "element",
+    elementType: element.type,
+    draggable: group.draggable(),
+    rotation: element.rotation ?? 0,
+    scaleX: element.scaleX ?? 1,
+    scaleY: element.scaleY ?? 1,
+  }, handlers);
+  [...nextGroup.getChildren()].forEach((child) => {
+    const index = child.getAttr("linearIndex");
+    if (child.getAttr("name")?.split(" ").includes("array-item") && Number.isInteger(index)) {
+      const reusableItem = reusableItems.get(index);
+      if (reusableItem && syncLinearStructureItemNode(reusableItem, child)) {
+        child.destroy();
+        reusableItem.moveTo(group);
+        reusableItems.delete(index);
+        return;
+      }
+    }
+    child.moveTo(group);
+  });
+  reusableItems.forEach((itemGroup) => itemGroup.destroy());
+  nextGroup.destroy();
+}
+
+function syncLinearStructureItemNode(target, source) {
+  const targetChildren = target.getChildren();
+  const sourceChildren = source.getChildren();
+  if (targetChildren.length !== sourceChildren.length) return false;
+  const childrenMatch = targetChildren.every((targetChild, index) => (
+    targetChild.getClassName() === sourceChildren[index].getClassName()
+  ));
+  if (!childrenMatch) return false;
+  target.setAttrs({
+    ...source.getAttrs(),
+    listening: source.listening(),
+    visible: source.visible(),
+  });
+  target.eventListeners = source.eventListeners;
+  targetChildren.forEach((targetChild, index) => {
+    const sourceChild = sourceChildren[index];
+    targetChild.setAttrs({
+      ...sourceChild.getAttrs(),
+      listening: sourceChild.listening(),
+      visible: sourceChild.visible(),
+    });
+    targetChild.eventListeners = sourceChild.eventListeners;
+  });
+  return true;
+}
+
+function syncGraphStructureNodeContent(group, element, handlers) {
+  group.destroyChildren();
+  const nextGroup = createGraphStructureNode(element, {
+    id: element.id,
+    name: "element",
+    elementType: element.type,
+    draggable: group.draggable(),
+    rotation: element.rotation ?? 0,
+    scaleX: element.scaleX ?? 1,
+    scaleY: element.scaleY ?? 1,
+  }, handlers);
+  [...nextGroup.getChildren()].forEach((child) => child.moveTo(group));
+  nextGroup.destroy();
+}
+
+function syncTreeStructureNodeContent(group, element, handlers) {
+  group.destroyChildren();
+  const nextGroup = createTreeStructureNode(element, {
+    id: element.id,
+    name: "element",
+    elementType: element.type,
+    draggable: group.draggable(),
+    rotation: element.rotation ?? 0,
+    scaleX: element.scaleX ?? 1,
+    scaleY: element.scaleY ?? 1,
+  }, handlers);
+  [...nextGroup.getChildren()].forEach((child) => child.moveTo(group));
+  nextGroup.destroy();
 }
 
 function createLinearStructureNode(element, common, {

@@ -43,6 +43,7 @@ import {
   getStickyBorderColor,
   PRESSURE_STROKE_PREVIEW_ATTR,
   syncCoordinatePlaneNodeContent,
+  syncElementNode,
   syncTextNodeContent,
   syncTextNodeScalePreview,
   syncTextNodeSize,
@@ -277,6 +278,9 @@ export function createWhiteboardApp(root) {
     highlightEnd: "0",
     highlightPointer: "0",
   };
+  const nodeRegistry = new Map();
+  const nodeRenderSnapshots = new Map();
+  const elementRenderSnapshotValues = new WeakMap();
   const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
     color: "#111827",
     fill: "#ffffff",
@@ -446,6 +450,8 @@ export function createWhiteboardApp(root) {
     destroy: () => {
       if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
       textOverlayController.clear();
+      nodeRenderSnapshots.clear();
+      nodeRegistry.clear();
       stage.destroy();
     },
   };
@@ -1225,7 +1231,7 @@ export function createWhiteboardApp(root) {
     updateGrid();
     updateBrushCursorStyle();
     updateEraserCursorStyle();
-    updateChrome();
+    updateViewportChrome();
     syncTextOverlays();
     schedulePersistCurrentDraft();
   }
@@ -1255,7 +1261,7 @@ export function createWhiteboardApp(root) {
     updateGrid();
     updateBrushCursorStyle();
     updateEraserCursorStyle();
-    updateChrome();
+    updateViewportChrome();
     syncTextOverlays();
     schedulePersistCurrentDraft();
   }
@@ -1416,7 +1422,7 @@ export function createWhiteboardApp(root) {
         y: panStart.stage.y + pointer.y - panStart.pointer.y,
       });
       updateGrid();
-      updateChrome();
+      updateViewportChrome();
       return;
     }
 
@@ -2027,7 +2033,11 @@ export function createWhiteboardApp(root) {
   }
 
   function createNode(element) {
-    return createElementNode(element, {
+    return createElementNode(element, getElementNodeHandlers(element));
+  }
+
+  function getElementNodeHandlers(element) {
+    return {
       draggable: shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id),
       onDragStart: beginNodeDragSelection,
       onDragMove: updateNodeDragSelection,
@@ -2063,7 +2073,7 @@ export function createWhiteboardApp(root) {
       getGraphEdgeState: (elementId) => (graphConnectState?.elementId === elementId ? graphConnectState : null),
       onTreeNodeEdit: editTreeStructureNode,
       onTreeNodeClick: handleTreeNodeClick,
-    });
+    };
   }
 
   function applyElementToNode(element, node) {
@@ -2112,10 +2122,20 @@ export function createWhiteboardApp(root) {
   }
 
   function renderBoard() {
-    contentLayer.find(".element").forEach((node) => node.destroy());
-    for (const element of reorderElements(board.elements)) {
+    const orderedElements = reorderElements(board.elements);
+    const nextIds = new Set(orderedElements.map((element) => element.id));
+    for (const [id, node] of nodeRegistry) {
+      if (!nextIds.has(id)) {
+        node.destroy();
+        nodeRegistry.delete(id);
+        nodeRenderSnapshots.delete(id);
+      }
+    }
+    for (const element of orderedElements) {
       const runtimeElement = buildRuntimeElement(element);
-      contentLayer.add(createNode(runtimeElement));
+      const node = syncOrCreateElementNode(runtimeElement);
+      node.moveTo(contentLayer);
+      node.moveToTop();
     }
     selectionRect.moveToTop();
     syncSelectionNodes();
@@ -2123,6 +2143,45 @@ export function createWhiteboardApp(root) {
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
     syncTextOverlays({ hiddenIds: isEditingText ? selectedIds : [] });
+  }
+
+  function syncOrCreateElementNode(element) {
+    const existingNode = nodeRegistry.get(element.id);
+    const nextSnapshot = createElementRenderSnapshot(element);
+    const previousSnapshot = nodeRenderSnapshots.get(element.id);
+    if (existingNode && previousSnapshot === nextSnapshot) {
+      existingNode.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id));
+      return existingNode;
+    }
+    if (existingNode && syncElementNode(existingNode, element, getElementNodeHandlers(element))) {
+      existingNode.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id));
+      nodeRenderSnapshots.set(element.id, nextSnapshot);
+      return existingNode;
+    }
+    if (existingNode) {
+      existingNode.destroy();
+      nodeRegistry.delete(element.id);
+      nodeRenderSnapshots.delete(element.id);
+    }
+    const node = createNode(element);
+    nodeRegistry.set(element.id, node);
+    nodeRenderSnapshots.set(element.id, nextSnapshot);
+    return node;
+  }
+
+  function createElementRenderSnapshot(element) {
+    if (!element || typeof element !== "object") return "";
+    const handlerSnapshot = getElementRenderHandlerSnapshot(element);
+    const cachedSnapshot = elementRenderSnapshotValues.get(element);
+    if (cachedSnapshot) return `${cachedSnapshot}|${handlerSnapshot}`;
+    const snapshot = JSON.stringify(element);
+    elementRenderSnapshotValues.set(element, snapshot);
+    return `${snapshot}|${handlerSnapshot}`;
+  }
+
+  function getElementRenderHandlerSnapshot(element) {
+    if (!isLinearStructureElement(element)) return "";
+    return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive()}`;
   }
 
   function buildRuntimeElement(element) {
@@ -4649,6 +4708,17 @@ export function createWhiteboardApp(root) {
     container.style.setProperty("--grid-y", `${stage.y()}px`);
     updateLinearItemControlsPosition();
     syncTextOverlays();
+  }
+
+  function updateViewportChrome() {
+    zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
+    root.querySelectorAll("[data-zoom-level]").forEach((button) => {
+      button.classList.toggle(
+        "active",
+        Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
+      );
+    });
+    updateContextPanel();
   }
 
   function updateChrome() {

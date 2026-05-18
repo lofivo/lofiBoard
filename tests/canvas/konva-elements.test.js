@@ -7,6 +7,7 @@ vi.mock("../../src/services/latex-service.js", () => ({
 import {
   createElementNode,
   getStickyBorderColor,
+  syncElementNode,
   syncTextNodeContent,
   syncTextNodeScalePreview,
   syncTextNodeSize,
@@ -197,6 +198,323 @@ describe("konva elements", () => {
     expect(textNode.fontStyle()).toBe("bold");
     expect(textNode.textDecoration()).toBe("underline");
     expect(textNode.fill()).toBe("#2563eb");
+  });
+
+  it("syncs ordinary element nodes in place without recreating them", () => {
+    const rect = createElementNode({
+      id: "rect_1",
+      type: "rect",
+      x: 10,
+      y: 20,
+      width: 80,
+      height: 40,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "#ffffff",
+    }, baseHandlers);
+
+    expect(syncElementNode(rect, {
+      id: "rect_1",
+      type: "rect",
+      x: 12,
+      y: 24,
+      width: 100,
+      height: 50,
+      stroke: "#2563eb",
+      strokeWidth: 4,
+      fill: "#dbeafe",
+    })).toBe(true);
+
+    expect(rect.x()).toBe(12);
+    expect(rect.y()).toBe(24);
+    expect(rect.width()).toBe(100);
+    expect(rect.stroke()).toBe("#2563eb");
+    expect(rect.fill()).toBe("#dbeafe");
+  });
+
+  it("syncs text and sticky nodes in place including child content", () => {
+    const text = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Old",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+    const sticky = createElementNode({
+      id: "sticky_1",
+      type: "sticky",
+      x: 0,
+      y: 0,
+      text: "Old",
+      width: 160,
+      height: 120,
+      fontSize: 24,
+      fontFamily: "Inter, sans-serif",
+      fill: "#fef08a",
+      textFill: "#1f2937",
+    }, baseHandlers);
+    const originalTextNode = text;
+    const originalStickyNode = sticky;
+
+    expect(syncElementNode(text, {
+      id: "text_1",
+      type: "text",
+      x: 30,
+      y: 40,
+      text: "New",
+      width: 180,
+      height: 60,
+      fontSize: 36,
+      fontFamily: "Georgia, serif",
+      fontStyle: "bold",
+      textDecoration: "underline",
+      padding: 8,
+      fill: "#2563eb",
+    })).toBe(true);
+    expect(syncElementNode(sticky, {
+      id: "sticky_1",
+      type: "sticky",
+      x: 10,
+      y: 20,
+      text: "Note",
+      width: 180,
+      height: 140,
+      fontSize: 30,
+      fontFamily: "Georgia, serif",
+      fill: "#bbf7d0",
+      textFill: "#2563eb",
+    })).toBe(true);
+
+    expect(text).toBe(originalTextNode);
+    expect(sticky).toBe(originalStickyNode);
+    expect(text.findOne("Text").text()).toBe("New");
+    expect(text.findOne("Text").fontSize()).toBe(36);
+    expect(sticky.findOne("Text").text()).toBe("Note");
+    expect(sticky.findOne("Text").fontSize()).toBe(30);
+    expect(sticky.findOne("Rect").fill()).toBe("#bbf7d0");
+  });
+
+  it("declines in-place sync for type changes and complex structures", () => {
+    const rect = createElementNode({
+      id: "rect_1",
+      type: "rect",
+      x: 10,
+      y: 20,
+      width: 80,
+      height: 40,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "#ffffff",
+    }, baseHandlers);
+
+    expect(syncElementNode(rect, {
+      id: "rect_1",
+      type: "ellipse",
+      x: 10,
+      y: 20,
+      radiusX: 40,
+      radiusY: 20,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "#ffffff",
+    })).toBe(false);
+  });
+
+  it("syncs image, coordinate plane, and structure group nodes in place", () => {
+    const image = createElementNode({
+      id: "image_1",
+      type: "image",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 80,
+      src: "",
+    }, baseHandlers);
+    const plane = createElementNode({
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      unitSize: 40,
+      origin: { x: 80, y: 60 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
+    }, baseHandlers);
+    const array = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 144,
+      height: 88,
+      items: [{ value: "A" }, { value: "B" }],
+      settings: { showIndexes: true, indexBase: 0 },
+      style: {},
+    }, baseHandlers);
+
+    const originalImage = image;
+    const originalPlane = plane;
+    const originalArray = array;
+
+    expect(syncElementNode(image, {
+      id: "image_1",
+      type: "image",
+      x: 10,
+      y: 20,
+      width: 120,
+      height: 90,
+      src: "",
+    })).toBe(true);
+    expect(syncElementNode(plane, {
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 5,
+      y: 6,
+      width: 200,
+      height: 160,
+      unitSize: 20,
+      origin: { x: 100, y: 80 },
+      settings: { showGrid: false, showTicks: true, showLabels: true },
+      style: {},
+    })).toBe(true);
+    expect(syncElementNode(array, {
+      id: "array_1",
+      type: "array-structure",
+      x: 8,
+      y: 9,
+      width: 216,
+      height: 88,
+      items: [{ value: "X" }, { value: "Y" }, { value: "Z" }],
+      settings: { showIndexes: true, indexBase: 1 },
+      style: {},
+    }, baseHandlers)).toBe(true);
+
+    expect(image).toBe(originalImage);
+    expect(image.width()).toBe(120);
+    expect(plane).toBe(originalPlane);
+    expect(plane.width()).toBe(200);
+    expect(plane.find(".coordinate-plane-axis")).toHaveLength(2);
+    expect(array).toBe(originalArray);
+    expect(array.find(".array-item")).toHaveLength(3);
+    expect(array.find("Text").map((node) => node.text())).toContain("Z");
+  });
+
+  it("reuses linear structure item nodes when values change in place", () => {
+    const array = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 144,
+      height: 88,
+      items: [{ value: "A" }, { value: "B" }],
+      settings: { showIndexes: true, indexBase: 0 },
+      style: {},
+    }, baseHandlers);
+    const firstItem = array.find(".array-item")[0];
+    const secondItem = array.find(".array-item")[1];
+
+    expect(syncElementNode(array, {
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 144,
+      height: 88,
+      items: [{ value: "A" }, { value: "C" }],
+      settings: { showIndexes: true, indexBase: 0 },
+      style: {},
+    }, baseHandlers)).toBe(true);
+
+    const itemNodes = array.find(".array-item");
+    expect(itemNodes).toHaveLength(2);
+    expect(itemNodes[0]).toBe(firstItem);
+    expect(itemNodes[1]).toBe(secondItem);
+    expect(itemNodes[1].find("Text").at(-1).text()).toBe("C");
+  });
+
+  it("syncs graph and tree structure groups in place while preserving event routes", () => {
+    const onGraphEdgeEdit = vi.fn();
+    const onTreeNodeClick = vi.fn();
+    const graph = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, onGraphEdgeEdit });
+    const tree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null }],
+      style: {},
+    }, { ...baseHandlers, onTreeNodeClick });
+
+    const originalGraph = graph;
+    const originalTree = tree;
+
+    expect(syncElementNode(graph, {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 180,
+      height: 140,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 70 },
+        { id: "B", label: "B", x: 150, y: 70 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "5" }],
+      style: {},
+    }, { ...baseHandlers, onGraphEdgeEdit })).toBe(true);
+    expect(syncElementNode(tree, {
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 180,
+      height: 140,
+      nodes: [
+        { id: "0", index: 0, value: "A", x: 90, y: 24, parentIndex: null },
+        { id: "1", index: 1, value: "B", x: 60, y: 96, parentIndex: 0 },
+      ],
+      style: {},
+    }, { ...baseHandlers, onTreeNodeClick })).toBe(true);
+
+    expect(graph).toBe(originalGraph);
+    expect(graph.findOne("Text").text()).toBe("5");
+    graph.findOne("Line").fire("dblclick", { cancelBubble: false });
+    expect(onGraphEdgeEdit).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      edgeId: "edge_1",
+      directed: false,
+      weight: "5",
+    });
+    expect(tree).toBe(originalTree);
+    expect(tree.find(".tree-node")).toHaveLength(2);
+    tree.find(".tree-node")[1].fire("click", { cancelBubble: false });
+    expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", index: 1 });
   });
 
   it("keeps latex source text in Konva as an editable fallback for the vector overlay", () => {

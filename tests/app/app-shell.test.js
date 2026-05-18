@@ -94,6 +94,31 @@ describe("app shell", () => {
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
   });
 
+  it("reuses ordinary Konva nodes across board renders", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const nodeRegistry = new Map();");
+    expect(appSource).toContain("function syncOrCreateElementNode(element)");
+    expect(appSource).toContain("if (existingNode && syncElementNode(existingNode, element, getElementNodeHandlers(element)))");
+    expect(appSource).toContain("nodeRegistry.set(element.id, node)");
+    expect(appSource).not.toContain('contentLayer.find(".element").forEach((node) => node.destroy());');
+  });
+
+  it("skips Konva node synchronization when an element did not change", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const nodeRenderSnapshots = new Map();");
+    expect(appSource).toContain("const elementRenderSnapshotValues = new WeakMap();");
+    expect(appSource).toContain("function createElementRenderSnapshot(element)");
+    expect(appSource).toContain("const cachedSnapshot = elementRenderSnapshotValues.get(element);");
+    expect(appSource).toContain("const handlerSnapshot = getElementRenderHandlerSnapshot(element);");
+    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
+    expect(appSource).toMatch(/if \(existingNode && previousSnapshot === nextSnapshot\) \{[\s\S]*?return existingNode;[\s\S]*?\}/);
+    expect(appSource).toMatch(/if \(existingNode && syncElementNode\(existingNode, element, getElementNodeHandlers\(element\)\)\) \{[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
+    expect(appSource).toMatch(/nodeRegistry\.set\(element\.id, node\);[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
+    expect(appSource).toMatch(/node\.destroy\(\);[\s\S]*?nodeRegistry\.delete\(id\);[\s\S]*?nodeRenderSnapshots\.delete\(id\);/);
+  });
+
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
     const linearMarkup = extractLinearInspectorMarkup(markup);
@@ -892,6 +917,21 @@ describe("app shell", () => {
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
     expect(appSource).toMatch(/function handleArrayStructureItemSelect\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
     expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+  });
+
+  it("uses lightweight chrome updates while panning and zooming the viewport", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const panMoveBlock = appSource.match(/if \(isPanning && panStart\) \{[\s\S]*?return;\n    \}/)?.[0] ?? "";
+    const wheelBlock = appSource.match(/function handleWheel\(event\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
+    const centerZoomBlock = appSource.match(/function setZoomAtCenter\(requestedScale\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
+
+    expect(appSource).toContain("function updateViewportChrome()");
+    expect(panMoveBlock).toContain("updateGrid();");
+    expect(panMoveBlock).not.toContain("updateChrome();");
+    expect(wheelBlock).toContain("updateViewportChrome();");
+    expect(wheelBlock).not.toContain("updateChrome();");
+    expect(centerZoomBlock).toContain("updateViewportChrome();");
+    expect(centerZoomBlock).not.toContain("updateChrome();");
   });
 
   it("uses custom SVG cursors for select and pan tools", () => {

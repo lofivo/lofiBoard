@@ -15,7 +15,8 @@
     "start:dev": "bash ./start-dev.sh",
     "stop:dev": "bash ./stop-dev.sh",
     "deploy:build": "bash ./build.sh",
-    "deploy:static": "bash ./deploy-static.sh"
+    "deploy:static": "bash ./deploy-static.sh",
+    "bench:render": "node scripts/bench-render.js"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
