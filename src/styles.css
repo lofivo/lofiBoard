@@ -1660,7 +1660,8 @@ button {
 }
 
 .quick-actions-graph,
-.quick-actions-tree {
+.quick-actions-tree,
+.quick-actions-binary-tree {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1688,6 +1689,11 @@ button {
   outline: none;
 }
 
+[data-tree-kind="binary"] [data-tree-structure-input] {
+  min-height: 168px;
+  max-height: 240px;
+}
+
 .structure-values-header {
   display: flex;
   min-width: 0;
@@ -1712,9 +1718,53 @@ button {
   display: none;
 }
 
+[data-tree-kind="general"] .quick-actions-binary-tree {
+  display: none;
+}
+
+[data-tree-kind="binary"] .quick-actions-tree {
+  display: none;
+}
+
 [data-tree-kind="binary"] [data-action="tree-move-subtree"],
 [data-tree-kind="binary"] [data-action="tree-layout"] {
   display: none;
+}
+
+.binary-tree-node-controls,
+.binary-tree-traversal-controls {
+  position: fixed;
+  z-index: 45;
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.binary-tree-node-controls[hidden],
+.binary-tree-traversal-controls[hidden] {
+  display: none;
+}
+
+.binary-tree-node-controls button,
+.binary-tree-traversal-controls button {
+  min-width: 34px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.binary-tree-node-controls button:hover,
+.binary-tree-traversal-controls button:hover {
+  background: #e0f2fe;
 }
 
 .layer-list {
@@ -2104,7 +2154,8 @@ button {
   .linear-panel-fields-highlight,
   .quick-actions-linear,
   .quick-actions-graph,
-  .quick-actions-tree {
+  .quick-actions-tree,
+  .quick-actions-binary-tree {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

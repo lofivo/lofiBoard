@@ -834,7 +834,29 @@ export function addTreeChild(element, parentIndex = 0, side = "left", value = ""
   const parentId = String(parentIndex);
   const withNode = addTreeNode(element, value);
   const child = withNode.nodes.at(-1);
-  return child ? addTreeEdge(withNode, parentId, child.id) : element;
+  return child ? addTreeEdge(withNode, parentId, child.id, { side }) : element;
+}
+
+export function addBinaryTreeChild(element, parentIndex = 0, side = "left", value = "0") {
+  if (!isBinaryTreeStructure(element)) return element;
+  const parentId = String(parentIndex);
+  const normalizedSide = side === "right" ? "right" : "left";
+  const sides = getBinaryTreeChildSides(element, parentId);
+  if (sides[normalizedSide]) return element;
+  const parent = (element.nodes ?? []).find((node) => node.id === parentId);
+  if (!parent) return element;
+  const label = String(value ?? "0");
+  const child = {
+    id: createId("tree_node"),
+    label,
+    x: parent.x,
+    y: parent.y + (element.style?.levelGap ?? TREE_STRUCTURE_STYLE.levelGap),
+  };
+  const nextElement = {
+    ...element,
+    nodes: [...(element.nodes ?? []), child],
+  };
+  return addTreeEdge(nextElement, parentId, child.id, { side: normalizedSide });
 }
 
 export function updateTreeNodeValue(element, nodeIndex = 0, value = "") {
@@ -870,7 +892,7 @@ export function layoutTreeStructure(element) {
   }), TREE_STRUCTURE_STYLE);
 }
 
-export function addTreeEdge(element, from = null, to = null) {
+export function addTreeEdge(element, from = null, to = null, { side = null } = {}) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE || !from || !to || from === to) return element;
   const nodeIds = new Set((element.nodes ?? []).map((node) => node.id));
   const source = String(from);
@@ -878,9 +900,15 @@ export function addTreeEdge(element, from = null, to = null) {
   if (!nodeIds.has(source) || !nodeIds.has(target)) return element;
   const binary = isBinaryTreeStructure(element);
   const currentEdges = element.edges ?? [];
-  if (binary && currentEdges.filter((edge) => edge.from === source && edge.to !== target).length >= 2) return element;
+  if (binary) {
+    const normalizedSide = side === "right" ? "right" : side === "left" ? "left" : getNextAvailableBinarySide(element, source, target);
+    if (!normalizedSide) return element;
+    const sides = getBinaryTreeChildSides(element, source, { ignoreChildId: target });
+    if (sides[normalizedSide]) return element;
+    side = normalizedSide;
+  }
   const withoutPreviousParent = currentEdges.filter((edge) => edge.to !== target);
-  const nextEdges = [...withoutPreviousParent, { id: createId("tree_edge"), from: source, to: target }];
+  const nextEdges = [...withoutPreviousParent, { id: createId("tree_edge"), from: source, to: target, ...(binary ? { side } : {}) }];
   const normalized = normalizeTreeEdges(nextEdges, element.settings?.rootId ?? getDefaultTreeRootId([...nodeIds], nextEdges), { binary });
   if (normalized.length !== nextEdges.length) return element;
   const nextElement = {
@@ -896,12 +924,25 @@ export function addTreeEdge(element, from = null, to = null) {
 
 export function setTreeTraversalHighlight(element, mode = "level") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
+  const order = getTreeTraversalOrder(element, mode);
+  if (!isBinaryTreeStructure(element)) {
+    return {
+      ...element,
+      markers: {
+        ...(element.markers ?? {}),
+        traversalMode: mode,
+        highlighted: order,
+      },
+    };
+  }
   return {
     ...element,
     markers: {
       ...(element.markers ?? {}),
       traversalMode: mode,
-      highlighted: getTreeTraversalOrder(element, mode),
+      traversalCursor: order.length > 0 ? 0 : -1,
+      traversalOrder: order,
+      highlighted: order.length > 0 ? [order[0]] : [],
     },
   };
 }
@@ -914,6 +955,8 @@ export function clearTreeHighlight(element) {
       ...(element.markers ?? {}),
       traversalMode: null,
       highlighted: [],
+      traversalCursor: -1,
+      traversalOrder: [],
     },
   };
 }
@@ -991,10 +1034,25 @@ export function deleteTreeSubtree(element, nodeIndex = element?.nodes?.at(-1)?.i
   visit(targetId);
   const nodes = (element.nodes ?? []).filter((node) => !removed.has(node.id));
   const edges = (element.edges ?? []).filter((edge) => !removed.has(edge.from) && !removed.has(edge.to));
+  if (isBinaryTreeStructure(element) && targetId === element.settings?.rootId) {
+    return {
+      ...element,
+      nodes: [],
+      edges: [],
+      settings: { ...(element.settings ?? {}), rootId: null },
+      markers: {
+        ...(element.markers ?? {}),
+        collapsed: [],
+        highlighted: [],
+        traversalCursor: -1,
+        traversalOrder: [],
+      },
+    };
+  }
   const rootId = nodes.some((node) => node.id === element.settings?.rootId)
     ? element.settings.rootId
     : getDefaultTreeRootId(nodes.map((node) => node.id), edges);
-  return {
+  const nextElement = {
     ...element,
     nodes,
     edges,
@@ -1003,8 +1061,10 @@ export function deleteTreeSubtree(element, nodeIndex = element?.nodes?.at(-1)?.i
       ...(element.markers ?? {}),
       collapsed: (element.markers?.collapsed ?? []).filter((id) => !removed.has(id)),
       highlighted: (element.markers?.highlighted ?? []).filter((id) => !removed.has(id)),
+      traversalOrder: (element.markers?.traversalOrder ?? []).filter((id) => !removed.has(id)),
     },
   };
+  return isBinaryTreeStructure(element) ? layoutTreeStructure(nextElement) : nextElement;
 }
 
 export function deleteLastTreeNode(element) {
@@ -1215,11 +1275,20 @@ function normalizeTreeEdges(edges, rootId = null, { binary = false } = {}) {
   const result = [];
   const parentByChild = new Map();
   const childCountByParent = new Map();
+  const usedSidesByParent = new Map();
   for (const edge of edges ?? []) {
     if (!edge.from || !edge.to || edge.from === edge.to) continue;
     if (parentByChild.has(edge.to)) continue;
     if (binary && (childCountByParent.get(edge.from) ?? 0) >= 2) continue;
-    const candidate = [...result, { id: edge.id ?? createId("tree_edge"), from: edge.from, to: edge.to }];
+    let side = null;
+    if (binary) {
+      const used = usedSidesByParent.get(edge.from) ?? new Set();
+      side = edge.side === "right" ? "right" : edge.side === "left" ? "left" : (!used.has("left") ? "left" : "right");
+      if (used.has(side)) continue;
+      used.add(side);
+      usedSidesByParent.set(edge.from, used);
+    }
+    const candidate = [...result, { id: edge.id ?? createId("tree_edge"), from: edge.from, to: edge.to, ...(binary ? { side } : {}) }];
     if (treeEdgesHaveCycle(candidate)) continue;
     parentByChild.set(edge.to, edge.from);
     childCountByParent.set(edge.from, (childCountByParent.get(edge.from) ?? 0) + 1);
@@ -1253,11 +1322,37 @@ function treeEdgesHaveCycle(edges) {
 
 function getTreeChildrenMap(element) {
   const children = new Map((element.nodes ?? []).map((node) => [node.id, []]));
-  for (const edge of element.edges ?? []) {
+  const edges = isBinaryTreeStructure(element)
+    ? [...(element.edges ?? [])].sort((a, b) => getBinarySideOrder(a.side) - getBinarySideOrder(b.side))
+    : element.edges ?? [];
+  for (const edge of edges) {
     if (!children.has(edge.from)) children.set(edge.from, []);
     children.get(edge.from).push(edge.to);
   }
   return children;
+}
+
+export function getBinaryTreeChildSides(element, parentId, { ignoreChildId = null } = {}) {
+  const result = { left: null, right: null };
+  if (!isBinaryTreeStructure(element) || !parentId) return result;
+  const edges = normalizeTreeEdges(element.edges ?? [], element.settings?.rootId, { binary: true })
+    .filter((edge) => edge.from === parentId && edge.to !== ignoreChildId);
+  for (const edge of edges) {
+    if (edge.side === "right") result.right = edge.to;
+    else result.left = edge.to;
+  }
+  return result;
+}
+
+function getNextAvailableBinarySide(element, parentId, childId = null) {
+  const sides = getBinaryTreeChildSides(element, parentId, { ignoreChildId: childId });
+  if (!sides.left) return "left";
+  if (!sides.right) return "right";
+  return null;
+}
+
+function getBinarySideOrder(side) {
+  return side === "right" ? 1 : 0;
 }
 
 function layoutTree(element, { levelGap, leafGap, nodeRadius }) {
@@ -1510,6 +1605,7 @@ function createTreeStructureElement(tree, point, zIndex, { treeKind = "general" 
       id: edge.id ?? createId("tree_edge"),
       from: labelToId.get(edge.from),
       to: labelToId.get(edge.to),
+      side: edge.side,
     }))
     .filter((edge) => edge.from && edge.to);
   const rootId = getDefaultTreeRootId([...labelToId.values()], rawEdges);

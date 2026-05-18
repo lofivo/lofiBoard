@@ -2029,6 +2029,115 @@ describe("konva elements", () => {
     expect(onTreeNodePress).toHaveBeenCalledWith(pointerDown, binaryTree);
   });
 
+  it("routes binary tree node click and double click for selection and inline editing", () => {
+    const onTreeNodeClick = vi.fn();
+    const onTreeNodeEdit = vi.fn();
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onTreeNodeClick,
+      onTreeNodeEdit,
+    });
+
+    const treeNode = binaryTree.findOne(".tree-node");
+    treeNode.fire("click", { cancelBubble: false });
+    treeNode.fire("dblclick", { cancelBubble: false });
+
+    expect(onTreeNodeClick).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      nodeId: "node_a",
+    });
+    expect(onTreeNodeEdit).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      nodeId: "node_a",
+      label: "A",
+    });
+  });
+
+  it("draws the selected binary tree node with a blue border", () => {
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      runtime: { activeNodeId: "node_b" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+
+    const activeNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+    const inactiveNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
+    expect(activeNode.findOne("Ellipse").stroke()).toBe("#2563eb");
+    expect(activeNode.findOne("Ellipse").strokeWidth()).toBe(3);
+    expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");
+  });
+
+  it("adds a transparent hit area to binary trees so blank tree clicks can clear node selection", () => {
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+      ],
+      edges: [],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const generalTree = createElementNode({
+      id: "tree_2",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+      ],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+
+    const hitArea = binaryTree.findOne(".binary-tree-blank-hit");
+
+    expect(hitArea).toBeTruthy();
+    expect(hitArea.width()).toBe(160);
+    expect(hitArea.height()).toBe(120);
+    expect(generalTree.findOne(".binary-tree-blank-hit")).toBeUndefined();
+  });
+
   it("returns structure node attrs for rerender sync", () => {
     const node = createElementNode({
       id: "array_1",

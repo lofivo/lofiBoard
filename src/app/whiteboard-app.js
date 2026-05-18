@@ -138,7 +138,9 @@ import {
   importGraphFromText,
   updateGraphFromInput,
   addTreeNode,
+  addBinaryTreeChild,
   addTreeEdge,
+  getBinaryTreeChildSides,
   moveTreeNode,
   updateTreeNodeValue,
   layoutTreeStructure,
@@ -273,6 +275,8 @@ export function createWhiteboardApp(root) {
   let linearItemLiftTween = null;
   let linearPointerTween = null;
   let linearItemControls = null;
+  let binaryTreeNodeControls = null;
+  let binaryTreeTraversalControls = null;
   let suppressLinearItemSelect = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
@@ -496,6 +500,16 @@ export function createWhiteboardApp(root) {
       const button = closestElement(event.target, "[data-linear-item-action]");
       if (!button) return;
       runLinearItemAction(button.dataset.linearItemAction);
+    });
+    root.addEventListener("click", (event) => {
+      const button = closestElement(event.target, "[data-binary-tree-node-action]");
+      if (!button) return;
+      runBinaryTreeNodeAction(button.dataset.binaryTreeNodeAction);
+    });
+    root.addEventListener("click", (event) => {
+      const button = closestElement(event.target, "[data-binary-tree-traversal-action]");
+      if (!button) return;
+      runBinaryTreeTraversalAction(button.dataset.binaryTreeTraversalAction);
     });
 
     for (const button of root.querySelectorAll("[data-background-mode]")) {
@@ -788,9 +802,9 @@ export function createWhiteboardApp(root) {
       "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
       "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, getActiveTreeNodeId(element)), "已更新树"),
       "tree-highlight-level": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "level"), "已高亮遍历"),
-      "tree-highlight-preorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "preorder"), "已高亮遍历"),
-      "tree-highlight-inorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "inorder"), "已高亮遍历"),
-      "tree-highlight-postorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "postorder"), "已高亮遍历"),
+      "tree-highlight-preorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "preorder"), "已选择前序遍历"),
+      "tree-highlight-inorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "inorder"), "已选择中序遍历"),
+      "tree-highlight-postorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "postorder"), "已选择后序遍历"),
       "tree-step-next": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, 1), "已推进遍历"),
       "tree-step-prev": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, -1), "已回退遍历"),
       "tree-clear-highlight": () => editSelectedStructure("tree-structure", clearTreeHighlight, "已清除高亮"),
@@ -845,6 +859,53 @@ export function createWhiteboardApp(root) {
       }
       pushHistory("已删除数组项");
     }
+  }
+
+  function runBinaryTreeNodeAction(action) {
+    const elementId = activeTreeNode?.elementId;
+    const nodeId = activeTreeNode?.nodeId;
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isSelectedBinaryTreeElement(element) || element.locked || !nodeId) return;
+    if (action === "add-left" || action === "add-right") {
+      const side = action === "add-right" ? "right" : "left";
+      const nextElement = addBinaryTreeChild(element, nodeId, side, "0");
+      if (nextElement === element) return;
+      const beforeIds = new Set((element.nodes ?? []).map((node) => node.id));
+      const nextNode = (nextElement.nodes ?? []).find((node) => !beforeIds.has(node.id));
+      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+      activeTreeNode = { elementId, nodeId: nextNode?.id ?? nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory(side === "left" ? "已添加左子节点" : "已添加右子节点");
+      return;
+    }
+    if (action === "delete") {
+      if (nodeId === element.settings?.rootId) {
+        board.elements = removeElementsById(board.elements, [elementId]);
+        activeTreeNode = null;
+        selectedIds = selectedIds.filter((id) => id !== elementId);
+        hideBinaryTreeControls();
+        renderBoard();
+        updateChrome();
+        pushHistory("已删除二叉树");
+        return;
+      }
+      const nextElement = deleteTreeSubtree(element, nodeId);
+      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+      activeTreeNode = { elementId, nodeId: nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory("已删除子树");
+    }
+  }
+
+  function runBinaryTreeTraversalAction(action) {
+    const direction = action === "prev" ? -1 : 1;
+    editSelectedStructure("tree-structure", (element) => (
+      isBinaryTreeElement(element) ? stepTreeTraversalHighlight(element, direction) : element
+    ), direction > 0 ? "已推进遍历" : "已回退遍历");
   }
 
   function runContextAction(action) {
@@ -1625,6 +1686,17 @@ export function createWhiteboardApp(root) {
     if (targetElement) {
       const element = board.elements.find((item) => item.id === targetElement);
       const targetIds = expandGroupedIds([targetElement]);
+      if (isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
+        const shouldDragBinaryTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
+        activeTreeNode = null;
+        hideBinaryTreeControls();
+        renderBoard();
+        selectIds([targetElement]);
+        if (shouldDragBinaryTreeBlank) {
+          beginSelectionDrag(worldPoint);
+        }
+        return;
+      }
       if (arrayValueHitNode && isLinearStructureElement(element)) {
         if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
           beginSelectionDrag(worldPoint);
@@ -2173,6 +2245,7 @@ export function createWhiteboardApp(root) {
     selectionRect.moveToTop();
     syncSelectionNodes();
     renderLinearItemControls();
+    renderBinaryTreeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
     syncTextOverlays({ hiddenIds: isEditingText ? selectedIds : [] });
@@ -2213,13 +2286,23 @@ export function createWhiteboardApp(root) {
   }
 
   function getElementRenderHandlerSnapshot(element) {
+    if (isBinaryTreeElement(element)) {
+      return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
+    }
     if (!isLinearStructureElement(element)) return "";
     return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive()}`;
   }
 
   function buildRuntimeElement(element) {
-    if (!isLinearStructureElement(element)) return element;
     const runtime = {};
+    if (isBinaryTreeElement(element) && activeTreeNode?.elementId === element.id) {
+      runtime.activeNodeId = activeTreeNode.nodeId;
+    }
+    if (!isLinearStructureElement(element)) {
+      return Object.keys(runtime).length > 0
+        ? { ...element, runtime: { ...(element.runtime ?? {}), ...runtime } }
+        : element;
+    }
     if (activeLinearItem?.elementId === element.id) {
       runtime.activeIndex = activeLinearItem.index;
     }
@@ -2250,6 +2333,7 @@ export function createWhiteboardApp(root) {
     syncLinearItemActiveVisual(previousActive?.elementId);
     syncLinearItemActiveVisual(activeLinearItem?.elementId);
     renderLinearItemControls();
+    renderBinaryTreeControls();
     contentLayer.batchDraw();
     updateChrome();
   }
@@ -2279,6 +2363,8 @@ export function createWhiteboardApp(root) {
     cancelLinearPointerDrag();
     resetLinearItemPressState();
     hideLinearItemControls();
+    activeTreeNode = null;
+    hideBinaryTreeControls();
     selectIds([]);
   }
 
@@ -2303,7 +2389,7 @@ export function createWhiteboardApp(root) {
     transformer.resizeEnabled(canTransform);
     transformer.rotateEnabled(canTransform);
     transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
-    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element)));
+    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element) || isBinaryTreeElement(element)));
     transformer.forceUpdate();
     disableTransformerHitAreaDrag();
   }
@@ -2936,6 +3022,7 @@ export function createWhiteboardApp(root) {
       syncLinearItemActiveVisual(previousActive?.elementId);
       syncLinearItemActiveVisual(elementId);
       renderLinearItemControls();
+      renderBinaryTreeControls();
       contentLayer.batchDraw();
     }
   }
@@ -3030,6 +3117,40 @@ export function createWhiteboardApp(root) {
     if (linearItemControls) linearItemControls.hidden = true;
   }
 
+  function ensureBinaryTreeNodeControls() {
+    if (binaryTreeNodeControls) return binaryTreeNodeControls;
+    const controls = document.createElement("div");
+    controls.className = "binary-tree-node-controls";
+    controls.hidden = true;
+    controls.innerHTML = `
+      <button type="button" data-binary-tree-node-action="add-left" title="添加左子节点" aria-label="添加左子节点">左+</button>
+      <button type="button" data-binary-tree-node-action="add-right" title="添加右子节点" aria-label="添加右子节点">右+</button>
+      <button type="button" data-binary-tree-node-action="delete" title="删除子树" aria-label="删除子树">删除</button>
+    `;
+    root.appendChild(controls);
+    binaryTreeNodeControls = controls;
+    return controls;
+  }
+
+  function ensureBinaryTreeTraversalControls() {
+    if (binaryTreeTraversalControls) return binaryTreeTraversalControls;
+    const controls = document.createElement("div");
+    controls.className = "binary-tree-traversal-controls";
+    controls.hidden = true;
+    controls.innerHTML = `
+      <button type="button" data-binary-tree-traversal-action="prev" title="上一步" aria-label="上一步">‹</button>
+      <button type="button" data-binary-tree-traversal-action="next" title="下一步" aria-label="下一步">›</button>
+    `;
+    root.appendChild(controls);
+    binaryTreeTraversalControls = controls;
+    return controls;
+  }
+
+  function hideBinaryTreeControls() {
+    if (binaryTreeNodeControls) binaryTreeNodeControls.hidden = true;
+    if (binaryTreeTraversalControls) binaryTreeTraversalControls.hidden = true;
+  }
+
   function renderLinearItemControls() {
     const controls = ensureLinearItemControls();
     const element = board.elements.find((item) => item.id === activeLinearItem?.elementId);
@@ -3039,6 +3160,63 @@ export function createWhiteboardApp(root) {
     }
     controls.hidden = false;
     updateLinearItemControlsPosition();
+  }
+
+  function renderBinaryTreeControls() {
+    renderBinaryTreeNodeControls();
+    renderBinaryTreeTraversalControls();
+  }
+
+  function renderBinaryTreeNodeControls() {
+    const controls = ensureBinaryTreeNodeControls();
+    const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
+    if (!isSelectedBinaryTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
+      controls.hidden = true;
+      return;
+    }
+    const group = contentLayer.findOne(`#${element.id}`);
+    const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId);
+    if (!treeNode) {
+      controls.hidden = true;
+      return;
+    }
+    const sides = getBinaryTreeChildSides(element, activeTreeNode.nodeId);
+    controls.querySelector("[data-binary-tree-node-action='add-left']").hidden = Boolean(sides.left);
+    controls.querySelector("[data-binary-tree-node-action='add-right']").hidden = Boolean(sides.right);
+    controls.hidden = false;
+    const box = treeNode.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
+    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    controls.style.transform = "translateX(-50%)";
+  }
+
+  function renderBinaryTreeTraversalControls() {
+    const controls = ensureBinaryTreeTraversalControls();
+    const element = board.elements.find((item) => selectedIds.includes(item.id) && isBinaryTreeElement(item));
+    if (!element || !element.markers?.traversalMode) {
+      controls.hidden = true;
+      return;
+    }
+    const group = contentLayer.findOne(`#${element.id}`);
+    if (!group) {
+      controls.hidden = true;
+      return;
+    }
+    controls.hidden = false;
+    const box = group.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    controls.style.left = `${stageBox.left + box.x + box.width - controls.offsetWidth}px`;
+    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    controls.style.transform = "none";
+  }
+
+  function isBinaryTreeElement(element) {
+    return element?.type === "tree-structure" && element.settings?.treeKind === "binary";
+  }
+
+  function isSelectedBinaryTreeElement(element) {
+    return isBinaryTreeElement(element) && selectedIds.includes(element.id);
   }
 
   function syncLinearItemActiveVisual(elementId) {
@@ -3669,6 +3847,15 @@ export function createWhiteboardApp(root) {
 
   function handleTreeNodeClick({ elementId, nodeId }) {
     if (isTemporaryPanActive()) return;
+    const clickedElement = board.elements.find((item) => item.id === elementId);
+    if (isBinaryTreeElement(clickedElement)) {
+      structureConnectState = null;
+      activeTreeNode = { elementId, nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      setStatus("已选择二叉树节点");
+      return;
+    }
     if (structureConnectState?.kind !== "tree" || structureConnectState.elementId !== elementId) {
       activeTreeNode = { elementId, nodeId };
       selectIds([elementId]);
@@ -3829,9 +4016,6 @@ export function createWhiteboardApp(root) {
     if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
     event.cancelBubble = true;
     if (!selectedIds.includes(elementId)) selectIds([elementId]);
-    const worldPoint = getWorldPointer(stage);
-    if (!worldPoint) return;
-    beginSelectionDrag(worldPoint);
   }
 
   function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
@@ -4013,6 +4197,15 @@ export function createWhiteboardApp(root) {
     return group?.find(".array-item")?.find((node) => getLinearItemNodeIndex(node) === index) ?? null;
   }
 
+  function findTreeNodeGroup(group, nodeId) {
+    if (!group || !nodeId) return null;
+    return group.find(".tree-node").find((node) => node.getAttr("treeNodeId") === nodeId) ?? null;
+  }
+
+  function isTreeNodeHitTarget(target) {
+    return Boolean(target?.hasName?.("tree-node") || target?.findAncestor?.(".tree-node"));
+  }
+
   function editTreeStructureNode({ elementId, nodeId, label }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.locked) return;
@@ -4025,7 +4218,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     const group = contentLayer.findOne(`#${elementId}`);
     if (!element || element.type !== "tree-structure" || !group) return;
-    const treeNode = group.find(".tree-node").find((node) => node.getAttr("treeNodeId") === nodeId);
+    const treeNode = findTreeNodeGroup(group, nodeId);
     if (!treeNode) return;
 
     const style = element.style ?? {};
@@ -4995,7 +5188,9 @@ export function createWhiteboardApp(root) {
   function syncTreeStructurePanelState() {
     if (!treeStructureInput) return;
     const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
-    treeStructureInput.value = element ? exportTree(element) : "";
+    if (document.activeElement !== treeStructureInput) {
+      treeStructureInput.value = element ? exportTree(element) : "";
+    }
     root.dataset.treeKind = element?.settings?.treeKind === "binary" ? "binary" : "general";
   }
 

@@ -1450,6 +1450,16 @@ function createTreeStructureNode(element, common, {
   const edgeRecords = [];
   const nodeGroups = new Map();
 
+  if (element.settings?.treeKind === "binary") {
+    group.add(new Konva.Rect({
+      name: "binary-tree-blank-hit",
+      width: element.width,
+      height: element.height,
+      fill: "rgba(255,255,255,0)",
+      listening: true,
+    }));
+  }
+
   const getNodePosition = (nodeId) => {
     const nodeGroup = nodeGroups.get(nodeId);
     if (nodeGroup) return { x: nodeGroup.x(), y: nodeGroup.y() };
@@ -1483,6 +1493,7 @@ function createTreeStructureNode(element, common, {
 
   for (const node of nodes.values()) {
     const nodeDraggable = Boolean(common.draggable) && element.settings?.treeKind !== "binary";
+    const isActiveBinaryNode = element.settings?.treeKind === "binary" && element.runtime?.activeNodeId === node.id;
     const nodeGroup = new Konva.Group({
       name: "tree-node",
       x: node.x,
@@ -1494,8 +1505,8 @@ function createTreeStructureNode(element, common, {
     nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
-      stroke: style.nodeStroke,
-      strokeWidth: 2,
+      stroke: isActiveBinaryNode ? "#2563eb" : style.nodeStroke,
+      strokeWidth: isActiveBinaryNode ? 3 : 2,
       fill: getTreeNodeFill(element, node, style, getTreeConnectState),
     }));
     nodeGroup.add(new Konva.Text({

@@ -293,6 +293,16 @@ export function normalizeElement(element, fallbackIndex = 0) {
   if (normalized.type === "tree-structure") {
     normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };
     normalized.style = { ...TREE_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
+    if (normalized.settings.treeKind === "binary") {
+      const usedSidesByParent = new Map();
+      normalized.edges = (normalized.edges ?? []).map((edge) => {
+        const used = usedSidesByParent.get(edge.from) ?? new Set();
+        const side = edge.side === "right" ? "right" : edge.side === "left" ? "left" : (!used.has("left") ? "left" : "right");
+        used.add(side);
+        usedSidesByParent.set(edge.from, used);
+        return { ...edge, side };
+      });
+    }
   }
   return normalized;
 }

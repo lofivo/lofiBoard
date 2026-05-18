@@ -33,6 +33,7 @@ import {
   updateGraphFromInput,
   addTreeNode,
   addTreeChild,
+  addBinaryTreeChild,
   addTreeEdge,
   moveTreeNode,
   updateTreeNodeValue,
@@ -44,6 +45,7 @@ import {
   copyTreeSubtreeValues,
   moveTreeSubtree,
   deleteTreeSubtree,
+  getBinaryTreeChildSides,
   deleteLastTreeNode,
   updateTreeFromInput,
   getTreeTraversalOrder,
@@ -244,6 +246,12 @@ describe("structure templates", () => {
     });
     expect(manual.type).toBe(STRUCTURE_ELEMENT_TYPES.TREE);
     expect(manual.settings.treeKind).toBe("binary");
+    const manualId = (label) => manual.nodes.find((node) => node.label === label)?.id;
+    expect(manual.edges).toMatchObject([
+      { from: manualId("A"), to: manualId("B"), side: "left" },
+      { from: manualId("A"), to: manualId("C"), side: "right" },
+      { from: manualId("B"), to: manualId("D"), side: "left" },
+    ]);
 
     const [randomTree] = createStructureElements({
       type: STRUCTURE_TYPES.BINARY_TREE,
@@ -257,12 +265,12 @@ describe("structure templates", () => {
     expect(randomTree.settings.treeKind).toBe("binary");
     expect(randomTree.nodes.map((node) => node.label)).toEqual(["1", "2", "3", "4", "5", "6", "7"]);
     expect(randomTree.edges).toMatchObject([
-      { from: id("1"), to: id("2") },
-      { from: id("1"), to: id("3") },
-      { from: id("2"), to: id("4") },
-      { from: id("2"), to: id("5") },
-      { from: id("3"), to: id("6") },
-      { from: id("3"), to: id("7") },
+      { from: id("1"), to: id("2"), side: "left" },
+      { from: id("1"), to: id("3"), side: "right" },
+      { from: id("2"), to: id("4"), side: "left" },
+      { from: id("2"), to: id("5"), side: "right" },
+      { from: id("3"), to: id("6"), side: "left" },
+      { from: id("3"), to: id("7"), side: "right" },
     ]);
   });
 
@@ -310,6 +318,30 @@ describe("structure templates", () => {
     const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
 
     expect(getTreeTraversalOrder(tree, "inorder")).toEqual([id("D"), id("B"), id("E"), id("A"), id("F"), id("C")]);
+  });
+
+  it("uses explicit binary child sides for insertion, traversal, and deletion", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (target, label) => target.nodes.find((node) => node.label === label)?.id;
+
+    expect(getBinaryTreeChildSides(tree, id(tree, "A"))).toEqual({ left: id(tree, "B"), right: null });
+
+    const withRight = addBinaryTreeChild(tree, id(tree, "A"), "right", "0");
+    expect(withRight.edges.find((edge) => edge.to === id(withRight, "0"))).toMatchObject({
+      from: id(withRight, "A"),
+      side: "right",
+    });
+    expect(addBinaryTreeChild(withRight, id(withRight, "A"), "right", "X")).toBe(withRight);
+    expect(getTreeTraversalOrder(withRight, "inorder")).toEqual([id(withRight, "B"), id(withRight, "A"), id(withRight, "0")]);
+
+    const deletedLeft = deleteTreeSubtree(withRight, id(withRight, "B"));
+    expect(deletedLeft.nodes.map((node) => node.label)).toEqual(["A", "0"]);
+    expect(getBinaryTreeChildSides(deletedLeft, id(deletedLeft, "A"))).toEqual({ left: null, right: id(deletedLeft, "0") });
   });
 
   it("uses default input when initial structure text is blank", () => {
@@ -696,10 +728,31 @@ describe("structure templates", () => {
     });
     const order = getTreeTraversalOrder(tree, "level");
 
-    const first = stepTreeTraversalHighlight(setTreeTraversalHighlight(tree, "level"), 1);
+    const selected = setTreeTraversalHighlight(tree, "level");
+    expect(selected.markers).toMatchObject({ highlighted: order });
+    const first = stepTreeTraversalHighlight(selected, 1);
     expect(first.markers).toMatchObject({ traversalCursor: 0, highlighted: [order[0]], traversalOrder: order });
-    const second = stepTreeTraversalHighlight(first, 1);
-    expect(second.markers.highlighted).toEqual([order[1]]);
+  });
+
+  it("starts binary tree traversal playback at the first node", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B, A->C",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const order = getTreeTraversalOrder(tree, "preorder");
+
+    const selected = setTreeTraversalHighlight(tree, "preorder");
+    expect(selected.markers).toMatchObject({ traversalCursor: 0, highlighted: [order[0]], traversalOrder: order });
+    const next = stepTreeTraversalHighlight(selected, 1);
+    expect(next.markers).toMatchObject({ traversalCursor: 1, highlighted: [order[1]], traversalOrder: order });
+    expect(clearTreeHighlight(next).markers).toMatchObject({
+      traversalMode: null,
+      highlighted: [],
+      traversalCursor: -1,
+      traversalOrder: [],
+    });
   });
 
   it("collapses, copies, and moves tree subtrees", () => {

@@ -409,6 +409,12 @@ export function renderShell() {
                 <button type="button" data-action="tree-layout">树形布局</button>
                 <button type="button" data-action="tree-reload">树重载</button>
               </div>
+              <div class="quick-actions quick-actions-binary-tree">
+                <button type="button" data-action="tree-highlight-preorder">前序遍历</button>
+                <button type="button" data-action="tree-highlight-inorder">中序遍历</button>
+                <button type="button" data-action="tree-highlight-postorder">后序遍历</button>
+                <button type="button" data-action="tree-clear-highlight">清除高亮</button>
+              </div>
             </div>
           </section>
         </div>
