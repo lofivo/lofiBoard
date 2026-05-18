@@ -43,6 +43,8 @@ import {
   updateTreeFromInput,
   getTreeTraversalOrder,
   parseArrayInput,
+  normalizeRandomArrayCount,
+  createRandomArrayValues,
   parseGraphInput,
   parseTreeInput,
 } from "../../src/structures/structure-templates.js";
@@ -54,6 +56,22 @@ describe("structure templates", () => {
 
   it("parses a quoted array input string into character items", () => {
     expect(parseArrayInput('"hello"')).toEqual(["h", "e", "l", "l", "o"]);
+  });
+
+  it("normalizes random array counts to a bounded element count", () => {
+    expect(normalizeRandomArrayCount("3")).toBe(3);
+    expect(normalizeRandomArrayCount("0")).toBe(1);
+    expect(normalizeRandomArrayCount("999")).toBe(64);
+    expect(normalizeRandomArrayCount("abc")).toBe(5);
+  });
+
+  it("creates random array values from a requested element count", () => {
+    const randomValues = [0, 0.125, 0.5, 0.999].values();
+    const values = createRandomArrayValues("4", {
+      random: () => randomValues.next().value,
+    });
+
+    expect(values).toEqual(["0", "12", "50", "99"]);
   });
 
   it("creates a two-row array with indexes and values", () => {
@@ -75,6 +93,47 @@ describe("structure templates", () => {
     });
     expect(elements[0].items.map((item) => item.value)).toEqual(["A", "B"]);
     expect(elements[0].items.map((item) => item.index)).toEqual([0, 1]);
+  });
+
+  it("creates an array from a random element count instead of manual input", () => {
+    const randomValues = [0.01, 0.2, 0.9];
+    const elements = createStructureElements({
+      type: STRUCTURE_TYPES.ARRAY,
+      input: "A, B",
+      initMode: "random",
+      randomCount: "3",
+      random: () => randomValues.shift(),
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    expect(elements[0].items.map((item) => item.value)).toEqual(["1", "20", "90"]);
+    expect(elements[0].items.map((item) => item.index)).toEqual([0, 1, 2]);
+    expect(elements[0].width).toBe(216);
+  });
+
+  it("creates all linear structures from a random element count", () => {
+    for (const [type, elementType] of [
+      [STRUCTURE_TYPES.ARRAY, STRUCTURE_ELEMENT_TYPES.ARRAY],
+      [STRUCTURE_TYPES.STACK, STRUCTURE_ELEMENT_TYPES.STACK],
+      [STRUCTURE_TYPES.QUEUE, STRUCTURE_ELEMENT_TYPES.QUEUE],
+      [STRUCTURE_TYPES.DEQUE, STRUCTURE_ELEMENT_TYPES.DEQUE],
+    ]) {
+      const randomValues = [0.1, 0.4].values();
+      const [element] = createStructureElements({
+        type,
+        input: "A, B, C",
+        initMode: "random",
+        randomCount: "2",
+        random: () => randomValues.next().value,
+        point: { x: 0, y: 0 },
+        zIndexStart: 0,
+      });
+
+      expect(element.type).toBe(elementType);
+      expect(element.items.map((item) => item.value)).toEqual(["10", "40"]);
+      expect(element.items.map((item) => item.index)).toEqual([0, 1]);
+    }
   });
 
   it("stores array values as structure data instead of loose grouped shapes", () => {

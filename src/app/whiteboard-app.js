@@ -108,6 +108,7 @@ import {
   createStructureElements,
   getStructureItem,
   isLinearStructureElement,
+  isLinearStructureType,
   insertArrayItem,
   deleteArrayItem,
   updateArrayItemValue,
@@ -168,7 +169,11 @@ export function createWhiteboardApp(root) {
   const stylePanel = root.querySelector("[data-style-panel]");
   const shapePopover = root.querySelector("[data-shape-popover]");
   const structurePanel = root.querySelector("[data-structure-panel]");
+  const structureInputLabel = root.querySelector("[data-structure-input-label]");
   const structureInput = root.querySelector("[data-structure-input]");
+  const linearInitPanel = root.querySelector("[data-linear-init-panel]");
+  const arrayRandomFields = root.querySelector("[data-array-random-fields]");
+  const arrayRandomCountInput = root.querySelector("[data-array-random-count]");
   const contextMenu = root.querySelector("[data-context-menu]");
   const layerPanel = root.querySelector("[data-layer-panel]");
   const panelBody = root.querySelector("[data-panel-body]");
@@ -214,6 +219,7 @@ export function createWhiteboardApp(root) {
   let currentTool = TOOLS.PEN;
   let activeShapeTool = DEFAULT_SHAPE_TOOL;
   let activeStructureType = STRUCTURE_TYPES.ARRAY;
+  let activeArrayInitMode = "manual";
   let selectedIds = [];
   let fileHandle = null;
   let activeFileName = "未命名白板";
@@ -492,6 +498,12 @@ export function createWhiteboardApp(root) {
         setActiveStructureType(button.dataset.structureType);
       });
     }
+    for (const button of root.querySelectorAll("[data-array-init-mode]")) {
+      button.addEventListener("click", () => {
+        activeArrayInitMode = button.dataset.arrayInitMode === "random" ? "random" : "manual";
+        hydrateStructurePanel();
+      });
+    }
     root.querySelector("[data-structure-insert]").addEventListener("click", insertStructureFromPanel);
     root.querySelector("[data-structure-cancel]").addEventListener("click", () => {
       setStructurePanelOpen(false);
@@ -569,7 +581,7 @@ export function createWhiteboardApp(root) {
     root.querySelectorAll("[data-brush-color]").forEach((button) => {
       button.addEventListener("click", () => {
         const mode = root.dataset.panelMode;
-        const isSticky = mode === 'sticky' || mode === 'tool-sticky' || Boolean(closestElement(button, ".sticky-inspector"));
+        const isSticky = mode === "sticky" || Boolean(closestElement(button, ".sticky-inspector"));
         const targetInput = isSticky ? fillInput : colorInput;
         setBrushControlValue(targetInput, button.dataset.brushColor, "input");
         if (!isSticky) updateBrushCursorStyle();
@@ -858,8 +870,15 @@ export function createWhiteboardApp(root) {
     if (resetInput) {
       structureInput.value = item.defaultInput;
     }
+    const activeTypeIsLinear = isLinearStructureType(activeStructureType);
+    linearInitPanel.hidden = !activeTypeIsLinear;
+    structureInputLabel.hidden = activeTypeIsLinear && activeArrayInitMode === "random";
+    arrayRandomFields.hidden = !activeTypeIsLinear || activeArrayInitMode !== "random";
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
+    });
+    root.querySelectorAll("[data-array-init-mode]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.arrayInitMode === activeArrayInitMode);
     });
   }
 
@@ -1063,6 +1082,7 @@ export function createWhiteboardApp(root) {
       if (event.code === "Space") {
         isSpaceDown = true;
         stage.container().classList.add("is-pan-ready");
+        updateDraggableState();
         hideToolCursors();
         event.preventDefault();
       }
@@ -1171,6 +1191,7 @@ export function createWhiteboardApp(root) {
       if (event.code === "Space") {
         isSpaceDown = false;
         stage.container().classList.remove("is-pan-ready", "is-panning");
+        updateDraggableState();
       }
     }, { capture: true });
   }
@@ -2013,13 +2034,13 @@ export function createWhiteboardApp(root) {
       },
       canEditArrayItems: currentTool === TOOLS.SELECT,
       onSelect: (event, node) => {
-        if (currentTool !== TOOLS.SELECT) return;
+        if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
         const id = getElementIdFromNode(node);
         selectElementById(id, event.evt.shiftKey);
       },
       onEdit: (event, node) => {
-        if (currentTool !== TOOLS.SELECT) return;
+        if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
         const id = getElementIdFromNode(node);
         const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
@@ -2695,6 +2716,8 @@ export function createWhiteboardApp(root) {
     const elements = createStructureElements({
       type: activeStructureType,
       input: structureInput.value,
+      initMode: isLinearStructureType(activeStructureType) ? activeArrayInitMode : "manual",
+      randomCount: arrayRandomCountInput.value,
       point: getViewportCenterPoint(),
       zIndexStart: board.elements.length,
     });
@@ -2941,6 +2964,7 @@ export function createWhiteboardApp(root) {
   function shouldElementBeDraggable(element) {
     if (!element) return false;
     return currentTool === TOOLS.SELECT
+      && !isTemporaryPanActive()
       && !element.locked
       && !["text", "sticky"].includes(element.type);
   }
@@ -4797,16 +4821,13 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if ([TOOLS.PEN, TOOLS.STICKY, TOOLS.TEXT, TOOLS.SHAPE, ...SHAPE_TOOLS].includes(currentTool)) {
+    const toolPanelModes = new Set([TOOLS.PEN, TOOLS.SHAPE, ...SHAPE_TOOLS]);
+    if (toolPanelModes.has(currentTool)) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
       syncSelectionInspectorDataset(getToolInspectorCapabilities(drawingTool, currentTool));
-      root.dataset.panelMode = currentTool === TOOLS.TEXT
-        ? "tool-text"
-        : currentTool === TOOLS.STICKY
-          ? "tool-sticky"
-          : currentTool === TOOLS.PEN
+      root.dataset.panelMode = currentTool === TOOLS.PEN
             ? "brush"
           : drawingTool === TOOLS.COORDINATE_PLANE
             ? "coordinate-tool"

@@ -76,6 +76,14 @@ export const ARRAY_STRUCTURE_STYLE = Object.freeze({
   indexTextFill: "#475569",
 });
 
+export const ARRAY_RANDOM_INIT_LIMITS = Object.freeze({
+  defaultCount: 5,
+  minCount: 1,
+  maxCount: 64,
+  minValue: 0,
+  maxValue: 99,
+});
+
 export const GRAPH_STRUCTURE_STYLE = Object.freeze({
   nodeRadius: 26,
   stroke: "#94a3b8",
@@ -112,6 +120,29 @@ export function parseArrayInput(input) {
     return Array.from(trimmedInput.slice(1, -1)).map((value) => value || " ");
   }
   return splitCommaValues(input).map((value) => value || " ");
+}
+
+export function normalizeRandomArrayCount(count) {
+  const numericCount = Number.parseInt(String(count ?? ""), 10);
+  const countOrDefault = Number.isFinite(numericCount) ? numericCount : ARRAY_RANDOM_INIT_LIMITS.defaultCount;
+  return clampNumber(countOrDefault, ARRAY_RANDOM_INIT_LIMITS.minCount, ARRAY_RANDOM_INIT_LIMITS.maxCount);
+}
+
+export function createRandomArrayValues(count, {
+  random = Math.random,
+  minValue = ARRAY_RANDOM_INIT_LIMITS.minValue,
+  maxValue = ARRAY_RANDOM_INIT_LIMITS.maxValue,
+} = {}) {
+  const safeCount = normalizeRandomArrayCount(count);
+  const min = Math.ceil(Number(minValue));
+  const max = Math.floor(Number(maxValue));
+  const low = Math.min(min, max);
+  const high = Math.max(min, max);
+  const span = high - low + 1;
+  return Array.from({ length: safeCount }, () => {
+    const ratio = clampNumber(Number(random()), 0, 0.999999999999);
+    return String(low + Math.floor(ratio * span));
+  });
 }
 
 export function parseGraphInput(input) {
@@ -168,19 +199,26 @@ export function parseTreeInput(input) {
   ));
 }
 
-export function createStructureElements({ type, input, point, zIndexStart = 0 }) {
+export function createStructureElements({ type, input, point, zIndexStart = 0, initMode = "manual", randomCount, random } = {}) {
   const normalizedInput = normalizeStructureInput(type, input);
+  const linearValues = isLinearStructureType(type) && initMode === "random"
+    ? createRandomArrayValues(randomCount, { random })
+    : parseArrayInput(normalizedInput);
   const element = type === STRUCTURE_TYPES.GRAPH
     ? createGraphStructureElement(parseGraphInput(normalizedInput), point, zIndexStart)
     : type === STRUCTURE_TYPES.TREE
       ? createTreeStructureElement(parseTreeInput(normalizedInput), point, zIndexStart)
-      : createLinearStructureElement(type, parseArrayInput(normalizedInput), point, zIndexStart);
+      : createLinearStructureElement(type, linearValues, point, zIndexStart);
   return [element];
 }
 
 export function isLinearStructureElement(elementOrType) {
   const type = typeof elementOrType === "string" ? elementOrType : elementOrType?.type;
   return LINEAR_STRUCTURE_TYPES.includes(type);
+}
+
+export function isLinearStructureType(type) {
+  return LINEAR_STRUCTURE_TYPES.includes(getLinearElementType(type));
 }
 
 export function insertArrayItem(element, index = element?.items?.length ?? 0, value = "") {

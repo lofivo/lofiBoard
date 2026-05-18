@@ -42,7 +42,15 @@ describe("ui config", () => {
     const panel = structurePanelMarkup();
 
     expect(shell).toContain("data-structure-panel");
+    expect(panel).toContain("data-structure-input-label");
     expect(shell).toContain("data-structure-input");
+    expect(panel).toContain("data-linear-init-panel");
+    expect(panel).toContain("data-array-init-mode=\"manual\"");
+    expect(panel).toContain("data-array-init-mode=\"random\"");
+    expect(panel).toContain("data-array-random-fields hidden");
+    expect(panel).toContain("data-array-random-count");
+    expect(panel.indexOf("data-array-init-mode=\"random\"")).toBeLessThan(panel.indexOf("data-structure-input-label"));
+    expect(panel.indexOf("data-structure-input-label")).toBeLessThan(panel.indexOf("data-array-random-fields"));
     expect(panel).toContain("data-structure-type=\"array\"");
     expect(panel).toContain("data-structure-type=\"graph\"");
     expect(panel).toContain("data-structure-type=\"tree\"");

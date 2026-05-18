@@ -180,10 +180,22 @@ export function structurePanelMarkup() {
         </button>
       `).join("")}
     </div>
-    <label class="structure-input-label">
-      初始结构
-      <textarea data-structure-input rows="3" spellcheck="false"></textarea>
-    </label>
+    <div class="linear-init-panel" data-linear-init-panel>
+      <div class="segmented-control structure-init-mode" role="group" aria-label="线性结构初始化方式">
+        <button type="button" data-array-init-mode="manual">手填结构</button>
+        <button type="button" data-array-init-mode="random">随机生成</button>
+      </div>
+    </div>
+    <div class="structure-init-field">
+      <label class="structure-input-label" data-structure-input-label>
+        初始结构
+        <textarea data-structure-input rows="3" spellcheck="false"></textarea>
+      </label>
+      <label class="structure-count-label" data-array-random-fields hidden>
+        元素数量
+        <input data-array-random-count type="number" min="1" max="64" step="1" value="5" inputmode="numeric" />
+      </label>
+    </div>
     <div class="structure-actions">
       <button type="button" data-structure-cancel>取消</button>
       <button type="button" data-structure-insert>插入</button>
