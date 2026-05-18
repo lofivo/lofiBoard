@@ -578,7 +578,7 @@ button {
 }
 
 [data-panel-mode="multi"] .style-panel {
-  max-height: calc(100vh - 64px);
+  max-height: calc(100vh - 168px);
   padding-block: 14px;
 }
 

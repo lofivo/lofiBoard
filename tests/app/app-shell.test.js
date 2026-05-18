@@ -289,6 +289,19 @@ describe("app shell", () => {
     expect(appSource).toContain("syncBrushPresetButtons");
   });
 
+  it("syncs visible text and sticky typography controls from the selected element", () => {
+    const markup = renderShell();
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(markup).toContain('data-ui-control="font-size"');
+    expect(markup).toContain('data-ui-control="sticky-font-size"');
+    expect(appSource).toMatch(/function hydrateControlsFromElement\(element\) \{[\s\S]*?syncTextInspectorControls\(element\);[\s\S]*?syncShapeEndpointControls\(\);/);
+    expect(appSource).toContain("function syncTextInspectorControls(element = null)");
+    expect(appSource).toContain('root.querySelectorAll("[data-ui-control=\'font-size\'], [data-ui-control=\'sticky-font-size\']")');
+    expect(appSource).toMatch(/input\.value = fontSizeValue;/);
+    expect(appSource).toContain('input.value = element?.type === "sticky" && element.fill && element.fill !== "transparent"');
+  });
+
   it("flattens the brush tool inspector without the appearance section chrome", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
@@ -395,7 +408,8 @@ describe("app shell", () => {
     expect(appSource).toContain('["rect", "ellipse"].includes(element.type)');
     expect(appSource).toContain('if (element.type === "coordinate-plane" || element.type.endsWith?.("-structure")) return element;');
 
-    expect(styles).toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    expect(styles).toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 168px\);/);
+    expect(styles).not.toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
     expect(styles).toMatch(/\[data-panel-mode="multi"\] \.panel-body \{[\s\S]*?overflow-y: auto;/);
     expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-drawing="true"\] \.brush-inspector \{[\s\S]*?display: grid !important;/);
     expect(styles).toContain('[data-panel-mode="multi"][data-selection-has-text="true"] .text-inspector');
@@ -425,6 +439,14 @@ describe("app shell", () => {
     expect(appSource).toContain("colorInput.value = DEFAULT_PROPERTY_CONTROLS.color");
     expect(appSource).toContain("brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle");
     expect(appSource).toContain("fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize");
+  });
+
+  it("preserves property panel scroll when syncing without a context reset", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/const shouldResetScroll = forceReset \|\| nextContext !== activeInspectorContext;/);
+    expect(appSource).toMatch(/if \(shouldResetScroll\) \{[\s\S]*?panelBody\?\.scrollTo\?\.\(0, 0\);[\s\S]*?\}/);
+    expect(appSource).not.toMatch(/applyInspectorSectionState\(\);\s*panelBody\?\.scrollTo\?\.\(0, 0\);/);
   });
 
   it("keeps the style panel hidden for text and sticky tools until an element is selected", () => {
@@ -751,7 +773,7 @@ describe("app shell", () => {
   it("only enables direct array item editing while the select tool is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT");
+    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
   });
 
   it("returns to the select tool after adding non-pen, non-eraser elements", () => {
@@ -868,6 +890,8 @@ describe("app shell", () => {
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
     expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
+    expect(appSource).toMatch(/function handleArrayStructureItemSelect\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+    expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
   });
 
   it("uses custom SVG cursors for select and pan tools", () => {

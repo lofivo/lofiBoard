@@ -975,12 +975,15 @@ export function createWhiteboardApp(root) {
 
   function syncInspectorPanelState({ forceReset = false } = {}) {
     const nextContext = getInspectorContext();
-    if (forceReset || nextContext !== activeInspectorContext) {
+    const shouldResetScroll = forceReset || nextContext !== activeInspectorContext;
+    if (shouldResetScroll) {
       activeInspectorContext = nextContext;
       inspectorSectionsState = getDefaultInspectorSections(nextContext);
     }
     applyInspectorSectionState();
-    panelBody?.scrollTo?.(0, 0);
+    if (shouldResetScroll) {
+      panelBody?.scrollTo?.(0, 0);
+    }
   }
 
   function bindUiEvents() {
@@ -2032,7 +2035,7 @@ export function createWhiteboardApp(root) {
         if (isElementLocked(getElementIdFromNode(node))) return;
         finishNodeDragSelection(node);
       },
-      canEditArrayItems: currentTool === TOOLS.SELECT,
+      canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive(),
       onSelect: (event, node) => {
         if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
@@ -3611,6 +3614,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemSelect({ elementId, index }) {
+    if (isTemporaryPanActive()) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (suppressLinearItemSelect?.elementId === elementId) {
@@ -3622,6 +3626,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemPress({ elementId, index }) {
+    if (isTemporaryPanActive()) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     const worldPoint = getWorldPointer(stage);
@@ -4903,6 +4908,7 @@ export function createWhiteboardApp(root) {
     if (element.fontSize) fontSizeInput.value = String(element.fontSize);
     if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
     updateTextStyleButtons(element);
+    syncTextInspectorControls(element);
     syncShapeEndpointControls();
   }
 
@@ -4946,6 +4952,7 @@ export function createWhiteboardApp(root) {
     }
     syncBrushWidthControl();
     syncBrushPresetButtons();
+    syncTextInspectorControls();
     syncShapeEndpointControls();
     syncCoordinateControls();
     updateBrushCursorStyle();
@@ -4967,6 +4974,7 @@ export function createWhiteboardApp(root) {
     input.dispatchEvent(new Event(eventName, { bubbles: true }));
     syncBrushWidthControl();
     syncBrushPresetButtons();
+    syncTextInspectorControls();
     syncBrushPreview();
   }
 
@@ -5010,6 +5018,24 @@ export function createWhiteboardApp(root) {
     fillTransparentInput.checked = checked;
     root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
       input.checked = checked;
+    });
+  }
+
+  function syncTextInspectorControls(element = null) {
+    const fontSizeValue = String(Math.round(Number(fontSizeInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.fontSize)));
+    root.querySelectorAll("[data-ui-control='font-size'], [data-ui-control='sticky-font-size']").forEach((input) => {
+      input.value = fontSizeValue;
+    });
+    root.querySelectorAll("[data-ui-control='font-family'], [data-ui-control='sticky-font-family']").forEach((input) => {
+      input.value = fontFamilyInput.value;
+    });
+    root.querySelectorAll("[data-ui-control='text-color']").forEach((input) => {
+      input.value = colorInput.value;
+    });
+    root.querySelectorAll("[data-ui-control='fill']").forEach((input) => {
+      input.value = element?.type === "sticky" && element.fill && element.fill !== "transparent"
+        ? element.fill
+        : fillInput.value;
     });
   }
 
