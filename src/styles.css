@@ -567,6 +567,8 @@ button {
 
 [data-panel-mode="structure"] .style-panel {
   width: 284px;
+  max-height: calc(100vh - 168px);
+  padding-block: 14px;
 }
 
 [data-panel-mode="tool"] .style-panel,
@@ -735,6 +737,13 @@ button {
 }
 
 [data-panel-mode="multi"] .panel-body {
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+
+[data-panel-mode="structure"] .panel-body {
   gap: 12px;
   overflow-y: auto;
   padding-right: 3px;
@@ -955,6 +964,7 @@ button {
 .style-panel input[type="text"]:focus,
 .style-panel input[type="number"]:focus,
 .style-panel select:focus,
+.style-panel textarea:focus,
 .linear-field input:focus {
   border-color: var(--fluent-accent);
   background: var(--fluent-panel-bg-solid);
@@ -1567,6 +1577,50 @@ button {
   overflow: hidden;
 }
 
+.linear-values-field {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  color: var(--fluent-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.linear-values-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.linear-values-field textarea {
+  width: 100%;
+  min-width: 0;
+  max-height: 110px;
+  resize: vertical;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--fluent-stroke);
+  border-radius: 10px;
+  color: var(--fluent-text-primary);
+  background: #f8fafc;
+  font: 12px/1.45 "Courier New", monospace;
+  outline: none;
+}
+
+.linear-values-field button {
+  flex: 0 0 auto;
+  min-width: 74px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--fluent-text-secondary);
+  background: #f8fafc;
+  font-size: 12px;
+}
+
 .linear-panel-fields {
   display: grid;
   min-width: 0;
@@ -1598,6 +1652,11 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+[data-structure-selection]:not([data-structure-selection="array-structure"]) [data-linear-values-field],
+[data-structure-selection]:not([data-structure-selection="array-structure"]) [data-linear-values-action] {
+  display: none;
+}
+
 .quick-actions-compact button {
   height: 28px;
   padding-inline: 5px;
@@ -1608,6 +1667,30 @@ button {
 .quick-actions-graph,
 .quick-actions-tree {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tree-structure-field textarea {
+  width: 100%;
+  min-width: 0;
+  max-height: 150px;
+  resize: vertical;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--fluent-stroke);
+  border-radius: 10px;
+  color: var(--fluent-text-primary);
+  background: #f8fafc;
+  font: 12px/1.45 "Courier New", monospace;
+  outline: none;
+}
+
+[data-tree-kind="general"] [data-action="tree-highlight-inorder"] {
+  display: none;
+}
+
+[data-tree-kind="binary"] [data-action="tree-move-subtree"],
+[data-tree-kind="binary"] [data-action="tree-layout"] {
+  display: none;
 }
 
 .layer-list {

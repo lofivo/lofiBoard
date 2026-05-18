@@ -6,6 +6,7 @@ import {
   LINEAR_STRUCTURE_TYPES,
   STRUCTURE_ELEMENT_TYPES,
   TREE_STRUCTURE_STYLE,
+  addTreeEdge,
 } from "../structures/structure-templates.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 import { getTextDisplayValue } from "../services/latex-service.js";
@@ -360,10 +361,16 @@ export function createElementNode(element, {
   onArrayPointerPress,
   onGraphNodeMove,
   onGraphNodeClick,
+  onGraphNodeConnect,
+  onGraphNodeEdit,
   onGraphEdgeEdit,
   getGraphEdgeState,
   onTreeNodeEdit,
   onTreeNodeClick,
+  onTreeNodePress,
+  onTreeNodeMove,
+  onTreeNodeConnect,
+  getTreeConnectState,
 }) {
   let node;
   const common = {
@@ -543,11 +550,20 @@ export function createElementNode(element, {
     node = createGraphStructureNode(element, common, {
       onGraphNodeMove,
       onGraphNodeClick,
+      onGraphNodeConnect,
+      onGraphNodeEdit,
       onGraphEdgeEdit,
       getGraphEdgeState,
     });
   } else if (element.type === "tree-structure") {
-    node = createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeClick });
+    node = createTreeStructureNode(element, common, {
+      onTreeNodeEdit,
+      onTreeNodeClick,
+      onTreeNodePress,
+      onTreeNodeMove,
+      onTreeNodeConnect,
+      getTreeConnectState,
+    });
   }
 
   let didDrag = false;
@@ -1232,6 +1248,8 @@ function getLinearStructurePreviewX({
 function createGraphStructureNode(element, common, {
   onGraphNodeMove,
   onGraphNodeClick,
+  onGraphNodeConnect,
+  onGraphNodeEdit,
   onGraphEdgeEdit,
   getGraphEdgeState,
 } = {}) {
@@ -1370,6 +1388,18 @@ function createGraphStructureNode(element, common, {
     nodeGroup.on("dragend", (event) => {
       event.cancelBubble = true;
       group.draggable(Boolean(common.draggable));
+      const connectState = getGraphEdgeState?.(element.id);
+      const targetNodeId = getStructureNodeIdAtPoint(nodeGroups, node.id, nodeGroup.position(), style.nodeRadius);
+      if (connectState && targetNodeId) {
+        nodeGroup.position({ x: node.x, y: node.y });
+        refreshEdges();
+        onGraphNodeConnect?.({
+          elementId: element.id,
+          sourceNodeId: connectState.sourceNodeId ?? node.id,
+          targetNodeId,
+        });
+        return;
+      }
       onGraphNodeMove?.({
         elementId: element.id,
         nodeId: node.id,
@@ -1384,13 +1414,28 @@ function createGraphStructureNode(element, common, {
         nodeId: node.id,
       });
     });
+    nodeGroup.on("dblclick dbltap", (event) => {
+      event.cancelBubble = true;
+      onGraphNodeEdit?.({
+        elementId: element.id,
+        nodeId: node.id,
+        label: String(node.label ?? node.id),
+      });
+    });
     group.add(nodeGroup);
   }
 
   return group;
 }
 
-function createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeClick } = {}) {
+function createTreeStructureNode(element, common, {
+  onTreeNodeEdit,
+  onTreeNodeClick,
+  onTreeNodePress,
+  onTreeNodeMove,
+  onTreeNodeConnect,
+  getTreeConnectState,
+} = {}) {
   const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const group = new Konva.Group({
     ...common,
@@ -1400,60 +1445,122 @@ function createTreeStructureNode(element, common, { onTreeNodeEdit, onTreeNodeCl
     height: element.height,
   });
   const collapsed = new Set(element.markers?.collapsed ?? []);
-  const hidden = getCollapsedTreeIndexes(collapsed, Math.max(0, ...(element.nodes ?? []).map((node) => node.index ?? 0)));
-  const nodes = new Map((element.nodes ?? []).filter((node) => !hidden.has(node.index)).map((node) => [node.index, node]));
+  const hidden = getCollapsedTreeNodeIds(element, collapsed);
+  const nodes = new Map((element.nodes ?? []).filter((node) => !hidden.has(node.id)).map((node) => [node.id, node]));
+  const edgeRecords = [];
+  const nodeGroups = new Map();
 
-  for (const node of nodes.values()) {
-    if (node.parentIndex === null || node.parentIndex === undefined) continue;
-    const parent = nodes.get(node.parentIndex);
-    if (!parent) continue;
-    group.add(new Konva.Line({
+  const getNodePosition = (nodeId) => {
+    const nodeGroup = nodeGroups.get(nodeId);
+    if (nodeGroup) return { x: nodeGroup.x(), y: nodeGroup.y() };
+    const node = nodes.get(nodeId);
+    return node ? { x: node.x, y: node.y } : null;
+  };
+
+  const refreshEdges = () => {
+    for (const record of edgeRecords) {
+      const source = getNodePosition(record.edge.from);
+      const target = getNodePosition(record.edge.to);
+      if (!source || !target) continue;
+      record.line.points([source.x, source.y, target.x, target.y]);
+    }
+  };
+
+  for (const edge of element.edges ?? []) {
+    const parent = nodes.get(edge.from);
+    const node = nodes.get(edge.to);
+    if (!parent || !node) continue;
+    const line = new Konva.Line({
       points: [parent.x, parent.y, node.x, node.y],
       stroke: style.stroke,
       strokeWidth: 3,
       lineCap: "round",
       lineJoin: "round",
-    }));
+    });
+    group.add(line);
+    edgeRecords.push({ edge, line });
   }
 
   for (const node of nodes.values()) {
+    const nodeDraggable = Boolean(common.draggable) && element.settings?.treeKind !== "binary";
     const nodeGroup = new Konva.Group({
       name: "tree-node",
       x: node.x,
       y: node.y,
+      draggable: nodeDraggable,
+      treeNodeId: node.id,
     });
+    nodeGroups.set(node.id, nodeGroup);
     nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
       stroke: style.nodeStroke,
       strokeWidth: 2,
-      fill: (element.markers?.highlighted ?? []).includes(node.index) ? style.highlightFill : style.nodeFill,
+      fill: getTreeNodeFill(element, node, style, getTreeConnectState),
     }));
     nodeGroup.add(new Konva.Text({
       x: -style.nodeRadius,
       y: -12,
       width: style.nodeRadius * 2,
       height: 24,
-      text: String(node.value ?? ""),
+      text: String(node.label ?? node.value ?? ""),
       fontSize: 19,
       fontFamily: "Inter, system-ui, sans-serif",
       fill: style.textFill,
       align: "center",
       verticalAlign: "middle",
     }));
+    nodeGroup.on("dragstart", (event) => {
+      if (!nodeDraggable) return;
+      event.cancelBubble = true;
+      group.draggable(false);
+    });
+    nodeGroup.on("dragmove", (event) => {
+      if (!nodeDraggable) return;
+      event.cancelBubble = true;
+      refreshEdges();
+      group.getLayer()?.batchDraw();
+    });
+    nodeGroup.on("dragend", (event) => {
+      if (!nodeDraggable) return;
+      event.cancelBubble = true;
+      group.draggable(Boolean(common.draggable));
+      const connectState = getTreeConnectState?.(element.id);
+      const targetNodeId = getStructureNodeIdAtPoint(nodeGroups, node.id, nodeGroup.position(), style.nodeRadius);
+      if (connectState && targetNodeId) {
+        nodeGroup.position({ x: node.x, y: node.y });
+        refreshEdges();
+        onTreeNodeConnect?.({
+          elementId: element.id,
+          sourceNodeId: connectState.sourceNodeId ?? node.id,
+          targetNodeId,
+        });
+        return;
+      }
+      onTreeNodeMove?.({
+        elementId: element.id,
+        nodeId: node.id,
+        x: nodeGroup.x(),
+        y: nodeGroup.y(),
+      });
+    });
+    nodeGroup.on("mousedown touchstart", (event) => {
+      if (nodeDraggable) return;
+      onTreeNodePress?.(event, group);
+    });
     nodeGroup.on("dblclick dbltap", (event) => {
       event.cancelBubble = true;
       onTreeNodeEdit?.({
         elementId: element.id,
-        index: node.index,
-        value: String(node.value ?? ""),
+        nodeId: node.id,
+        label: String(node.label ?? node.value ?? ""),
       });
     });
     nodeGroup.on("click tap", (event) => {
       event.cancelBubble = true;
       onTreeNodeClick?.({
         elementId: element.id,
-        index: node.index,
+        nodeId: node.id,
       });
     });
     group.add(nodeGroup);
@@ -1539,24 +1646,43 @@ function getGraphEdgeLabelPoint(source, target, edgeIndex = 0) {
   };
 }
 
-function getCollapsedTreeIndexes(collapsed, maxIndex = 0) {
+function getStructureNodeIdAtPoint(nodeGroups, sourceNodeId, point, radius) {
+  const hitRadius = Math.max(18, Number(radius) || 24);
+  for (const [nodeId, nodeGroup] of nodeGroups) {
+    if (nodeId === sourceNodeId) continue;
+    const distance = Math.hypot(nodeGroup.x() - point.x, nodeGroup.y() - point.y);
+    if (distance <= hitRadius * 1.35) return nodeId;
+  }
+  return null;
+}
+
+function getCollapsedTreeNodeIds(element, collapsed) {
   const hidden = new Set();
-  const visit = (index) => {
-    if (index > maxIndex) return;
-    const left = index * 2 + 1;
-    const right = index * 2 + 2;
-    if (left <= maxIndex) hidden.add(left);
-    if (right <= maxIndex) hidden.add(right);
-    visit(left);
-    visit(right);
+  const children = new Map((element.nodes ?? []).map((node) => [node.id, []]));
+  for (const edge of element.edges ?? []) {
+    if (!children.has(edge.from)) children.set(edge.from, []);
+    children.get(edge.from).push(edge.to);
+  }
+  const visit = (nodeId) => {
+    for (const childId of children.get(nodeId) ?? []) {
+      hidden.add(childId);
+      visit(childId);
+    }
   };
-  for (const index of collapsed) visit(index);
+  for (const nodeId of collapsed) visit(nodeId);
   return hidden;
 }
 
 function getGraphNodeFill(element, node, style, getGraphEdgeState) {
   if ((element.markers?.highlightedNodes ?? []).includes(node.id)) return style.highlightFill;
   const state = getGraphEdgeState?.(element.id);
+  if (state?.sourceNodeId === node.id) return "#dbeafe";
+  return style.nodeFill;
+}
+
+function getTreeNodeFill(element, node, style, getTreeConnectState) {
+  if ((element.markers?.highlighted ?? []).includes(node.id)) return style.highlightFill;
+  const state = getTreeConnectState?.(element.id);
   if (state?.sourceNodeId === node.id) return "#dbeafe";
   return style.nodeFill;
 }

@@ -59,8 +59,8 @@ describe("ui config", () => {
 
   it("provides default structure input for panel resets", () => {
     expect(getStructureItem("array").defaultInput).toBe("1,2,3,4,5");
-    expect(getStructureItem("graph").defaultInput).toBe("A-B, A-C, B-D, C-D");
-    expect(getStructureItem("tree").defaultInput).toBe("A, B, C, D, E, F, G");
+    expect(getStructureItem("graph").defaultInput).toBe("A->B, A->C, B->D, C->D");
+    expect(getStructureItem("tree").defaultInput).toBe("A->B, A->C, B->D, B->E");
   });
 
   it("renders brush-specific controls in the property panel", () => {

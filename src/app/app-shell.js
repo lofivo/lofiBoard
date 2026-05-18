@@ -65,7 +65,7 @@ export function renderShell() {
 
       <aside class="style-panel" data-style-panel aria-label="属性">
         <div class="panel-title">
-          ${icon(PANEL_ICON)}<span>属性</span>
+          ${icon(PANEL_ICON)}<span data-style-panel-title>属性</span>
           <button type="button" class="panel-toggle" data-panel-toggle="style" title="收起/展开属性" aria-label="收起/展开属性">‹</button>
         </div>
         <div class="panel-body" data-panel-body>
@@ -300,6 +300,13 @@ export function renderShell() {
             <div class="inspector-section-content" data-section-content="linear">
               <div class="linear-structure-panel">
                 <div class="linear-panel-content-inner">
+                  <div class="linear-values-field" data-linear-values-field>
+                    <div class="linear-values-header">
+                      <span>当前数组结构</span>
+                      <button type="button" data-action="linear-apply-values" data-linear-values-action>应用结构</button>
+                    </div>
+                    <textarea data-linear-values-input rows="3" spellcheck="false" placeholder="1,2,3" aria-label="当前数组结构"></textarea>
+                  </div>
                   <div class="linear-panel-fields linear-panel-fields-highlight">
                     <label class="linear-field">
                       高亮起点
@@ -377,10 +384,13 @@ export function renderShell() {
               <span class="inspector-section-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="inspector-section-content" data-section-content="tree">
+              <label class="tree-structure-field">
+                <span>当前树结构</span>
+                <textarea data-tree-structure-input rows="5" spellcheck="false" placeholder="A->B&#10;A->C"></textarea>
+              </label>
               <div class="quick-actions quick-actions-tree">
                 <button type="button" data-action="tree-add-node">树加点</button>
-                <button type="button" data-action="tree-add-left">加左儿子</button>
-                <button type="button" data-action="tree-add-right">加右儿子</button>
+                <button type="button" data-action="tree-connect-mode">连接父子</button>
                 <button type="button" data-action="tree-set-value">改节点值</button>
                 <button type="button" data-action="tree-delete-subtree">删子树</button>
                 <button type="button" data-action="tree-highlight-level">层序高亮</button>
@@ -392,10 +402,12 @@ export function renderShell() {
                 <button type="button" data-action="tree-clear-highlight">清除高亮</button>
                 <button type="button" data-action="tree-collapse-subtree">折叠子树</button>
                 <button type="button" data-action="tree-expand-subtree">展开子树</button>
-                <button type="button" data-action="tree-copy-subtree">复制子树</button>
+                <button type="button" data-action="tree-copy-subtree">导出边表</button>
                 <button type="button" data-action="tree-move-subtree">移动子树</button>
                 <button type="button" data-action="tree-delete-node">删节点</button>
+                <button type="button" data-action="tree-layout">树形布局</button>
                 <button type="button" data-action="tree-reload">树重载</button>
+                <button type="button" data-action="tree-apply-structure">应用结构</button>
               </div>
             </div>
           </section>

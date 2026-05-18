@@ -113,6 +113,7 @@ import {
   insertArrayItem,
   deleteArrayItem,
   updateArrayItemValue,
+  updateArrayValues,
   moveArrayItem,
   setArrayHighlight,
   setArrayPointer,
@@ -127,15 +128,19 @@ import {
   moveGraphNode,
   setGraphDirectedDefault,
   updateGraphEdge,
+  updateGraphNodeLabel,
   setGraphHighlight,
   clearGraphHighlight,
   layoutGraph,
   exportGraph,
+  exportTree,
   importGraphFromText,
   updateGraphFromInput,
   addTreeNode,
-  addTreeChild,
+  addTreeEdge,
+  moveTreeNode,
   updateTreeNodeValue,
+  layoutTreeStructure,
   setTreeTraversalHighlight,
   stepTreeTraversalHighlight,
   clearTreeHighlight,
@@ -168,6 +173,7 @@ export function createWhiteboardApp(root) {
   const menuButton = root.querySelector("[data-menu-trigger]");
   const mainMenu = root.querySelector("[data-main-menu]");
   const stylePanel = root.querySelector("[data-style-panel]");
+  const stylePanelTitle = root.querySelector("[data-style-panel-title]");
   const shapePopover = root.querySelector("[data-shape-popover]");
   const structurePanel = root.querySelector("[data-structure-panel]");
   const structureInputLabel = root.querySelector("[data-structure-input-label]");
@@ -175,6 +181,7 @@ export function createWhiteboardApp(root) {
   const linearInitPanel = root.querySelector("[data-linear-init-panel]");
   const arrayRandomFields = root.querySelector("[data-array-random-fields]");
   const arrayRandomCountInput = root.querySelector("[data-array-random-count]");
+  const treeStructureInput = root.querySelector("[data-tree-structure-input]");
   const contextMenu = root.querySelector("[data-context-menu]");
   const layerPanel = root.querySelector("[data-layer-panel]");
   const panelBody = root.querySelector("[data-panel-body]");
@@ -214,6 +221,7 @@ export function createWhiteboardApp(root) {
     highlightEnd: root.querySelector("[data-linear-field='highlight-end']"),
     highlightPointer: root.querySelector("[data-linear-field='highlight-pointer']"),
   };
+  const linearValuesInput = root.querySelector("[data-linear-values-input]");
 
   let board = createEmptyBoard();
   let history = createHistory(board);
@@ -252,8 +260,8 @@ export function createWhiteboardApp(root) {
   let draftSaveTimer = null;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
-  let graphConnectState = null;
-  let activeTreeParent = null;
+  let structureConnectState = null;
+  let activeTreeNode = null;
   let activeLinearItem = null;
   let linearItemPressState = null;
   let linearItemDragState = null;
@@ -278,6 +286,7 @@ export function createWhiteboardApp(root) {
     highlightEnd: "0",
     highlightPointer: "0",
   };
+  let linearValuesDraft = "";
   const nodeRegistry = new Map();
   const nodeRenderSnapshots = new Map();
   const elementRenderSnapshotValues = new WeakMap();
@@ -473,6 +482,9 @@ export function createWhiteboardApp(root) {
     for (const button of root.querySelectorAll("[data-action]")) {
       button.addEventListener("click", () => runAction(button.dataset.action));
     }
+    linearValuesInput?.addEventListener("input", () => {
+      linearValuesDraft = linearValuesInput.value;
+    });
     root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-linear-item-action]");
       if (!button) return;
@@ -725,6 +737,7 @@ export function createWhiteboardApp(root) {
       "send-backward": sendSelectionBackward,
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
+      "linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, linearValuesDraft)),
       "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
         start: readLinearDisplayIndexField("highlightStart", element, 0),
         end: readLinearDisplayIndexField("highlightEnd", element, Math.max(0, (element.items?.length ?? 1) - 1)),
@@ -763,10 +776,9 @@ export function createWhiteboardApp(root) {
       "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
       "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInput.value), "已更新图"),
       "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, ""), "已更新树"),
-      "tree-add-left": () => editSelectedStructure("tree-structure", (element) => addTreeChild(element, getActiveTreeParentIndex(element), "left", promptValue("左孩子值", "")), "已更新树"),
-      "tree-add-right": () => editSelectedStructure("tree-structure", (element) => addTreeChild(element, getActiveTreeParentIndex(element), "right", promptValue("右孩子值", "")), "已更新树"),
-      "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, promptIndex("节点下标", 0), promptValue("节点值", element.values?.[0] ?? "")), "已更新树"),
-      "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, promptIndex("删除子树根下标", (element.values?.length ?? 1) - 1)), "已更新树"),
+      "tree-connect-mode": beginTreeConnectMode,
+      "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
+      "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, getActiveTreeNodeId(element)), "已更新树"),
       "tree-highlight-level": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "level"), "已高亮遍历"),
       "tree-highlight-preorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "preorder"), "已高亮遍历"),
       "tree-highlight-inorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "inorder"), "已高亮遍历"),
@@ -774,12 +786,14 @@ export function createWhiteboardApp(root) {
       "tree-step-next": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, 1), "已推进遍历"),
       "tree-step-prev": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, -1), "已回退遍历"),
       "tree-clear-highlight": () => editSelectedStructure("tree-structure", clearTreeHighlight, "已清除高亮"),
-      "tree-collapse-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeParentIndex(element), true), "已折叠子树"),
-      "tree-expand-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeParentIndex(element), false), "已展开子树"),
+      "tree-collapse-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeNodeId(element), true), "已折叠子树"),
+      "tree-expand-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeNodeId(element), false), "已展开子树"),
       "tree-copy-subtree": copySelectedTreeSubtree,
-      "tree-move-subtree": () => editSelectedStructure("tree-structure", (element) => moveTreeSubtree(element, getActiveTreeParentIndex(element), promptIndex("移动到目标下标", 0)), "已移动子树"),
+      "tree-move-subtree": () => editSelectedStructure("tree-structure", (element) => moveTreeSubtree(element, getActiveTreeNodeId(element), element.settings?.rootId), "已移动子树"),
       "tree-delete-node": () => editSelectedStructure("tree-structure", deleteLastTreeNode, "已更新树"),
+      "tree-layout": () => editSelectedStructure("tree-structure", layoutTreeStructure, "已更新树布局"),
       "tree-reload": () => editSelectedStructure("tree-structure", (element) => updateTreeFromInput(element, structureInput.value), "已更新树"),
+      "tree-apply-structure": () => editSelectedStructure("tree-structure", (element) => updateTreeFromInput(element, treeStructureInput.value), "已更新树"),
     };
 
     actions[action]?.();
@@ -877,9 +891,10 @@ export function createWhiteboardApp(root) {
       structureInput.value = item.defaultInput;
     }
     const activeTypeIsLinear = isLinearStructureType(activeStructureType);
-    linearInitPanel.hidden = !activeTypeIsLinear;
-    structureInputLabel.hidden = activeTypeIsLinear && activeArrayInitMode === "random";
-    arrayRandomFields.hidden = !activeTypeIsLinear || activeArrayInitMode !== "random";
+    const activeTypeSupportsRandom = activeTypeIsLinear || activeStructureType === STRUCTURE_TYPES.BINARY_TREE;
+    linearInitPanel.hidden = !activeTypeSupportsRandom;
+    structureInputLabel.hidden = activeTypeSupportsRandom && activeArrayInitMode === "random";
+    arrayRandomFields.hidden = !activeTypeSupportsRandom || activeArrayInitMode !== "random";
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });
@@ -2069,10 +2084,16 @@ export function createWhiteboardApp(root) {
       onArrayPointerPress: handleArrayPointerPress,
       onGraphNodeMove: moveGraphStructureNode,
       onGraphNodeClick: handleGraphNodeClick,
+      onGraphNodeConnect: connectGraphStructureNodes,
+      onGraphNodeEdit: editGraphStructureNode,
       onGraphEdgeEdit: editGraphStructureEdge,
-      getGraphEdgeState: (elementId) => (graphConnectState?.elementId === elementId ? graphConnectState : null),
+      getGraphEdgeState: (elementId) => (structureConnectState?.kind === "graph" && structureConnectState.elementId === elementId ? structureConnectState : null),
       onTreeNodeEdit: editTreeStructureNode,
       onTreeNodeClick: handleTreeNodeClick,
+      onTreeNodePress: handleTreeStructureNodePress,
+      onTreeNodeMove: moveTreeStructureNode,
+      onTreeNodeConnect: connectTreeStructureNodes,
+      getTreeConnectState: (elementId) => (structureConnectState?.kind === "tree" && structureConnectState.elementId === elementId ? structureConnectState : null),
     };
   }
 
@@ -2778,7 +2799,7 @@ export function createWhiteboardApp(root) {
     const elements = createStructureElements({
       type: activeStructureType,
       input: structureInput.value,
-      initMode: isLinearStructureType(activeStructureType) ? activeArrayInitMode : "manual",
+      initMode: isRandomStructureInitSupported(activeStructureType) ? activeArrayInitMode : "manual",
       randomCount: arrayRandomCountInput.value,
       point: getViewportCenterPoint(),
       zIndexStart: board.elements.length,
@@ -2791,6 +2812,10 @@ export function createWhiteboardApp(root) {
     setTool(TOOLS.SELECT);
     selectIds(elements.map((element) => element.id));
     pushHistory(`已添加${getStructureItem(activeStructureType).label}`);
+  }
+
+  function isRandomStructureInitSupported(type) {
+    return isLinearStructureType(type) || type === STRUCTURE_TYPES.BINARY_TREE;
   }
 
   function getViewportCenterPoint() {
@@ -2912,8 +2937,16 @@ export function createWhiteboardApp(root) {
   function syncLinearPanelState() {
     const element = getSelectedLinearStructure();
     if (!element) {
+      if (linearValuesInput && document.activeElement !== linearValuesInput) {
+        linearValuesInput.value = "";
+        linearValuesDraft = "";
+      }
       applyLinearPanelState(linearPanelState);
       return;
+    }
+    if (linearValuesInput && document.activeElement !== linearValuesInput) {
+      linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",");
+      linearValuesDraft = linearValuesInput.value;
     }
     const itemCount = element.items?.length ?? 0;
     const currentIndex = getActiveLinearIndex(element, 0);
@@ -3525,6 +3558,7 @@ export function createWhiteboardApp(root) {
     }
     renderBoard();
     selectIds([targetId]);
+    syncTreeStructurePanelState();
     pushHistory(message);
   }
 
@@ -3556,26 +3590,38 @@ export function createWhiteboardApp(root) {
       return element?.type === "graph-structure" && !element.locked;
     });
     if (!graphId) return;
-    graphConnectState = { elementId: graphId, sourceNodeId: null };
+    structureConnectState = { kind: "graph", elementId: graphId, sourceNodeId: null };
     renderBoard();
     selectIds([graphId]);
     setStatus("连边模式：点击源节点，再点击目标节点");
   }
 
+  function beginTreeConnectMode() {
+    const treeId = selectedIds.find((id) => {
+      const element = board.elements.find((item) => item.id === id);
+      return element?.type === "tree-structure" && !element.locked;
+    });
+    if (!treeId) return;
+    structureConnectState = { kind: "tree", elementId: treeId, sourceNodeId: null };
+    renderBoard();
+    selectIds([treeId]);
+    setStatus("连接父子：点击父节点，再点击子节点");
+  }
+
   function handleGraphNodeClick({ elementId, nodeId }) {
-    if (!graphConnectState || graphConnectState.elementId !== elementId) {
+    if (structureConnectState?.kind !== "graph" || structureConnectState.elementId !== elementId) {
       selectIds([elementId]);
       return;
     }
-    if (!graphConnectState.sourceNodeId) {
-      graphConnectState = { elementId, sourceNodeId: nodeId };
+    if (!structureConnectState.sourceNodeId) {
+      structureConnectState = { kind: "graph", elementId, sourceNodeId: nodeId };
       renderBoard();
       selectIds([elementId]);
       setStatus("连边模式：点击目标节点");
       return;
     }
-    const sourceNodeId = graphConnectState.sourceNodeId;
-    graphConnectState = null;
+    const sourceNodeId = structureConnectState.sourceNodeId;
+    structureConnectState = null;
     board.elements = board.elements.map((item) => (
       item.id === elementId
         ? addGraphEdge(item, sourceNodeId, nodeId, { directed: item.settings?.directedDefault ?? false })
@@ -3584,6 +3630,70 @@ export function createWhiteboardApp(root) {
     renderBoard();
     selectIds([elementId]);
     pushHistory("已添加图边");
+  }
+
+  function handleTreeNodeClick({ elementId, nodeId }) {
+    if (isTemporaryPanActive()) return;
+    if (structureConnectState?.kind !== "tree" || structureConnectState.elementId !== elementId) {
+      activeTreeNode = { elementId, nodeId };
+      selectIds([elementId]);
+      setStatus("已选择树节点");
+      return;
+    }
+    if (!structureConnectState.sourceNodeId) {
+      structureConnectState = { kind: "tree", elementId, sourceNodeId: nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      setStatus("连接父子：点击子节点");
+      return;
+    }
+    const sourceNodeId = structureConnectState.sourceNodeId;
+    structureConnectState = null;
+    const element = board.elements.find((item) => item.id === elementId);
+    const nextElement = addTreeEdge(element, sourceNodeId, nodeId);
+    if (nextElement === element) {
+      renderBoard();
+      selectIds([elementId]);
+      setStatus(element.settings?.treeKind === "binary" ? "二叉树父节点最多 2 个孩子" : "无法连接树节点");
+      return;
+    }
+    board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+    renderBoard();
+    selectIds([elementId]);
+    syncTreeStructurePanelState();
+    pushHistory("已连接树节点");
+  }
+
+  function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "graph-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
+    structureConnectState = null;
+    board.elements = board.elements.map((item) => (
+      item.id === elementId
+        ? addGraphEdge(item, sourceNodeId, targetNodeId, { directed: item.settings?.directedDefault ?? false })
+        : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已添加图边");
+  }
+
+  function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "tree-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
+    structureConnectState = null;
+    const nextElement = addTreeEdge(element, sourceNodeId, targetNodeId);
+    if (nextElement === element) {
+      renderBoard();
+      selectIds([elementId]);
+      setStatus(element.settings?.treeKind === "binary" ? "二叉树父节点最多 2 个孩子" : "无法连接树节点");
+      return;
+    }
+    board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+    renderBoard();
+    selectIds([elementId]);
+    syncTreeStructurePanelState();
+    pushHistory("已连接树节点");
   }
 
   function editGraphStructureEdge({ elementId, edgeId, directed, weight }) {
@@ -3597,6 +3707,18 @@ export function createWhiteboardApp(root) {
     renderBoard();
     selectIds([elementId]);
     pushHistory("已更新图边");
+  }
+
+  function editGraphStructureNode({ elementId, nodeId, label }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "graph-structure" || element.locked) return;
+    const nextLabel = promptValue("节点名称", label);
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? updateGraphNodeLabel(item, nodeId, nextLabel) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已更新图节点");
   }
 
   function editGraphEdgeData(element) {
@@ -3628,10 +3750,9 @@ export function createWhiteboardApp(root) {
   function copySelectedTreeSubtree() {
     const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
     if (!element) return;
-    const values = copyTreeSubtreeValues(element, getActiveTreeParentIndex(element));
-    const text = values.map((value) => value ?? "null").join(", ");
+    const text = exportTree(element);
     navigator.clipboard?.writeText?.(text).then(
-      () => setStatus("已复制子树层序数据"),
+      () => setStatus("已复制树边列表"),
       () => {
         structureInput.value = text;
         setStatus("无法访问剪贴板，已写入结构输入框");
@@ -3652,6 +3773,31 @@ export function createWhiteboardApp(root) {
     renderBoard();
     selectIds([elementId]);
     pushHistory("已移动图节点");
+  }
+
+  function moveTreeStructureNode({ elementId, nodeId, x, y }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "tree-structure" || element.locked) return;
+    if (element.settings?.treeKind === "binary") return;
+    board.elements = board.elements.map((item) => (
+      item.id === elementId ? moveTreeNode(item, nodeId, x, y) : item
+    ));
+    renderBoard();
+    selectIds([elementId]);
+    pushHistory("已移动树节点");
+  }
+
+  function handleTreeStructureNodePress(event, group) {
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
+    const elementId = getElementIdFromNode(group);
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
+    event.cancelBubble = true;
+    if (!selectedIds.includes(elementId)) selectIds([elementId]);
+    const worldPoint = getWorldPointer(stage);
+    if (!worldPoint) return;
+    beginSelectionDrag(worldPoint);
+    group.startDrag?.();
   }
 
   function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
@@ -3833,27 +3979,82 @@ export function createWhiteboardApp(root) {
     return group?.find(".array-item")?.find((node) => getLinearItemNodeIndex(node) === index) ?? null;
   }
 
-  function editTreeStructureNode({ elementId, index, value }) {
+  function editTreeStructureNode({ elementId, nodeId, label }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.locked) return;
-    const nextValue = promptValue("节点值", value);
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? updateTreeNodeValue(item, index, nextValue) : item
-    ));
     renderBoard();
     selectIds([elementId]);
-    pushHistory("已更新树节点");
+    requestAnimationFrame(() => editTreeStructureNodeInline({ elementId, nodeId, label }));
   }
 
-  function handleTreeNodeClick({ elementId, index }) {
-    activeTreeParent = { elementId, index };
-    selectIds([elementId]);
-    setStatus(`已选择父节点 ${index}`);
+  function editTreeStructureNodeInline({ elementId, nodeId, label }) {
+    const element = board.elements.find((item) => item.id === elementId);
+    const group = contentLayer.findOne(`#${elementId}`);
+    if (!element || element.type !== "tree-structure" || !group) return;
+    const treeNode = group.find(".tree-node").find((node) => node.getAttr("treeNodeId") === nodeId);
+    if (!treeNode) return;
+
+    const style = element.style ?? {};
+    const radius = Number(style.nodeRadius) || 24;
+    const absolute = treeNode.getAbsolutePosition();
+    const scale = stage.scaleX() * (group.scaleX() || 1);
+    const box = stage.container().getBoundingClientRect();
+    const input = document.createElement("input");
+    input.className = "cell-editor";
+    input.value = label;
+    input.style.left = `${box.left + absolute.x - radius * scale}px`;
+    input.style.top = `${box.top + absolute.y - radius * scale}px`;
+    input.style.width = `${radius * 2 * scale}px`;
+    input.style.height = `${radius * 2 * scale}px`;
+    input.style.borderRadius = "999px";
+    input.style.textAlign = "center";
+    input.style.fontSize = `${19 * scale}px`;
+    document.body.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = (commit) => {
+      if (closed) return;
+      closed = true;
+      const nextValue = input.value;
+      window.removeEventListener("pointerdown", handleTreeEditorOutsidePointerDown, { capture: true });
+      input.remove();
+      if (!commit) return;
+      board.elements = board.elements.map((item) => (
+        item.id === elementId ? updateTreeNodeValue(item, nodeId, nextValue) : item
+      ));
+      activeTreeNode = { elementId, nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory("已更新树节点");
+    };
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        close(true);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    });
+    input.addEventListener("blur", () => close(true));
+
+    const handleTreeEditorOutsidePointerDown = (event) => {
+      if (closed) return;
+      if (input.contains(event.target)) return;
+      suppressNextCanvasSelection = container.contains(event.target);
+      close(true);
+    };
+    window.addEventListener("pointerdown", handleTreeEditorOutsidePointerDown, { capture: true });
   }
 
-  function getActiveTreeParentIndex(element) {
-    if (activeTreeParent?.elementId === element.id) return activeTreeParent.index;
-    return promptIndex("父节点下标", 0);
+  function getActiveTreeNodeId(element) {
+    if (activeTreeNode?.elementId === element.id) return activeTreeNode.nodeId;
+    return element.settings?.rootId ?? element.nodes?.[0]?.id ?? null;
   }
 
   function bringSelectionToFront() {
@@ -4748,11 +4949,19 @@ export function createWhiteboardApp(root) {
       );
     });
     syncLinearPanelState();
+    syncTreeStructurePanelState();
     syncInspectorPanelState();
     syncBrushPresetButtons();
     updateLayerPanelAvailability();
     renderLayerPanel();
     updateContextPanel();
+  }
+
+  function syncTreeStructurePanelState() {
+    if (!treeStructureInput) return;
+    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
+    treeStructureInput.value = element ? exportTree(element) : "";
+    root.dataset.treeKind = element?.settings?.treeKind === "binary" ? "binary" : "general";
   }
 
   function updateLayerPanelAvailability() {
@@ -4801,6 +5010,58 @@ export function createWhiteboardApp(root) {
       "tree-structure": `树：${element.nodes?.length ?? 0} 节点`,
     };
     return labels[element.type] ?? element.type;
+  }
+
+  function syncPropertyPanelTitle(selectedElements = []) {
+    if (!stylePanelTitle) return;
+    stylePanelTitle.textContent = getPropertyPanelTitle(selectedElements);
+  }
+
+  function getPropertyPanelTitle(selectedElements) {
+    if (selectedElements.length !== 1) return "属性";
+    const element = selectedElements[0];
+    if (element.type === "tree-structure") return element.settings?.treeKind === "binary" ? "二叉树" : "树";
+    const elementTitles = {
+      stroke: "画笔",
+      text: "文字",
+      sticky: "便签",
+      image: "图片",
+      rect: "矩形",
+      ellipse: "椭圆",
+      line: "直线",
+      arrow: "箭头",
+      "coordinate-plane": "坐标系",
+      "array-structure": "数组",
+      "stack-structure": "栈",
+      "queue-structure": "队列",
+      "deque-structure": "双端队列",
+      "graph-structure": "图",
+    };
+    return elementTitles[element.type] ?? "属性";
+  }
+
+  function syncToolPropertyPanelTitle() {
+    if (!stylePanelTitle) return;
+    const toolTitles = {
+      [TOOLS.PEN]: "画笔",
+      [TOOLS.SHAPE]: getShapeToolTitle(activeShapeTool),
+      [TOOLS.RECT]: "矩形",
+      [TOOLS.ELLIPSE]: "椭圆",
+      [TOOLS.LINE]: "直线",
+      [TOOLS.ARROW]: "箭头",
+      [TOOLS.COORDINATE_PLANE]: "坐标系",
+    };
+    stylePanelTitle.textContent = toolTitles[currentTool] ?? "属性";
+  }
+
+  function getShapeToolTitle(shapeTool) {
+    return {
+      [TOOLS.RECT]: "矩形",
+      [TOOLS.ELLIPSE]: "椭圆",
+      [TOOLS.LINE]: "直线",
+      [TOOLS.ARROW]: "箭头",
+      [TOOLS.COORDINATE_PLANE]: "坐标系",
+    }[shapeTool] ?? "图形";
   }
 
   function escapeHtml(value) {
@@ -4892,6 +5153,7 @@ export function createWhiteboardApp(root) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       root.dataset.panelMode = mode;
+      syncPropertyPanelTitle(selectedElements);
       applyPanelState();
       return;
     }
@@ -4909,6 +5171,7 @@ export function createWhiteboardApp(root) {
           : ["line", "arrow"].includes(drawingTool)
             ? "linear-tool"
             : "tool";
+      syncToolPropertyPanelTitle();
       applyPanelState();
       return;
     }
@@ -4917,6 +5180,7 @@ export function createWhiteboardApp(root) {
     stylePanelAvailable = false;
     root.dataset.panelMode = "hidden";
     root.dataset.structureSelection = "none";
+    syncPropertyPanelTitle([]);
     syncSelectionInspectorDataset(getSelectionInspectorCapabilities([]));
     applyPanelState();
   }

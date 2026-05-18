@@ -7,6 +7,7 @@ export const STRUCTURE_TYPES = {
   DEQUE: "deque",
   GRAPH: "graph",
   TREE: "tree",
+  BINARY_TREE: "binary-tree",
 };
 
 export const STRUCTURE_ELEMENT_TYPES = {
@@ -53,14 +54,20 @@ export const STRUCTURE_ITEMS = [
   {
     id: STRUCTURE_TYPES.GRAPH,
     label: "图",
-    defaultInput: "A-B, A-C, B-D, C-D",
-    placeholder: "A-B, A-C, B-D",
+    defaultInput: "A->B, A->C, B->D, C->D",
+    placeholder: "A->B, A-C, B->D",
   },
   {
     id: STRUCTURE_TYPES.TREE,
     label: "树",
-    defaultInput: "A, B, C, D, E, F, G",
-    placeholder: "A, B, C, D, E, null, F",
+    defaultInput: "A->B, A->C, B->D, B->E",
+    placeholder: "A->B, A->C, B->D",
+  },
+  {
+    id: STRUCTURE_TYPES.BINARY_TREE,
+    label: "二叉树",
+    defaultInput: "A->B, A->C, B->D, B->E",
+    placeholder: "A->B, A->C, B->D",
   },
 ];
 
@@ -194,9 +201,17 @@ function splitEdgeWeight(edgeText) {
 }
 
 export function parseTreeInput(input) {
-  return splitCommaValues(input).map((value) => (
-    /^(null|nil|none|undefined|#)$/i.test(value) ? null : value
-  ));
+  const parsed = parseGraphInput(input);
+  return {
+    nodes: parsed.nodes,
+    edges: parsed.edges
+      .filter((edge) => edge.directed)
+      .map((edge) => ({
+        id: edge.id,
+        from: edge.from,
+        to: edge.to,
+      })),
+  };
 }
 
 export function createStructureElements({ type, input, point, zIndexStart = 0, initMode = "manual", randomCount, random } = {}) {
@@ -207,9 +222,20 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
   const element = type === STRUCTURE_TYPES.GRAPH
     ? createGraphStructureElement(parseGraphInput(normalizedInput), point, zIndexStart)
     : type === STRUCTURE_TYPES.TREE
-      ? createTreeStructureElement(parseTreeInput(normalizedInput), point, zIndexStart)
+      ? createTreeStructureElement(parseTreeInput(normalizedInput), point, zIndexStart, { treeKind: "general" })
+      : type === STRUCTURE_TYPES.BINARY_TREE
+        ? createTreeStructureElement(
+          parseTreeInput(initMode === "random" ? createCompleteBinaryTreeInput(randomCount) : normalizedInput),
+          point,
+          zIndexStart,
+          { treeKind: "binary" },
+        )
       : createLinearStructureElement(type, linearValues, point, zIndexStart);
   return [element];
+}
+
+export function isBinaryTreeStructure(element) {
+  return element?.type === STRUCTURE_ELEMENT_TYPES.TREE && element.settings?.treeKind === "binary";
 }
 
 export function isLinearStructureElement(elementOrType) {
@@ -385,22 +411,22 @@ export function setLinearIndexOptions(element, { indexBase = element?.settings?.
 
 export function addGraphNode(element, label = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH) return element;
-  const existing = new Set((element.nodes ?? []).map((node) => node.id));
+  const existing = new Set((element.nodes ?? []).map((node) => node.label));
   const nextLabel = String(label || getNextGraphNodeLabel(existing));
   if (existing.has(nextLabel)) return element;
   const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const nodes = [...(element.nodes ?? [])];
   const angle = (-Math.PI / 2) + (Math.PI * 2 * nodes.length) / Math.max(1, nodes.length + 1);
   nodes.push({
-    id: nextLabel,
+    id: createId("graph_node"),
     label: nextLabel,
     x: element.width / 2 + Math.cos(angle) * Math.max(40, element.width / 3 - style.nodeRadius),
     y: element.height / 2 + Math.sin(angle) * Math.max(40, element.height / 3 - style.nodeRadius),
   });
-  return {
+  return normalizeStructureBounds({
     ...element,
     nodes,
-  };
+  }, GRAPH_STRUCTURE_STYLE);
 }
 
 export function addGraphEdge(element, from = null, to = null, { directed = false, weight = "" } = {}) {
@@ -410,7 +436,7 @@ export function addGraphEdge(element, from = null, to = null, { directed = false
   const source = from ?? nodes.at(-2)?.id;
   const target = to ?? nodes.at(-1)?.id;
   if (!source || !target) return element;
-  return {
+  return normalizeStructureBounds({
     ...element,
     edges: [
       ...(element.edges ?? []),
@@ -422,29 +448,38 @@ export function addGraphEdge(element, from = null, to = null, { directed = false
         weight: String(weight ?? ""),
       },
     ],
-  };
+  }, GRAPH_STRUCTURE_STYLE);
 }
 
 export function addGraphEdgeFromText(element, input) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH) return element;
   const graph = parseGraphInput(input);
   if (graph.edges.length === 0) return element;
-  const existingNodes = new Set((element.nodes ?? []).map((node) => node.id));
-  const withNodes = graph.nodes.reduce((current, label) => (
-    existingNodes.has(label) ? current : addGraphNode(current, label)
-  ), element);
-  return {
+  let withNodes = element;
+  for (const label of graph.nodes) {
+    if (!(withNodes.nodes ?? []).some((node) => node.label === label)) {
+      withNodes = addGraphNode(withNodes, label);
+    }
+  }
+  const nodeIdByLabel = new Map((withNodes.nodes ?? []).map((node) => [node.label, node.id]));
+  return normalizeStructureBounds({
     ...withNodes,
     edges: [
       ...(withNodes.edges ?? []),
-      ...graph.edges,
+      ...graph.edges
+        .map((edge) => ({
+          ...edge,
+          from: nodeIdByLabel.get(edge.from),
+          to: nodeIdByLabel.get(edge.to),
+        }))
+        .filter((edge) => edge.from && edge.to),
     ],
     settings: {
       ...(withNodes.settings ?? {}),
       directedDefault: (withNodes.settings?.directedDefault ?? false) || graph.edges.some((edge) => edge.directed),
       weightedDefault: (withNodes.settings?.weightedDefault ?? false) || graph.edges.some((edge) => edge.weight),
     },
-  };
+  }, GRAPH_STRUCTURE_STYLE);
 }
 
 export function deleteGraphEdge(element, edgeId = null) {
@@ -482,16 +517,12 @@ export function deleteGraphNode(element, nodeId = null) {
 
 export function moveGraphNode(element, nodeId, x, y) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH || !nodeId) return element;
-  const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
-  const radius = style.nodeRadius;
-  const nextX = clampNumber(Number(x), radius, Math.max(radius, (element.width ?? radius * 2) - radius));
-  const nextY = clampNumber(Number(y), radius, Math.max(radius, (element.height ?? radius * 2) - radius));
-  return {
+  return normalizeStructureBounds({
     ...element,
     nodes: (element.nodes ?? []).map((node) => (
-      node.id === nodeId ? { ...node, x: nextX, y: nextY } : node
+      node.id === nodeId ? { ...node, x: Number(x), y: Number(y) } : node
     )),
-  };
+  }, GRAPH_STRUCTURE_STYLE);
 }
 
 export function setGraphDirectedDefault(element, directedDefault = true) {
@@ -520,6 +551,16 @@ export function updateGraphEdge(element, edgeId = null, updates = {}) {
           weight: updates.weight === undefined ? edge.weight : String(updates.weight ?? ""),
         }
         : edge
+    )),
+  };
+}
+
+export function updateGraphNodeLabel(element, nodeId, label = "") {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH || !nodeId) return element;
+  return {
+    ...element,
+    nodes: (element.nodes ?? []).map((node) => (
+      node.id === nodeId ? { ...node, label: String(label ?? "") } : node
     )),
   };
 }
@@ -610,13 +651,14 @@ export function exportGraph(element, format = "edge-list") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH) return "";
   const nodes = element.nodes ?? [];
   const edges = element.edges ?? [];
+  const labelById = new Map(nodes.map((node) => [node.id, node.label ?? node.id]));
   if (format === "adjacency-list") {
     const adjacency = new Map(nodes.map((node) => [node.id, []]));
     for (const edge of edges) {
-      adjacency.get(edge.from)?.push(formatAdjacentTarget(edge.to, edge.weight));
-      if (!edge.directed) adjacency.get(edge.to)?.push(formatAdjacentTarget(edge.from, edge.weight));
+      adjacency.get(edge.from)?.push(formatAdjacentTarget(labelById.get(edge.to) ?? edge.to, edge.weight));
+      if (!edge.directed) adjacency.get(edge.to)?.push(formatAdjacentTarget(labelById.get(edge.from) ?? edge.from, edge.weight));
     }
-    return nodes.map((node) => `${node.id}: ${(adjacency.get(node.id) ?? []).join(", ")}`).join("\n");
+    return nodes.map((node) => `${node.label ?? node.id}: ${(adjacency.get(node.id) ?? []).join(", ")}`).join("\n");
   }
   if (format === "adjacency-matrix") {
     const indexes = new Map(nodes.map((node, index) => [node.id, index]));
@@ -630,11 +672,34 @@ export function exportGraph(element, format = "edge-list") {
       if (!edge.directed) matrix[to][from] = value;
     }
     return [
-      `,${nodes.map((node) => node.id).join(",")}`,
-      ...matrix.map((row, index) => `${nodes[index].id},${row.join(",")}`),
+      `,${nodes.map((node) => node.label ?? node.id).join(",")}`,
+      ...matrix.map((row, index) => `${nodes[index].label ?? nodes[index].id},${row.join(",")}`),
     ].join("\n");
   }
-  return edges.map((edge) => `${edge.from}${edge.directed ? "->" : "-"}${edge.to}${edge.weight ? `:${edge.weight}` : ""}`).join(", ");
+  return edges.map((edge) => {
+    const from = labelById.get(edge.from) ?? edge.from;
+    const to = labelById.get(edge.to) ?? edge.to;
+    return `${from}${edge.directed ? "->" : "-"}${to}${edge.weight ? `:${edge.weight}` : ""}`;
+  }).join(", ");
+}
+
+export function exportTree(element) {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return "";
+  const nodes = element.nodes ?? [];
+  const edges = element.edges ?? [];
+  const labelById = new Map(nodes.map((node) => [node.id, node.label ?? node.id]));
+  const edgeText = edges
+    .map((edge) => {
+      const from = labelById.get(edge.from);
+      const to = labelById.get(edge.to);
+      return from && to ? `${from}->${to}` : "";
+    })
+    .filter(Boolean);
+  const connected = new Set(edges.flatMap((edge) => [edge.from, edge.to]));
+  const standalone = nodes
+    .filter((node) => !connected.has(node.id))
+    .map((node) => node.label ?? node.id);
+  return [...edgeText, ...standalone].join("\n");
 }
 
 export function importGraphFromText(element, input, format = "edge-list") {
@@ -692,17 +757,28 @@ export function updateGraphFromInput(element, input) {
 }
 
 function updateGraphFromParsedGraph(element, graph) {
-  const previousNodes = new Map((element.nodes ?? []).map((node) => [node.id, node]));
+  const previousNodesByLabel = new Map((element.nodes ?? []).map((node) => [node.label ?? node.id, node]));
   const created = createGraphStructureElement(graph, {
     x: element.x + element.width / 2,
     y: element.y + element.height / 2,
   }, element.zIndex ?? 0);
+  const nodes = created.nodes.map((node) => {
+    const previous = previousNodesByLabel.get(node.label);
+    return previous ? { ...node, id: previous.id, x: previous.x, y: previous.y } : node;
+  });
+  const idByLabel = new Map(nodes.map((node) => [node.label, node.id]));
   return {
     ...element,
     width: created.width,
     height: created.height,
-    nodes: created.nodes.map((node) => previousNodes.get(node.id) ?? node),
-    edges: created.edges,
+    nodes,
+    edges: graph.edges
+      .map((edge) => ({
+        ...edge,
+        from: idByLabel.get(edge.from),
+        to: idByLabel.get(edge.to),
+      }))
+      .filter((edge) => edge.from && edge.to),
     settings: created.settings,
     style: { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) },
   };
@@ -710,10 +786,11 @@ function updateGraphFromParsedGraph(element, graph) {
 
 export function updateTreeFromInput(element, input) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
+  const treeKind = element.settings?.treeKind === "binary" ? "binary" : "general";
   const created = createTreeStructureElement(parseTreeInput(input), {
     x: element.x + element.width / 2,
     y: element.y + element.height / 2,
-  }, element.zIndex ?? 0);
+  }, element.zIndex ?? 0, { treeKind });
   return {
     ...element,
     x: created.x,
@@ -721,36 +798,100 @@ export function updateTreeFromInput(element, input) {
     width: created.width,
     height: created.height,
     nodes: created.nodes,
-    values: created.values,
+    edges: created.edges,
+    settings: created.settings,
+    markers: {
+      ...(element.markers ?? {}),
+      collapsed: [],
+      highlighted: [],
+    },
     style: { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) },
   };
 }
 
 export function addTreeNode(element, value = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  return updateTreeFromInput(element, [...(element.values ?? []), String(value)].join(", "));
+  const existing = new Set((element.nodes ?? []).map((node) => node.label));
+  const label = String(value || getNextGraphNodeLabel(existing));
+  if (existing.has(label)) return element;
+  const radius = (element.style?.nodeRadius ?? TREE_STRUCTURE_STYLE.nodeRadius);
+  return normalizeStructureBounds({
+    ...element,
+    nodes: [
+      ...(element.nodes ?? []),
+      {
+        id: createId("tree_node"),
+        label,
+        x: (Number(element.width) || radius * 4) / 2,
+        y: (Number(element.height) || radius * 4) / 2,
+      },
+    ],
+  }, TREE_STRUCTURE_STYLE);
 }
 
 export function addTreeChild(element, parentIndex = 0, side = "left", value = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const parent = (element.nodes ?? []).find((node) => node.index === Number(parentIndex));
-  if (!parent) return element;
-  const targetIndex = parent.index * 2 + (side === "right" ? 2 : 1);
-  const values = [...(element.values ?? [])];
-  while (values.length <= targetIndex) values.push(null);
-  values[targetIndex] = String(value ?? "");
-  return updateTreeFromInput(element, values.map((item) => item ?? "null").join(", "));
+  const parentId = String(parentIndex);
+  const withNode = addTreeNode(element, value);
+  const child = withNode.nodes.at(-1);
+  return child ? addTreeEdge(withNode, parentId, child.id) : element;
 }
 
 export function updateTreeNodeValue(element, nodeIndex = 0, value = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const targetIndex = Number(nodeIndex);
-  const values = [...(element.values ?? [])];
-  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= values.length || values[targetIndex] === null) {
-    return element;
-  }
-  values[targetIndex] = String(value ?? "");
-  return updateTreeFromInput(element, values.map((item) => item ?? "null").join(", "));
+  const targetId = String(nodeIndex);
+  if (!(element.nodes ?? []).some((node) => node.id === targetId)) return element;
+  return {
+    ...element,
+    nodes: (element.nodes ?? []).map((node) => (
+      node.id === targetId ? { ...node, label: String(value ?? "") } : node
+    )),
+  };
+}
+
+export function moveTreeNode(element, nodeId, x, y) {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE || !nodeId) return element;
+  if (isBinaryTreeStructure(element)) return element;
+  return normalizeStructureBounds({
+    ...element,
+    nodes: (element.nodes ?? []).map((node) => (
+      node.id === nodeId ? { ...node, x: Number(x), y: Number(y) } : node
+    )),
+  }, TREE_STRUCTURE_STYLE);
+}
+
+export function layoutTreeStructure(element) {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
+  const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  return normalizeStructureBounds(layoutTree(element, {
+    levelGap: style.levelGap,
+    leafGap: style.leafGap,
+    nodeRadius: style.nodeRadius,
+  }), TREE_STRUCTURE_STYLE);
+}
+
+export function addTreeEdge(element, from = null, to = null) {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE || !from || !to || from === to) return element;
+  const nodeIds = new Set((element.nodes ?? []).map((node) => node.id));
+  const source = String(from);
+  const target = String(to);
+  if (!nodeIds.has(source) || !nodeIds.has(target)) return element;
+  const binary = isBinaryTreeStructure(element);
+  const currentEdges = element.edges ?? [];
+  if (binary && currentEdges.filter((edge) => edge.from === source && edge.to !== target).length >= 2) return element;
+  const withoutPreviousParent = currentEdges.filter((edge) => edge.to !== target);
+  const nextEdges = [...withoutPreviousParent, { id: createId("tree_edge"), from: source, to: target }];
+  const normalized = normalizeTreeEdges(nextEdges, element.settings?.rootId ?? getDefaultTreeRootId([...nodeIds], nextEdges), { binary });
+  if (normalized.length !== nextEdges.length) return element;
+  const nextElement = {
+    ...element,
+    edges: normalized,
+    settings: {
+      ...(element.settings ?? {}),
+      rootId: element.settings?.rootId ?? getDefaultTreeRootId([...nodeIds], normalized),
+    },
+  };
+  return binary ? layoutTreeStructure(nextElement) : nextElement;
 }
 
 export function setTreeTraversalHighlight(element, mode = "level") {
@@ -798,109 +939,119 @@ export function stepTreeTraversalHighlight(element, direction = 1) {
 
 export function setTreeSubtreeCollapsed(element, nodeIndex = 0, collapsed = true) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const targetIndex = Number(nodeIndex);
-  if (!Number.isInteger(targetIndex)) return element;
+  const targetId = String(nodeIndex);
+  if (!(element.nodes ?? []).some((node) => node.id === targetId)) return element;
   const collapsedSet = new Set(element.markers?.collapsed ?? []);
   if (collapsed) {
-    collapsedSet.add(targetIndex);
+    collapsedSet.add(targetId);
   } else {
-    collapsedSet.delete(targetIndex);
+    collapsedSet.delete(targetId);
   }
   return {
     ...element,
     markers: {
       ...(element.markers ?? {}),
-      collapsed: [...collapsedSet].sort((a, b) => a - b),
+      collapsed: [...collapsedSet],
     },
   };
 }
 
 export function copyTreeSubtreeValues(element, nodeIndex = 0) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return [];
-  const targetIndex = Number(nodeIndex);
-  const values = element.values ?? [];
-  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= values.length || values[targetIndex] === null) {
-    return [];
-  }
-  const copied = [];
-  const visit = (sourceIndex, targetPosition) => {
-    if (sourceIndex >= values.length || values[sourceIndex] === null) return;
-    copied[targetPosition] = values[sourceIndex];
-    visit(sourceIndex * 2 + 1, targetPosition * 2 + 1);
-    visit(sourceIndex * 2 + 2, targetPosition * 2 + 2);
+  const targetId = String(nodeIndex);
+  const nodeById = new Map((element.nodes ?? []).map((node) => [node.id, node]));
+  if (!nodeById.has(targetId)) return [];
+  const children = getTreeChildrenMap(element);
+  const values = [];
+  const visit = (nodeId) => {
+    const node = nodeById.get(nodeId);
+    if (!node) return;
+    values.push(node.label ?? node.value ?? "");
+    for (const childId of children.get(nodeId) ?? []) visit(childId);
   };
-  visit(targetIndex, 0);
-  return copied.map((value) => value ?? null);
+  visit(targetId);
+  return values;
 }
 
 export function moveTreeSubtree(element, fromIndex = 0, toIndex = 0) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const source = Number(fromIndex);
-  const target = Number(toIndex);
-  const values = [...(element.values ?? [])];
-  if (!Number.isInteger(source) || !Number.isInteger(target) || source < 0 || target < 0 || source >= values.length || values[source] === null) {
-    return element;
-  }
-  const subtree = copyTreeSubtreeValues(element, source);
-  const remove = (index) => {
-    if (index >= values.length) return;
-    values[index] = null;
-    remove(index * 2 + 1);
-    remove(index * 2 + 2);
-  };
-  const place = (relativeIndex, targetRoot) => {
-    if (relativeIndex >= subtree.length || subtree[relativeIndex] === null) return;
-    while (values.length <= targetRoot) values.push(null);
-    values[targetRoot] = subtree[relativeIndex];
-    place(relativeIndex * 2 + 1, targetRoot * 2 + 1);
-    place(relativeIndex * 2 + 2, targetRoot * 2 + 2);
-  };
-  remove(source);
-  place(0, target);
-  while (values.length > 0 && values.at(-1) === null) values.pop();
-  return updateTreeFromInput(element, values.map((item) => item ?? "null").join(", "));
+  return addTreeEdge(element, toIndex, fromIndex);
 }
 
-export function deleteTreeSubtree(element, nodeIndex = (element?.values?.length ?? 1) - 1) {
+export function deleteTreeSubtree(element, nodeIndex = element?.nodes?.at(-1)?.id) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const targetIndex = Number(nodeIndex);
-  const values = [...(element.values ?? [])];
-  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= values.length || values[targetIndex] === null) {
-    return element;
-  }
-  const remove = (index) => {
-    if (index >= values.length) return;
-    values[index] = null;
-    remove(index * 2 + 1);
-    remove(index * 2 + 2);
+  const targetId = String(nodeIndex);
+  if (!(element.nodes ?? []).some((node) => node.id === targetId)) return element;
+  const children = getTreeChildrenMap(element);
+  const removed = new Set();
+  const visit = (nodeId) => {
+    removed.add(nodeId);
+    for (const childId of children.get(nodeId) ?? []) visit(childId);
   };
-  remove(targetIndex);
-  while (values.length > 0 && values.at(-1) === null) values.pop();
-  return updateTreeFromInput(element, values.map((item) => item ?? "null").join(", "));
+  visit(targetId);
+  const nodes = (element.nodes ?? []).filter((node) => !removed.has(node.id));
+  const edges = (element.edges ?? []).filter((edge) => !removed.has(edge.from) && !removed.has(edge.to));
+  const rootId = nodes.some((node) => node.id === element.settings?.rootId)
+    ? element.settings.rootId
+    : getDefaultTreeRootId(nodes.map((node) => node.id), edges);
+  return {
+    ...element,
+    nodes,
+    edges,
+    settings: { ...(element.settings ?? {}), rootId },
+    markers: {
+      ...(element.markers ?? {}),
+      collapsed: (element.markers?.collapsed ?? []).filter((id) => !removed.has(id)),
+      highlighted: (element.markers?.highlighted ?? []).filter((id) => !removed.has(id)),
+    },
+  };
 }
 
 export function deleteLastTreeNode(element) {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  return updateTreeFromInput(element, (element.values ?? []).slice(0, -1).join(", "));
+  const targetId = element.nodes?.at(-1)?.id;
+  return targetId ? deleteTreeSubtree(element, targetId) : element;
 }
 
 export function getTreeTraversalOrder(element, mode = "level") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return [];
-  const nodes = [...(element.nodes ?? [])].sort((a, b) => a.index - b.index);
-  const byIndex = new Map(nodes.map((node) => [node.index, node]));
-  if (mode === "level") return nodes.map((node) => node.index);
-
-  const visit = (index, order) => {
-    const node = byIndex.get(index);
-    if (!node) return;
-    if (mode === "preorder") order.push(index);
-    visit(index * 2 + 1, order);
-    if (mode === "inorder") order.push(index);
-    visit(index * 2 + 2, order);
-    if (mode === "postorder") order.push(index);
-  };
+  if (mode === "inorder" && !isBinaryTreeStructure(element)) return [];
+  const nodeIds = (element.nodes ?? []).map((node) => node.id);
+  if (nodeIds.length === 0) return [];
+  const rootId = element.settings?.rootId && nodeIds.includes(element.settings.rootId)
+    ? element.settings.rootId
+    : getDefaultTreeRootId(nodeIds, element.edges ?? []);
+  const children = getTreeChildrenMap(element);
+  if (mode === "level") {
+    const queue = [rootId];
+    const visited = new Set();
+    const order = [];
+    while (queue.length > 0) {
+      const id = queue.shift();
+      if (!id || visited.has(id)) continue;
+      visited.add(id);
+      order.push(id);
+      queue.push(...(children.get(id) ?? []));
+    }
+    return [...order, ...nodeIds.filter((id) => !visited.has(id))];
+  }
   const order = [];
-  visit(0, order);
+  const visit = (nodeId) => {
+    if (mode === "inorder") {
+      const [left, right] = children.get(nodeId) ?? [];
+      if (left) visit(left);
+      order.push(nodeId);
+      if (right) visit(right);
+      return;
+    }
+    if (mode === "preorder") order.push(nodeId);
+    for (const childId of children.get(nodeId) ?? []) visit(childId);
+    if (mode === "postorder") order.push(nodeId);
+  };
+  visit(rootId);
+  for (const id of nodeIds) {
+    if (!order.includes(id)) visit(id);
+  }
   return order;
 }
 
@@ -1021,6 +1172,138 @@ function forceLayoutGraph(element, style) {
   };
 }
 
+function normalizeStructureBounds(element, defaultStyle) {
+  const style = { ...defaultStyle, ...(element.style ?? {}) };
+  const radius = Number(style.nodeRadius) || 24;
+  const nodes = element.nodes ?? [];
+  if (nodes.length === 0) {
+    return {
+      ...element,
+      width: Math.max(radius * 2, Number(element.width) || radius * 2),
+      height: Math.max(radius * 2, Number(element.height) || radius * 2),
+      style,
+    };
+  }
+  const minX = Math.min(...nodes.map((node) => Number(node.x) || 0)) - radius;
+  const minY = Math.min(...nodes.map((node) => Number(node.y) || 0)) - radius;
+  const maxX = Math.max(...nodes.map((node) => Number(node.x) || 0)) + radius;
+  const maxY = Math.max(...nodes.map((node) => Number(node.y) || 0)) + radius;
+  const shiftX = Math.min(0, minX);
+  const shiftY = Math.min(0, minY);
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    x: (Number(node.x) || 0) - shiftX,
+    y: (Number(node.y) || 0) - shiftY,
+  }));
+  return {
+    ...element,
+    x: (Number(element.x) || 0) + shiftX,
+    y: (Number(element.y) || 0) + shiftY,
+    width: Math.max(Number(element.width) || 0, maxX - shiftX),
+    height: Math.max(Number(element.height) || 0, maxY - shiftY),
+    nodes: nextNodes,
+    style,
+  };
+}
+
+function getDefaultTreeRootId(nodeIds, edges) {
+  const incoming = new Set((edges ?? []).map((edge) => edge.to));
+  return nodeIds.find((id) => !incoming.has(id)) ?? nodeIds[0] ?? null;
+}
+
+function normalizeTreeEdges(edges, rootId = null, { binary = false } = {}) {
+  const result = [];
+  const parentByChild = new Map();
+  const childCountByParent = new Map();
+  for (const edge of edges ?? []) {
+    if (!edge.from || !edge.to || edge.from === edge.to) continue;
+    if (parentByChild.has(edge.to)) continue;
+    if (binary && (childCountByParent.get(edge.from) ?? 0) >= 2) continue;
+    const candidate = [...result, { id: edge.id ?? createId("tree_edge"), from: edge.from, to: edge.to }];
+    if (treeEdgesHaveCycle(candidate)) continue;
+    parentByChild.set(edge.to, edge.from);
+    childCountByParent.set(edge.from, (childCountByParent.get(edge.from) ?? 0) + 1);
+    result.push(candidate.at(-1));
+  }
+  if (!rootId) return result;
+  return result.filter((edge) => edge.to !== rootId);
+}
+
+function treeEdgesHaveCycle(edges) {
+  const children = new Map();
+  for (const edge of edges) {
+    if (!children.has(edge.from)) children.set(edge.from, []);
+    children.get(edge.from).push(edge.to);
+  }
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) return true;
+    if (visited.has(id)) return false;
+    visiting.add(id);
+    for (const child of children.get(id) ?? []) {
+      if (visit(child)) return true;
+    }
+    visiting.delete(id);
+    visited.add(id);
+    return false;
+  };
+  return [...children.keys()].some((id) => visit(id));
+}
+
+function getTreeChildrenMap(element) {
+  const children = new Map((element.nodes ?? []).map((node) => [node.id, []]));
+  for (const edge of element.edges ?? []) {
+    if (!children.has(edge.from)) children.set(edge.from, []);
+    children.get(edge.from).push(edge.to);
+  }
+  return children;
+}
+
+function layoutTree(element, { levelGap, leafGap, nodeRadius }) {
+  const nodes = element.nodes ?? [];
+  if (nodes.length === 0) return element;
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const children = getTreeChildrenMap(element);
+  const rootId = element.settings?.rootId ?? getDefaultTreeRootId(nodes.map((node) => node.id), element.edges ?? []);
+  const levels = [];
+  const queue = [{ id: rootId, depth: 0 }];
+  const visited = new Set();
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift();
+    if (!id || visited.has(id) || !nodeById.has(id)) continue;
+    visited.add(id);
+    if (!levels[depth]) levels[depth] = [];
+    levels[depth].push(id);
+    for (const childId of children.get(id) ?? []) queue.push({ id: childId, depth: depth + 1 });
+  }
+  for (const node of nodes) {
+    if (!visited.has(node.id)) {
+      const depth = levels.length;
+      if (!levels[depth]) levels[depth] = [];
+      levels[depth].push(node.id);
+    }
+  }
+  const width = Math.max(nodeRadius * 4, Math.max(...levels.map((level) => level.length)) * leafGap + nodeRadius * 2);
+  const laidOut = nodes.map((node) => {
+    const depth = levels.findIndex((level) => level.includes(node.id));
+    const level = levels[Math.max(0, depth)] ?? [node.id];
+    const position = level.indexOf(node.id);
+    const gap = width / Math.max(1, level.length + 1);
+    return {
+      ...node,
+      x: gap * (position + 1),
+      y: nodeRadius + Math.max(0, depth) * levelGap,
+    };
+  });
+  return {
+    ...element,
+    width,
+    height: Math.max(nodeRadius * 2, levels.length * levelGap),
+    nodes: laidOut,
+  };
+}
+
 function normalizeArrayStructureItems(element) {
   const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const nextItems = (element.items ?? []).map((item, index) => ({
@@ -1071,6 +1354,17 @@ function createLinearStructureElement(type, values, point, zIndex) {
   };
 }
 
+function createCompleteBinaryTreeInput(count) {
+  const safeCount = normalizeRandomArrayCount(count);
+  const labels = Array.from({ length: safeCount }, (_, index) => String(index + 1));
+  const edges = [];
+  for (let index = 1; index < safeCount; index += 1) {
+    const parentIndex = Math.floor((index - 1) / 2);
+    edges.push(`${labels[parentIndex]}->${labels[index]}`);
+  }
+  return edges.length > 0 ? edges.join(", ") : labels[0];
+}
+
 function getLinearElementType(type) {
   return {
     [STRUCTURE_TYPES.ARRAY]: STRUCTURE_ELEMENT_TYPES.ARRAY,
@@ -1101,10 +1395,11 @@ function createGraphStructureElement(graph, point, zIndex) {
   const nodeRadius = GRAPH_STRUCTURE_STYLE.nodeRadius;
   const count = Math.max(1, graph.nodes.length);
   const layoutRadius = count <= 2 ? 90 : Math.max(92, count * 26);
+  const labelToId = new Map(graph.nodes.map((label) => [label, createId("graph_node")]));
   const nodes = graph.nodes.map((label, index) => {
     const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / count;
     return {
-      id: label,
+      id: labelToId.get(label),
       label,
       x: layoutRadius + Math.cos(angle) * layoutRadius,
       y: layoutRadius + Math.sin(angle) * layoutRadius,
@@ -1126,7 +1421,13 @@ function createGraphStructureElement(graph, point, zIndex) {
       x: node.x + offset,
       y: node.y + offset,
     })),
-    edges: graph.edges,
+    edges: graph.edges
+      .map((edge) => ({
+        ...edge,
+        from: labelToId.get(edge.from),
+        to: labelToId.get(edge.to),
+      }))
+      .filter((edge) => edge.from && edge.to),
     settings: {
       directedDefault: graph.edges.some((edge) => edge.directed),
       weightedDefault: false,
@@ -1139,52 +1440,52 @@ function createGraphStructureElement(graph, point, zIndex) {
   };
 }
 
-function createTreeStructureElement(values, point, zIndex) {
+function createTreeStructureElement(tree, point, zIndex, { treeKind = "general" } = {}) {
   const nodeRadius = TREE_STRUCTURE_STYLE.nodeRadius;
   const levelGap = TREE_STRUCTURE_STYLE.levelGap;
-  const leafGap = TREE_STRUCTURE_STYLE.leafGap;
-  const visibleIndexes = values
-    .map((value, index) => ({ value, index }))
-    .filter((item) => item.value !== null);
-  const maxIndex = visibleIndexes.reduce((max, item) => Math.max(max, item.index), 0);
-  const depth = Math.floor(Math.log2(maxIndex + 1));
-  const width = Math.max(leafGap * 2, (2 ** depth) * leafGap) + nodeRadius * 2;
-  const height = Math.max(nodeRadius * 2, (depth + 1) * levelGap);
-  const nodes = visibleIndexes.map(({ value, index }) => {
-    const level = Math.floor(Math.log2(index + 1));
-    const levelStart = 2 ** level - 1;
-    const positionInLevel = index - levelStart;
-    const slots = 2 ** level;
-    return {
-      id: String(index),
-      index,
-      value: String(value),
-      x: nodeRadius + ((positionInLevel + 0.5) * (width - nodeRadius * 2)) / slots,
-      y: nodeRadius + level * levelGap,
-      parentIndex: index === 0 ? null : Math.floor((index - 1) / 2),
-    };
-  });
-
-  return {
+  const leafGap = Math.max(TREE_STRUCTURE_STYLE.leafGap, nodeRadius * 3);
+  const labelToId = new Map((tree.nodes ?? []).map((label) => [label, createId("tree_node")]));
+  const rawEdges = (tree.edges ?? [])
+    .map((edge) => ({
+      id: edge.id ?? createId("tree_edge"),
+      from: labelToId.get(edge.from),
+      to: labelToId.get(edge.to),
+    }))
+    .filter((edge) => edge.from && edge.to);
+  const rootId = getDefaultTreeRootId([...labelToId.values()], rawEdges);
+  const edges = normalizeTreeEdges(rawEdges, rootId, { binary: treeKind === "binary" });
+  const base = {
     id: createId("tree"),
     type: STRUCTURE_ELEMENT_TYPES.TREE,
-    x: point.x - width / 2,
-    y: point.y - height / 2,
-    width,
-    height,
-    nodes,
-    values,
+    x: point.x,
+    y: point.y,
+    width: nodeRadius * 2,
+    height: nodeRadius * 2,
+    nodes: (tree.nodes ?? []).map((label) => ({
+      id: labelToId.get(label),
+      label,
+      x: nodeRadius,
+      y: nodeRadius,
+    })),
+    edges,
+    settings: { rootId, treeKind },
     style: { ...TREE_STRUCTURE_STYLE },
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
     zIndex,
   };
+  const laidOut = layoutTree(base, { levelGap, leafGap, nodeRadius });
+  return normalizeStructureBounds({
+    ...laidOut,
+    x: point.x - laidOut.width / 2,
+    y: point.y - laidOut.height / 2,
+  }, TREE_STRUCTURE_STYLE);
 }
 
 function splitCommaValues(input) {
   return String(input ?? "")
-    .split(",")
+    .split(/[,\n]+/)
     .map((value) => value.trim())
     .filter(Boolean);
 }

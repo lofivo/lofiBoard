@@ -23,15 +23,20 @@ import {
   moveGraphNode,
   setGraphDirectedDefault,
   updateGraphEdge,
+  updateGraphNodeLabel,
   setGraphHighlight,
   clearGraphHighlight,
   layoutGraph,
   exportGraph,
+  exportTree,
   importGraphFromText,
   updateGraphFromInput,
   addTreeNode,
   addTreeChild,
+  addTreeEdge,
+  moveTreeNode,
   updateTreeNodeValue,
+  layoutTreeStructure,
   setTreeTraversalHighlight,
   stepTreeTraversalHighlight,
   clearTreeHighlight,
@@ -158,7 +163,7 @@ describe("structure templates", () => {
     ]);
   });
 
-  it("creates graph structure data with nodes and edges", () => {
+  it("creates graph structure data with stable node ids and display labels", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
       input: "A-B:7, B->C",
@@ -175,42 +180,116 @@ describe("structure templates", () => {
       height: 236,
     });
     expect(elements[0].nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
+    expect(elements[0].nodes.map((node) => node.id)).not.toEqual(["A", "B", "C"]);
+    const nodeIdByLabel = new Map(elements[0].nodes.map((node) => [node.label, node.id]));
     expect(elements[0].edges).toMatchObject([
-      { from: "A", to: "B", directed: false, weight: "7" },
-      { from: "B", to: "C", directed: true },
+      { from: nodeIdByLabel.get("A"), to: nodeIdByLabel.get("B"), directed: false, weight: "7" },
+      { from: nodeIdByLabel.get("B"), to: nodeIdByLabel.get("C"), directed: true },
     ]);
   });
 
-  it("parses tree null placeholders", () => {
-    expect(parseTreeInput("A, B, null, #, E")).toEqual(["A", "B", null, null, "E"]);
+  it("parses tree edge lists and standalone nodes", () => {
+    const tree = parseTreeInput("A->B, A->C, B->D, F");
+    expect(tree.nodes).toEqual(["A", "B", "C", "D", "F"]);
+    expect(tree.edges).toMatchObject([
+      { from: "A", to: "B" },
+      { from: "A", to: "C" },
+      { from: "B", to: "D" },
+    ]);
   });
 
-  it("creates tree structure data and skips null nodes", () => {
+  it("parses tree edge lists split by newlines", () => {
+    const tree = parseTreeInput("A->B\nA->C\nF");
+
+    expect(tree.nodes).toEqual(["A", "B", "C", "F"]);
+    expect(tree.edges).toMatchObject([
+      { from: "A", to: "B" },
+      { from: "A", to: "C" },
+    ]);
+  });
+
+  it("creates tree structure data with stable node ids and parent-child edges", () => {
     const elements = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A, B, null, D",
+      input: "A->B, A->C, B->D, F",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
     expect(elements).toHaveLength(1);
     expect(elements[0].type).toBe(STRUCTURE_ELEMENT_TYPES.TREE);
-    expect(elements[0].nodes.map((node) => node.value)).toEqual(["A", "B", "D"]);
-    expect(elements[0].nodes.map((node) => node.parentIndex)).toEqual([null, 0, 1]);
+    expect(elements[0].nodes.map((node) => node.label)).toEqual(["A", "B", "C", "D", "F"]);
+    expect(elements[0].nodes.map((node) => node.id)).not.toEqual(["A", "B", "C", "D", "F"]);
+    const nodeIdByLabel = new Map(elements[0].nodes.map((node) => [node.label, node.id]));
+    expect(elements[0].settings.rootId).toBe(nodeIdByLabel.get("A"));
+    expect(elements[0].edges).toMatchObject([
+      { from: nodeIdByLabel.get("A"), to: nodeIdByLabel.get("B") },
+      { from: nodeIdByLabel.get("A"), to: nodeIdByLabel.get("C") },
+      { from: nodeIdByLabel.get("B"), to: nodeIdByLabel.get("D") },
+    ]);
   });
 
-  it("computes tree traversal orders for teaching highlights", () => {
-    const [tree] = createStructureElements({
-      type: STRUCTURE_TYPES.TREE,
-      input: "A, B, C, D, E",
+  it("creates binary tree structures and random complete binary trees", () => {
+    expect(getStructureItem(STRUCTURE_TYPES.BINARY_TREE)).toMatchObject({
+      id: STRUCTURE_TYPES.BINARY_TREE,
+      label: "二叉树",
+    });
+
+    const [manual] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B, A->C, B->D",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
+    expect(manual.type).toBe(STRUCTURE_ELEMENT_TYPES.TREE);
+    expect(manual.settings.treeKind).toBe("binary");
 
-    expect(getTreeTraversalOrder(tree, "level")).toEqual([0, 1, 2, 3, 4]);
-    expect(getTreeTraversalOrder(tree, "preorder")).toEqual([0, 1, 3, 4, 2]);
-    expect(getTreeTraversalOrder(tree, "inorder")).toEqual([3, 1, 4, 0, 2]);
-    expect(getTreeTraversalOrder(tree, "postorder")).toEqual([3, 4, 1, 2, 0]);
+    const [randomTree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      initMode: "random",
+      randomCount: "7",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (label) => randomTree.nodes.find((node) => node.label === label)?.id;
+
+    expect(randomTree.settings.treeKind).toBe("binary");
+    expect(randomTree.nodes.map((node) => node.label)).toEqual(["1", "2", "3", "4", "5", "6", "7"]);
+    expect(randomTree.edges).toMatchObject([
+      { from: id("1"), to: id("2") },
+      { from: id("1"), to: id("3") },
+      { from: id("2"), to: id("4") },
+      { from: id("2"), to: id("5") },
+      { from: id("3"), to: id("6") },
+      { from: id("3"), to: id("7") },
+    ]);
+  });
+
+  it("computes general tree traversal orders without binary inorder", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C, B->D, B->E",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
+
+    expect(getTreeTraversalOrder(tree, "level")).toEqual([id("A"), id("B"), id("C"), id("D"), id("E")]);
+    expect(getTreeTraversalOrder(tree, "preorder")).toEqual([id("A"), id("B"), id("D"), id("E"), id("C")]);
+    expect(getTreeTraversalOrder(tree, "postorder")).toEqual([id("D"), id("E"), id("B"), id("C"), id("A")]);
+    expect(getTreeTraversalOrder(tree, "inorder")).toEqual([]);
+  });
+
+  it("computes binary tree inorder traversal from child order", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B, A->C, B->D, B->E, C->F",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
+
+    expect(getTreeTraversalOrder(tree, "inorder")).toEqual([id("D"), id("B"), id("E"), id("A"), id("F"), id("C")]);
   });
 
   it("uses default input when initial structure text is blank", () => {
@@ -324,10 +403,11 @@ describe("structure templates", () => {
     });
 
     const withNode = addGraphNode(graph, "C");
-    expect(withNode.nodes.map((node) => node.id)).toEqual(["A", "B", "C"]);
+    expect(withNode.nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
+    const nodeIdByLabel = new Map(withNode.nodes.map((node) => [node.label, node.id]));
 
-    const withEdge = addGraphEdge(withNode, "B", "C", { directed: true, weight: "9" });
-    expect(withEdge.edges.at(-1)).toMatchObject({ from: "B", to: "C", directed: true, weight: "9" });
+    const withEdge = addGraphEdge(withNode, nodeIdByLabel.get("B"), nodeIdByLabel.get("C"), { directed: true, weight: "9" });
+    expect(withEdge.edges.at(-1)).toMatchObject({ from: nodeIdByLabel.get("B"), to: nodeIdByLabel.get("C"), directed: true, weight: "9" });
 
     expect(deleteLastGraphEdge(withEdge).edges).toHaveLength(1);
   });
@@ -341,18 +421,19 @@ describe("structure templates", () => {
     });
 
     const withTextEdge = addGraphEdgeFromText(graph, "B->C:9");
-    expect(withTextEdge.nodes.map((node) => node.id)).toEqual(["A", "B", "C"]);
-    expect(withTextEdge.edges.at(-1)).toMatchObject({ from: "B", to: "C", directed: true, weight: "9" });
+    expect(withTextEdge.nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
+    const nodeIdByLabel = new Map(withTextEdge.nodes.map((node) => [node.label, node.id]));
+    expect(withTextEdge.edges.at(-1)).toMatchObject({ from: nodeIdByLabel.get("B"), to: nodeIdByLabel.get("C"), directed: true, weight: "9" });
     expect(withTextEdge.settings.directedDefault).toBe(true);
 
-    const moved = moveGraphNode(withTextEdge, "C", 40, 55);
-    expect(moved.nodes.find((node) => node.id === "C")).toMatchObject({ x: 40, y: 55 });
+    const moved = moveGraphNode(withTextEdge, nodeIdByLabel.get("C"), 40, 55);
+    expect(moved.nodes.find((node) => node.id === nodeIdByLabel.get("C"))).toMatchObject({ x: 40, y: 55 });
 
     const undirectedDefault = setGraphDirectedDefault(moved, false);
     expect(undirectedDefault.settings.directedDefault).toBe(false);
 
-    const withoutB = deleteGraphNode(undirectedDefault, "B");
-    expect(withoutB.nodes.map((node) => node.id)).toEqual(["A", "C"]);
+    const withoutB = deleteGraphNode(undirectedDefault, nodeIdByLabel.get("B"));
+    expect(withoutB.nodes.map((node) => node.label)).toEqual(["A", "C"]);
     expect(withoutB.edges).toHaveLength(0);
   });
 
@@ -368,10 +449,27 @@ describe("structure templates", () => {
     const updated = updateGraphEdge(graph, edgeId, { directed: true, weight: "4" });
     expect(updated.edges[0]).toMatchObject({ directed: true, weight: "4" });
 
-    const highlighted = setGraphHighlight(updated, { nodes: ["A"], edges: [edgeId] });
-    expect(highlighted.markers.highlightedNodes).toEqual(["A"]);
+    const highlighted = setGraphHighlight(updated, { nodes: [graph.nodes[0].id], edges: [edgeId] });
+    expect(highlighted.markers.highlightedNodes).toEqual([graph.nodes[0].id]);
     expect(highlighted.markers.highlightedEdges).toEqual([edgeId]);
     expect(clearGraphHighlight(highlighted).markers).toMatchObject({ highlightedNodes: [], highlightedEdges: [] });
+  });
+
+  it("updates graph node labels without changing edge endpoints", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A->B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const nodeId = graph.nodes[0].id;
+    const edge = graph.edges[0];
+
+    const renamed = updateGraphNodeLabel(graph, nodeId, "Start");
+
+    expect(renamed.nodes[0]).toMatchObject({ id: nodeId, label: "Start" });
+    expect(renamed.edges[0]).toMatchObject({ from: edge.from, to: edge.to });
+    expect(exportGraph(renamed, "edge-list")).toBe("Start->B");
   });
 
   it("exports graph data in edge list, adjacency list, and matrix formats", () => {
@@ -389,6 +487,17 @@ describe("structure templates", () => {
     expect(exportGraph(graph, "adjacency-matrix")).toContain("A,0,7,0");
   });
 
+  it("exports general tree data as a parent-child edge list", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C, B->D, F",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    expect(exportTree(tree)).toBe("A->B\nA->C\nB->D\nF");
+  });
+
   it("imports graph data from adjacency list and matrix formats", () => {
     const [graph] = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
@@ -398,15 +507,17 @@ describe("structure templates", () => {
     });
 
     const fromList = importGraphFromText(graph, "A: B(5), C\nB: C", "adjacency-list");
-    expect(fromList.nodes.map((node) => node.id)).toEqual(["A", "B", "C"]);
+    expect(fromList.nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
+    const listIdByLabel = new Map(fromList.nodes.map((node) => [node.label, node.id]));
     expect(fromList.edges).toMatchObject([
-      { from: "A", to: "B", directed: true, weight: "5" },
-      { from: "A", to: "C", directed: true, weight: "" },
-      { from: "B", to: "C", directed: true, weight: "" },
+      { from: listIdByLabel.get("A"), to: listIdByLabel.get("B"), directed: true, weight: "5" },
+      { from: listIdByLabel.get("A"), to: listIdByLabel.get("C"), directed: true, weight: "" },
+      { from: listIdByLabel.get("B"), to: listIdByLabel.get("C"), directed: true, weight: "" },
     ]);
 
     const fromMatrix = importGraphFromText(graph, ",A,B\nA,0,2\nB,0,0", "adjacency-matrix");
-    expect(fromMatrix.edges).toMatchObject([{ from: "A", to: "B", directed: true, weight: "2" }]);
+    const matrixIdByLabel = new Map(fromMatrix.nodes.map((node) => [node.label, node.id]));
+    expect(fromMatrix.edges).toMatchObject([{ from: matrixIdByLabel.get("A"), to: matrixIdByLabel.get("B"), directed: true, weight: "2" }]);
   });
 
   it("lays out graph nodes with circle, grid, and layered helpers", () => {
@@ -419,8 +530,8 @@ describe("structure templates", () => {
 
     expect(layoutGraph(graph, "circle").nodes).toHaveLength(4);
     expect(layoutGraph(graph, "grid").nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y))).toBe(true);
-    expect(layoutGraph(graph, "layered").nodes.find((node) => node.id === "A").y)
-      .toBeLessThan(layoutGraph(graph, "layered").nodes.find((node) => node.id === "C").y);
+    expect(layoutGraph(graph, "layered").nodes.find((node) => node.label === "A").y)
+      .toBeLessThan(layoutGraph(graph, "layered").nodes.find((node) => node.label === "C").y);
     expect(layoutGraph(graph, "force").nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y))).toBe(true);
   });
 
@@ -433,71 +544,122 @@ describe("structure templates", () => {
     });
     const moved = {
       ...graph,
-      nodes: graph.nodes.map((node) => (node.id === "A" ? { ...node, x: 42, y: 77 } : node)),
+      nodes: graph.nodes.map((node) => (node.label === "A" ? { ...node, x: 42, y: 77 } : node)),
     };
 
     const updated = updateGraphFromInput(moved, "A->B:5, B-C");
-    expect(updated.nodes.find((node) => node.id === "A")).toMatchObject({ x: 42, y: 77 });
+    const nodeIdByLabel = new Map(updated.nodes.map((node) => [node.label, node.id]));
+    expect(updated.nodes.find((node) => node.label === "A")).toMatchObject({ x: 42, y: 77 });
     expect(updated.edges).toMatchObject([
-      { from: "A", to: "B", directed: true, weight: "5" },
-      { from: "B", to: "C", directed: false },
+      { from: nodeIdByLabel.get("A"), to: nodeIdByLabel.get("B"), directed: true, weight: "5" },
+      { from: nodeIdByLabel.get("B"), to: nodeIdByLabel.get("C"), directed: false },
     ]);
   });
 
-  it("adds, deletes, and reloads tree nodes from level order input", () => {
+  it("adds, deletes, moves, and reloads general tree nodes from edge list input", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A, B",
+      input: "A->B",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
     const added = addTreeNode(tree, "C");
-    expect(added.values).toEqual(["A", "B", "C"]);
-    expect(added.nodes.map((node) => node.value)).toEqual(["A", "B", "C"]);
+    expect(added.nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
 
     const deleted = deleteLastTreeNode(added);
-    expect(deleted.values).toEqual(["A", "B"]);
+    expect(deleted.nodes.map((node) => node.label)).toEqual(["A", "B"]);
 
-    const reloaded = updateTreeFromInput(deleted, "X, null, Y");
-    expect(reloaded.values).toEqual(["X", null, "Y"]);
-    expect(reloaded.nodes.map((node) => node.value)).toEqual(["X", "Y"]);
+    const reloaded = updateTreeFromInput(deleted, "X->Y, X->Z");
+    expect(reloaded.nodes.map((node) => node.label)).toEqual(["X", "Y", "Z"]);
+    expect(reloaded.edges).toHaveLength(2);
+
+    const moved = moveTreeNode(reloaded, reloaded.nodes[1].id, 44, 55);
+    expect(moved.nodes[1]).toMatchObject({ x: 44, y: 55 });
   });
 
-  it("adds binary tree children, updates values, and deletes subtrees", () => {
+  it("adds tree child edges with single-parent and acyclic constraints", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A",
+      input: "A->B, A->C",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
+    const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
 
-    const withLeft = addTreeChild(tree, 0, "left", "B");
-    expect(withLeft.values).toEqual(["A", "B"]);
+    const withNode = addTreeNode(tree, "D");
+    const d = withNode.nodes.find((node) => node.label === "D").id;
+    const attached = addTreeEdge(withNode, id("B"), d);
+    expect(attached.edges).toEqual(expect.arrayContaining([expect.objectContaining({ from: id("B"), to: d })]));
 
-    const withRight = addTreeChild(withLeft, 0, "right", "C");
-    expect(withRight.values).toEqual(["A", "B", "C"]);
+    const reparented = addTreeEdge(attached, id("C"), d);
+    expect(reparented.edges.filter((edge) => edge.to === d)).toEqual([expect.objectContaining({ from: id("C"), to: d })]);
 
-    const renamed = updateTreeNodeValue(withRight, 1, "L");
-    expect(renamed.nodes.find((node) => node.index === 1)).toMatchObject({ value: "L" });
+    const cycleAttempt = addTreeEdge(reparented, d, id("A"));
+    expect(cycleAttempt).toBe(reparented);
 
-    const pruned = deleteTreeSubtree(renamed, 1);
-    expect(pruned.values).toEqual(["A", null, "C"]);
-    expect(pruned.nodes.map((node) => node.value)).toEqual(["A", "C"]);
+    const renamed = updateTreeNodeValue(reparented, d, "Leaf");
+    expect(renamed.nodes.find((node) => node.id === d)).toMatchObject({ label: "Leaf" });
+  });
+
+  it("keeps binary tree parents limited to two ordered children", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B, A->C, D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
+
+    const rejectedThirdChild = addTreeEdge(tree, id("A"), id("D"));
+    expect(rejectedThirdChild).toBe(tree);
+    expect(rejectedThirdChild.edges.filter((edge) => edge.from === id("A"))).toHaveLength(2);
+
+    const [targetFull] = createStructureElements({
+      type: STRUCTURE_TYPES.BINARY_TREE,
+      input: "A->B, A->C, B->D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const targetId = (label) => targetFull.nodes.find((node) => node.label === label)?.id;
+    const rejectedReparent = addTreeEdge(targetFull, targetId("A"), targetId("D"));
+
+    expect(rejectedReparent).toBe(targetFull);
+    expect(rejectedReparent.edges.find((edge) => edge.to === targetId("D"))).toMatchObject({ from: targetId("B") });
+  });
+
+  it("lays out general trees from the selected root", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C, B->D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const laidOut = layoutTreeStructure({
+      ...tree,
+      nodes: tree.nodes.map((node) => ({ ...node, x: 1, y: 1 })),
+    });
+    const root = laidOut.nodes.find((node) => node.id === laidOut.settings.rootId);
+    const child = laidOut.nodes.find((node) => node.label === "B");
+
+    expect(root.y).toBeLessThan(child.y);
+    expect(laidOut.width).toBeGreaterThan(0);
+    expect(laidOut.height).toBeGreaterThan(0);
   });
 
   it("sets and clears tree traversal highlights", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A, B, C",
+      input: "A->B, A->C",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
+    const order = getTreeTraversalOrder(tree, "preorder");
 
     const highlighted = setTreeTraversalHighlight(tree, "preorder");
     expect(highlighted.markers).toMatchObject({
       traversalMode: "preorder",
-      highlighted: [0, 1, 2],
+      highlighted: order,
     });
     expect(clearTreeHighlight(highlighted).markers).toMatchObject({
       traversalMode: null,
@@ -508,35 +670,34 @@ describe("structure templates", () => {
   it("steps tree traversal highlights", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A, B, C",
+      input: "A->B, A->C",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
+    const order = getTreeTraversalOrder(tree, "level");
 
     const first = stepTreeTraversalHighlight(setTreeTraversalHighlight(tree, "level"), 1);
-    expect(first.markers).toMatchObject({ traversalCursor: 0, highlighted: [0], traversalOrder: [0, 1, 2] });
+    expect(first.markers).toMatchObject({ traversalCursor: 0, highlighted: [order[0]], traversalOrder: order });
     const second = stepTreeTraversalHighlight(first, 1);
-    expect(second.markers.highlighted).toEqual([1]);
+    expect(second.markers.highlighted).toEqual([order[1]]);
   });
 
   it("collapses, copies, and moves tree subtrees", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
-      input: "A, B, C, D, E",
+      input: "A->B, A->C, B->D, B->E",
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
+    const id = (label) => tree.nodes.find((node) => node.label === label)?.id;
 
-    const collapsed = setTreeSubtreeCollapsed(tree, 1, true);
-    expect(collapsed.markers.collapsed).toEqual([1]);
-    expect(setTreeSubtreeCollapsed(collapsed, 1, false).markers.collapsed).toEqual([]);
-    expect(copyTreeSubtreeValues(tree, 1)).toEqual(["B", "D", "E"]);
+    const collapsed = setTreeSubtreeCollapsed(tree, id("B"), true);
+    expect(collapsed.markers.collapsed).toEqual([id("B")]);
+    expect(setTreeSubtreeCollapsed(collapsed, id("B"), false).markers.collapsed).toEqual([]);
+    expect(copyTreeSubtreeValues(tree, id("B"))).toEqual(["B", "D", "E"]);
 
-    const moved = moveTreeSubtree(tree, 1, 2);
-    expect(moved.values[1]).toBeNull();
-    expect(moved.values[2]).toBe("B");
-    expect(moved.values[5]).toBe("D");
-    expect(moved.values[6]).toBe("E");
+    const moved = moveTreeSubtree(tree, id("B"), id("C"));
+    expect(moved.edges.find((edge) => edge.to === id("B"))).toMatchObject({ from: id("C") });
   });
 
   it("allows deleting the entire tree without restoring the default tree input", () => {
@@ -547,8 +708,8 @@ describe("structure templates", () => {
       zIndexStart: 0,
     });
 
-    const deleted = deleteTreeSubtree(tree, 0);
-    expect(deleted.values).toEqual([]);
+    const deleted = deleteTreeSubtree(tree, tree.settings.rootId);
     expect(deleted.nodes).toEqual([]);
+    expect(deleted.edges).toEqual([]);
   });
 });

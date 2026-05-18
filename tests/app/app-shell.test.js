@@ -16,6 +16,7 @@ describe("app shell", () => {
 
     expect(markup).toContain('data-panel-edge="style"');
     expect(markup).toContain('data-panel-edge="layers"');
+    expect(markup).toContain('data-style-panel-title');
     expect(markup).toContain("展开属性");
     expect(markup).toContain("展开图层");
   });
@@ -136,6 +137,11 @@ describe("app shell", () => {
     expect(markup).not.toContain('data-linear-field="insert-index"');
     expect(markup).not.toContain('data-linear-field="swap-index"');
     expect(markup).not.toContain('data-linear-field="move-index"');
+    expect(markup).toContain('data-linear-values-input');
+    expect(markup).toContain("当前数组结构");
+    expect(markup).toContain('data-action="linear-apply-values"');
+    expect(markup.indexOf('data-action="linear-apply-values"')).toBeLessThan(markup.indexOf('data-linear-field="highlight-start"'));
+    expect(markup).toContain('class="linear-values-header"');
     expect(markup).not.toContain('data-action="array-insert-start"');
     expect(markup).not.toContain('data-action="array-insert-end"');
     expect(markup).not.toContain('data-action="array-insert-at"');
@@ -178,8 +184,9 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="graph-import-adjacency-matrix"');
     expect(markup).toContain('data-action="graph-reload"');
     expect(markup).toContain('data-action="tree-add-node"');
-    expect(markup).toContain('data-action="tree-add-left"');
-    expect(markup).toContain('data-action="tree-add-right"');
+    expect(markup).toContain('data-action="tree-connect-mode"');
+    expect(markup).not.toContain('data-action="tree-add-left"');
+    expect(markup).not.toContain('data-action="tree-add-right"');
     expect(markup).toContain('data-action="tree-set-value"');
     expect(markup).toContain('data-action="tree-delete-subtree"');
     expect(markup).toContain('data-action="tree-highlight-level"');
@@ -192,9 +199,14 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="tree-collapse-subtree"');
     expect(markup).toContain('data-action="tree-expand-subtree"');
     expect(markup).toContain('data-action="tree-copy-subtree"');
+    expect(markup).toContain("导出边表");
     expect(markup).toContain('data-action="tree-move-subtree"');
     expect(markup).toContain('data-action="tree-delete-node"');
+    expect(markup).toContain('data-action="tree-layout"');
     expect(markup).toContain('data-action="tree-reload"');
+    expect(markup).toContain('data-tree-structure-input');
+    expect(markup).toContain('data-action="tree-apply-structure"');
+    expect(markup).toContain('data-structure-type="binary-tree"');
   });
 
   it("renders the linear structure inspector without an outer category title", () => {
@@ -209,6 +221,20 @@ describe("app shell", () => {
     expect(linearMarkup).not.toContain("数组</span>");
     expect(appSource).not.toContain("linearTitle");
     expect(appSource).not.toContain("function getLinearInspectorTitle");
+  });
+
+  it("syncs and applies the linear structure values input from the property panel", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain('const linearValuesInput = root.querySelector("[data-linear-values-input]")');
+    expect(appSource).toContain("let linearValuesDraft = \"\";");
+    expect(appSource).toContain('linearValuesInput?.addEventListener("input", () => {');
+    expect(appSource).toContain("linearValuesDraft = linearValuesInput.value;");
+    expect(appSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/structures\/structure-templates\.js";/);
+    expect(appSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, linearValuesDraft))');
+    expect(appSource).not.toContain('runAction("linear-apply-values")');
+    expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
+    expect(appSource).toContain('linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",")');
   });
 
   it("removes secondary linear structure action groups from the property panel", () => {
@@ -482,6 +508,23 @@ describe("app shell", () => {
     expect(appSource).toContain("const toolPanelModes = new Set([");
     expect(appSource).not.toContain("tool-text");
     expect(appSource).not.toContain("tool-sticky");
+  });
+
+  it("uses concrete property panel titles for single selections and configurable tools", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const stylePanelTitle = root.querySelector(\"[data-style-panel-title]\")");
+    expect(appSource).toContain("function syncPropertyPanelTitle(selectedElements = [])");
+    expect(appSource).toContain("function getPropertyPanelTitle(selectedElements)");
+    expect(appSource).toContain('if (selectedElements.length !== 1) return "属性";');
+    expect(appSource).toContain('if (element.type === "tree-structure") return element.settings?.treeKind === "binary" ? "二叉树" : "树";');
+    expect(appSource).toContain('const toolTitles = {');
+    expect(appSource).toContain('[TOOLS.PEN]: "画笔"');
+    expect(appSource).toContain('[TOOLS.SHAPE]: getShapeToolTitle(activeShapeTool)');
+    expect(appSource).toContain('stylePanelTitle.textContent = getPropertyPanelTitle(selectedElements);');
+    expect(appSource).not.toContain('[TOOLS.TEXT]: "文字"');
+    expect(appSource).not.toContain('[TOOLS.STICKY]: "便签"');
+    expect(appSource).not.toContain('[TOOLS.STRUCTURE]: "结构模板"');
   });
 
   it("uses safe closest lookups for delegated app interactions", () => {
@@ -932,6 +975,27 @@ describe("app shell", () => {
     expect(wheelBlock).not.toContain("updateChrome();");
     expect(centerZoomBlock).toContain("updateViewportChrome();");
     expect(centerZoomBlock).not.toContain("updateChrome();");
+  });
+
+  it("uses shared graph and tree connect state for structure node editing", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("let structureConnectState = null;");
+    expect(appSource).toContain('"tree-connect-mode": beginTreeConnectMode');
+    expect(appSource).toContain("function beginTreeConnectMode()");
+    expect(appSource).toContain("function handleTreeNodeClick({ elementId, nodeId })");
+    expect(appSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
+    expect(appSource).toContain("function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId })");
+    expect(appSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");
+    expect(appSource).toContain("onGraphNodeConnect: connectGraphStructureNodes");
+    expect(appSource).toContain("onTreeNodeMove: moveTreeStructureNode");
+    expect(appSource).toContain("onTreeNodeConnect: connectTreeStructureNodes");
+    expect(appSource).toContain("getTreeConnectState:");
+    expect(appSource).toContain('"tree-layout": () => editSelectedStructure("tree-structure", layoutTreeStructure');
+    expect(appSource).toContain('"tree-highlight-inorder"');
+    expect(appSource).toContain("function syncTreeStructurePanelState()");
+    expect(appSource).not.toContain("let graphConnectState = null;");
+    expect(appSource).not.toContain("let activeTreeParent = null;");
   });
 
   it("uses custom SVG cursors for select and pan tools", () => {

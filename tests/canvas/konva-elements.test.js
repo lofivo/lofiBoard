@@ -467,7 +467,9 @@ describe("konva elements", () => {
       y: 0,
       width: 160,
       height: 120,
-      nodes: [{ id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null }],
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a" },
       style: {},
     }, { ...baseHandlers, onTreeNodeClick });
 
@@ -496,9 +498,11 @@ describe("konva elements", () => {
       width: 180,
       height: 140,
       nodes: [
-        { id: "0", index: 0, value: "A", x: 90, y: 24, parentIndex: null },
-        { id: "1", index: 1, value: "B", x: 60, y: 96, parentIndex: 0 },
+        { id: "node_a", label: "A", x: 90, y: 24 },
+        { id: "node_b", label: "B", x: 60, y: 96 },
       ],
+      edges: [{ id: "tree_edge_1", from: "node_a", to: "node_b" }],
+      settings: { rootId: "node_a" },
       style: {},
     }, { ...baseHandlers, onTreeNodeClick })).toBe(true);
 
@@ -514,7 +518,7 @@ describe("konva elements", () => {
     expect(tree).toBe(originalTree);
     expect(tree.find(".tree-node")).toHaveLength(2);
     tree.find(".tree-node")[1].fire("click", { cancelBubble: false });
-    expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", index: 1 });
+    expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_b" });
   });
 
   it("keeps latex source text in Konva as an editable fallback for the vector overlay", () => {
@@ -1623,6 +1627,7 @@ describe("konva elements", () => {
   it("allows graph nodes to move inside the graph structure", () => {
     const onGraphNodeMove = vi.fn();
     const onGraphNodeClick = vi.fn();
+    const onGraphNodeEdit = vi.fn();
     const node = createElementNode({
       id: "graph_1",
       type: "graph-structure",
@@ -1641,6 +1646,7 @@ describe("konva elements", () => {
       draggable: true,
       onGraphNodeMove,
       onGraphNodeClick,
+      onGraphNodeEdit,
     });
 
     const graphNode = node.findOne(".graph-node");
@@ -1659,6 +1665,46 @@ describe("konva elements", () => {
       elementId: "graph_1",
       nodeId: "A",
     });
+    graphNode.fire("dblclick", { cancelBubble: false });
+    expect(onGraphNodeEdit).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      nodeId: "A",
+      label: "A",
+    });
+  });
+
+  it("connects graph nodes by dragging one node onto another in connect mode", () => {
+    const onGraphNodeConnect = vi.fn();
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 30, y: 60 },
+        { id: "node_b", label: "B", x: 130, y: 60 },
+      ],
+      edges: [],
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      getGraphEdgeState: () => ({ kind: "graph", elementId: "graph_1", sourceNodeId: null }),
+      onGraphNodeConnect,
+    });
+
+    const graphNode = node.find(".graph-node")[0];
+    graphNode.position({ x: 130, y: 60 });
+    graphNode.fire("dragend", { cancelBubble: false });
+
+    expect(onGraphNodeConnect).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      sourceNodeId: "node_a",
+      targetNodeId: "node_b",
+    });
+    expect(graphNode.position()).toMatchObject({ x: 30, y: 60 });
   });
 
   it("renders graph highlights and allows edges to be edited", () => {
@@ -1724,7 +1770,7 @@ describe("konva elements", () => {
     expect(lines[1].points()).toHaveLength(6);
   });
 
-  it("renders tree structure elements from parent indexes", () => {
+  it("renders tree structure elements from parent-child edges", () => {
     const node = createElementNode({
       id: "tree_1",
       type: "tree-structure",
@@ -1733,9 +1779,11 @@ describe("konva elements", () => {
       width: 160,
       height: 120,
       nodes: [
-        { id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null },
-        { id: "1", index: 1, value: "B", x: 40, y: 92, parentIndex: 0 },
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
       ],
+      edges: [{ id: "tree_edge_1", from: "node_a", to: "node_b" }],
+      settings: { rootId: "node_a" },
       style: {},
     }, baseHandlers);
 
@@ -1754,11 +1802,16 @@ describe("konva elements", () => {
       width: 240,
       height: 180,
       nodes: [
-        { id: "0", index: 0, value: "A", x: 120, y: 24, parentIndex: null },
-        { id: "1", index: 1, value: "B", x: 80, y: 92, parentIndex: 0 },
-        { id: "3", index: 3, value: "D", x: 40, y: 160, parentIndex: 1 },
+        { id: "node_a", label: "A", x: 120, y: 24 },
+        { id: "node_b", label: "B", x: 80, y: 92 },
+        { id: "node_d", label: "D", x: 40, y: 160 },
       ],
-      markers: { collapsed: [1] },
+      edges: [
+        { id: "tree_edge_1", from: "node_a", to: "node_b" },
+        { id: "tree_edge_2", from: "node_b", to: "node_d" },
+      ],
+      settings: { rootId: "node_a" },
+      markers: { collapsed: ["node_b"] },
       style: {},
     }, baseHandlers);
 
@@ -1777,8 +1830,10 @@ describe("konva elements", () => {
       width: 160,
       height: 120,
       nodes: [
-        { id: "0", index: 0, value: "A", x: 80, y: 24, parentIndex: null },
+        { id: "node_a", label: "A", x: 80, y: 24 },
       ],
+      edges: [],
+      settings: { rootId: "node_a" },
       style: {},
     }, {
       ...baseHandlers,
@@ -1791,13 +1846,142 @@ describe("konva elements", () => {
 
     expect(onTreeNodeEdit).toHaveBeenCalledWith({
       elementId: "tree_1",
-      index: 0,
-      value: "A",
+      nodeId: "node_a",
+      label: "A",
     });
     expect(onTreeNodeClick).toHaveBeenCalledWith({
       elementId: "tree_1",
-      index: 0,
+      nodeId: "node_a",
     });
+  });
+
+  it("moves and connects tree nodes inside the tree structure", () => {
+    const onTreeNodeMove = vi.fn();
+    const onTreeNodeConnect = vi.fn();
+    const node = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onTreeNodeMove,
+      onTreeNodeConnect,
+      getTreeConnectState: () => null,
+    });
+
+    const treeNode = node.find(".tree-node")[0];
+    treeNode.position({ x: 96, y: 36 });
+    treeNode.fire("dragend", { cancelBubble: false });
+    expect(onTreeNodeMove).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      nodeId: "node_a",
+      x: 96,
+      y: 36,
+    });
+
+    const connectNode = createElementNode({
+      id: "tree_2",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onTreeNodeConnect,
+      getTreeConnectState: () => ({ kind: "tree", elementId: "tree_2", sourceNodeId: null }),
+    });
+    const source = connectNode.find(".tree-node")[0];
+    source.position({ x: 40, y: 92 });
+    source.fire("dragend", { cancelBubble: false });
+    expect(onTreeNodeConnect).toHaveBeenCalledWith({
+      elementId: "tree_2",
+      sourceNodeId: "node_a",
+      targetNodeId: "node_b",
+    });
+  });
+
+  it("keeps general tree nodes draggable but disables binary tree node dragging", () => {
+    const generalTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a", treeKind: "general" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const binaryTree = createElementNode({
+      id: "tree_2",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+
+    expect(generalTree.findOne(".tree-node").draggable()).toBe(true);
+    expect(binaryTree.findOne(".tree-node").draggable()).toBe(false);
+  });
+
+  it("keeps binary tree node hit areas selectable so dragging can move the whole tree", () => {
+    const onTreeNodePress = vi.fn();
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onTreeNodePress,
+    });
+
+    const treeNode = binaryTree.findOne(".tree-node");
+    const pointerDown = { cancelBubble: false };
+    expect(binaryTree.draggable()).toBe(true);
+    expect(treeNode.draggable()).toBe(false);
+    expect(treeNode.listening()).toBe(true);
+    treeNode.fire("mousedown", pointerDown);
+    expect(onTreeNodePress).toHaveBeenCalledWith(pointerDown, binaryTree);
   });
 
   it("returns structure node attrs for rerender sync", () => {

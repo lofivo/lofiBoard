@@ -193,7 +193,8 @@ const ELEMENT_DEFAULTS = {
     width: 296,
     height: 276,
     nodes: [],
-    values: [],
+    edges: [],
+    settings: {},
     style: {},
     rotation: 0,
   },
@@ -290,6 +291,7 @@ export function normalizeElement(element, fallbackIndex = 0) {
     normalized.style = { ...GRAPH_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
   }
   if (normalized.type === "tree-structure") {
+    normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };
     normalized.style = { ...TREE_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
   }
   return normalized;

@@ -119,8 +119,9 @@ describe("board model", () => {
         {
           id: "tree_1",
           type: "tree-structure",
-          values: ["A"],
-          nodes: [{ id: "0", index: 0, value: "A", x: 24, y: 24, parentIndex: null }],
+          nodes: [{ id: "node_a", label: "A", x: 24, y: 24 }],
+          edges: [],
+          settings: { rootId: "node_a" },
           style: { nodeStroke: "#dc2626" },
         },
       ],
@@ -143,6 +144,7 @@ describe("board model", () => {
       nodeStroke: "#dc2626",
       stroke: "#94a3b8",
     });
+    expect(board.elements[2].settings).toEqual({ rootId: "node_a" });
   });
 
   it("normalizes independent linear structure defaults", () => {
