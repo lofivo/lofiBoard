@@ -2027,6 +2027,7 @@ describe("konva elements", () => {
     expect(treeNode.listening()).toBe(true);
     treeNode.fire("mousedown", pointerDown);
     expect(onTreeNodePress).toHaveBeenCalledWith(pointerDown, binaryTree);
+    expect(pointerDown.cancelBubble).toBe(false);
   });
 
   it("routes binary tree node click and double click for selection and inline editing", () => {
@@ -2136,6 +2137,58 @@ describe("konva elements", () => {
     expect(hitArea.width()).toBe(160);
     expect(hitArea.height()).toBe(120);
     expect(generalTree.findOne(".binary-tree-blank-hit")).toBeUndefined();
+  });
+
+  it("syncs binary tree active node borders without recreating the group", () => {
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      runtime: { activeNodeId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const firstNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
+    const didSync = syncElementNode(binaryTree, {
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      runtime: { activeNodeId: "node_b" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const activeNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+    const inactiveNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
+    expect(didSync).toBe(true);
+    expect(inactiveNode).toBe(firstNode);
+    expect(activeNode.findOne("Ellipse").stroke()).toBe("#2563eb");
+    expect(activeNode.findOne("Ellipse").strokeWidth()).toBe(3);
+    expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");
+    expect(inactiveNode.findOne("Ellipse").strokeWidth()).toBe(2);
   });
 
   it("returns structure node attrs for rerender sync", () => {

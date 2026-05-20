@@ -281,10 +281,36 @@ describe("app shell", () => {
     );
 
     expect(appSource).toContain("function isTreeNodeHitTarget(target)");
-    expect(clickSource).toMatch(/if \(isBinaryTreeElement\(clickedElement\)\) \{[\s\S]*?activeTreeNode = \{ elementId, nodeId \};[\s\S]*?renderBoard\(\);[\s\S]*?selectIds\(\[elementId\]\);/);
+    expect(appSource).toContain("function syncBinaryTreeActiveVisual(elementId)");
+    expect(clickSource).toMatch(/if \(isBinaryTreeElement\(clickedElement\)\) \{[\s\S]*?const previousActive = activeTreeNode;[\s\S]*?activeTreeNode = \{ elementId, nodeId \};[\s\S]*?selectIds\(\[elementId\]\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActive\?\.elementId\);[\s\S]*?syncBinaryTreeActiveVisual\(elementId\);/);
     expect(pointerDownSource).toContain("isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target)");
-    expect(pointerDownSource).toMatch(/activeTreeNode = null;[\s\S]*?hideBinaryTreeControls\(\);[\s\S]*?renderBoard\(\);[\s\S]*?selectIds\(\[targetElement\]\);/);
+    expect(pointerDownSource).toMatch(/const previousActiveTreeElementId = activeTreeNode\.elementId;[\s\S]*?activeTreeNode = null;[\s\S]*?hideBinaryTreeControls\(\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeElementId\);/);
     expect(pointerDownSource).toMatch(/const shouldDragBinaryTreeBlank = !event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\);[\s\S]*?if \(shouldDragBinaryTreeBlank\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);/);
+    expect(pointerDownSource).toMatch(/if \(!event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+  });
+
+  it("does not rebuild binary tree nodes during pointer down before dragging can start", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerDownSource = appSource.slice(
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+      appSource.indexOf("function beginSelectionDrag"),
+    );
+    const binaryBlankBranch = pointerDownSource.match(/if \(isBinaryTreeElement\(element\) && !isTreeNodeHitTarget\(event\.target\) && activeTreeNode\?\.elementId === targetElement\) \{[\s\S]*?return;\n      \}/)?.[0] ?? "";
+
+    expect(binaryBlankBranch).toContain("syncBinaryTreeActiveVisual(previousActiveTreeElementId)");
+    expect(binaryBlankBranch).toContain("beginSelectionDrag(worldPoint)");
+    expect(binaryBlankBranch).not.toContain("renderBoard()");
+  });
+
+  it("lets binary tree node pointer down bubble into the whole-tree drag flow", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const nodePressSource = appSource.slice(
+      appSource.indexOf("function handleTreeStructureNodePress(event, group)"),
+      appSource.indexOf("function moveArrayStructureItem"),
+    );
+
+    expect(nodePressSource).toContain("if (!selectedIds.includes(elementId)) selectIds([elementId]);");
+    expect(nodePressSource).not.toContain("event.cancelBubble = true");
   });
 
   it("renders the linear structure inspector without an outer category title", () => {
@@ -868,6 +894,25 @@ describe("app shell", () => {
     expect(appSource).toContain("contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag()");
     expect(appSource).toContain("nodeDragSelection = null");
     expect(appSource).toContain("selectionDrag = null");
+  });
+
+  it("keeps array item selection suppressed until the post-drag click is consumed", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const commitSource = appSource.slice(
+      appSource.indexOf("function commitLinearItemDrag()"),
+      appSource.indexOf("function beginLinearPointerDrag"),
+    );
+    const selectSource = appSource.slice(
+      appSource.indexOf("function handleArrayStructureItemSelect"),
+      appSource.indexOf("function handleArrayStructureItemPress"),
+    );
+
+    expect(appSource).toContain("let suppressLinearItemSelectTimer = null;");
+    expect(appSource).toContain("function suppressNextLinearItemSelect(elementId)");
+    expect(appSource).toContain("function clearLinearItemSelectSuppression()");
+    expect(commitSource).toContain("suppressNextLinearItemSelect(dragState.elementId)");
+    expect(commitSource).not.toContain("requestAnimationFrame(() =>");
+    expect(selectSource).toMatch(/if \(suppressLinearItemSelect\?\.elementId === elementId\) \{[\s\S]*?clearLinearItemSelectSuppression\(\);[\s\S]*?return;/);
   });
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {

@@ -105,6 +105,7 @@ import {
 } from "../ui/ui-config.js";
 import {
   ARRAY_STRUCTURE_STYLE,
+  TREE_STRUCTURE_STYLE,
   STRUCTURE_TYPES,
   LINEAR_STRUCTURE_TYPES,
   createStructureElements,
@@ -278,6 +279,7 @@ export function createWhiteboardApp(root) {
   let binaryTreeNodeControls = null;
   let binaryTreeTraversalControls = null;
   let suppressLinearItemSelect = null;
+  let suppressLinearItemSelectTimer = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
   let suppressedNodeDragElementId = null;
@@ -1688,10 +1690,10 @@ export function createWhiteboardApp(root) {
       const targetIds = expandGroupedIds([targetElement]);
       if (isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
         const shouldDragBinaryTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
+        const previousActiveTreeElementId = activeTreeNode.elementId;
         activeTreeNode = null;
         hideBinaryTreeControls();
-        renderBoard();
-        selectIds([targetElement]);
+        syncBinaryTreeActiveVisual(previousActiveTreeElementId);
         if (shouldDragBinaryTreeBlank) {
           beginSelectionDrag(worldPoint);
         }
@@ -2363,6 +2365,7 @@ export function createWhiteboardApp(root) {
     cancelLinearPointerDrag();
     resetLinearItemPressState();
     hideLinearItemControls();
+    clearLinearItemSelectSuppression();
     activeTreeNode = null;
     hideBinaryTreeControls();
     selectIds([]);
@@ -3243,6 +3246,25 @@ export function createWhiteboardApp(root) {
     group.findOne(".array-drop-indicator")?.moveToTop();
   }
 
+  function syncBinaryTreeActiveVisual(elementId) {
+    if (!elementId) return;
+    const element = board.elements.find((item) => item.id === elementId);
+    const group = contentLayer.findOne(`#${elementId}`);
+    if (!isBinaryTreeElement(element) || !group) return;
+    const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    group.find(".tree-node").forEach((nodeGroup) => {
+      const nodeId = nodeGroup.getAttr("treeNodeId");
+      const ellipse = nodeGroup.findOne("Ellipse");
+      if (!ellipse) return;
+      const isActive = activeTreeNode?.elementId === elementId && activeTreeNode.nodeId === nodeId;
+      ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
+      ellipse.strokeWidth(isActive ? 3 : 2);
+      if (isActive) nodeGroup.moveToTop();
+    });
+    renderBinaryTreeControls();
+    contentLayer.batchDraw();
+  }
+
   function updateLinearItemControlsPosition() {
     if (!linearItemControls || linearItemControls.hidden || !activeLinearItem) return;
     const group = contentLayer.findOne(`#${activeLinearItem.elementId}`);
@@ -3296,6 +3318,22 @@ export function createWhiteboardApp(root) {
       const element = board.elements.find((item) => item.id === elementId);
       setElementDraggableState(elementId, shouldElementBeDraggable(element) && !isLinearPointerGestureElement(elementId));
     }
+  }
+
+  function suppressNextLinearItemSelect(elementId) {
+    clearLinearItemSelectSuppression();
+    suppressLinearItemSelect = { elementId };
+    suppressLinearItemSelectTimer = window.setTimeout(() => {
+      clearLinearItemSelectSuppression();
+    }, 500);
+  }
+
+  function clearLinearItemSelectSuppression() {
+    if (suppressLinearItemSelectTimer) {
+      window.clearTimeout(suppressLinearItemSelectTimer);
+      suppressLinearItemSelectTimer = null;
+    }
+    suppressLinearItemSelect = null;
   }
 
   function resetLinearPointerPressState() {
@@ -3653,15 +3691,7 @@ export function createWhiteboardApp(root) {
     contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag();
     nodeDragSelection = null;
     selectionDrag = null;
-    suppressLinearItemSelect = {
-      elementId: dragState.elementId,
-      index: dragState.fromIndex,
-    };
-    requestAnimationFrame(() => {
-      if (suppressLinearItemSelect?.elementId === dragState.elementId && suppressLinearItemSelect?.index === dragState.fromIndex) {
-        suppressLinearItemSelect = null;
-      }
-    });
+    suppressNextLinearItemSelect(dragState.elementId);
     const finishLinearItemDrop = () => {
       if (!isLinearStructureElement(element) || dragState.cancelled) {
         renderBoard();
@@ -3849,10 +3879,12 @@ export function createWhiteboardApp(root) {
     if (isTemporaryPanActive()) return;
     const clickedElement = board.elements.find((item) => item.id === elementId);
     if (isBinaryTreeElement(clickedElement)) {
+      const previousActive = activeTreeNode;
       structureConnectState = null;
       activeTreeNode = { elementId, nodeId };
-      renderBoard();
       selectIds([elementId]);
+      syncBinaryTreeActiveVisual(previousActive?.elementId);
+      syncBinaryTreeActiveVisual(elementId);
       setStatus("已选择二叉树节点");
       return;
     }
@@ -4014,7 +4046,6 @@ export function createWhiteboardApp(root) {
     const elementId = getElementIdFromNode(group);
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
-    event.cancelBubble = true;
     if (!selectedIds.includes(elementId)) selectIds([elementId]);
   }
 
@@ -4041,7 +4072,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (suppressLinearItemSelect?.elementId === elementId) {
-      suppressLinearItemSelect = null;
+      clearLinearItemSelectSuppression();
       return;
     }
     selectIds([elementId]);
@@ -4053,6 +4084,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     const worldPoint = getWorldPointer(stage);
+    clearLinearItemSelectSuppression();
     suppressSelectionDragOnce = false;
     contentLayer.findOne(`#${elementId}`)?.stopDrag();
     linearItemPressState = {
