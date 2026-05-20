@@ -949,6 +949,8 @@ describe("app shell", () => {
     expect(appSource).toContain("function suppressNextLinearItemSelect(elementId)");
     expect(appSource).toContain("function clearLinearItemSelectSuppression()");
     expect(commitSource).toContain("suppressNextLinearItemSelect(dragState.elementId)");
+    expect(appSource).toContain("function suppressLinearItemSelectAfterSelectionDrag()");
+    expect(appSource).toContain("if (didMove) suppressLinearItemSelectAfterSelectionDrag();");
     expect(commitSource).not.toContain("requestAnimationFrame(() =>");
     expect(selectSource).toMatch(/if \(suppressLinearItemSelect\?\.elementId === elementId\) \{[\s\S]*?clearLinearItemSelectSuppression\(\);[\s\S]*?return;/);
   });

@@ -1767,6 +1767,7 @@ export function createWhiteboardApp(root) {
   function finishSelectionDrag() {
     const didMove = selectionDrag.moved;
     if (didMove) suppressBinaryTreeNodeClickAfterDrag();
+    if (didMove) suppressLinearItemSelectAfterSelectionDrag();
     setSelectionDragNodeDraggable(true);
     selectionDrag = null;
     if (didMove) {
@@ -1798,6 +1799,13 @@ export function createWhiteboardApp(root) {
     if (!suppressedBinaryTreeNodeClickElementIds.has(elementId)) return false;
     suppressedBinaryTreeNodeClickElementIds.delete(elementId);
     return true;
+  }
+
+  function suppressLinearItemSelectAfterSelectionDrag() {
+    const draggedLinearElement = selectionDrag?.originals
+      .map(({ id }) => board.elements.find((item) => item.id === id))
+      .find(isLinearStructureElement);
+    if (draggedLinearElement) suppressNextLinearItemSelect(draggedLinearElement.id);
   }
 
   function cancelSelectionDrag() {
