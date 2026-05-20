@@ -390,24 +390,10 @@ export function renderShell() {
                 <textarea data-tree-structure-input rows="5" spellcheck="false" placeholder="A->B&#10;A->C"></textarea>
               </label>
               <div class="quick-actions quick-actions-tree">
-                <button type="button" data-action="tree-add-node">树加点</button>
-                <button type="button" data-action="tree-connect-mode">连接父子</button>
-                <button type="button" data-action="tree-set-value">改节点值</button>
-                <button type="button" data-action="tree-delete-subtree">删子树</button>
-                <button type="button" data-action="tree-highlight-level">层序高亮</button>
-                <button type="button" data-action="tree-highlight-preorder">前序高亮</button>
-                <button type="button" data-action="tree-highlight-inorder">中序高亮</button>
-                <button type="button" data-action="tree-highlight-postorder">后序高亮</button>
-                <button type="button" data-action="tree-step-next">遍历下一步</button>
-                <button type="button" data-action="tree-step-prev">遍历上一步</button>
+                <button type="button" data-action="tree-highlight-level">层序遍历</button>
+                <button type="button" data-action="tree-highlight-preorder">前序遍历</button>
+                <button type="button" data-action="tree-highlight-postorder">后序遍历</button>
                 <button type="button" data-action="tree-clear-highlight">清除高亮</button>
-                <button type="button" data-action="tree-collapse-subtree">折叠子树</button>
-                <button type="button" data-action="tree-expand-subtree">展开子树</button>
-                <button type="button" data-action="tree-copy-subtree">导出边表</button>
-                <button type="button" data-action="tree-move-subtree">移动子树</button>
-                <button type="button" data-action="tree-delete-node">删节点</button>
-                <button type="button" data-action="tree-layout">树形布局</button>
-                <button type="button" data-action="tree-reload">树重载</button>
               </div>
               <div class="quick-actions quick-actions-binary-tree">
                 <button type="button" data-action="tree-highlight-preorder">前序遍历</button>

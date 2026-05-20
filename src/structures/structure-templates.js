@@ -829,12 +829,67 @@ export function addTreeNode(element, value = "") {
   }, TREE_STRUCTURE_STYLE);
 }
 
-export function addTreeChild(element, parentIndex = 0, side = "left", value = "") {
+export function addTreeChild(element, parentIndex = 0, value = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
+  if (isBinaryTreeStructure(element)) return element;
   const parentId = String(parentIndex);
-  const withNode = addTreeNode(element, value);
-  const child = withNode.nodes.at(-1);
-  return child ? addTreeEdge(withNode, parentId, child.id, { side }) : element;
+  const parent = (element.nodes ?? []).find((node) => node.id === parentId);
+  if (!parent) return element;
+  const existing = new Set((element.nodes ?? []).map((node) => node.label));
+  const label = String(value || getNextGraphNodeLabel(existing));
+  if (existing.has(label)) return element;
+  const child = {
+    id: createId("tree_node"),
+    label,
+    x: parent.x,
+    y: parent.y + (element.style?.levelGap ?? TREE_STRUCTURE_STYLE.levelGap),
+  };
+  const nextElement = {
+    ...element,
+    nodes: [...(element.nodes ?? []), child],
+    edges: [
+      ...(element.edges ?? []),
+      { id: createId("tree_edge"), from: parentId, to: child.id },
+    ],
+  };
+  return layoutTreeStructure(nextElement);
+}
+
+export function addTreeSibling(element, nodeIndex = 0, side = "right", value = "") {
+  if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
+  if (isBinaryTreeStructure(element)) return element;
+  const nodeId = String(nodeIndex);
+  const rootId = element.settings?.rootId ?? getDefaultTreeRootId((element.nodes ?? []).map((node) => node.id), element.edges ?? []);
+  if (!nodeId || nodeId === rootId) return element;
+  const parentEdge = (element.edges ?? []).find((edge) => edge.to === nodeId);
+  if (!parentEdge) return element;
+  const node = (element.nodes ?? []).find((item) => item.id === nodeId);
+  if (!node) return element;
+  const existing = new Set((element.nodes ?? []).map((item) => item.label));
+  const label = String(value || getNextGraphNodeLabel(existing));
+  if (existing.has(label)) return element;
+  const sibling = {
+    id: createId("tree_node"),
+    label,
+    x: node.x,
+    y: node.y,
+  };
+  const insertAfter = side === "right";
+  const nextEdges = [];
+  for (const edge of element.edges ?? []) {
+    if (edge.id === parentEdge.id && !insertAfter) {
+      nextEdges.push({ id: createId("tree_edge"), from: parentEdge.from, to: sibling.id });
+    }
+    nextEdges.push(edge);
+    if (edge.id === parentEdge.id && insertAfter) {
+      nextEdges.push({ id: createId("tree_edge"), from: parentEdge.from, to: sibling.id });
+    }
+  }
+  return layoutTreeStructure({
+    ...element,
+    nodes: [...(element.nodes ?? []), sibling],
+    edges: nextEdges,
+  });
 }
 
 export function addBinaryTreeChild(element, parentIndex = 0, side = "left", value = "0") {
@@ -925,16 +980,6 @@ export function addTreeEdge(element, from = null, to = null, { side = null } = {
 export function setTreeTraversalHighlight(element, mode = "level") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
   const order = getTreeTraversalOrder(element, mode);
-  if (!isBinaryTreeStructure(element)) {
-    return {
-      ...element,
-      markers: {
-        ...(element.markers ?? {}),
-        traversalMode: mode,
-        highlighted: order,
-      },
-    };
-  }
   return {
     ...element,
     markers: {

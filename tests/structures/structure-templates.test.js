@@ -33,6 +33,7 @@ import {
   updateGraphFromInput,
   addTreeNode,
   addTreeChild,
+  addTreeSibling,
   addBinaryTreeChild,
   addTreeEdge,
   moveTreeNode,
@@ -654,6 +655,35 @@ describe("structure templates", () => {
     expect(renamed.nodes.find((node) => node.id === d)).toMatchObject({ label: "Leaf" });
   });
 
+  it("adds general tree children and siblings in visual sibling order", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (source, label) => source.nodes.find((node) => node.label === label)?.id;
+
+    const withChild = addTreeChild(tree, id(tree, "A"), "D");
+    expect(withChild.edges.filter((edge) => edge.from === id(tree, "A")).map((edge) => (
+      withChild.nodes.find((node) => node.id === edge.to)?.label
+    ))).toEqual(["B", "C", "D"]);
+    expect(withChild.nodes.find((node) => node.label === "D").x).toBeGreaterThan(withChild.nodes.find((node) => node.label === "C").x);
+
+    const withLeftSibling = addTreeSibling(withChild, id(withChild, "C"), "left", "X");
+    expect(withLeftSibling.edges.filter((edge) => edge.from === id(withLeftSibling, "A")).map((edge) => (
+      withLeftSibling.nodes.find((node) => node.id === edge.to)?.label
+    ))).toEqual(["B", "X", "C", "D"]);
+    expect(withLeftSibling.nodes.find((node) => node.label === "X").x).toBeLessThan(withLeftSibling.nodes.find((node) => node.label === "C").x);
+
+    const withRightSibling = addTreeSibling(withLeftSibling, id(withLeftSibling, "C"), "right", "Y");
+    expect(withRightSibling.edges.filter((edge) => edge.from === id(withRightSibling, "A")).map((edge) => (
+      withRightSibling.nodes.find((node) => node.id === edge.to)?.label
+    ))).toEqual(["B", "X", "C", "Y", "D"]);
+
+    expect(addTreeSibling(withRightSibling, id(withRightSibling, "A"), "left", "RootSibling")).toBe(withRightSibling);
+  });
+
   it("keeps binary tree parents limited to two ordered children", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.BINARY_TREE,
@@ -711,7 +741,9 @@ describe("structure templates", () => {
     const highlighted = setTreeTraversalHighlight(tree, "preorder");
     expect(highlighted.markers).toMatchObject({
       traversalMode: "preorder",
-      highlighted: order,
+      traversalCursor: 0,
+      traversalOrder: order,
+      highlighted: [order[0]],
     });
     expect(clearTreeHighlight(highlighted).markers).toMatchObject({
       traversalMode: null,
@@ -729,9 +761,9 @@ describe("structure templates", () => {
     const order = getTreeTraversalOrder(tree, "level");
 
     const selected = setTreeTraversalHighlight(tree, "level");
-    expect(selected.markers).toMatchObject({ highlighted: order });
+    expect(selected.markers).toMatchObject({ traversalCursor: 0, highlighted: [order[0]], traversalOrder: order });
     const first = stepTreeTraversalHighlight(selected, 1);
-    expect(first.markers).toMatchObject({ traversalCursor: 0, highlighted: [order[0]], traversalOrder: order });
+    expect(first.markers).toMatchObject({ traversalCursor: 1, highlighted: [order[1]], traversalOrder: order });
   });
 
   it("starts binary tree traversal playback at the first node", () => {

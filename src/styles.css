@@ -1731,6 +1731,7 @@ button {
   display: none;
 }
 
+.tree-node-controls,
 .binary-tree-node-controls,
 .binary-tree-traversal-controls {
   position: fixed;
@@ -1745,11 +1746,13 @@ button {
   backdrop-filter: blur(14px);
 }
 
+.tree-node-controls[hidden],
 .binary-tree-node-controls[hidden],
 .binary-tree-traversal-controls[hidden] {
   display: none;
 }
 
+.tree-node-controls button,
 .binary-tree-node-controls button,
 .binary-tree-traversal-controls button {
   min-width: 34px;
@@ -1762,6 +1765,7 @@ button {
   font-weight: 700;
 }
 
+.tree-node-controls button:hover,
 .binary-tree-node-controls button:hover,
 .binary-tree-traversal-controls button:hover {
   background: #e0f2fe;

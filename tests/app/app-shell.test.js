@@ -11,6 +11,14 @@ describe("app shell", () => {
     return markup.slice(start, end);
   }
 
+  function extractTreeInspectorMarkup(markup) {
+    const start = markup.indexOf('data-inspector-section="tree"');
+    const end = markup.indexOf('<aside class="layer-panel', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    return markup.slice(start, end);
+  }
+
   it("renders edge expand buttons for collapsed side panels", () => {
     const markup = renderShell();
 
@@ -98,7 +106,7 @@ describe("app shell", () => {
   it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element) || isBinaryTreeElement(element)))");
+    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isInteractiveStructureElement(element)))");
     expect(appSource).toContain("transformer.forceUpdate()");
     expect(appSource).toContain("isTransformerAnchorTarget");
     expect(appSource).toContain("function disableTransformerHitAreaDrag()");
@@ -106,14 +114,16 @@ describe("app shell", () => {
     expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
   });
 
-  it("keeps transformer hit area from covering selected linear structure cells", () => {
+  it("keeps transformer hit area from covering selected structure internals", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const syncSelectionSource = appSource.slice(
       appSource.indexOf("function syncSelectionNodes()"),
       appSource.indexOf("function disableTransformerHitAreaDrag()"),
     );
 
-    expect(syncSelectionSource).toContain("selectedElements.some((element) => isLinearStructureElement(element) || isBinaryTreeElement(element))");
+    expect(appSource).toContain("function isInteractiveStructureElement(element)");
+    expect(appSource).toContain("return isLinearStructureElement(element) || element?.type === \"tree-structure\";");
+    expect(syncSelectionSource).toContain("selectedElements.some((element) => isInteractiveStructureElement(element))");
     expect(syncSelectionSource).toContain("transformer.shouldOverdrawWholeArea");
   });
 
@@ -157,6 +167,12 @@ describe("app shell", () => {
   it("renders array structure quick edit actions", () => {
     const markup = renderShell();
     const linearMarkup = extractLinearInspectorMarkup(markup);
+    const treeMarkup = extractTreeInspectorMarkup(markup);
+    const generalTreeMarkup = treeMarkup.slice(
+      treeMarkup.indexOf('class="quick-actions quick-actions-tree"'),
+      treeMarkup.indexOf('class="quick-actions quick-actions-binary-tree"'),
+    );
+    const binaryTreeMarkup = treeMarkup.slice(treeMarkup.indexOf('class="quick-actions quick-actions-binary-tree"'));
 
     expect(linearMarkup).not.toContain('data-linear-title');
     expect(linearMarkup).not.toContain("数组</span>");
@@ -223,35 +239,38 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="graph-apply-structure"');
     expect(markup.indexOf('data-action="graph-apply-structure"')).toBeLessThan(markup.indexOf('data-action="graph-add-node"'));
     expect(markup).toContain('class="structure-values-header"');
-    expect(markup).toContain('data-action="tree-add-node"');
-    expect(markup).toContain('data-action="tree-connect-mode"');
-    expect(markup).not.toContain('data-action="tree-add-left"');
-    expect(markup).not.toContain('data-action="tree-add-right"');
-    expect(markup).toContain('data-action="tree-set-value"');
-    expect(markup).toContain('data-action="tree-delete-subtree"');
-    expect(markup).toContain('data-action="tree-highlight-level"');
-    expect(markup).toContain('data-action="tree-highlight-preorder"');
-    expect(markup).toContain('data-action="tree-highlight-inorder"');
-    expect(markup).toContain('data-action="tree-highlight-postorder"');
-    expect(markup).toContain('data-action="tree-step-next"');
-    expect(markup).toContain('data-action="tree-step-prev"');
-    expect(markup).toContain('data-action="tree-clear-highlight"');
-    expect(markup).toContain('data-action="tree-collapse-subtree"');
-    expect(markup).toContain('data-action="tree-expand-subtree"');
-    expect(markup).toContain('data-action="tree-copy-subtree"');
-    expect(markup).toContain("导出边表");
-    expect(markup).toContain('data-action="tree-move-subtree"');
-    expect(markup).toContain('data-action="tree-delete-node"');
-    expect(markup).toContain('data-action="tree-layout"');
-    expect(markup).toContain('data-action="tree-reload"');
-    expect(markup).toContain('data-tree-structure-input');
-    expect(markup).toContain('data-action="tree-apply-structure"');
-    expect(markup.indexOf('data-action="tree-apply-structure"')).toBeLessThan(markup.indexOf('data-action="tree-add-node"'));
-    expect(markup).toContain('class="quick-actions quick-actions-binary-tree"');
-    expect(markup).toContain("前序遍历");
-    expect(markup).toContain("中序遍历");
-    expect(markup).toContain("后序遍历");
-    expect(markup).toContain("清除高亮");
+    expect(treeMarkup).not.toContain('data-action="tree-add-node"');
+    expect(treeMarkup).not.toContain('data-action="tree-connect-mode"');
+    expect(treeMarkup).not.toContain('data-action="tree-add-left"');
+    expect(treeMarkup).not.toContain('data-action="tree-add-right"');
+    expect(treeMarkup).not.toContain('data-action="tree-set-value"');
+    expect(treeMarkup).not.toContain('data-action="tree-delete-subtree"');
+    expect(generalTreeMarkup).toContain('data-action="tree-highlight-level"');
+    expect(generalTreeMarkup).toContain("层序遍历");
+    expect(generalTreeMarkup).toContain('data-action="tree-highlight-preorder"');
+    expect(generalTreeMarkup).toContain("前序遍历");
+    expect(generalTreeMarkup).not.toContain('data-action="tree-highlight-inorder"');
+    expect(generalTreeMarkup).toContain('data-action="tree-highlight-postorder"');
+    expect(generalTreeMarkup).toContain("后序遍历");
+    expect(generalTreeMarkup).not.toContain('data-action="tree-step-next"');
+    expect(generalTreeMarkup).not.toContain('data-action="tree-step-prev"');
+    expect(generalTreeMarkup).toContain('data-action="tree-clear-highlight"');
+    expect(treeMarkup).not.toContain('data-action="tree-collapse-subtree"');
+    expect(treeMarkup).not.toContain('data-action="tree-expand-subtree"');
+    expect(generalTreeMarkup).not.toContain('data-action="tree-copy-subtree"');
+    expect(generalTreeMarkup).not.toContain("导出边表");
+    expect(treeMarkup).not.toContain('data-action="tree-move-subtree"');
+    expect(treeMarkup).not.toContain('data-action="tree-delete-node"');
+    expect(treeMarkup).not.toContain('data-action="tree-layout"');
+    expect(treeMarkup).not.toContain('data-action="tree-reload"');
+    expect(treeMarkup).toContain('data-tree-structure-input');
+    expect(treeMarkup).toContain('data-action="tree-apply-structure"');
+    expect(treeMarkup.indexOf('data-action="tree-apply-structure"')).toBeLessThan(treeMarkup.indexOf('class="quick-actions quick-actions-tree"'));
+    expect(binaryTreeMarkup).toContain('data-action="tree-highlight-inorder"');
+    expect(binaryTreeMarkup).toContain("前序遍历");
+    expect(binaryTreeMarkup).toContain("中序遍历");
+    expect(binaryTreeMarkup).toContain("后序遍历");
+    expect(binaryTreeMarkup).toContain("清除高亮");
     expect(markup).toContain('class="structure-values-header"');
     expect(markup).not.toContain('data-section-toggle="tree"');
     expect(markup).not.toContain('class="inspector-section-title">树结构</span>');
@@ -265,8 +284,63 @@ describe("app shell", () => {
     expect(styles).toContain('[data-tree-kind="binary"] .quick-actions-tree');
     expect(styles).toContain('[data-tree-kind="binary"] [data-tree-structure-input]');
     expect(styles).toContain("min-height: 168px;");
+    expect(styles).toContain(".tree-node-controls");
     expect(styles).toContain(".binary-tree-node-controls");
     expect(styles).toContain(".binary-tree-traversal-controls");
+  });
+
+  it("uses floating node controls for ordinary tree edits", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const controlSource = appSource.slice(
+      appSource.indexOf("function ensureTreeNodeControls()"),
+      appSource.indexOf("function ensureBinaryTreeNodeControls()"),
+    );
+    const actionSource = appSource.slice(
+      appSource.indexOf("function runTreeNodeAction(action)"),
+      appSource.indexOf("function runBinaryTreeNodeAction(action)"),
+    );
+    const clickSource = appSource.slice(
+      appSource.indexOf("function handleTreeNodeClick({ elementId, nodeId })"),
+      appSource.indexOf("function connectGraphStructureNodes"),
+    );
+    const pointerDownSource = appSource.slice(
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+      appSource.indexOf("function beginSelectionDrag"),
+    );
+    const generalTreeNodeBranch = pointerDownSource.match(/if \(isGeneralTreeElement\(element\) && isTreeNodeHitTarget\(event\.target\)\) \{[\s\S]*?return;\n      \}/)?.[0] ?? "";
+
+    expect(appSource).toContain("addTreeChild,");
+    expect(appSource).toContain("addTreeSibling,");
+    expect(appSource).toContain("let treeNodeControls = null;");
+    expect(appSource).toContain("[data-tree-node-action]");
+    expect(controlSource).toContain('data-tree-node-action="add-child"');
+    expect(controlSource).toContain('data-tree-node-action="add-left-sibling"');
+    expect(controlSource).toContain('data-tree-node-action="add-right-sibling"');
+    expect(controlSource).toContain('data-tree-node-action="edit"');
+    expect(controlSource).toContain('data-tree-node-action="delete"');
+    expect(appSource).toContain("function renderTreeNodeControls()");
+    expect(appSource).toContain("function renderTreeControls()");
+    expect(appSource).toContain("function hideTreeControls()");
+    expect(appSource).toContain("function getTreeParentNodeId(element, nodeId)");
+    expect(appSource).toContain("function isTreeRootNode(element, nodeId)");
+    expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-left-sibling']\").hidden = isRoot;");
+    expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-right-sibling']\").hidden = isRoot;");
+    expect(appSource).toContain("controls.style.left = `${stageBox.left + box.x + box.width + 8}px`;");
+    expect(appSource).toContain('controls.style.transform = "none";');
+    expect(actionSource).toContain("addTreeChild(element, nodeId, \"\")");
+    expect(actionSource).toContain("addTreeSibling(element, nodeId, side, \"\")");
+    expect(actionSource).toContain("activeTreeNode = { elementId, nodeId };");
+    expect(actionSource).toContain("editTreeStructureNode({ elementId, nodeId, label:");
+    expect(clickSource).toContain("renderTreeNodeControls();");
+    expect(generalTreeNodeBranch).toContain("isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)");
+    expect(generalTreeNodeBranch).toContain("return;");
+    expect(generalTreeNodeBranch).not.toContain("beginSelectionDrag");
+    expect(pointerDownSource).toContain("isGeneralTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement");
+    expect(pointerDownSource).toContain("hideTreeControls();");
+    expect(pointerDownSource).toContain("syncGeneralTreeActiveVisual(previousActiveTreeElementId);");
+    expect(appSource).toContain("if (!element || element.type !== \"tree-structure\" || element.settings?.treeKind !== \"binary\" || element.locked) return;");
+    expect(appSource).toContain("renderTreeControls();");
+    expect(appSource).toContain("hideTreeControls();");
   });
 
   it("rerenders binary tree node selection immediately and clears it from blank tree clicks", () => {
@@ -310,6 +384,12 @@ describe("app shell", () => {
     );
 
     expect(nodePressSource).toContain("if (!selectedIds.includes(elementId)) selectIds([elementId]);");
+    expect(nodePressSource).toContain("const previousActiveTreeElementId = activeTreeNode?.elementId;");
+    expect(nodePressSource).toContain("activeTreeNode = null;");
+    expect(nodePressSource).toContain("hideTreeControls();");
+    expect(nodePressSource).toContain("hideBinaryTreeControls();");
+    expect(nodePressSource).toContain("syncBinaryTreeActiveVisual(previousActiveTreeElementId);");
+    expect(nodePressSource).toContain("syncGeneralTreeActiveVisual(previousActiveTreeElementId);");
     expect(nodePressSource).toContain("const worldPoint = getWorldPointer(stage);");
     expect(nodePressSource).toContain("if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);");
     expect(nodePressSource).not.toContain("event.cancelBubble = true");
@@ -1176,12 +1256,15 @@ describe("app shell", () => {
     expect(appSource).not.toContain("activeTreeNode = { elementId, nodeId: nextNode?.id ?? nodeId };");
     expect(appSource).toContain("function runBinaryTreeTraversalAction(action)");
     expect(appSource).toContain("function renderBinaryTreeTraversalControls()");
+    expect(appSource).toContain("function runTreeTraversalAction(action)");
+    expect(appSource).toContain("function renderTreeTraversalControls()");
+    expect(appSource).toContain("isSelectedTreeElementWithTraversal(item)");
     expect(appSource).toContain("function findTreeNodeGroup(group, nodeId)");
     expect(appSource).toContain("const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId)");
     expect(appSource).toContain("runtime.activeNodeId = activeTreeNode.nodeId");
     expect(appSource).toContain("activeTreeNode?.elementId === element.id");
-    expect(appSource).toContain("isBinaryTreeElement(element) ? stepTreeTraversalHighlight(element, direction) : element");
-    expect(appSource).toContain("selectedElements.some((element) => isLinearStructureElement(element) || isBinaryTreeElement(element))");
+    expect(appSource).toContain("isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element");
+    expect(appSource).toContain("selectedElements.some((element) => isInteractiveStructureElement(element))");
     expect(appSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");

@@ -1472,16 +1472,15 @@ function createTreeStructureNode(element, common, {
   const nodes = new Map((element.nodes ?? []).filter((node) => !hidden.has(node.id)).map((node) => [node.id, node]));
   const edgeRecords = [];
   const nodeGroups = new Map();
+  let lastTreeNodePointerEvent = { nodeId: null, time: 0 };
 
-  if (element.settings?.treeKind === "binary") {
-    group.add(new Konva.Rect({
-      name: "binary-tree-blank-hit",
-      width: element.width,
-      height: element.height,
-      fill: "rgba(255,255,255,0)",
-      listening: true,
-    }));
-  }
+  group.add(new Konva.Rect({
+    name: "tree-blank-hit",
+    width: element.width,
+    height: element.height,
+    fill: "rgba(255,255,255,0)",
+    listening: true,
+  }));
 
   const getNodePosition = (nodeId) => {
     const nodeGroup = nodeGroups.get(nodeId);
@@ -1515,8 +1514,8 @@ function createTreeStructureNode(element, common, {
   }
 
   for (const node of nodes.values()) {
-    const nodeDraggable = Boolean(common.draggable) && element.settings?.treeKind !== "binary";
-    const isActiveBinaryNode = element.settings?.treeKind === "binary" && element.runtime?.activeNodeId === node.id;
+    const nodeDraggable = false;
+    const isActiveTreeNode = element.runtime?.activeNodeId === node.id;
     const nodeGroup = new Konva.Group({
       name: "tree-node",
       x: node.x,
@@ -1528,8 +1527,8 @@ function createTreeStructureNode(element, common, {
     nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
-      stroke: isActiveBinaryNode ? "#2563eb" : style.nodeStroke,
-      strokeWidth: isActiveBinaryNode ? 3 : 2,
+      stroke: isActiveTreeNode ? "#2563eb" : style.nodeStroke,
+      strokeWidth: isActiveTreeNode ? 3 : 2,
       fill: getTreeNodeFill(element, node, style, getTreeConnectState),
     }));
     nodeGroup.add(new Konva.Text({
@@ -1578,24 +1577,44 @@ function createTreeStructureNode(element, common, {
         y: nodeGroup.y(),
       });
     });
-    nodeGroup.on("mousedown touchstart", (event) => {
-      if (nodeDraggable) return;
-      onTreeNodePress?.(event, group);
-    });
-    nodeGroup.on("dblclick dbltap", (event) => {
-      event.cancelBubble = true;
+    const selectTreeNode = () => {
+      onTreeNodeClick?.({
+        elementId: element.id,
+        nodeId: node.id,
+      });
+    };
+    const editTreeNode = () => {
       onTreeNodeEdit?.({
         elementId: element.id,
         nodeId: node.id,
         label: String(node.label ?? node.value ?? ""),
       });
+    };
+    nodeGroup.on("pointerdown mousedown touchstart", (event) => {
+      selectTreeNode();
+      const now = Date.now();
+      if (nodeDraggable) {
+        if (event.type !== "pointerdown"
+          && lastTreeNodePointerEvent.nodeId === node.id
+          && now - lastTreeNodePointerEvent.time < 50) {
+          return;
+        }
+        if (event.type === "pointerdown") {
+          lastTreeNodePointerEvent = { nodeId: node.id, time: now };
+        }
+        return;
+      }
+      if (element.settings?.treeKind === "binary") {
+        onTreeNodePress?.(event, group);
+      }
+    });
+    nodeGroup.on("dblclick dbltap", (event) => {
+      event.cancelBubble = true;
+      editTreeNode();
     });
     nodeGroup.on("click tap", (event) => {
       event.cancelBubble = true;
-      onTreeNodeClick?.({
-        elementId: element.id,
-        nodeId: node.id,
-      });
+      selectTreeNode();
     });
     group.add(nodeGroup);
   }

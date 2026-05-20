@@ -521,6 +521,68 @@ describe("konva elements", () => {
     expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_b" });
   });
 
+  it("routes ordinary tree node pointer down for selection without clearing active state", () => {
+    const onTreeNodeClick = vi.fn();
+    const onTreeNodeEdit = vi.fn();
+    const onTreeNodePress = vi.fn();
+    const tree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, { ...baseHandlers, draggable: true, onTreeNodeClick, onTreeNodeEdit, onTreeNodePress });
+    const treeNode = tree.findOne(".tree-node");
+    const pointerDown = { cancelBubble: false, evt: { button: 0 } };
+
+    expect(tree.draggable()).toBe(true);
+    expect(treeNode.draggable()).toBe(false);
+    treeNode.fire("mousedown", pointerDown);
+    treeNode.fire("click", { cancelBubble: false, evt: { button: 0 } });
+    treeNode.fire("dblclick", { cancelBubble: false, evt: { button: 0 } });
+
+    expect(onTreeNodePress).not.toHaveBeenCalled();
+    expect(pointerDown.cancelBubble).toBe(false);
+    expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_a" });
+    expect(onTreeNodeEdit).toHaveBeenCalledWith({
+      elementId: "tree_1",
+      nodeId: "node_a",
+      label: "A",
+    });
+  });
+
+  it("does not edit tree nodes from repeated pointer down without a double click", () => {
+    const onTreeNodeClick = vi.fn();
+    const onTreeNodeEdit = vi.fn();
+    const tree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 24 }],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, { ...baseHandlers, draggable: true, onTreeNodeClick, onTreeNodeEdit });
+    const treeNode = tree.findOne(".tree-node");
+    const pointerDown = { cancelBubble: false, evt: { button: 0 } };
+
+    treeNode.fire("mousedown", pointerDown);
+    treeNode.fire("mousedown", pointerDown);
+
+    expect(onTreeNodeClick).toHaveBeenCalledTimes(2);
+    expect(onTreeNodeEdit).not.toHaveBeenCalled();
+    treeNode.fire("dblclick", { cancelBubble: false, evt: { button: 0 } });
+    expect(onTreeNodeEdit).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_a", label: "A" });
+  });
+
   it("keeps latex source text in Konva as an editable fallback for the vector overlay", () => {
     const node = createElementNode({
       id: "text_1",
@@ -1900,7 +1962,7 @@ describe("konva elements", () => {
     });
   });
 
-  it("moves and connects tree nodes inside the tree structure", () => {
+  it("does not treat ordinary tree node dragend as node move or connect", () => {
     const onTreeNodeMove = vi.fn();
     const onTreeNodeConnect = vi.fn();
     const node = createElementNode({
@@ -1928,12 +1990,7 @@ describe("konva elements", () => {
     const treeNode = node.find(".tree-node")[0];
     treeNode.position({ x: 96, y: 36 });
     treeNode.fire("dragend", { cancelBubble: false });
-    expect(onTreeNodeMove).toHaveBeenCalledWith({
-      elementId: "tree_1",
-      nodeId: "node_a",
-      x: 96,
-      y: 36,
-    });
+    expect(onTreeNodeMove).not.toHaveBeenCalled();
 
     const connectNode = createElementNode({
       id: "tree_2",
@@ -1958,14 +2015,10 @@ describe("konva elements", () => {
     const source = connectNode.find(".tree-node")[0];
     source.position({ x: 40, y: 92 });
     source.fire("dragend", { cancelBubble: false });
-    expect(onTreeNodeConnect).toHaveBeenCalledWith({
-      elementId: "tree_2",
-      sourceNodeId: "node_a",
-      targetNodeId: "node_b",
-    });
+    expect(onTreeNodeConnect).not.toHaveBeenCalled();
   });
 
-  it("keeps general tree nodes draggable but disables binary tree node dragging", () => {
+  it("keeps tree node hit areas non-draggable so node selection and editing stay stable", () => {
     const generalTree = createElementNode({
       id: "tree_1",
       type: "tree-structure",
@@ -1997,7 +2050,9 @@ describe("konva elements", () => {
       draggable: true,
     });
 
-    expect(generalTree.findOne(".tree-node").draggable()).toBe(true);
+    expect(generalTree.draggable()).toBe(true);
+    expect(generalTree.findOne(".tree-node").draggable()).toBe(false);
+    expect(binaryTree.draggable()).toBe(true);
     expect(binaryTree.findOne(".tree-node").draggable()).toBe(false);
   });
 
@@ -2095,7 +2150,7 @@ describe("konva elements", () => {
     expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");
   });
 
-  it("adds a transparent hit area to binary trees so blank tree clicks can clear node selection", () => {
+  it("adds a transparent hit area to tree structures so blank tree drags move the tree", () => {
     const binaryTree = createElementNode({
       id: "tree_1",
       type: "tree-structure",
@@ -2131,12 +2186,16 @@ describe("konva elements", () => {
       draggable: true,
     });
 
-    const hitArea = binaryTree.findOne(".binary-tree-blank-hit");
+    const binaryHitArea = binaryTree.findOne(".tree-blank-hit");
+    const generalHitArea = generalTree.findOne(".tree-blank-hit");
 
-    expect(hitArea).toBeTruthy();
-    expect(hitArea.width()).toBe(160);
-    expect(hitArea.height()).toBe(120);
-    expect(generalTree.findOne(".binary-tree-blank-hit")).toBeUndefined();
+    expect(binaryHitArea).toBeTruthy();
+    expect(binaryHitArea.width()).toBe(160);
+    expect(binaryHitArea.height()).toBe(120);
+    expect(generalHitArea).toBeTruthy();
+    expect(generalHitArea.width()).toBe(160);
+    expect(generalHitArea.height()).toBe(120);
+    expect(binaryTree.findOne(".binary-tree-blank-hit")).toBeUndefined();
   });
 
   it("syncs binary tree active node borders without recreating the group", () => {
@@ -2185,6 +2244,35 @@ describe("konva elements", () => {
 
     expect(didSync).toBe(true);
     expect(inactiveNode).toBe(firstNode);
+    expect(activeNode.findOne("Ellipse").stroke()).toBe("#2563eb");
+    expect(activeNode.findOne("Ellipse").strokeWidth()).toBe(3);
+    expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");
+    expect(inactiveNode.findOne("Ellipse").strokeWidth()).toBe(2);
+  });
+
+  it("renders ordinary tree active node borders from runtime state", () => {
+    const tree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b" }],
+      settings: { rootId: "node_a" },
+      runtime: { activeNodeId: "node_b" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const activeNode = tree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+    const inactiveNode = tree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
     expect(activeNode.findOne("Ellipse").stroke()).toBe("#2563eb");
     expect(activeNode.findOne("Ellipse").strokeWidth()).toBe(3);
     expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");

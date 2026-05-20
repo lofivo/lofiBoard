@@ -139,6 +139,8 @@ import {
   importGraphFromText,
   updateGraphFromInput,
   addTreeNode,
+  addTreeChild,
+  addTreeSibling,
   addBinaryTreeChild,
   addTreeEdge,
   getBinaryTreeChildSides,
@@ -276,6 +278,7 @@ export function createWhiteboardApp(root) {
   let linearItemLiftTween = null;
   let linearPointerTween = null;
   let linearItemControls = null;
+  let treeNodeControls = null;
   let binaryTreeNodeControls = null;
   let binaryTreeTraversalControls = null;
   let suppressLinearItemSelect = null;
@@ -505,6 +508,11 @@ export function createWhiteboardApp(root) {
       runLinearItemAction(button.dataset.linearItemAction);
     });
     root.addEventListener("click", (event) => {
+      const button = closestElement(event.target, "[data-tree-node-action]");
+      if (!button) return;
+      runTreeNodeAction(button.dataset.treeNodeAction);
+    });
+    root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-binary-tree-node-action]");
       if (!button) return;
       runBinaryTreeNodeAction(button.dataset.binaryTreeNodeAction);
@@ -512,7 +520,7 @@ export function createWhiteboardApp(root) {
     root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-binary-tree-traversal-action]");
       if (!button) return;
-      runBinaryTreeTraversalAction(button.dataset.binaryTreeTraversalAction);
+      runTreeTraversalAction(button.dataset.binaryTreeTraversalAction);
     });
 
     for (const button of root.querySelectorAll("[data-background-mode]")) {
@@ -865,6 +873,64 @@ export function createWhiteboardApp(root) {
     }
   }
 
+  function runTreeNodeAction(action) {
+    const elementId = activeTreeNode?.elementId;
+    const nodeId = activeTreeNode?.nodeId;
+    const element = board.elements.find((item) => item.id === elementId);
+    if (!isSelectedGeneralTreeElement(element) || element.locked || !nodeId) return;
+
+    if (action === "add-child") {
+      const nextElement = addTreeChild(element, nodeId, "");
+      if (nextElement === element) return;
+      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+      activeTreeNode = { elementId, nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory("已添加子节点");
+      return;
+    }
+
+    if (action === "add-left-sibling" || action === "add-right-sibling") {
+      const side = action === "add-left-sibling" ? "left" : "right";
+      const nextElement = addTreeSibling(element, nodeId, side, "");
+      if (nextElement === element) return;
+      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+      activeTreeNode = { elementId, nodeId };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory(side === "left" ? "已添加左兄弟节点" : "已添加右兄弟节点");
+      return;
+    }
+
+    if (action === "edit") {
+      const node = element.nodes?.find((item) => item.id === nodeId);
+      editTreeStructureNode({ elementId, nodeId, label: String(node?.label ?? node?.value ?? "") });
+      return;
+    }
+
+    if (action === "delete") {
+      if (isTreeRootNode(element, nodeId)) {
+        board.elements = removeElementsById(board.elements, [elementId]);
+        activeTreeNode = null;
+        selectedIds = selectedIds.filter((id) => id !== elementId);
+        hideTreeControls();
+        renderBoard();
+        updateChrome();
+        pushHistory("已删除树");
+        return;
+      }
+      const nextElement = deleteTreeSubtree(element, nodeId);
+      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
+      activeTreeNode = { elementId, nodeId: getTreeParentNodeId(element, nodeId) ?? nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null };
+      renderBoard();
+      selectIds([elementId]);
+      syncTreeStructurePanelState();
+      pushHistory("已删除子树");
+    }
+  }
+
   function runBinaryTreeNodeAction(action) {
     const elementId = activeTreeNode?.elementId;
     const nodeId = activeTreeNode?.nodeId;
@@ -902,11 +968,15 @@ export function createWhiteboardApp(root) {
     }
   }
 
-  function runBinaryTreeTraversalAction(action) {
+  function runTreeTraversalAction(action) {
     const direction = action === "prev" ? -1 : 1;
     editSelectedStructure("tree-structure", (element) => (
-      isBinaryTreeElement(element) ? stepTreeTraversalHighlight(element, direction) : element
+      isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element
     ), direction > 0 ? "已推进遍历" : "已回退遍历");
+  }
+
+  function runBinaryTreeTraversalAction(action) {
+    runTreeTraversalAction(action);
   }
 
   function runContextAction(action) {
@@ -1698,6 +1768,20 @@ export function createWhiteboardApp(root) {
         }
         return;
       }
+      if (isGeneralTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
+        const shouldDragTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
+        const previousActiveTreeElementId = activeTreeNode.elementId;
+        activeTreeNode = null;
+        hideTreeControls();
+        syncGeneralTreeActiveVisual(previousActiveTreeElementId);
+        if (shouldDragTreeBlank) {
+          beginSelectionDrag(worldPoint);
+        }
+        return;
+      }
+      if (isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)) {
+        return;
+      }
       if (arrayValueHitNode && isLinearStructureElement(element)) {
         if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
           beginSelectionDrag(worldPoint);
@@ -2288,7 +2372,7 @@ export function createWhiteboardApp(root) {
     selectionRect.moveToTop();
     syncSelectionNodes();
     renderLinearItemControls();
-    renderBinaryTreeControls();
+    renderTreeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
     syncTextOverlays({ hiddenIds: isEditingText ? selectedIds : [] });
@@ -2332,6 +2416,9 @@ export function createWhiteboardApp(root) {
     if (isBinaryTreeElement(element)) {
       return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
     }
+    if (isGeneralTreeElement(element)) {
+      return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
+    }
     if (!isLinearStructureElement(element)) return "";
     return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive()}`;
   }
@@ -2339,6 +2426,9 @@ export function createWhiteboardApp(root) {
   function buildRuntimeElement(element) {
     const runtime = {};
     if (isBinaryTreeElement(element) && activeTreeNode?.elementId === element.id) {
+      runtime.activeNodeId = activeTreeNode.nodeId;
+    }
+    if (isGeneralTreeElement(element) && activeTreeNode?.elementId === element.id) {
       runtime.activeNodeId = activeTreeNode.nodeId;
     }
     if (!isLinearStructureElement(element)) {
@@ -2376,7 +2466,7 @@ export function createWhiteboardApp(root) {
     syncLinearItemActiveVisual(previousActive?.elementId);
     syncLinearItemActiveVisual(activeLinearItem?.elementId);
     renderLinearItemControls();
-    renderBinaryTreeControls();
+    renderTreeControls();
     contentLayer.batchDraw();
     updateChrome();
   }
@@ -2408,6 +2498,7 @@ export function createWhiteboardApp(root) {
     hideLinearItemControls();
     clearLinearItemSelectSuppression();
     activeTreeNode = null;
+    hideTreeControls();
     hideBinaryTreeControls();
     selectIds([]);
   }
@@ -2433,7 +2524,7 @@ export function createWhiteboardApp(root) {
     transformer.resizeEnabled(canTransform);
     transformer.rotateEnabled(canTransform);
     transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
-    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isLinearStructureElement(element) || isBinaryTreeElement(element)));
+    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isInteractiveStructureElement(element)));
     transformer.forceUpdate();
     disableTransformerHitAreaDrag();
   }
@@ -3161,6 +3252,23 @@ export function createWhiteboardApp(root) {
     if (linearItemControls) linearItemControls.hidden = true;
   }
 
+  function ensureTreeNodeControls() {
+    if (treeNodeControls) return treeNodeControls;
+    const controls = document.createElement("div");
+    controls.className = "tree-node-controls";
+    controls.hidden = true;
+    controls.innerHTML = `
+      <button type="button" data-tree-node-action="add-child" title="添加子节点" aria-label="添加子节点">子+</button>
+      <button type="button" data-tree-node-action="add-left-sibling" title="添加左兄弟" aria-label="添加左兄弟">左兄+</button>
+      <button type="button" data-tree-node-action="add-right-sibling" title="添加右兄弟" aria-label="添加右兄弟">右兄+</button>
+      <button type="button" data-tree-node-action="edit" title="改值" aria-label="改值">改值</button>
+      <button type="button" data-tree-node-action="delete" title="删除子树" aria-label="删除子树">删除</button>
+    `;
+    root.appendChild(controls);
+    treeNodeControls = controls;
+    return controls;
+  }
+
   function ensureBinaryTreeNodeControls() {
     if (binaryTreeNodeControls) return binaryTreeNodeControls;
     const controls = document.createElement("div");
@@ -3195,6 +3303,10 @@ export function createWhiteboardApp(root) {
     if (binaryTreeTraversalControls) binaryTreeTraversalControls.hidden = true;
   }
 
+  function hideTreeControls() {
+    if (treeNodeControls) treeNodeControls.hidden = true;
+  }
+
   function renderLinearItemControls() {
     const controls = ensureLinearItemControls();
     const element = board.elements.find((item) => item.id === activeLinearItem?.elementId);
@@ -3206,9 +3318,39 @@ export function createWhiteboardApp(root) {
     updateLinearItemControlsPosition();
   }
 
+  function renderTreeControls() {
+    renderTreeNodeControls();
+    renderTreeTraversalControls();
+    renderBinaryTreeControls();
+  }
+
+  function renderTreeNodeControls() {
+    const controls = ensureTreeNodeControls();
+    const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
+    if (!isSelectedGeneralTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
+      controls.hidden = true;
+      return;
+    }
+    const group = contentLayer.findOne(`#${element.id}`);
+    const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId);
+    if (!treeNode) {
+      controls.hidden = true;
+      return;
+    }
+    const isRoot = isTreeRootNode(element, activeTreeNode.nodeId);
+    controls.querySelector("[data-tree-node-action='add-left-sibling']").hidden = isRoot;
+    controls.querySelector("[data-tree-node-action='add-right-sibling']").hidden = isRoot;
+    controls.hidden = false;
+    const box = treeNode.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    controls.style.left = `${stageBox.left + box.x + box.width + 8}px`;
+    controls.style.top = `${stageBox.top + box.y + box.height / 2}px`;
+    controls.style.transform = "none";
+  }
+
   function renderBinaryTreeControls() {
     renderBinaryTreeNodeControls();
-    renderBinaryTreeTraversalControls();
+    renderTreeTraversalControls();
   }
 
   function renderBinaryTreeNodeControls() {
@@ -3235,9 +3377,9 @@ export function createWhiteboardApp(root) {
     controls.style.transform = "translateX(-50%)";
   }
 
-  function renderBinaryTreeTraversalControls() {
+  function renderTreeTraversalControls() {
     const controls = ensureBinaryTreeTraversalControls();
-    const element = board.elements.find((item) => selectedIds.includes(item.id) && isBinaryTreeElement(item));
+    const element = board.elements.find((item) => isSelectedTreeElementWithTraversal(item));
     if (!element || !element.markers?.traversalMode) {
       controls.hidden = true;
       return;
@@ -3255,12 +3397,36 @@ export function createWhiteboardApp(root) {
     controls.style.transform = "none";
   }
 
+  function renderBinaryTreeTraversalControls() {
+    renderTreeTraversalControls();
+  }
+
   function isBinaryTreeElement(element) {
     return element?.type === "tree-structure" && element.settings?.treeKind === "binary";
   }
 
+  function isGeneralTreeElement(element) {
+    return element?.type === "tree-structure" && element.settings?.treeKind !== "binary";
+  }
+
+  function isTreeElementWithTraversal(element) {
+    return element?.type === "tree-structure";
+  }
+
+  function isInteractiveStructureElement(element) {
+    return isLinearStructureElement(element) || element?.type === "tree-structure";
+  }
+
   function isSelectedBinaryTreeElement(element) {
     return isBinaryTreeElement(element) && selectedIds.includes(element.id);
+  }
+
+  function isSelectedGeneralTreeElement(element) {
+    return isGeneralTreeElement(element) && selectedIds.includes(element.id);
+  }
+
+  function isSelectedTreeElementWithTraversal(element) {
+    return isTreeElementWithTraversal(element) && selectedIds.includes(element.id);
   }
 
   function syncLinearItemActiveVisual(elementId) {
@@ -3303,6 +3469,25 @@ export function createWhiteboardApp(root) {
       if (isActive) nodeGroup.moveToTop();
     });
     renderBinaryTreeControls();
+    contentLayer.batchDraw();
+  }
+
+  function syncGeneralTreeActiveVisual(elementId) {
+    if (!elementId) return;
+    const element = board.elements.find((item) => item.id === elementId);
+    const group = contentLayer.findOne(`#${elementId}`);
+    if (!isGeneralTreeElement(element) || !group) return;
+    const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    group.find(".tree-node").forEach((nodeGroup) => {
+      const nodeId = nodeGroup.getAttr("treeNodeId");
+      const ellipse = nodeGroup.findOne("Ellipse");
+      if (!ellipse) return;
+      const isActive = activeTreeNode?.elementId === elementId && activeTreeNode.nodeId === nodeId;
+      ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
+      ellipse.strokeWidth(isActive ? 3 : 2);
+      if (isActive) nodeGroup.moveToTop();
+    });
+    renderTreeNodeControls();
     contentLayer.batchDraw();
   }
 
@@ -3931,8 +4116,12 @@ export function createWhiteboardApp(root) {
       return;
     }
     if (structureConnectState?.kind !== "tree" || structureConnectState.elementId !== elementId) {
+      const previousActive = activeTreeNode;
       activeTreeNode = { elementId, nodeId };
       selectIds([elementId]);
+      syncGeneralTreeActiveVisual(previousActive?.elementId);
+      syncGeneralTreeActiveVisual(elementId);
+      renderTreeNodeControls();
       setStatus("已选择树节点");
       return;
     }
@@ -4089,6 +4278,12 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
     if (!selectedIds.includes(elementId)) selectIds([elementId]);
+    const previousActiveTreeElementId = activeTreeNode?.elementId;
+    activeTreeNode = null;
+    hideTreeControls();
+    hideBinaryTreeControls();
+    syncBinaryTreeActiveVisual(previousActiveTreeElementId);
+    syncGeneralTreeActiveVisual(previousActiveTreeElementId);
     const worldPoint = getWorldPointer(stage);
     if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);
   }
@@ -4276,6 +4471,22 @@ export function createWhiteboardApp(root) {
   function findTreeNodeGroup(group, nodeId) {
     if (!group || !nodeId) return null;
     return group.find(".tree-node").find((node) => node.getAttr("treeNodeId") === nodeId) ?? null;
+  }
+
+  function getTreeRootNodeId(element) {
+    if (!element || element.type !== "tree-structure") return null;
+    const nodeIds = (element.nodes ?? []).map((node) => node.id);
+    const childIds = new Set((element.edges ?? []).map((edge) => edge.to));
+    return element.settings?.rootId ?? nodeIds.find((id) => !childIds.has(id)) ?? nodeIds[0] ?? null;
+  }
+
+  function getTreeParentNodeId(element, nodeId) {
+    if (!element || element.type !== "tree-structure" || !nodeId) return null;
+    return (element.edges ?? []).find((edge) => edge.to === nodeId)?.from ?? null;
+  }
+
+  function isTreeRootNode(element, nodeId) {
+    return Boolean(nodeId && nodeId === getTreeRootNodeId(element));
   }
 
   function isTreeNodeHitTarget(target) {
