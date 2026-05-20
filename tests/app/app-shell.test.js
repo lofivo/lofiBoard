@@ -310,7 +310,45 @@ describe("app shell", () => {
     );
 
     expect(nodePressSource).toContain("if (!selectedIds.includes(elementId)) selectIds([elementId]);");
+    expect(nodePressSource).toContain("const worldPoint = getWorldPointer(stage);");
+    expect(nodePressSource).toContain("if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);");
     expect(nodePressSource).not.toContain("event.cancelBubble = true");
+  });
+
+  it("disables native node dragging while selected elements use selection drag", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const beginDragSource = appSource.slice(
+      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+      appSource.indexOf("function updateSelectionDrag(worldPoint)"),
+    );
+    const finishDragSource = appSource.slice(
+      appSource.indexOf("function finishSelectionDrag()"),
+      appSource.indexOf("function beginNodeDragSelection(node)"),
+    );
+
+    expect(appSource).toContain("function setSelectionDragNodeDraggable(enabled)");
+    expect(appSource).toContain("function isSelectionDragElement(elementId)");
+    expect(appSource).toContain("&& !isSelectionDragElement(element.id)");
+    expect(appSource).toContain("&& !isSelectionDragElement(id)");
+    expect(beginDragSource).toContain("setSelectionDragNodeDraggable(false);");
+    expect(finishDragSource.indexOf("setSelectionDragNodeDraggable(true);")).toBeLessThan(finishDragSource.indexOf("selectionDrag = null;"));
+  });
+
+  it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const finishDragSource = appSource.slice(
+      appSource.indexOf("function finishSelectionDrag()"),
+      appSource.indexOf("function setSelectionDragNodeDraggable(enabled)"),
+    );
+    const clickSource = appSource.slice(
+      appSource.indexOf("function handleTreeNodeClick({ elementId, nodeId })"),
+      appSource.indexOf("function connectGraphStructureNodes"),
+    );
+
+    expect(appSource).toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
+    expect(finishDragSource).toContain("suppressBinaryTreeNodeClickAfterDrag();");
+    expect(clickSource).toContain("consumeSuppressedBinaryTreeNodeClick(elementId)");
+    expect(clickSource.indexOf("consumeSuppressedBinaryTreeNodeClick(elementId)")).toBeLessThan(clickSource.indexOf("activeTreeNode = { elementId, nodeId };"));
   });
 
   it("renders the linear structure inspector without an outer category title", () => {
@@ -973,6 +1011,18 @@ describe("app shell", () => {
     expect(styles).toContain(".linear-item-controls");
   });
 
+  it("keeps the current array item selected after inserting adjacent items", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const actionSource = appSource.slice(
+      appSource.indexOf("function runLinearItemAction(action)"),
+      appSource.indexOf("function runBinaryTreeNodeAction(action)"),
+    );
+
+    expect(actionSource).toContain("const nextActiveIndex = action === \"insert-before\" ? index + 1 : index;");
+    expect(actionSource).toContain("setActiveLinearItem(elementId, nextActiveIndex);");
+    expect(actionSource).not.toContain("setActiveLinearItem(elementId, insertIndex);");
+  });
+
   it("only enables direct array item editing while the select tool is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -1042,7 +1092,7 @@ describe("app shell", () => {
   it("cleans root drag state when committing a linear pointer drag", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?suppressedNodeDragElementId = dragState\.elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{dragState\.elementId\}`\)\?\.stopDrag\(\);[\s\S]*?nodeDragSelection = null;[\s\S]*?selectionDrag = null;/);
+    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?suppressedNodeDragElementId = dragState\.elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{dragState\.elementId\}`\)\?\.stopDrag\(\);[\s\S]*?nodeDragSelection = null;[\s\S]*?cancelSelectionDrag\(\);/);
     expect(appSource).toMatch(/function handleArrayPointerPress\(\{ elementId, index \}\) \{[\s\S]*?suppressedNodeDragElementId = elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{elementId\}`\)\?\.stopDrag\(\);/);
   });
 
@@ -1121,6 +1171,7 @@ describe("app shell", () => {
     expect(appSource).toContain("function handleTreeNodeClick({ elementId, nodeId })");
     expect(appSource).toContain("function runBinaryTreeNodeAction(action)");
     expect(appSource).toContain("addBinaryTreeChild(element, nodeId, side, \"0\")");
+    expect(appSource).not.toContain("activeTreeNode = { elementId, nodeId: nextNode?.id ?? nodeId };");
     expect(appSource).toContain("function runBinaryTreeTraversalAction(action)");
     expect(appSource).toContain("function renderBinaryTreeTraversalControls()");
     expect(appSource).toContain("function findTreeNodeGroup(group, nodeId)");
