@@ -826,7 +826,7 @@ function syncGraphStructureNodeContent(group, element, handlers) {
 }
 
 function syncTreeStructureNodeContent(group, element, handlers) {
-  if (element.settings?.treeKind === "binary" && syncBinaryTreeActiveNodeBorders(group, element)) {
+  if (element.settings?.treeKind === "binary" && syncBinaryTreeNodeVisuals(group, element, handlers)) {
     return;
   }
   group.destroyChildren();
@@ -843,19 +843,21 @@ function syncTreeStructureNodeContent(group, element, handlers) {
   nextGroup.destroy();
 }
 
-function syncBinaryTreeActiveNodeBorders(group, element) {
+function syncBinaryTreeNodeVisuals(group, element, handlers = {}) {
   const treeNodes = group.find(".tree-node");
   if (treeNodes.length !== (element.nodes?.length ?? 0)) return false;
   const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const activeNodeId = element.runtime?.activeNodeId ?? null;
   for (const nodeGroup of treeNodes) {
     const nodeId = nodeGroup.getAttr("treeNodeId");
-    if (!(element.nodes ?? []).some((node) => node.id === nodeId)) return false;
+    const node = (element.nodes ?? []).find((item) => item.id === nodeId);
+    if (!node) return false;
     const ellipse = nodeGroup.findOne("Ellipse");
     if (!ellipse) return false;
     const isActive = activeNodeId === nodeId;
     ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
     ellipse.strokeWidth(isActive ? 3 : 2);
+    ellipse.fill(getTreeNodeFill(element, node, style, handlers.getTreeConnectState));
     if (isActive) nodeGroup.moveToTop();
   }
   return true;

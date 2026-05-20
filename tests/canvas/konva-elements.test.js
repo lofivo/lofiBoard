@@ -2191,6 +2191,56 @@ describe("konva elements", () => {
     expect(inactiveNode.findOne("Ellipse").strokeWidth()).toBe(2);
   });
 
+  it("syncs binary tree traversal highlight fills without recreating the group", () => {
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      markers: { highlighted: ["node_a"] },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const firstNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
+    const didSync = syncElementNode(binaryTree, {
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      markers: { highlighted: ["node_b"] },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const highlightedNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+    const normalNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+
+    expect(didSync).toBe(true);
+    expect(normalNode).toBe(firstNode);
+    expect(highlightedNode.findOne("Ellipse").fill()).toBe("#fef3c7");
+    expect(normalNode.findOne("Ellipse").fill()).toBe("#f8fafc");
+  });
+
   it("returns structure node attrs for rerender sync", () => {
     const node = createElementNode({
       id: "array_1",
