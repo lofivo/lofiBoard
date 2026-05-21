@@ -1591,7 +1591,6 @@ function createTreeStructureNode(element, common, {
       });
     };
     nodeGroup.on("pointerdown mousedown touchstart", (event) => {
-      selectTreeNode();
       const now = Date.now();
       if (nodeDraggable) {
         if (event.type !== "pointerdown"

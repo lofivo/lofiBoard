@@ -809,11 +809,9 @@ export function updateTreeFromInput(element, input) {
   };
 }
 
-export function addTreeNode(element, value = "") {
+export function addTreeNode(element, value = "0") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
-  const existing = new Set((element.nodes ?? []).map((node) => node.label));
-  const label = String(value || getNextGraphNodeLabel(existing));
-  if (existing.has(label)) return element;
+  const label = String(value ?? "0");
   const radius = (element.style?.nodeRadius ?? TREE_STRUCTURE_STYLE.nodeRadius);
   return normalizeStructureBounds({
     ...element,
@@ -829,15 +827,13 @@ export function addTreeNode(element, value = "") {
   }, TREE_STRUCTURE_STYLE);
 }
 
-export function addTreeChild(element, parentIndex = 0, value = "") {
+export function addTreeChild(element, parentIndex = 0, value = "0") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
   if (isBinaryTreeStructure(element)) return element;
   const parentId = String(parentIndex);
   const parent = (element.nodes ?? []).find((node) => node.id === parentId);
   if (!parent) return element;
-  const existing = new Set((element.nodes ?? []).map((node) => node.label));
-  const label = String(value || getNextGraphNodeLabel(existing));
-  if (existing.has(label)) return element;
+  const label = String(value ?? "0");
   const child = {
     id: createId("tree_node"),
     label,
@@ -855,7 +851,7 @@ export function addTreeChild(element, parentIndex = 0, value = "") {
   return layoutTreeStructure(nextElement);
 }
 
-export function addTreeSibling(element, nodeIndex = 0, side = "right", value = "") {
+export function addTreeSibling(element, nodeIndex = 0, side = "right", value = "0") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return element;
   if (isBinaryTreeStructure(element)) return element;
   const nodeId = String(nodeIndex);
@@ -865,9 +861,7 @@ export function addTreeSibling(element, nodeIndex = 0, side = "right", value = "
   if (!parentEdge) return element;
   const node = (element.nodes ?? []).find((item) => item.id === nodeId);
   if (!node) return element;
-  const existing = new Set((element.nodes ?? []).map((item) => item.label));
-  const label = String(value || getNextGraphNodeLabel(existing));
-  if (existing.has(label)) return element;
+  const label = String(value ?? "0");
   const sibling = {
     id: createId("tree_node"),
     label,

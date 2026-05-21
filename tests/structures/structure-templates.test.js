@@ -631,6 +631,21 @@ describe("structure templates", () => {
     expect(moved.nodes[1]).toMatchObject({ x: 44, y: 55 });
   });
 
+  it("uses zero as the default label for newly added standalone tree nodes", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    const added = addTreeNode(tree);
+    const addedAgain = addTreeNode(added);
+
+    expect(added.nodes.at(-1).label).toBe("0");
+    expect(addedAgain.nodes.slice(-2).map((node) => node.label)).toEqual(["0", "0"]);
+  });
+
   it("adds tree child edges with single-parent and acyclic constraints", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
@@ -682,6 +697,24 @@ describe("structure templates", () => {
     ))).toEqual(["B", "X", "C", "Y", "D"]);
 
     expect(addTreeSibling(withRightSibling, id(withRightSibling, "A"), "left", "RootSibling")).toBe(withRightSibling);
+  });
+
+  it("uses zero as the default label for newly added tree children and siblings", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const id = (source, label) => source.nodes.find((node) => node.label === label)?.id;
+
+    const withChild = addTreeChild(tree, id(tree, "A"));
+    const withSecondChild = addTreeChild(withChild, id(tree, "A"));
+    expect(withChild.nodes.at(-1).label).toBe("0");
+    expect(withSecondChild.nodes.slice(-2).map((node) => node.label)).toEqual(["0", "0"]);
+
+    const withSibling = addTreeSibling(tree, id(tree, "C"), "right");
+    expect(withSibling.nodes.at(-1).label).toBe("0");
   });
 
   it("keeps binary tree parents limited to two ordered children", () => {

@@ -521,7 +521,7 @@ describe("konva elements", () => {
     expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_b" });
   });
 
-  it("routes ordinary tree node pointer down for selection without clearing active state", () => {
+  it("does not select ordinary tree nodes from pointer down before a click is confirmed", () => {
     const onTreeNodeClick = vi.fn();
     const onTreeNodeEdit = vi.fn();
     const onTreeNodePress = vi.fn();
@@ -543,11 +543,14 @@ describe("konva elements", () => {
     expect(tree.draggable()).toBe(true);
     expect(treeNode.draggable()).toBe(false);
     treeNode.fire("mousedown", pointerDown);
-    treeNode.fire("click", { cancelBubble: false, evt: { button: 0 } });
-    treeNode.fire("dblclick", { cancelBubble: false, evt: { button: 0 } });
 
     expect(onTreeNodePress).not.toHaveBeenCalled();
     expect(pointerDown.cancelBubble).toBe(false);
+    expect(onTreeNodeClick).not.toHaveBeenCalled();
+
+    treeNode.fire("click", { cancelBubble: false, evt: { button: 0 } });
+    treeNode.fire("dblclick", { cancelBubble: false, evt: { button: 0 } });
+
     expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_a" });
     expect(onTreeNodeEdit).toHaveBeenCalledWith({
       elementId: "tree_1",
@@ -577,7 +580,7 @@ describe("konva elements", () => {
     treeNode.fire("mousedown", pointerDown);
     treeNode.fire("mousedown", pointerDown);
 
-    expect(onTreeNodeClick).toHaveBeenCalledTimes(2);
+    expect(onTreeNodeClick).not.toHaveBeenCalled();
     expect(onTreeNodeEdit).not.toHaveBeenCalled();
     treeNode.fire("dblclick", { cancelBubble: false, evt: { button: 0 } });
     expect(onTreeNodeEdit).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_a", label: "A" });
@@ -2056,8 +2059,9 @@ describe("konva elements", () => {
     expect(binaryTree.findOne(".tree-node").draggable()).toBe(false);
   });
 
-  it("keeps binary tree node hit areas selectable so dragging can move the whole tree", () => {
+  it("keeps binary tree node hit areas draggable without selecting the node on pointer down", () => {
     const onTreeNodePress = vi.fn();
+    const onTreeNodeClick = vi.fn();
     const binaryTree = createElementNode({
       id: "tree_1",
       type: "tree-structure",
@@ -2073,6 +2077,7 @@ describe("konva elements", () => {
       ...baseHandlers,
       draggable: true,
       onTreeNodePress,
+      onTreeNodeClick,
     });
 
     const treeNode = binaryTree.findOne(".tree-node");
@@ -2082,6 +2087,7 @@ describe("konva elements", () => {
     expect(treeNode.listening()).toBe(true);
     treeNode.fire("mousedown", pointerDown);
     expect(onTreeNodePress).toHaveBeenCalledWith(pointerDown, binaryTree);
+    expect(onTreeNodeClick).not.toHaveBeenCalled();
     expect(pointerDown.cancelBubble).toBe(false);
   });
 

@@ -808,7 +808,7 @@ export function createWhiteboardApp(root) {
       "graph-import-adjacency-list": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接表", exportGraph(element, "adjacency-list")), "adjacency-list"), "已导入图"),
       "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
       "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft || structureInput.value), "已更新图"),
-      "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, ""), "已更新树"),
+      "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, "0"), "已更新树"),
       "tree-connect-mode": beginTreeConnectMode,
       "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
       "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, getActiveTreeNodeId(element)), "已更新树"),
@@ -880,7 +880,7 @@ export function createWhiteboardApp(root) {
     if (!isSelectedGeneralTreeElement(element) || element.locked || !nodeId) return;
 
     if (action === "add-child") {
-      const nextElement = addTreeChild(element, nodeId, "");
+      const nextElement = addTreeChild(element, nodeId, "0");
       if (nextElement === element) return;
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
       activeTreeNode = { elementId, nodeId };
@@ -893,7 +893,7 @@ export function createWhiteboardApp(root) {
 
     if (action === "add-left-sibling" || action === "add-right-sibling") {
       const side = action === "add-left-sibling" ? "left" : "right";
-      const nextElement = addTreeSibling(element, nodeId, side, "");
+      const nextElement = addTreeSibling(element, nodeId, side, "0");
       if (nextElement === element) return;
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
       activeTreeNode = { elementId, nodeId };
@@ -3343,9 +3343,9 @@ export function createWhiteboardApp(root) {
     controls.hidden = false;
     const box = treeNode.getClientRect();
     const stageBox = stage.container().getBoundingClientRect();
-    controls.style.left = `${stageBox.left + box.x + box.width + 8}px`;
-    controls.style.top = `${stageBox.top + box.y + box.height / 2}px`;
-    controls.style.transform = "none";
+    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
+    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    controls.style.transform = "translateX(-50%)";
   }
 
   function renderBinaryTreeControls() {
@@ -4278,12 +4278,6 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
     if (!selectedIds.includes(elementId)) selectIds([elementId]);
-    const previousActiveTreeElementId = activeTreeNode?.elementId;
-    activeTreeNode = null;
-    hideTreeControls();
-    hideBinaryTreeControls();
-    syncBinaryTreeActiveVisual(previousActiveTreeElementId);
-    syncGeneralTreeActiveVisual(previousActiveTreeElementId);
     const worldPoint = getWorldPointer(stage);
     if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);
   }

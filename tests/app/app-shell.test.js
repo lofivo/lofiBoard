@@ -325,10 +325,11 @@ describe("app shell", () => {
     expect(appSource).toContain("function isTreeRootNode(element, nodeId)");
     expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-left-sibling']\").hidden = isRoot;");
     expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-right-sibling']\").hidden = isRoot;");
-    expect(appSource).toContain("controls.style.left = `${stageBox.left + box.x + box.width + 8}px`;");
-    expect(appSource).toContain('controls.style.transform = "none";');
-    expect(actionSource).toContain("addTreeChild(element, nodeId, \"\")");
-    expect(actionSource).toContain("addTreeSibling(element, nodeId, side, \"\")");
+    expect(appSource).toContain("controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;");
+    expect(appSource).toContain("controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;");
+    expect(appSource).toContain('controls.style.transform = "translateX(-50%)";');
+    expect(actionSource).toContain("addTreeChild(element, nodeId, \"0\")");
+    expect(actionSource).toContain("addTreeSibling(element, nodeId, side, \"0\")");
     expect(actionSource).toContain("activeTreeNode = { elementId, nodeId };");
     expect(actionSource).toContain("editTreeStructureNode({ elementId, nodeId, label:");
     expect(clickSource).toContain("renderTreeNodeControls();");
@@ -376,7 +377,7 @@ describe("app shell", () => {
     expect(binaryBlankBranch).not.toContain("renderBoard()");
   });
 
-  it("lets binary tree node pointer down bubble into the whole-tree drag flow", () => {
+  it("lets binary tree node pointer down bubble into the whole-tree drag flow without selecting the node", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const nodePressSource = appSource.slice(
       appSource.indexOf("function handleTreeStructureNodePress(event, group)"),
@@ -384,14 +385,12 @@ describe("app shell", () => {
     );
 
     expect(nodePressSource).toContain("if (!selectedIds.includes(elementId)) selectIds([elementId]);");
-    expect(nodePressSource).toContain("const previousActiveTreeElementId = activeTreeNode?.elementId;");
-    expect(nodePressSource).toContain("activeTreeNode = null;");
-    expect(nodePressSource).toContain("hideTreeControls();");
-    expect(nodePressSource).toContain("hideBinaryTreeControls();");
-    expect(nodePressSource).toContain("syncBinaryTreeActiveVisual(previousActiveTreeElementId);");
-    expect(nodePressSource).toContain("syncGeneralTreeActiveVisual(previousActiveTreeElementId);");
     expect(nodePressSource).toContain("const worldPoint = getWorldPointer(stage);");
     expect(nodePressSource).toContain("if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);");
+    expect(nodePressSource).not.toContain("activeTreeNode = { elementId, nodeId };");
+    expect(nodePressSource).not.toContain("activeTreeNode = null;");
+    expect(nodePressSource).not.toContain("syncBinaryTreeActiveVisual");
+    expect(nodePressSource).not.toContain("syncGeneralTreeActiveVisual");
     expect(nodePressSource).not.toContain("event.cancelBubble = true");
   });
 
