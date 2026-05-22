@@ -1,8 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { createImageElement, createShapeElement } from "../../src/board/element-factory.js";
+import { createImageElement, createShapeElement, createTextElement } from "../../src/board/element-factory.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 describe("element factory", () => {
+  it("sizes pasted text elements to the wrapped content height", () => {
+    const text = "one two three four five six seven";
+    const element = createTextElement({
+      point: { x: 120, y: 80 },
+      zIndex: 1,
+      text,
+      measureText: (value) => String(value).length * 10,
+    });
+
+    expect(element).toMatchObject({
+      type: "text",
+      x: 120,
+      y: 80,
+      text,
+      width: 220,
+    });
+    expect(element.height).toBeGreaterThan(28 * 1.25);
+  });
+
+  it("keeps new editable text elements at one line before input", () => {
+    const element = createTextElement({
+      point: { x: 120, y: 80 },
+      zIndex: 1,
+    });
+
+    expect(element.text).toBe("");
+    expect(element.height).toBe(28 * 1.25);
+  });
+
   it("can create an image centered on the requested point after display scaling", () => {
     const element = createImageElement({
       point: { x: 300, y: 200 },

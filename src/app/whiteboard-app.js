@@ -13,6 +13,7 @@ import {
   serializeBoard,
 } from "../board/board-model.js";
 import {
+  DEFAULT_TEXT_STYLE,
   createImageElement as buildImageElement,
   createShapeElement as buildShapeElement,
   createStickyElement as buildStickyElement,
@@ -77,6 +78,7 @@ import {
   measureTextareaContentHeight,
   isTextWidthResizeAnchor,
   nextToolAfterTextPlacement,
+  pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
@@ -1445,6 +1447,13 @@ export function createWhiteboardApp(root) {
 
     if (currentTool === TOOLS.SELECT) {
       if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
+        const passThroughId = getSelectableElementIdAtWorldPoint(worldPoint, {
+          preferUnselected: true,
+        });
+        if (passThroughId) {
+          selectElementById(passThroughId, event.evt.shiftKey);
+          return;
+        }
         beginSelectionDrag(worldPoint);
         return;
       }
@@ -1750,7 +1759,9 @@ export function createWhiteboardApp(root) {
       suppressSelectionDragOnce = false;
       return;
     }
-    const targetElement = getElementIdFromNode(event.target);
+    const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
+      fallbackNode: event.target,
+    });
     const arrayValueHitNode = event.target?.hasName?.("array-item-value-hit")
       ? event.target
       : event.target?.findAncestor?.(".array-item-value-hit");
@@ -2791,6 +2802,31 @@ export function createWhiteboardApp(root) {
     const pointer = stage.getPointerPosition();
     if (!pointer) return null;
     return getElementIdFromNode(stage.getIntersection(pointer));
+  }
+
+  function getSelectableElementIdAtWorldPoint(worldPoint, {
+    fallbackNode = null,
+    preferUnselected = false,
+  } = {}) {
+    const fallbackId = getElementIdFromNode(fallbackNode);
+    const candidates = board.elements.map((element) => {
+      const node = contentLayer.findOne(`#${element.id}`);
+      if (!node) return null;
+      return {
+        id: element.id,
+        zIndex: element.zIndex,
+        box: node.getClientRect({ relativeTo: contentLayer }),
+      };
+    }).filter(Boolean);
+
+    return pickElementIdAtPoint({
+      point: worldPoint,
+      candidates,
+      padding: getSelectionHitRadius(stage.scaleX()),
+      fallbackId,
+      selectedIds,
+      preferUnselected,
+    });
   }
 
   function getNearbySelectedElementId(worldPoint) {
@@ -5218,13 +5254,17 @@ export function createWhiteboardApp(root) {
       x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
       y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
     };
-    const element = {
-      ...buildTextElement({
-        point,
-        zIndex: board.elements.length,
-      }),
+    const context = getTextMeasureContext();
+    const { fontSize, fontFamily, fontStyle } = DEFAULT_TEXT_STYLE;
+    const fontWeight = hasFontStyle(fontStyle, "bold") ? "700" : "400";
+    const fontSlant = hasFontStyle(fontStyle, "italic") ? "italic" : "normal";
+    context.font = `${fontSlant} ${fontWeight} ${fontSize}px ${fontFamily}`;
+    const element = buildTextElement({
+      point,
+      zIndex: board.elements.length,
       text,
-    };
+      measureText: (value) => context.measureText(value || " ").width,
+    });
     addElement(element, message);
     setTool(TOOLS.SELECT);
     selectIds([element.id]);

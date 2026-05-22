@@ -111,7 +111,21 @@ describe("app shell", () => {
     expect(appSource).toContain("isTransformerAnchorTarget");
     expect(appSource).toContain("function disableTransformerHitAreaDrag()");
     expect(appSource).toContain('transformer.findOne?.(".back")?.draggable(false)');
-    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?preferUnselected: true[\s\S]*?selectElementById\(passThroughId, event\.evt\.shiftKey\);[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+  });
+
+  it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectSource = appSource.slice(
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+    );
+
+    expect(appSource).toContain("function getSelectableElementIdAtWorldPoint(worldPoint");
+    expect(appSource).toContain("pickElementIdAtPoint");
+    expect(appSource).toContain("padding: getSelectionHitRadius(stage.scaleX())");
+    expect(selectSource).toContain("getSelectableElementIdAtWorldPoint(worldPoint");
+    expect(selectSource).toContain("fallbackNode: event.target");
   });
 
   it("keeps transformer hit area from covering selected structure internals", () => {

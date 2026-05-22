@@ -24,6 +24,7 @@ import {
   measureTextareaContentHeight,
   measureWrappedTextHeight,
   nextToolAfterTextPlacement,
+  pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
   shouldIgnoreCanvasPointerDown,
@@ -604,6 +605,41 @@ describe("interaction rules", () => {
     expect(pointHitsSelectionBounds({ x: 220, y: 140 }, boxes, 0)).toBe(true);
     expect(pointHitsSelectionBounds({ x: 95, y: 96 }, boxes, 8)).toBe(true);
     expect(pointHitsSelectionBounds({ x: 80, y: 80 }, boxes, 8)).toBe(false);
+  });
+
+  it("prefers the topmost nearby nested element over a larger containing element", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 145, y: 145 },
+      padding: 12,
+      fallbackId: "outer",
+      candidates: [
+        { id: "outer", zIndex: 0, box: { x: 100, y: 100, width: 200, height: 160 } },
+        { id: "inner", zIndex: 1, box: { x: 150, y: 150, width: 40, height: 30 } },
+      ],
+    })).toBe("inner");
+  });
+
+  it("lets transformer hit areas pass selection to unselected nested elements first", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 160, y: 160 },
+      padding: 12,
+      selectedIds: ["outer"],
+      preferUnselected: true,
+      candidates: [
+        { id: "outer", zIndex: 0, box: { x: 100, y: 100, width: 200, height: 160 } },
+        { id: "inner", zIndex: 1, box: { x: 150, y: 150, width: 40, height: 30 } },
+      ],
+    })).toBe("inner");
+
+    expect(pickElementIdAtPoint({
+      point: { x: 120, y: 120 },
+      padding: 12,
+      selectedIds: ["outer"],
+      preferUnselected: true,
+      candidates: [
+        { id: "outer", zIndex: 0, box: { x: 100, y: 100, width: 200, height: 160 } },
+      ],
+    })).toBeNull();
   });
 
   it("prevents browser page zoom gestures globally", () => {

@@ -458,3 +458,25 @@ export function pointHitsSelectionBounds(point, boxes, padding = 0) {
     point.y <= bounds.maxY + padding
   );
 }
+
+export function pickElementIdAtPoint({
+  point,
+  candidates = [],
+  padding = 0,
+  fallbackId = null,
+  selectedIds = [],
+  preferUnselected = false,
+}) {
+  if (!point || !Array.isArray(candidates)) return fallbackId ?? null;
+  const selected = new Set(selectedIds);
+  const hitPadding = Math.max(0, Number(padding) || 0);
+  const hits = candidates
+    .filter((candidate) => {
+      if (!candidate?.id || !candidate.box) return false;
+      if (preferUnselected && selected.has(candidate.id)) return false;
+      return pointHitsSelectionBounds(point, [candidate.box], hitPadding);
+    })
+    .sort((a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0));
+
+  return hits[0]?.id ?? (preferUnselected ? null : fallbackId ?? null);
+}
