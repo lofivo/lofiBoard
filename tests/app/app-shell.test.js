@@ -1171,6 +1171,33 @@ describe("app shell", () => {
     expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
   });
 
+  it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectHandlerSource = appSource.slice(
+      appSource.indexOf("function handleArrayStructureItemSelect"),
+      appSource.indexOf("function handleArrayStructureItemPress"),
+    );
+    const pressHandlerSource = appSource.slice(
+      appSource.indexOf("function handleArrayStructureItemPress"),
+      appSource.indexOf("function handleArrayStructureItemRelease"),
+    );
+    const pointerHandlerSource = appSource.slice(
+      appSource.indexOf("function handleArrayPointerPress"),
+      appSource.indexOf("function editArrayStructureItem"),
+    );
+    const setToolSource = appSource.slice(
+      appSource.indexOf("function setTool(tool)"),
+      appSource.indexOf("function getToolStatus(tool)"),
+    );
+
+    expect(selectHandlerSource).toContain("currentTool !== TOOLS.SELECT");
+    expect(pressHandlerSource).toContain("currentTool !== TOOLS.SELECT");
+    expect(pointerHandlerSource).toContain("currentTool !== TOOLS.SELECT");
+    expect(setToolSource).toContain("resetLinearItemPressState()");
+    expect(setToolSource).toContain("resetLinearPointerPressState()");
+    expect(setToolSource).toContain("cancelSelectionDrag()");
+  });
+
   it("returns to the select tool after adding non-pen, non-eraser elements", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -1285,8 +1312,8 @@ describe("app shell", () => {
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
     expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
-    expect(appSource).toMatch(/function handleArrayStructureItemSelect\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
-    expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+    expect(appSource).toMatch(/function handleArrayStructureItemSelect\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
+    expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
   });
 
   it("uses lightweight chrome updates while panning and zooming the viewport", () => {

@@ -4367,7 +4367,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemSelect({ elementId, index }) {
-    if (isTemporaryPanActive()) return;
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (suppressLinearItemSelect?.elementId === elementId) {
@@ -4379,7 +4379,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemPress({ elementId, index }) {
-    if (isTemporaryPanActive()) return;
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     const worldPoint = getWorldPointer(stage);
@@ -4415,6 +4415,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayPointerPress({ elementId, index }) {
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked || (element.items?.length ?? 0) === 0) return;
     const worldPoint = getWorldPointer(stage);
@@ -4449,6 +4450,7 @@ export function createWhiteboardApp(root) {
   }
 
   function editArrayStructureItem({ elementId, index, value }) {
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     activeLinearItem = null;
@@ -4860,6 +4862,11 @@ export function createWhiteboardApp(root) {
   function setTool(tool) {
     const toolChanged = currentTool !== tool;
     currentTool = tool;
+    if (tool !== TOOLS.SELECT) {
+      resetLinearItemPressState();
+      resetLinearPointerPressState();
+      cancelSelectionDrag();
+    }
     root.querySelectorAll("[data-tool]").forEach((button) => {
       button.classList.toggle("active", button.dataset.tool === tool);
     });
