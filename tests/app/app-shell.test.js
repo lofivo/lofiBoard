@@ -729,6 +729,16 @@ describe("app shell", () => {
     expect(updateDragSource).toMatch(/for \(const original of nodeDragSelection\.originals\) \{[\s\S]*?if \(original\.id === nodeDragSelection\.id\) continue;[\s\S]*?selectedNode\?\.position/);
   });
 
+  it("keeps grouped drag transformer bounds synced during the live drag", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const updateDragSource = appSource.slice(
+      appSource.indexOf("function updateNodeDragSelection(node)"),
+      appSource.indexOf("function finishNodeDragSelection(node)"),
+    );
+
+    expect(updateDragSource).toMatch(/board\.elements = board\.elements\.map[\s\S]*?transformer\.forceUpdate\(\);[\s\S]*?contentLayer\.batchDraw\(\);/);
+  });
+
   it("keeps shape inspectors tall enough without appearance section chrome", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 

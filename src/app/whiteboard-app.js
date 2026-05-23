@@ -2005,6 +2005,7 @@ export function createWhiteboardApp(root) {
         y: original.y + dy,
       };
     });
+    transformer.forceUpdate();
     contentLayer.batchDraw();
     syncTextOverlays();
   }
