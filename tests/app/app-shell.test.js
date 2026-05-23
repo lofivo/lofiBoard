@@ -427,6 +427,24 @@ describe("app shell", () => {
     expect(finishDragSource.indexOf("setSelectionDragNodeDraggable(true);")).toBeLessThan(finishDragSource.indexOf("selectionDrag = null;"));
   });
 
+  it("locks selection identity until an active selection drag finishes", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const finishDragSource = appSource.slice(
+      appSource.indexOf("function finishSelectionDrag()"),
+      appSource.indexOf("function setSelectionDragNodeDraggable(enabled)"),
+    );
+    const onSelectSource = appSource.slice(
+      appSource.indexOf("onSelect: (event, node) => {"),
+      appSource.indexOf("onEdit: (event, node) => {"),
+    );
+
+    expect(appSource).toContain("let suppressNextSelectionClick = false;");
+    expect(finishDragSource).toContain("suppressNextSelectionClick = true;");
+    expect(onSelectSource).toContain("if (suppressNextSelectionClick) {");
+    expect(onSelectSource).toContain("suppressNextSelectionClick = false;");
+    expect(onSelectSource.indexOf("if (suppressNextSelectionClick)")).toBeLessThan(onSelectSource.indexOf("selectElementById(id, event.evt.shiftKey);"));
+  });
+
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const finishDragSource = appSource.slice(
@@ -790,6 +808,18 @@ describe("app shell", () => {
     expect(appSource).toContain('["text", "sticky"].includes(element.type)');
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
     expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+  });
+
+  it("starts app-level drag when padded hit testing selects a nested element behind another hit target", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectSource = appSource.slice(
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+    );
+
+    expect(selectSource).toContain("const rawTargetElement = getElementIdFromNode(event.target);");
+    expect(selectSource).toContain("targetElement !== rawTargetElement");
+    expect(selectSource).toMatch(/selectElementById\(targetElement, event\.evt\.shiftKey\);[\s\S]*?targetElement !== rawTargetElement[\s\S]*?beginSelectionDrag\(worldPoint\);/);
   });
 
   it("keeps live text editor height aligned with committed text box normalization", () => {

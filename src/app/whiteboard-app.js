@@ -287,6 +287,7 @@ export function createWhiteboardApp(root) {
   let suppressLinearItemSelectTimer = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
+  let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
   let suppressedBinaryTreeNodeClickElementIds = new Set();
   let inspectorSectionsState = {
@@ -1762,6 +1763,7 @@ export function createWhiteboardApp(root) {
       suppressSelectionDragOnce = false;
       return;
     }
+    const rawTargetElement = getElementIdFromNode(event.target);
     const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
       fallbackNode: event.target,
     });
@@ -1807,7 +1809,7 @@ export function createWhiteboardApp(root) {
         return;
       }
       selectElementById(targetElement, event.evt.shiftKey);
-      if (!event.evt.shiftKey && element && ["text", "sticky"].includes(element.type)) {
+      if (!event.evt.shiftKey && element && (["text", "sticky"].includes(element.type) || targetElement !== rawTargetElement)) {
         beginSelectionDrag(worldPoint);
       }
       return;
@@ -1866,6 +1868,7 @@ export function createWhiteboardApp(root) {
     const didMove = selectionDrag.moved;
     if (didMove) suppressBinaryTreeNodeClickAfterDrag();
     if (didMove) suppressLinearItemSelectAfterSelectionDrag();
+    if (didMove) suppressNextSelectionClick = true;
     setSelectionDragNodeDraggable(true);
     selectionDrag = null;
     if (didMove) {
@@ -2289,6 +2292,10 @@ export function createWhiteboardApp(root) {
       onSelect: (event, node) => {
         if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
+        if (suppressNextSelectionClick) {
+          suppressNextSelectionClick = false;
+          return;
+        }
         const id = getElementIdFromNode(node);
         selectElementById(id, event.evt.shiftKey);
       },
