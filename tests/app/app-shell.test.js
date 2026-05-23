@@ -111,7 +111,7 @@ describe("app shell", () => {
     expect(appSource).toContain("isTransformerAnchorTarget");
     expect(appSource).toContain("function disableTransformerHitAreaDrag()");
     expect(appSource).toContain('transformer.findOne?.(".back")?.draggable(false)');
-    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?preferUnselected: true[\s\S]*?selectElementById\(passThroughId, event\.evt\.shiftKey\);[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?preferUnselected: true[\s\S]*?selectElementById\(passThroughId, event\.evt\.shiftKey\);[\s\S]*?if \(!event\.evt\.shiftKey\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?\}[\s\S]*?return;/);
   });
 
   it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {

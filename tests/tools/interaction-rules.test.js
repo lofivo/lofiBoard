@@ -642,6 +642,19 @@ describe("interaction rules", () => {
     })).toBeNull();
   });
 
+  it("keeps dragging the selected nested element instead of passing through to its container", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 160, y: 160 },
+      padding: 12,
+      selectedIds: ["inner"],
+      preferUnselected: true,
+      candidates: [
+        { id: "outer", zIndex: 0, box: { x: 100, y: 100, width: 200, height: 160 } },
+        { id: "inner", zIndex: 1, box: { x: 150, y: 150, width: 40, height: 30 } },
+      ],
+    })).toBeNull();
+  });
+
   it("prevents browser page zoom gestures globally", () => {
     expect(shouldPreventBrowserZoom({ ctrlKey: true, metaKey: false })).toBe(true);
     expect(shouldPreventBrowserZoom({ ctrlKey: false, metaKey: true })).toBe(true);

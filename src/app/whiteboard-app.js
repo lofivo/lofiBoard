@@ -1452,6 +1452,9 @@ export function createWhiteboardApp(root) {
         });
         if (passThroughId) {
           selectElementById(passThroughId, event.evt.shiftKey);
+          if (!event.evt.shiftKey) {
+            beginSelectionDrag(worldPoint);
+          }
           return;
         }
         beginSelectionDrag(worldPoint);

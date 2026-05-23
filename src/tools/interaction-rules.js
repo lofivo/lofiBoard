@@ -473,10 +473,14 @@ export function pickElementIdAtPoint({
   const hits = candidates
     .filter((candidate) => {
       if (!candidate?.id || !candidate.box) return false;
-      if (preferUnselected && selected.has(candidate.id)) return false;
       return pointHitsSelectionBounds(point, [candidate.box], hitPadding);
     })
     .sort((a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0));
+
+  if (preferUnselected) {
+    if (selected.has(hits[0]?.id)) return null;
+    return hits.find((candidate) => !selected.has(candidate.id))?.id ?? null;
+  }
 
   return hits[0]?.id ?? (preferUnselected ? null : fallbackId ?? null);
 }
