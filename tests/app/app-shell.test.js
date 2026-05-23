@@ -739,6 +739,23 @@ describe("app shell", () => {
     expect(updateDragSource).toMatch(/board\.elements = board\.elements\.map[\s\S]*?transformer\.forceUpdate\(\);[\s\S]*?contentLayer\.batchDraw\(\);/);
   });
 
+  it("does not recompute grouped drag positions again on drag end", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const finishDragSource = appSource.slice(
+      appSource.indexOf("function finishNodeDragSelection(node)"),
+      appSource.indexOf("function startStroke(worldPoint"),
+    );
+    const multiDragFinishSource = finishDragSource.slice(
+      finishDragSource.indexOf("if (dragSelection.originals.length <= 1)"),
+    );
+
+    expect(multiDragFinishSource).toContain("renderBoard();");
+    expect(multiDragFinishSource).not.toContain("const dx = node.x() - dragSelection.start.x");
+    expect(multiDragFinishSource).not.toContain("const dy = node.y() - dragSelection.start.y");
+    expect(multiDragFinishSource).not.toContain("original.x + dx");
+    expect(multiDragFinishSource).not.toContain("original.y + dy");
+  });
+
   it("keeps shape inspectors tall enough without appearance section chrome", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 

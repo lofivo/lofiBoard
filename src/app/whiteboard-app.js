@@ -2032,19 +2032,6 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    const dx = node.x() - dragSelection.start.x;
-    const dy = node.y() - dragSelection.start.y;
-    board.elements = board.elements.map((element) => {
-      const original = dragSelection.originals.find((item) => item.id === element.id);
-      if (!original) return element;
-      return {
-        ...element,
-        x: original.x + dx,
-        y: original.y + dy,
-        scaleX: element.scaleX ?? 1,
-        scaleY: element.scaleY ?? 1,
-      };
-    });
     renderBoard();
     if (dragSelection.moved) {
       handledNodeDragEnd = true;
