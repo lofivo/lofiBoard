@@ -738,6 +738,7 @@ export function createWhiteboardApp(root) {
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
     });
+    transformer.on("dblclick dbltap", handleTransformerDoubleClick);
     transformer.on("dragend transformend", () => {
       if (isEditingText) return;
       if (handledNodeDragEnd) {
@@ -1752,6 +1753,18 @@ export function createWhiteboardApp(root) {
         || (needsMultiple && selectedIds.length < 2)
         || (needsClipboard && clipboardSnapshot.length === 0);
     });
+  }
+
+  function handleTransformerDoubleClick(event) {
+    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT || isTransformerAnchorTarget(event.target)) return;
+    const worldPoint = getWorldPointer(stage);
+    if (!worldPoint) return;
+    const id = getSelectableElementIdAtWorldPoint(worldPoint);
+    const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
+    if (!editable || editable.locked || !selectedIds.includes(id)) return;
+    event.cancelBubble = true;
+    selectIds([id]);
+    requestAnimationFrame(() => editTextElement(id));
   }
 
   function handleSelectPointerDown(event, worldPoint) {

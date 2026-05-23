@@ -445,6 +445,22 @@ describe("app shell", () => {
     expect(onSelectSource.indexOf("if (suppressNextSelectionClick)")).toBeLessThan(onSelectSource.indexOf("selectElementById(id, event.evt.shiftKey);"));
   });
 
+  it("opens the selected text editor when the transformer back area receives the second click", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const handlerSource = appSource.slice(
+      appSource.indexOf("function handleTransformerDoubleClick(event)"),
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+    );
+
+    expect(appSource).toContain('transformer.on("dblclick dbltap", handleTransformerDoubleClick)');
+    expect(handlerSource).toContain("isTransformerAnchorTarget(event.target)");
+    expect(handlerSource).toContain("getSelectableElementIdAtWorldPoint(worldPoint)");
+    expect(handlerSource).toContain('board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type))');
+    expect(handlerSource).toContain("!selectedIds.includes(id)");
+    expect(handlerSource).toContain("event.cancelBubble = true");
+    expect(handlerSource).toContain("requestAnimationFrame(() => editTextElement(id))");
+  });
+
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const finishDragSource = appSource.slice(
