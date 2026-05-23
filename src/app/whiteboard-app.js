@@ -1952,7 +1952,7 @@ export function createWhiteboardApp(root) {
       return;
     }
     if (!selectedIds.includes(id)) {
-      selectIds([id]);
+      selectElementById(id);
       beginNodeDragSelection(node);
       return;
     }
@@ -1989,6 +1989,7 @@ export function createWhiteboardApp(root) {
     const dy = node.y() - nodeDragSelection.start.y;
     nodeDragSelection.moved = nodeDragSelection.moved || Math.hypot(dx, dy) > 0.5;
     for (const original of nodeDragSelection.originals) {
+      if (original.id === nodeDragSelection.id) continue;
       const selectedNode = contentLayer.findOne(`#${original.id}`);
       selectedNode?.position({
         x: original.x + dx,

@@ -709,8 +709,24 @@ describe("app shell", () => {
     expect(appSource).toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "brush"/);
     expect(appSource).not.toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "stroke"/);
     expect(appSource).toContain("if (!selectedIds.includes(id)) {");
-    expect(appSource).toContain("selectIds([id]);");
+    expect(appSource).toContain("selectElementById(id);");
     expect(appSource).toContain("beginNodeDragSelection(node);");
+  });
+
+  it("drags grouped elements with one stable native anchor node", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const beginDragSource = appSource.slice(
+      appSource.indexOf("function beginNodeDragSelection(node)"),
+      appSource.indexOf("function updateNodeDragSelection(node)"),
+    );
+    const updateDragSource = appSource.slice(
+      appSource.indexOf("function updateNodeDragSelection(node)"),
+      appSource.indexOf("function finishNodeDragSelection(node)"),
+    );
+
+    expect(beginDragSource).toContain("selectElementById(id);");
+    expect(beginDragSource).not.toContain("selectIds([id]);");
+    expect(updateDragSource).toMatch(/for \(const original of nodeDragSelection\.originals\) \{[\s\S]*?if \(original\.id === nodeDragSelection\.id\) continue;[\s\S]*?selectedNode\?\.position/);
   });
 
   it("keeps shape inspectors tall enough without appearance section chrome", () => {
