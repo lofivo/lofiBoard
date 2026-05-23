@@ -52,6 +52,18 @@ export function shouldIgnoreCanvasPointerDown({ target, isEditingText }) {
   return Boolean(isEditingText || isTransformerAnchorTarget(target));
 }
 
+export function shouldEditTextOnTransformerDoubleClick({
+  target,
+  currentTool,
+  isTemporaryPanActive = false,
+  element,
+  selectedIds = [],
+}) {
+  if (isTemporaryPanActive || currentTool !== TOOLS.SELECT || isTransformerAnchorTarget(target)) return false;
+  if (!element || !["text", "sticky"].includes(element.type) || element.locked) return false;
+  return selectedIds.includes(element.id);
+}
+
 export function nextToolAfterTextPlacement(tool) {
   return tool === TOOLS.TEXT ? TOOLS.SELECT : tool;
 }

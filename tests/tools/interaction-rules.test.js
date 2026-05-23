@@ -27,6 +27,7 @@ import {
   pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
+  shouldEditTextOnTransformerDoubleClick,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
@@ -60,6 +61,64 @@ describe("interaction rules", () => {
     expect(isTransformerTarget(anchor)).toBe(true);
     expect(isTransformerAnchorTarget(anchor)).toBe(true);
     expect(shouldIgnoreCanvasPointerDown({ target: anchor, isEditingText: false })).toBe(true);
+  });
+
+  it("only edits selected text or sticky elements from transformer double click", () => {
+    const transformer = makeNode("Transformer");
+    const back = makeNode("Rect", transformer);
+    const anchor = makeNode("_anchor", transformer);
+    const selectedText = { id: "text_1", type: "text" };
+    const selectedSticky = { id: "sticky_1", type: "sticky" };
+
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      element: selectedText,
+      selectedIds: ["text_1"],
+    })).toBe(true);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      element: selectedSticky,
+      selectedIds: ["sticky_1"],
+    })).toBe(true);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: anchor,
+      currentTool: TOOLS.SELECT,
+      element: selectedText,
+      selectedIds: ["text_1"],
+    })).toBe(false);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.PEN,
+      element: selectedText,
+      selectedIds: ["text_1"],
+    })).toBe(false);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      element: { id: "text_1", type: "text", locked: true },
+      selectedIds: ["text_1"],
+    })).toBe(false);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      element: selectedText,
+      selectedIds: [],
+    })).toBe(false);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      element: { id: "rect_1", type: "rect" },
+      selectedIds: ["rect_1"],
+    })).toBe(false);
+    expect(shouldEditTextOnTransformerDoubleClick({
+      target: back,
+      currentTool: TOOLS.SELECT,
+      isTemporaryPanActive: true,
+      element: selectedText,
+      selectedIds: ["text_1"],
+    })).toBe(false);
   });
 
   it("returns to select after placing text", () => {

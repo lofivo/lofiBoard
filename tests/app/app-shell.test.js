@@ -453,10 +453,11 @@ describe("app shell", () => {
     );
 
     expect(appSource).toContain('transformer.on("dblclick dbltap", handleTransformerDoubleClick)');
-    expect(handlerSource).toContain("isTransformerAnchorTarget(event.target)");
     expect(handlerSource).toContain("getSelectableElementIdAtWorldPoint(worldPoint)");
-    expect(handlerSource).toContain('board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type))');
-    expect(handlerSource).toContain("!selectedIds.includes(id)");
+    expect(handlerSource).toContain("const editable = board.elements.find((item) => item.id === id)");
+    expect(handlerSource).toContain("shouldEditTextOnTransformerDoubleClick({");
+    expect(handlerSource).toContain("target: event.target");
+    expect(handlerSource).toContain("selectedIds");
     expect(handlerSource).toContain("event.cancelBubble = true");
     expect(handlerSource).toContain("requestAnimationFrame(() => editTextElement(id))");
   });

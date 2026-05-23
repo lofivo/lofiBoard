@@ -81,6 +81,7 @@ import {
   pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
+  shouldEditTextOnTransformerDoubleClick,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
@@ -1760,8 +1761,14 @@ export function createWhiteboardApp(root) {
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
     const id = getSelectableElementIdAtWorldPoint(worldPoint);
-    const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
-    if (!editable || editable.locked || !selectedIds.includes(id)) return;
+    const editable = board.elements.find((item) => item.id === id);
+    if (!shouldEditTextOnTransformerDoubleClick({
+      target: event.target,
+      currentTool,
+      isTemporaryPanActive: isTemporaryPanActive(),
+      element: editable,
+      selectedIds,
+    })) return;
     event.cancelBubble = true;
     selectIds([id]);
     requestAnimationFrame(() => editTextElement(id));
