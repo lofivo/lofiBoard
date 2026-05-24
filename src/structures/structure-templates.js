@@ -412,12 +412,21 @@ export function setLinearIndexOptions(element, { indexBase = element?.settings?.
 export function getLinearStructureLocalPoint(element, worldPoint, renderedNode = null) {
   const renderedX = Number(renderedNode?.x?.());
   const renderedY = Number(renderedNode?.y?.());
+  const renderedScaleX = Number(renderedNode?.scaleX?.());
+  const renderedScaleY = Number(renderedNode?.scaleY?.());
   const originX = Number.isFinite(renderedX) ? renderedX : Number(element?.x) || 0;
   const originY = Number.isFinite(renderedY) ? renderedY : Number(element?.y) || 0;
+  const scaleX = getSafeLinearScale(Number.isFinite(renderedScaleX) ? renderedScaleX : element?.scaleX);
+  const scaleY = getSafeLinearScale(Number.isFinite(renderedScaleY) ? renderedScaleY : element?.scaleY);
   return {
-    x: Number(worldPoint?.x) - originX,
-    y: Number(worldPoint?.y) - originY,
+    x: (Number(worldPoint?.x) - originX) / scaleX,
+    y: (Number(worldPoint?.y) - originY) / scaleY,
   };
+}
+
+function getSafeLinearScale(scale) {
+  const value = Number(scale);
+  return Number.isFinite(value) && value !== 0 ? value : 1;
 }
 
 export function clampLinearItemDropGap(gap, length) {

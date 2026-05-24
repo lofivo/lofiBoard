@@ -443,6 +443,31 @@ describe("structure templates", () => {
     expect(getLinearItemDropIndex(2, backwardGap, length)).toBe(1);
   });
 
+  it("unscales pointer coordinates before computing a resized array item drop target", () => {
+    const [array] = createStructureElements({
+      type: STRUCTURE_TYPES.ARRAY,
+      input: "A, B, C, D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const renderedNode = {
+      x: () => 140,
+      y: () => 40,
+      scaleX: () => 2,
+      scaleY: () => 2,
+    };
+    const cellWidth = array.style.cellWidth;
+    const length = array.items.length;
+    const localPoint = getLinearStructureLocalPoint(array, {
+      x: renderedNode.x() + cellWidth * 0.65 * renderedNode.scaleX(),
+      y: renderedNode.y() + 12 * renderedNode.scaleY(),
+    }, renderedNode);
+
+    expect(localPoint.x).toBeCloseTo(cellWidth * 0.65);
+    const gap = getLinearItemPreviewGap({ localX: localPoint.x, length, cellWidth });
+    expect(getLinearItemDropIndex(2, gap, length)).toBe(1);
+  });
+
   it("sets and clears array teaching markers", () => {
     const [array] = createStructureElements({
       type: STRUCTURE_TYPES.ARRAY,
