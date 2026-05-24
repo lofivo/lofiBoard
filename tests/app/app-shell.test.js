@@ -643,6 +643,10 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.brush-field-color,\n\.brush-field-width,\n\.brush-field-opacity,\n\.brush-field-font-family,\n\.brush-field-font-size,\n\.brush-field-text-format \{[\s\S]*?grid-column: 1 \/ -1;/);
     expect(styles).toMatch(/\.brush-style-line \{[\s\S]*?width: 26px;/);
     expect(styles).toMatch(/\.brush-field-opacity,\n\.brush-field-smoothing,\n\.brush-field-cap \{[\s\S]*?align-self: end;/);
+    const dashLineStyles = styles.match(/\.brush-style-line-dash \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(dashLineStyles).toContain("background: repeating-linear-gradient");
+    expect(dashLineStyles).toContain("transparent 6px");
+    expect(dashLineStyles).not.toContain("background: #111827");
     expect(appSource).toContain("brushWidthSlider");
     expect(appSource).toContain("brushPreviewPath");
     expect(appSource).toContain("syncBrushPreview");
@@ -941,6 +945,23 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.text-latex-overlay \{[\s\S]*?pointer-events: none;/);
   });
 
+  it("widens new latex text while editing and preserves that width on commit", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("getPreferredTextBoxWidth({");
+    expect(appSource).toContain("latexDefaultWidth: 520 * scale");
+    expect(appSource).toContain("preferredTextWidth > maxAutoEditorWidth");
+    expect(appSource).toContain("getPreferredTextElementWidth(nextElement, nextWidth)");
+  });
+
+  it("keeps text measurement font setup centralized without dead editor resize state", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("function getTextMeasureContextForElement");
+    expect(appSource).not.toContain("hasManualEditorResize");
+    expect((appSource.match(/context\.font =/g) ?? []).length).toBeLessThanOrEqual(2);
+  });
+
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
@@ -1045,8 +1066,14 @@ describe("app shell", () => {
       appSource.indexOf("function syncTextWidthResize()"),
       appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
     );
+    const minWidthSource = appSource.slice(
+      appSource.indexOf("function getActiveTransformerMinWidth()"),
+      appSource.indexOf("function getActiveTransformerMinHeight()"),
+    );
 
     expect(resizePreviewSource).toContain("syncTextOverlays({ elements: getTextOverlayPreviewElements() })");
+    expect(resizePreviewSource).toContain("getMinimumTextElementWidth(element)");
+    expect(minWidthSource).toContain("measureText: (value) => measureTextElementValue(element, value)");
     expect(resizePreviewSource).not.toContain("textOverlayController.setHiddenIds([id])");
     expect(appSource).toContain("transformer.on(\"transform\", syncTextTransformPreview)");
     expect(appSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
@@ -1065,6 +1092,19 @@ describe("app shell", () => {
     expect(appSource).toContain("getEraserPathSamples");
     expect(appSource).toContain("function eraseStrokeAlongPath");
     expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
+  });
+
+  it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const eraserSource = appSource.slice(
+      appSource.indexOf("function getBaseEraserRadius()"),
+      appSource.indexOf("function showObjectEraser"),
+    );
+
+    expect(appSource).not.toContain("getMinimumEraserRadius");
+    expect(eraserSource).toContain("getBaseEraserRadiusForWidth(widthInput.value)");
+    expect(eraserSource).toContain("getScaledEraserRadius(radius, stage.scaleX())");
+    expect(eraserSource).toContain("getSquareEraserPreviewAttrs(worldPoint, visibleRadius, stage.scaleX())");
   });
 
   it("shows a small icon for object eraser instead of the square erase footprint", () => {

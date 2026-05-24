@@ -1506,10 +1506,13 @@ button {
 
 .brush-style-line-dash {
   height: 4px;
-  background-image: linear-gradient(to right, #111827 65%, rgba(255, 255, 255, 0) 0%);
-  background-position: top;
-  background-size: 12px 4px;
-  background-repeat: repeat-x;
+  background: repeating-linear-gradient(
+    to right,
+    #111827 0,
+    #111827 6px,
+    transparent 6px,
+    transparent 11px
+  );
 }
 
 .brush-style-line-dot {

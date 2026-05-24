@@ -11,7 +11,11 @@ import {
   getUniformScaledBoxForResize,
   getUniformScaledBoxForVerticalResize,
   getMinimumTextResizeWidth,
+  getMinimumTextBoxWidth,
+  getMinimumLatexTextBoxWidth,
+  getLatexTextBoxVerticalPadding,
   getNormalizedTextBox,
+  getPreferredTextBoxWidth,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getTransformerAnchorsForSelection,
@@ -540,6 +544,117 @@ describe("interaction rules", () => {
       verticalGap: 0,
       measureText,
     }).height).toBeGreaterThan(25);
+  });
+
+  it("uses a wider default text box for renderable latex", () => {
+    expect(getPreferredTextBoxWidth({
+      text: "$$x^2 + y^2 = z^2$$",
+      baseWidth: 220,
+      contentWidth: 120,
+      padding: 6,
+    })).toBe(520);
+
+    expect(getPreferredTextBoxWidth({
+      text: "plain text",
+      baseWidth: 220,
+      contentWidth: 600,
+      padding: 6,
+    })).toBe(220);
+
+    expect(getPreferredTextBoxWidth({
+      text: "$$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}$$",
+      baseWidth: 220,
+      contentWidth: 700,
+      padding: 6,
+    })).toBe(713);
+  });
+
+  it("does not allow a latex text box to resize narrower than the formula can render", () => {
+    const measureText = (value) => String(value).length * 12;
+
+    expect(getMinimumLatexTextBoxWidth({
+      text: "$a+b=c$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBeGreaterThanOrEqual(140);
+
+    expect(getMinimumTextBoxWidth({
+      text: "$a+b=c$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBeGreaterThan(90);
+
+    expect(getNormalizedTextBox({
+      text: "$a+b=c$",
+      width: 40,
+      fontSize: 28,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    }).width).toBeGreaterThan(90);
+
+    expect(getMinimumTextBoxWidth({
+      text: "plain text",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBe(40);
+  });
+
+  it("keeps a renderable latex formula from wrapping outside a narrow requested text box", () => {
+    const measureText = (value) => String(value).length * 9;
+    const latex = "$$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}$$";
+    const escapedLatex = "\\$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}\\$";
+
+    const latexBox = getNormalizedTextBox({
+      text: latex,
+      width: 180,
+      fontSize: 28,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+    const escapedBox = getNormalizedTextBox({
+      text: escapedLatex,
+      width: 180,
+      fontSize: 28,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+
+    expect(latexBox.width).toBeGreaterThan(180);
+    expect(getLatexTextBoxVerticalPadding({
+      text: latex,
+      contentWidth: 168,
+      fontSize: 28,
+      measureText,
+    })).toBeGreaterThan(0);
+    expect(getLatexTextBoxVerticalPadding({
+      text: escapedLatex,
+      contentWidth: 168,
+      fontSize: 28,
+      measureText,
+    })).toBe(0);
+    expect(latexBox.height).toBeGreaterThan(28 * 1.25 + 2);
+    expect(escapedBox.width).toBe(180);
+  });
+
+  it("keeps a short inline latex formula inside the box when it is resized narrower than the formula", () => {
+    const measureText = (value) => String(value).length * 12;
+    const latexBox = getNormalizedTextBox({
+      text: "$a+b=c$",
+      width: 40,
+      fontSize: 28,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+
+    expect(latexBox.width).toBeGreaterThan(90);
+    expect(latexBox.height).toBeGreaterThan(28 * 1.25 + 2);
   });
 
   it("adds a small vertical gap when normalizing text boxes", () => {

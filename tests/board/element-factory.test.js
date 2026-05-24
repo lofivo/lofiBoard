@@ -32,6 +32,20 @@ describe("element factory", () => {
     expect(element.height).toBe(28 * 1.25);
   });
 
+  it("creates pasted latex text with enough default width to avoid immediate formula wrapping", () => {
+    const text = "$$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}$$";
+    const element = createTextElement({
+      point: { x: 120, y: 80 },
+      zIndex: 1,
+      text,
+      measureText: (value) => String(value).length * 10,
+    });
+
+    expect(element.text).toBe(text);
+    expect(element.width).toBeGreaterThan(520);
+    expect(element.height).toBeGreaterThan(28 * 1.25 + 2);
+  });
+
   it("can create an image centered on the requested point after display scaling", () => {
     const element = createImageElement({
       point: { x: 300, y: 200 },

@@ -67,7 +67,9 @@ import {
   getStickyTextInsets,
   getTextTransformMinimumSize,
   getUniformScaledBoxForResize,
+  getMinimumTextBoxWidth,
   getNormalizedTextBox,
+  getPreferredTextBoxWidth,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
@@ -89,10 +91,11 @@ import {
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
+  getBaseEraserRadiusForWidth,
   getBrushPreviewAttrs,
   getFillValue,
-  getMinimumEraserRadius,
   getObjectEraserIconAttrs,
+  getScaledEraserRadius,
   getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
@@ -2236,17 +2239,17 @@ export function createWhiteboardApp(root) {
   }
 
   function getBaseEraserRadius() {
-    return Math.max(18, Number(widthInput.value) * 1.7);
+    return getBaseEraserRadiusForWidth(widthInput.value);
   }
 
   function getVisibleEraserRadius(radius = getBaseEraserRadius()) {
-    return Math.max(radius, getMinimumEraserRadius(stage.scaleX()));
+    return getScaledEraserRadius(radius, stage.scaleX());
   }
 
   function showStrokeEraser(worldPoint, radius = activeEraserRadius) {
     eraserPreviewPoint = { ...worldPoint };
     const visibleRadius = getVisibleEraserRadius(radius);
-    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, visibleRadius));
+    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, visibleRadius, stage.scaleX()));
     eraserCursor.visible(true);
     objectEraserCursor.visible(false);
     overlayLayer.batchDraw();
@@ -2644,6 +2647,7 @@ export function createWhiteboardApp(root) {
         element,
         anchor: transformer.getActiveAnchor?.(),
         stageScale: stage.scaleX(),
+        measureText: (value) => measureTextElementValue(element, value),
       }).minWidth;
     }
     return MIN_TRANSFORM_SIZE;
@@ -2692,7 +2696,7 @@ export function createWhiteboardApp(root) {
     if (element?.type !== "text") return;
 
     const proposedWidth = node.width() * (node.scaleX() || 1);
-    const nextWidth = Math.max(getMinimumTextResizeWidth(element.fontSize) + (element.padding ?? 0) * 2, proposedWidth);
+    const nextWidth = Math.max(getMinimumTextElementWidth(element), proposedWidth);
     const nextHeight = getTextElementWrappedHeight(element, nextWidth);
     syncTextNodeSize(node, {
       width: nextWidth,
@@ -2757,16 +2761,44 @@ export function createWhiteboardApp(root) {
     return canvas.getContext("2d");
   }
 
+  function getTextMeasureContextForElement(element, fontSize = element.fontSize) {
+    const context = getTextMeasureContext();
+    const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
+    const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
+    context.font = `${fontStyle} ${fontWeight} ${fontSize}px ${element.fontFamily}`;
+    return context;
+  }
+
+  function measureTextElementValue(element, value, fontSize = element.fontSize) {
+    return getTextMeasureContextForElement(element, fontSize).measureText(value || " ").width;
+  }
+
   function getTextElementWrappedHeight(element, width) {
     return getNormalizedTextElementBox(element, width).height;
   }
 
+  function getMinimumTextElementWidth(element, fontSize = element.fontSize) {
+    const padding = Number(element.padding ?? 0);
+    return getMinimumTextBoxWidth({
+      text: element.text,
+      fontSize,
+      padding,
+      measureText: (value) => measureTextElementValue(element, value, fontSize),
+    });
+  }
+
+  function getPreferredTextElementWidth(element, baseWidth = element.width) {
+    const padding = Number(element.padding ?? 0);
+    return getPreferredTextBoxWidth({
+      text: element.text,
+      baseWidth,
+      contentWidth: measureTextElementValue(element, element.text),
+      padding,
+    });
+  }
+
   function getNormalizedTextElementBox(element, width = element.width) {
     const padding = Number(element.padding ?? 0);
-    const context = getTextMeasureContext();
-    const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
-    const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
-    context.font = `${fontStyle} ${fontWeight} ${element.fontSize}px ${element.fontFamily}`;
     return getNormalizedTextBox({
       text: element.text,
       width,
@@ -2774,7 +2806,7 @@ export function createWhiteboardApp(root) {
       padding,
       lineHeight: 1.25,
       verticalGap: 2,
-      measureText: (value) => context.measureText(value || " ").width,
+      measureText: (value) => measureTextElementValue(element, value),
     });
   }
 
@@ -5017,7 +5049,6 @@ export function createWhiteboardApp(root) {
     const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
     const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
     const maxAutoEditorWidth = editorWidth;
-    let hasManualEditorResize = false;
 
     const getEditorWidth = () => Math.max(minEditorWidth, editorFrame.offsetWidth || editorWidth);
     const applyNodeSizeFromEditor = () => {
@@ -5053,19 +5084,24 @@ export function createWhiteboardApp(root) {
     };
 
     const getTextLineWidth = (line) => {
-      const context = getTextMeasureContext();
-      const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
-      const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
-      context.font = `${fontStyle} ${fontWeight} ${element.fontSize * scale}px ${element.fontFamily}`;
-      return context.measureText(line || " ").width;
+      return measureTextElementValue(element, line, element.fontSize * scale);
     };
 
     const fitEditorToContent = () => {
       const lines = textarea.value.split("\n");
       const contentWidth = Math.max(...lines.map(getTextLineWidth));
-      const canAutoFitWidth = !hasManualEditorResize && !originalText;
+      const canAutoFitWidth = !originalText;
+      const measuredAutoWidth = Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1));
+      const preferredTextWidth = getPreferredTextBoxWidth({
+        text: textarea.value,
+        baseWidth: maxAutoEditorWidth,
+        contentWidth,
+        padding: horizontalPadding,
+        latexDefaultWidth: 520 * scale,
+        maxWidth: 960 * scale,
+      });
       const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
-        ? Math.min(maxAutoEditorWidth, Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1)))
+        ? (preferredTextWidth > maxAutoEditorWidth ? preferredTextWidth : Math.min(maxAutoEditorWidth, measuredAutoWidth))
         : getEditorWidth();
       setEditorSize(nextWidth);
       applyNodeSizeFromEditor();
@@ -5195,9 +5231,13 @@ export function createWhiteboardApp(root) {
           scaleY: 1,
         };
         if (item.type === "text") {
+          const nextWidth = Math.max(
+            getMinimumTextElementWidth(nextElement, nextFontSize),
+            committedWidth / scale,
+          );
           committedElement = normalizeTextElementBox({
             ...nextElement,
-            width: Math.max(getMinimumTextResizeWidth(nextFontSize) + editorPadding * 2, committedWidth / scale),
+            width: getPreferredTextElementWidth(nextElement, nextWidth),
             height: Math.max(nextFontSize * 1.25, committedHeight / scale),
           });
           return committedElement;
@@ -5362,16 +5402,13 @@ export function createWhiteboardApp(root) {
       x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
       y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
     };
-    const context = getTextMeasureContext();
     const { fontSize, fontFamily, fontStyle } = DEFAULT_TEXT_STYLE;
-    const fontWeight = hasFontStyle(fontStyle, "bold") ? "700" : "400";
-    const fontSlant = hasFontStyle(fontStyle, "italic") ? "italic" : "normal";
-    context.font = `${fontSlant} ${fontWeight} ${fontSize}px ${fontFamily}`;
+    const measureElement = { fontSize, fontFamily, fontStyle };
     const element = buildTextElement({
       point,
       zIndex: board.elements.length,
       text,
-      measureText: (value) => context.measureText(value || " ").width,
+      measureText: (value) => measureTextElementValue(measureElement, value),
     });
     addElement(element, message);
     setTool(TOOLS.SELECT);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   computeEraserRadius,
+  getBaseEraserRadiusForWidth,
   getBrushPreviewAttrs,
   getFillValue,
-  getMinimumEraserRadius,
+  getScaledEraserRadius,
   getObjectEraserIconAttrs,
   getSquareEraserPreviewAttrs,
   isShapeTool,
@@ -20,9 +21,16 @@ describe("tool behavior", () => {
     expect(computeEraserRadius({ baseRadius: base, speed: 99 })).toBe(base * 3);
   });
 
-  it("keeps a minimum eraser size in screen pixels", () => {
-    expect(getMinimumEraserRadius(1, 44)).toBe(22);
-    expect(getMinimumEraserRadius(0.25, 44)).toBe(88);
+  it("reduces the base eraser radius by 30 percent", () => {
+    expect(getBaseEraserRadiusForWidth(10)).toBeCloseTo(12.6);
+    expect(getBaseEraserRadiusForWidth(20)).toBeCloseTo(23.8);
+  });
+
+  it("keeps eraser size unchanged on screen at 100% and below, then grows after zooming in", () => {
+    expect(getScaledEraserRadius(20, 0.25)).toBe(80);
+    expect(getScaledEraserRadius(20, 0.5)).toBe(40);
+    expect(getScaledEraserRadius(20, 1)).toBe(20);
+    expect(getScaledEraserRadius(20, 1.5)).toBe(20);
   });
 
   it("does not bake zoom minimums into square eraser preview geometry", () => {
@@ -35,7 +43,7 @@ describe("tool behavior", () => {
   });
 
   it("positions the square eraser preview around the pointer", () => {
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18)).toEqual({
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18, 1)).toEqual({
       x: 82,
       y: 62,
       width: 36,
@@ -45,13 +53,18 @@ describe("tool behavior", () => {
   });
 
   it("keeps square eraser dash density within a controlled range", () => {
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18).dash).toEqual([2.5, 1.8]);
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 72).dash).toEqual([4.38, 3.15]);
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 120).dash).toEqual([5, 3.6]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18, 1).dash).toEqual([2.5, 1.8]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 72, 1).dash).toEqual([4.38, 3.15]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 120, 1).dash).toEqual([5, 3.6]);
   });
 
-  it("keeps square eraser dash spacing stable when the board is zoomed", () => {
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18).dash).toEqual([2.5, 1.8]);
+  it("keeps square eraser border spacing stable on screen when zoomed out", () => {
+    const normalDash = getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 20, 1).dash;
+    const halfScaleDash = getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 40, 0.5).dash;
+    const quarterScaleDash = getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 80, 0.25).dash;
+
+    expect(halfScaleDash).toEqual(normalDash);
+    expect(quarterScaleDash).toEqual(normalDash);
   });
 
   it("keeps the object eraser cursor as a small icon instead of the erase footprint", () => {

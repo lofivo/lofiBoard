@@ -1,4 +1,5 @@
 import { TOOLS } from "../ui/ui-config.js";
+import { containsRenderableLatex, parseLatexText, tokenizeLatexText } from "../services/latex-service.js";
 
 export const CORNER_TRANSFORMER_ANCHORS = [
   "top-left",
@@ -248,19 +249,86 @@ export function getTextTransformMinimumSize({
   stageScale = 1,
   minFontSize = 8,
   lineHeight = 1.25,
+  measureText,
 }) {
   const scale = Math.max(0.01, Number(stageScale) || 1);
   const padding = Math.max(0, Number(element?.padding) || 0);
   const fontSize = Number(element?.fontSize) || minFontSize;
   const transformFontSize = isTextWidthResizeAnchor(anchor) ? fontSize : Math.min(fontSize, minFontSize);
+  const minWidth = isTextWidthResizeAnchor(anchor)
+    ? getMinimumTextBoxWidth({
+      text: element?.text,
+      fontSize: transformFontSize,
+      padding,
+      measureText,
+    })
+    : getMinimumTextResizeWidth(transformFontSize) + padding * 2;
   return {
-    minWidth: (getMinimumTextResizeWidth(transformFontSize) + padding * 2) * scale,
+    minWidth: minWidth * scale,
     minHeight: getSingleLineTextEditorHeight(transformFontSize, scale, lineHeight),
   };
 }
 
 export function getMinimumTextResizeWidth(fontSize) {
   return Math.max(8, Number(fontSize) || 0);
+}
+
+export function getMinimumTextBoxWidth({
+  text = "",
+  fontSize,
+  padding = 0,
+  measureText,
+} = {}) {
+  const size = Math.max(1, Number(fontSize) || 1);
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  const baseWidth = getMinimumTextResizeWidth(size) + horizontalPadding * 2;
+  if (!containsRenderableLatex(text)) return baseWidth;
+  return Math.max(baseWidth, getMinimumLatexTextBoxWidth({
+    text,
+    fontSize: size,
+    padding: horizontalPadding,
+    measureText,
+  }));
+}
+
+export function getMinimumLatexTextBoxWidth({
+  text = "",
+  fontSize,
+  padding = 0,
+  measureText,
+} = {}) {
+  if (!containsRenderableLatex(text)) return 0;
+  const size = Math.max(1, Number(fontSize) || 1);
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  const measure = typeof measureText === "function" ? measureText : (value) => String(value).length * size * 0.55;
+  const tokens = tokenizeLatexText(text);
+  const mathValues = tokens.some((token) => token.type === "math")
+    ? tokens.filter((token) => token.type === "math").map((token) => token.value)
+    : [parseLatexText(text).expression || text];
+  const widestMath = Math.max(...mathValues.map((value) => measure(value || " ")), 0);
+  const plainWidth = Math.max(0, ...tokens
+    .filter((token) => token.type === "text")
+    .map((token) => measure(token.value || " ")));
+  const katexWidth = Math.max(widestMath * 2.15, widestMath + size * 2.5);
+  return Math.ceil(Math.max(katexWidth, plainWidth) + horizontalPadding * 2 + 1);
+}
+
+export function getPreferredTextBoxWidth({
+  text = "",
+  baseWidth = 220,
+  contentWidth = 0,
+  padding = 0,
+  latexDefaultWidth = 520,
+  maxWidth = 960,
+} = {}) {
+  const fallbackWidth = Math.max(1, Number(baseWidth) || 1);
+  if (!containsRenderableLatex(text)) return fallbackWidth;
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  const measuredWidth = Math.ceil(Math.max(0, Number(contentWidth) || 0) + horizontalPadding * 2 + 1);
+  return Math.min(
+    Math.max(1, Number(maxWidth) || 1),
+    Math.max(fallbackWidth, Number(latexDefaultWidth) || fallbackWidth, measuredWidth),
+  );
 }
 
 export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 1.25) {
@@ -363,6 +431,29 @@ export function measureWrappedTextHeight({
   return Math.max(Math.ceil(Number(minHeight) || 0), Math.ceil(lineCount * lineHeightPx));
 }
 
+export function getLatexTextBoxVerticalPadding({
+  text = "",
+  contentWidth,
+  fontSize,
+  lineHeight = 1.25,
+  measureText,
+} = {}) {
+  if (!containsRenderableLatex(text)) return 0;
+  const width = Math.max(1, Number(contentWidth) || 1);
+  const size = Math.max(1, Number(fontSize) || 1);
+  const lineHeightPx = size * (Number(lineHeight) || 1.25);
+  const wrappedHeight = measureWrappedTextHeight({
+    text,
+    contentWidth: width,
+    fontSize: size,
+    lineHeight,
+    measureText,
+    minHeight: lineHeightPx,
+  });
+  const estimatedLines = Math.max(1, Math.ceil(wrappedHeight / lineHeightPx));
+  return Math.ceil(estimatedLines * size * 0.55);
+}
+
 export function getNormalizedTextBox({
   text = "",
   width,
@@ -374,18 +465,30 @@ export function getNormalizedTextBox({
 }) {
   const size = Math.max(1, Number(fontSize) || 1);
   const horizontalPadding = Math.max(0, Number(padding) || 0);
-  const minWidth = getMinimumTextResizeWidth(size) + horizontalPadding * 2;
+  const minWidth = getMinimumTextBoxWidth({
+    text,
+    fontSize: size,
+    padding: horizontalPadding,
+    measureText,
+  });
   const nextWidth = Math.max(minWidth, Number(width) || minWidth);
+  const contentWidth = Math.max(1, nextWidth - horizontalPadding * 2);
   return {
     width: nextWidth,
     height: measureWrappedTextHeight({
       text,
-      contentWidth: Math.max(1, nextWidth - horizontalPadding * 2),
+      contentWidth,
       fontSize: size,
       lineHeight,
       measureText,
       minHeight: size * lineHeight,
-    }) + Math.max(0, Number(verticalGap) || 0),
+    }) + Math.max(0, Number(verticalGap) || 0) + getLatexTextBoxVerticalPadding({
+      text,
+      contentWidth,
+      fontSize: size,
+      lineHeight,
+      measureText,
+    }),
   };
 }
 

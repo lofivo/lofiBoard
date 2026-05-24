@@ -1,7 +1,7 @@
 import { normalizeRect } from "../canvas/geometry.js";
 import { createId } from "./ids.js";
 import { getFillValue } from "../tools/tool-behavior.js";
-import { getNormalizedTextBox } from "../tools/interaction-rules.js";
+import { getNormalizedTextBox, getPreferredTextBoxWidth } from "../tools/interaction-rules.js";
 import { TOOLS } from "../ui/ui-config.js";
 
 export const DEFAULT_TEXT_STYLE = Object.freeze({
@@ -23,17 +23,26 @@ export const DEFAULT_COORDINATE_PLANE_STYLE = Object.freeze({
 export function createTextElement({ point, zIndex, text = "", measureText }) {
   const width = 220;
   const defaultHeight = DEFAULT_TEXT_STYLE.fontSize * 1.25;
+  const measure = typeof measureText === "function" ? measureText : null;
+  const preferredWidth = text
+    ? getPreferredTextBoxWidth({
+      text,
+      baseWidth: width,
+      contentWidth: measure ? measure(text) : 0,
+      padding: DEFAULT_TEXT_STYLE.padding,
+    })
+    : width;
   const normalizedBox = text
     ? getNormalizedTextBox({
       text,
-      width,
+      width: preferredWidth,
       fontSize: DEFAULT_TEXT_STYLE.fontSize,
       padding: DEFAULT_TEXT_STYLE.padding,
       lineHeight: 1.25,
       verticalGap: 2,
-      measureText,
+      measureText: measure,
     })
-    : { width, height: defaultHeight };
+    : { width: preferredWidth, height: defaultHeight };
 
   return {
     id: createId("text"),
