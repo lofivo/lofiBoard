@@ -577,14 +577,14 @@ describe("interaction rules", () => {
       fontSize: 28,
       padding: 6,
       measureText,
-    })).toBeGreaterThanOrEqual(140);
+    })).toBeLessThan(90);
 
     expect(getMinimumTextBoxWidth({
       text: "$a+b=c$",
       fontSize: 28,
       padding: 6,
       measureText,
-    })).toBeGreaterThan(90);
+    })).toBeLessThan(90);
 
     expect(getNormalizedTextBox({
       text: "$a+b=c$",
@@ -593,7 +593,7 @@ describe("interaction rules", () => {
       padding: 6,
       verticalGap: 2,
       measureText,
-    }).width).toBeGreaterThan(90);
+    }).width).toBeLessThan(90);
 
     expect(getMinimumTextBoxWidth({
       text: "plain text",
@@ -642,7 +642,7 @@ describe("interaction rules", () => {
     expect(escapedBox.width).toBe(180);
   });
 
-  it("keeps a short inline latex formula inside the box when it is resized narrower than the formula", () => {
+  it("allows a short inline latex formula to wrap across multiple lines", () => {
     const measureText = (value) => String(value).length * 12;
     const latexBox = getNormalizedTextBox({
       text: "$a+b=c$",
@@ -653,8 +653,22 @@ describe("interaction rules", () => {
       measureText,
     });
 
-    expect(latexBox.width).toBeGreaterThan(90);
-    expect(latexBox.height).toBeGreaterThan(28 * 1.25 + 2);
+    expect(latexBox.width).toBeLessThan(90);
+    expect(latexBox.height).toBeGreaterThan(100);
+  });
+
+  it("grows enough height for lots of wrapped plain text content", () => {
+    const measureText = (value) => String(value).length * 10;
+    const text = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu";
+
+    expect(getNormalizedTextBox({
+      text,
+      width: 120,
+      fontSize: 24,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    }).height).toBeGreaterThan(140);
   });
 
   it("adds a small vertical gap when normalizing text boxes", () => {

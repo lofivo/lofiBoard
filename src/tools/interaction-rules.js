@@ -305,12 +305,27 @@ export function getMinimumLatexTextBoxWidth({
   const mathValues = tokens.some((token) => token.type === "math")
     ? tokens.filter((token) => token.type === "math").map((token) => token.value)
     : [parseLatexText(text).expression || text];
-  const widestMath = Math.max(...mathValues.map((value) => measure(value || " ")), 0);
+  const widestMath = Math.max(...mathValues.map((value) => {
+    const expression = String(value || " ");
+    if (/[\\{}]/.test(expression)) return Math.max(measure(expression) * 2.15, measure(expression) + size * 2.5);
+    const baseLikeParts = expression
+      .split(/(?<=[+\-=<>*/])|(?=[+\-=<>*/])/)
+      .reduce((parts, part) => {
+        if (!part) return parts;
+        const previous = parts.at(-1);
+        if (previous && /[+\-=<>*/]$/.test(previous)) {
+          parts[parts.length - 1] = `${previous}${part}`;
+        } else {
+          parts.push(part);
+        }
+        return parts;
+      }, []);
+    return Math.max(...(baseLikeParts.length ? baseLikeParts : [expression]).map((part) => measure(part || " ")), 0);
+  }), 0);
   const plainWidth = Math.max(0, ...tokens
     .filter((token) => token.type === "text")
     .map((token) => measure(token.value || " ")));
-  const katexWidth = Math.max(widestMath * 2.15, widestMath + size * 2.5);
-  return Math.ceil(Math.max(katexWidth, plainWidth) + horizontalPadding * 2 + 1);
+  return Math.ceil(Math.max(widestMath, plainWidth) + horizontalPadding * 2 + 1);
 }
 
 export function getPreferredTextBoxWidth({

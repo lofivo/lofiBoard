@@ -1909,6 +1909,15 @@ button {
   margin: 0.35em 0;
 }
 
+.text-latex-overlay .katex,
+.text-latex-overlay .katex-html {
+  white-space: normal;
+}
+
+.text-latex-overlay .katex .base {
+  white-space: nowrap;
+}
+
 .statusbar {
   position: fixed;
   z-index: 27;

@@ -943,6 +943,7 @@ describe("app shell", () => {
     expect(appSource).toContain("textOverlayController.sync(elements)");
     expect(appSource).toContain("textOverlayController.setHiddenIds([id])");
     expect(styles).toMatch(/\.text-latex-overlay \{[\s\S]*?pointer-events: none;/);
+    expect(styles).toMatch(/\.text-latex-overlay \.katex \.base \{[\s\S]*?white-space: nowrap;/);
   });
 
   it("widens new latex text while editing and preserves that width on commit", () => {

@@ -79,8 +79,8 @@ describe("text overlay service", () => {
       textAlign: "center",
       lineHeight: "1.25",
       overflow: "visible",
-      wordBreak: "normal",
-      overflowWrap: "normal",
+      wordBreak: "break-word",
+      overflowWrap: "anywhere",
       transform: "rotate(12deg)",
       textDecoration: "underline",
     });
@@ -106,8 +106,8 @@ describe("text overlay service", () => {
     expect(overlay).toBeTruthy();
     expect(overlay.innerHTML).toContain("katex");
     expect(overlay.style.pointerEvents).toBe("none");
-    expect(overlay.style.overflowWrap).toBe("normal");
-    expect(overlay.style.wordBreak).toBe("normal");
+    expect(overlay.style.overflowWrap).toBe("anywhere");
+    expect(overlay.style.wordBreak).toBe("break-word");
     expect(textNode.visible).toHaveBeenCalledWith(false);
 
     await controller.sync([{ ...textElement, text: "plain text" }]);

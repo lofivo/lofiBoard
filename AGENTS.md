@@ -21,3 +21,4 @@
 16. Konva 元素在 `pointerdown` / `dragstart` 到首次 `dragmove` 之间不能为了选中态、高亮态、控件显示等调用 `renderBoard()` 或重建节点；这会打断 Konva 当前拖拽链路，表现为选中后拖拽只能移动一点点。此类视觉变化应优先原地同步已有节点属性（例如 stroke/strokeWidth）并补回归测试。
 17. 普通树节点点击/双击必须由节点自身事件负责选择和编辑；`handleSelectPointerDown` 命中 `.tree-node` 时不能直接 `beginSelectionDrag()`，否则单击会被拖拽链路吞掉，导致无法稳定选中或双击编辑。整树拖拽只应从树结构空白命中区或已选中元素拖拽入口进入。
 18. Konva Transformer 的 `shouldOverdrawWholeArea` 不能覆盖线性结构和树结构这类内部可交互元素；否则选中结构后，Transformer 背板会挡住数组元素/树节点，表现为无法继续选择内部节点或双击编辑。
+19. LaTeX 文本框不能用整段公式宽度作为最小宽度，否则短公式无法多行；DOM overlay 应允许 `.katex` 换行，但 `.katex .base` 保持 `white-space: nowrap`，让公式按 KaTeX 片段换行且单片段不被拆坏。
