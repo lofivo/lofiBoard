@@ -1273,6 +1273,34 @@ describe("konva elements", () => {
     expect(itemRects.at(-1).strokeWidth()).toBe(3);
   });
 
+  it("renders array algorithm active and sorted marker states", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "3" },
+        { id: "item_2", index: 1, value: "1" },
+        { id: "item_3", index: 2, value: "2" },
+      ],
+      markers: {
+        algorithm: {
+          activeIndices: [0, 1],
+          sortedIndices: [2],
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const itemRects = node.find(".array-item").map((item) => item.find("Rect").at(-1));
+    expect(itemRects[0].fill()).toBe("#dbeafe");
+    expect(itemRects[1].fill()).toBe("#dbeafe");
+    expect(itemRects[2].fill()).toBe("#dcfce7");
+  });
+
   it("hides the drag gap indicator on linear structure edges", () => {
     const leftEdgeNode = createElementNode({
       id: "array_1",

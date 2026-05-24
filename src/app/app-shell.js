@@ -331,6 +331,27 @@ export function renderShell() {
                     <button type="button" data-action="linear-pointer-show">显示指针</button>
                     <button type="button" data-action="linear-pointer-hide">隐藏指针</button>
                   </div>
+                  <div class="linear-algorithm-panel" data-linear-algorithm-panel>
+                    <div class="linear-values-header">
+                      <span>算法</span>
+                      <select data-array-algorithm-select aria-label="数组算法">
+                        <option value="bubble-sort">冒泡排序</option>
+                      </select>
+                    </div>
+                    <div class="algorithm-status" data-array-algorithm-status>选择数组后开始演示</div>
+                    <div class="quick-actions quick-actions-algorithm quick-actions-compact">
+                      <button type="button" data-action="array-algorithm-start">开始</button>
+                      <button type="button" data-action="array-algorithm-prev">上一步</button>
+                      <button type="button" data-action="array-algorithm-next">下一步</button>
+                      <button type="button" data-action="array-algorithm-play">播放</button>
+                      <button type="button" data-action="array-algorithm-reset">重置</button>
+                      <button type="button" data-action="array-algorithm-stop">结束</button>
+                    </div>
+                    <label class="linear-field algorithm-speed-field">
+                      速度
+                      <input data-array-algorithm-speed type="range" min="0.5" max="3" step="0.5" value="1" />
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

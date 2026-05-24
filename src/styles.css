@@ -1664,8 +1664,48 @@ button {
 
 .quick-actions-graph,
 .quick-actions-tree,
-.quick-actions-binary-tree {
+.quick-actions-binary-tree,
+.quick-actions-algorithm {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.linear-algorithm-panel {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.linear-algorithm-panel select {
+  min-width: 108px;
+  height: 28px;
+  border: 1px solid var(--fluent-stroke);
+  border-radius: 8px;
+  color: var(--fluent-text-primary);
+  background: var(--fluent-control-bg);
+  font-size: 12px;
+}
+
+.algorithm-status {
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--fluent-stroke);
+  border-radius: 10px;
+  color: var(--fluent-text-secondary);
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.algorithm-status[data-state="error"] {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.algorithm-speed-field {
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
 }
 
 .structure-values-field {

@@ -38,12 +38,7 @@ describe("app shell", () => {
 
   it("styles layer labels with ellipsis overflow", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("layer-label");
-    expect(appSource).toContain("data-layer-level");
-    expect(appSource).toContain("const orderedElements = reorderElements(board.elements)");
-    expect(appSource).toContain("const layerLevels = new Map(orderedElements.map((element, index) => [element.id, index]))");
     expect(styles).toContain(".layer-label");
     expect(styles).toContain(".layer-item::after");
     expect(styles).toContain("content: attr(data-layer-level)");
@@ -238,6 +233,15 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="linear-index-hide"');
     expect(markup).toContain('data-action="linear-pointer-show"');
     expect(markup).toContain('data-action="linear-pointer-hide"');
+    expect(markup).toContain('data-linear-algorithm-panel');
+    expect(markup).toContain('data-array-algorithm-select');
+    expect(markup).toContain('data-action="array-algorithm-start"');
+    expect(markup).toContain('data-action="array-algorithm-prev"');
+    expect(markup).toContain('data-action="array-algorithm-next"');
+    expect(markup).toContain('data-action="array-algorithm-play"');
+    expect(markup).toContain('data-action="array-algorithm-reset"');
+    expect(markup).toContain('data-action="array-algorithm-stop"');
+    expect(markup).toContain('data-array-algorithm-speed');
     expect(markup).not.toContain('data-linear-group=');
     expect(markup).not.toContain('data-linear-toggle=');
     expect(markup).not.toContain("linear-panel-heading");
@@ -527,8 +531,9 @@ describe("app shell", () => {
 
   it("syncs and applies the linear structure values input from the property panel", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const refsSource = readFileSync(new URL("../../src/app/dom-refs.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain('const linearValuesInput = root.querySelector("[data-linear-values-input]")');
+    expect(refsSource).toContain('linearValuesInput: query("[data-linear-values-input]")');
     expect(appSource).toContain("let linearValuesDraft = \"\";");
     expect(appSource).toContain('linearValuesInput?.addEventListener("input", () => {');
     expect(appSource).toContain("linearValuesDraft = linearValuesInput.value;");
@@ -543,8 +548,9 @@ describe("app shell", () => {
 
   it("syncs and applies graph structure input from the property panel", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const refsSource = readFileSync(new URL("../../src/app/dom-refs.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain('const graphStructureInput = root.querySelector("[data-graph-structure-input]")');
+    expect(refsSource).toContain('graphStructureInput: query("[data-graph-structure-input]")');
     expect(appSource).toContain('graphStructureInput?.addEventListener("input", () => {');
     expect(appSource).toContain("graphStructureDraft = graphStructureInput.value;");
     expect(appSource).toContain('"graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft), "已更新图")');
@@ -742,8 +748,8 @@ describe("app shell", () => {
   it("keeps selected brush strokes in the brush-style inspector instead of shape controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "brush"/);
-    expect(appSource).not.toMatch(/selectedElements\.every\(\(element\) => element\.type === "stroke"\)[\s\S]*\? "stroke"/);
+    expect(appSource).toContain("getSelectionPanelMode(selectedElements)");
+    expect(appSource).not.toContain('"stroke";');
     expect(appSource).toContain("if (!selectedIds.includes(id)) {");
     expect(appSource).toContain("selectElementById(id);");
     expect(appSource).toContain("beginNodeDragSelection(node);");
@@ -807,7 +813,7 @@ describe("app shell", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("function getSelectionInspectorCapabilities");
+    expect(appSource).toContain("getSelectionInspectorCapabilities(selectedElements)");
     expect(appSource).toContain('root.dataset.selectionHasText = String(capabilities.text)');
     expect(appSource).toContain('root.dataset.selectionHasSticky = String(capabilities.sticky)');
     expect(appSource).toContain('root.dataset.selectionHasDrawing = String(capabilities.drawing)');
@@ -815,10 +821,6 @@ describe("app shell", () => {
     expect(appSource).toContain('root.dataset.selectionHasFillShape = String(capabilities.fillShape)');
     expect(appSource).toContain('root.dataset.selectionHasArrow = String(capabilities.arrow)');
     expect(appSource).toContain('root.dataset.selectionHasCoordinate = String(capabilities.coordinate)');
-    expect(appSource).toContain('selectedElements.length > 1');
-    expect(appSource).toContain('? "multi"');
-    expect(appSource).toContain('["rect", "ellipse"].includes(element.type)');
-    expect(appSource).toContain('if (element.type === "coordinate-plane" || element.type.endsWith?.("-structure")) return element;');
 
     expect(styles).toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 168px\);/);
     expect(styles).not.toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
@@ -837,8 +839,6 @@ describe("app shell", () => {
     expect(appSource).toContain('if (controlName === "fill") syncFillTransparentControls(false);');
     expect(appSource).toContain('function syncFillTransparentControls(checked)');
     expect(appSource).toContain('const hydrateSource = getSelectionHydrateSource(selectedElements) ?? first;');
-    expect(appSource).toContain('function getSelectionHydrateSource(elements)');
-    expect(appSource).toContain('return elements.find((element) => ["rect", "ellipse"].includes(element.type))');
     expect(appSource).toContain('setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");');
     expect(appSource).not.toMatch(/setBrushControlValue\(fillInput, button\.dataset\.shapeFillColor, "input"\);\s*applyStyleToSelection\(\);/);
   });
@@ -864,9 +864,8 @@ describe("app shell", () => {
   it("keeps the style panel hidden for text and sticky tools until an element is selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/selectedElements\.every\(\(element\) => element\.type === "text"\)[\s\S]*\? "text"/);
-    expect(appSource).toMatch(/selectedElements\.every\(\(element\) => element\.type === "sticky"\)[\s\S]*\? "sticky"/);
-    expect(appSource).toContain("const toolPanelModes = new Set([");
+    expect(appSource).toContain("getSelectionPanelMode(selectedElements)");
+    expect(appSource).toContain("isToolPropertyPanelAvailable(currentTool)");
     expect(appSource).not.toContain("tool-text");
     expect(appSource).not.toContain("tool-sticky");
   });
@@ -874,15 +873,10 @@ describe("app shell", () => {
   it("uses concrete property panel titles for single selections and configurable tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const stylePanelTitle = root.querySelector(\"[data-style-panel-title]\")");
+    expect(appSource).toContain("stylePanelTitle,");
     expect(appSource).toContain("function syncPropertyPanelTitle(selectedElements = [])");
-    expect(appSource).toContain("function getPropertyPanelTitle(selectedElements)");
-    expect(appSource).toContain('if (selectedElements.length !== 1) return "属性";');
-    expect(appSource).toContain('if (element.type === "tree-structure") return element.settings?.treeKind === "binary" ? "二叉树" : "树";');
-    expect(appSource).toContain('const toolTitles = {');
-    expect(appSource).toContain('[TOOLS.PEN]: "画笔"');
-    expect(appSource).toContain('[TOOLS.SHAPE]: getShapeToolTitle(activeShapeTool)');
     expect(appSource).toContain('stylePanelTitle.textContent = getPropertyPanelTitle(selectedElements);');
+    expect(appSource).toContain("getToolPropertyPanelTitle(currentTool, activeShapeTool)");
     expect(appSource).not.toContain('[TOOLS.TEXT]: "文字"');
     expect(appSource).not.toContain('[TOOLS.STICKY]: "便签"');
     expect(appSource).not.toContain('[TOOLS.STRUCTURE]: "结构模板"');

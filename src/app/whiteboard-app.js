@@ -1,5 +1,28 @@
 import Konva from "konva";
 import { renderShell } from "./app-shell.js";
+import { queryWhiteboardRefs } from "./dom-refs.js";
+import {
+  getPropertyPanelTitle,
+  getSelectionHydrateSource,
+  getSelectionInspectorCapabilities,
+  getSelectionPanelMode,
+  getToolInspectorCapabilities,
+  getToolPanelMode,
+  getToolPropertyPanelTitle,
+  isToolPropertyPanelAvailable,
+} from "./inspector-model.js";
+import { renderLayerItemsMarkup } from "./layer-panel.js";
+import {
+  hasFontStyle,
+  hasTextDecoration,
+  toggleFontStyleToken,
+  toggleTextDecorationToken,
+} from "./text-style-tokens.js";
+import {
+  ALGORITHM_STEP_TYPES,
+  ARRAY_ALGORITHMS,
+  createBubbleSortSteps,
+} from "../algorithms/array-algorithms.js";
 import {
   createClipboardSnapshot,
   createPastedElements,
@@ -87,7 +110,6 @@ import {
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
-  truncateWithEllipsis,
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
@@ -107,7 +129,6 @@ import {
 } from "../tools/stroke-engine.js";
 import {
   DEFAULT_SHAPE_TOOL,
-  SHAPE_TOOLS,
   TOOLS,
 } from "../ui/ui-config.js";
 import {
@@ -131,6 +152,8 @@ import {
   setArrayHighlight,
   setArrayPointer,
   setArrayPointerVisibility,
+  setArrayAlgorithmMarkers,
+  clearArrayAlgorithmMarkers,
   clearArrayHighlight,
   setLinearIndexOptions,
   addGraphNode,
@@ -184,63 +207,64 @@ export function createWhiteboardApp(root) {
 
   root.innerHTML = renderShell();
 
-  const container = root.querySelector("#stage-container");
-  const status = root.querySelector("[data-status]");
-  const activeFileLabel = root.querySelector("[data-file-name]");
-  const menuButton = root.querySelector("[data-menu-trigger]");
-  const mainMenu = root.querySelector("[data-main-menu]");
-  const stylePanel = root.querySelector("[data-style-panel]");
-  const stylePanelTitle = root.querySelector("[data-style-panel-title]");
-  const shapePopover = root.querySelector("[data-shape-popover]");
-  const structurePanel = root.querySelector("[data-structure-panel]");
-  const structureInputLabel = root.querySelector("[data-structure-input-label]");
-  const structureInput = root.querySelector("[data-structure-input]");
-  const linearInitPanel = root.querySelector("[data-linear-init-panel]");
-  const arrayRandomFields = root.querySelector("[data-array-random-fields]");
-  const arrayRandomCountInput = root.querySelector("[data-array-random-count]");
-  const graphStructureInput = root.querySelector("[data-graph-structure-input]");
-  const treeStructureInput = root.querySelector("[data-tree-structure-input]");
-  const contextMenu = root.querySelector("[data-context-menu]");
-  const layerPanel = root.querySelector("[data-layer-panel]");
-  const panelBody = root.querySelector("[data-panel-body]");
-  const colorInput = root.querySelector("[data-control='color']");
-  const fillInput = root.querySelector("[data-control='fill']");
-  const fillTransparentInput = root.querySelector("[data-control='fill-transparent']");
-  const widthInput = root.querySelector("[data-control='width']");
-  const brushOpacityInput = root.querySelector("[data-control='brush-opacity']");
-  const brushSmoothingInput = root.querySelector("[data-control='brush-smoothing']");
-  const brushCapInput = root.querySelector("[data-control='brush-cap']");
-  const brushStyleInput = root.querySelector("[data-control='brush-style']");
-  const arrowDoubleEndedInput = root.querySelector("[data-control='arrow-double-ended']");
-  const coordinateUnitSizeInput = root.querySelector("[data-control='coordinate-unit-size']");
-  const coordinateShowGridInput = root.querySelector("[data-control='coordinate-show-grid']");
-  const coordinateShowTicksInput = root.querySelector("[data-control='coordinate-show-ticks']");
-  const coordinateShowLabelsInput = root.querySelector("[data-control='coordinate-show-labels']");
-  const coordinateGridColorInput = root.querySelector("[data-control='coordinate-grid-color']");
-  const coordinateAxisColorInput = root.querySelector("[data-control='coordinate-axis-color']");
-  const coordinateLabelColorInput = root.querySelector("[data-control='coordinate-label-color']");
-  const brushCustomColorInput = root.querySelector("[data-brush-custom-color]");
-  const brushWidthSlider = root.querySelector("[data-brush-width-slider]");
-  const brushWidthValue = root.querySelector("[data-brush-width-value]");
-  const brushOpacityValue = root.querySelector("[data-brush-opacity-value]");
-  const brushPreviewPath = root.querySelector("[data-brush-preview-path]");
-  const fontSizeInput = root.querySelector("[data-control='font-size']");
-  const fontFamilyInput = root.querySelector("[data-control='font-family']");
-  const zoomLabel = root.querySelector("[data-zoom]");
-  const zoomButton = root.querySelector("[data-zoom-trigger]");
-  const zoomMenu = root.querySelector("[data-zoom-menu]");
-  const zoomOutButton = root.querySelector("[data-zoom-out]");
-  const zoomInButton = root.querySelector("[data-zoom-in]");
-  const imageInput = root.querySelector("[data-image-input]");
-  const layerList = root.querySelector("[data-layer-list]");
-  const inspectorSectionButtons = Array.from(root.querySelectorAll("[data-section-toggle]"));
-  const linearFieldInputs = {
-    highlightStart: root.querySelector("[data-linear-field='highlight-start']"),
-    highlightEnd: root.querySelector("[data-linear-field='highlight-end']"),
-    highlightPointer: root.querySelector("[data-linear-field='highlight-pointer']"),
-  };
-  const linearValuesTitle = root.querySelector("[data-linear-values-title]");
-  const linearValuesInput = root.querySelector("[data-linear-values-input]");
+  const {
+    container,
+    status,
+    activeFileLabel,
+    menuButton,
+    mainMenu,
+    stylePanel,
+    stylePanelTitle,
+    shapePopover,
+    structurePanel,
+    structureInputLabel,
+    structureInput,
+    linearInitPanel,
+    arrayRandomFields,
+    arrayRandomCountInput,
+    graphStructureInput,
+    treeStructureInput,
+    contextMenu,
+    layerPanel,
+    panelBody,
+    colorInput,
+    fillInput,
+    fillTransparentInput,
+    widthInput,
+    brushOpacityInput,
+    brushSmoothingInput,
+    brushCapInput,
+    brushStyleInput,
+    arrowDoubleEndedInput,
+    coordinateUnitSizeInput,
+    coordinateShowGridInput,
+    coordinateShowTicksInput,
+    coordinateShowLabelsInput,
+    coordinateGridColorInput,
+    coordinateAxisColorInput,
+    coordinateLabelColorInput,
+    brushCustomColorInput,
+    brushWidthSlider,
+    brushWidthValue,
+    brushOpacityValue,
+    brushPreviewPath,
+    fontSizeInput,
+    fontFamilyInput,
+    zoomLabel,
+    zoomButton,
+    zoomMenu,
+    zoomOutButton,
+    zoomInButton,
+    imageInput,
+    layerList,
+    inspectorSectionButtons,
+    linearFieldInputs,
+    linearValuesTitle,
+    linearValuesInput,
+    arrayAlgorithmSelect,
+    arrayAlgorithmStatus,
+    arrayAlgorithmSpeed,
+  } = queryWhiteboardRefs(root);
 
   let board = createEmptyBoard();
   let history = createHistory(board);
@@ -288,6 +312,9 @@ export function createWhiteboardApp(root) {
   let linearPointerDragState = null;
   let linearItemLiftTween = null;
   let linearPointerTween = null;
+  let arrayAlgorithmSession = null;
+  let arrayAlgorithmPlayTimer = null;
+  let arrayAlgorithmSwapTweens = [];
   let linearItemControls = null;
   let treeNodeControls = null;
   let binaryTreeNodeControls = null;
@@ -495,6 +522,9 @@ export function createWhiteboardApp(root) {
     },
     destroy: () => {
       if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+      cancelArrayAlgorithmTimer();
+      arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
+      arrayAlgorithmSwapTweens = [];
       textOverlayController.clear();
       nodeRenderSnapshots.clear();
       nodeRegistry.clear();
@@ -521,6 +551,14 @@ export function createWhiteboardApp(root) {
     }
     linearValuesInput?.addEventListener("input", () => {
       linearValuesDraft = linearValuesInput.value;
+    });
+    arrayAlgorithmSpeed?.addEventListener("input", () => {
+      if (!arrayAlgorithmSession) return;
+      arrayAlgorithmSession = {
+        ...arrayAlgorithmSession,
+        speed: getArrayAlgorithmSpeed(),
+      };
+      syncArrayAlgorithmPanelState();
     });
     graphStructureInput?.addEventListener("input", () => {
       graphStructureDraft = graphStructureInput.value;
@@ -807,6 +845,12 @@ export function createWhiteboardApp(root) {
       "linear-index-hide": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: false })),
       "linear-pointer-show": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, true)),
       "linear-pointer-hide": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, false)),
+      "array-algorithm-start": startSelectedArrayAlgorithm,
+      "array-algorithm-prev": stepArrayAlgorithmPrevious,
+      "array-algorithm-next": stepArrayAlgorithmNext,
+      "array-algorithm-play": toggleArrayAlgorithmPlayback,
+      "array-algorithm-reset": resetArrayAlgorithmSession,
+      "array-algorithm-stop": stopArrayAlgorithmSession,
       "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
       "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
       "graph-connect-mode": beginGraphConnectMode,
@@ -868,7 +912,7 @@ export function createWhiteboardApp(root) {
     const elementId = activeLinearItem?.elementId;
     const index = activeLinearItem?.index;
     const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked || !Number.isInteger(index)) return;
+    if (!isLinearStructureElement(element) || element.locked || !Number.isInteger(index) || isArrayAlgorithmLocked(elementId)) return;
 
     if (action === "insert-before" || action === "insert-after") {
       const insertIndex = action === "insert-before" ? index : index + 1;
@@ -2342,7 +2386,7 @@ export function createWhiteboardApp(root) {
         if (isElementLocked(getElementIdFromNode(node))) return;
         finishNodeDragSelection(node);
       },
-      canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive(),
+      canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive() && !isArrayAlgorithmLocked(element.id),
       onSelect: (event, node) => {
         if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
@@ -2495,7 +2539,7 @@ export function createWhiteboardApp(root) {
       return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
     }
     if (!isLinearStructureElement(element)) return "";
-    return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive()}`;
+    return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive() && !isArrayAlgorithmLocked(element.id)}`;
   }
 
   function buildRuntimeElement(element) {
@@ -2531,6 +2575,9 @@ export function createWhiteboardApp(root) {
   function selectIds(ids) {
     const previousActive = activeLinearItem;
     selectedIds = [...new Set(ids)];
+    if (arrayAlgorithmSession && !selectedIds.includes(arrayAlgorithmSession.elementId)) {
+      cancelArrayAlgorithmPlayback();
+    }
     const selectedLinear = getSelectedLinearStructure();
     if (!selectedLinear) {
       activeLinearItem = null;
@@ -3142,6 +3189,7 @@ export function createWhiteboardApp(root) {
     if (selectedIds.length === 0) return;
     const editableIds = selectedIds.filter((id) => !isElementLocked(id));
     if (editableIds.length === 0) return;
+    clearArrayAlgorithmSessionForRemovedIds(editableIds);
     clipboardSnapshot = createClipboardSnapshot(board.elements, editableIds);
     board.elements = removeElementsById(board.elements, editableIds);
     clearSelection();
@@ -3199,6 +3247,7 @@ export function createWhiteboardApp(root) {
     if (selectedIds.length === 0) return;
     const editableIds = selectedIds.filter((id) => !isElementLocked(id));
     if (editableIds.length === 0) return;
+    clearArrayAlgorithmSessionForRemovedIds(editableIds);
     board.elements = removeElementsById(board.elements, editableIds);
     clearSelection();
     renderBoard();
@@ -3211,6 +3260,7 @@ export function createWhiteboardApp(root) {
       return isLinearStructureElement(element) && !element.locked;
     });
     if (!targetId) return;
+    if (isArrayAlgorithmLocked(targetId)) return;
 
     board.elements = board.elements.map((element) => (
       element.id === targetId ? edit(element) : element
@@ -3360,6 +3410,378 @@ export function createWhiteboardApp(root) {
         input.value = value;
       }
     });
+  }
+
+  function startSelectedArrayAlgorithm() {
+    const element = getSelectedLinearStructure();
+    if (!element || element.type !== "array-structure" || element.locked) return;
+    cancelArrayAlgorithmPlayback();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    const values = (element.items ?? []).map((item) => item.value ?? "");
+    const result = arrayAlgorithmSelect?.value === ARRAY_ALGORITHMS.BUBBLE_SORT
+      ? createBubbleSortSteps(values)
+      : createBubbleSortSteps(values);
+    if (!result.ok) {
+      arrayAlgorithmSession = {
+        elementId: element.id,
+        error: result.message,
+        speed: getArrayAlgorithmSpeed(),
+        isPlaying: false,
+        isAnimating: false,
+      };
+      syncArrayAlgorithmPanelState();
+      setStatus(result.message);
+      return;
+    }
+
+    arrayAlgorithmSession = {
+      elementId: element.id,
+      algorithm: result.algorithm,
+      initialValues: result.initialValues,
+      steps: result.steps,
+      stepIndex: 0,
+      speed: getArrayAlgorithmSpeed(),
+      isPlaying: false,
+      isAnimating: false,
+      committed: false,
+      error: "",
+      stableStepIndex: 0,
+    };
+    applyArrayAlgorithmStep(0, { render: true });
+    selectIds([element.id]);
+    syncArrayAlgorithmPanelState();
+  }
+
+  function stepArrayAlgorithmPrevious() {
+    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
+    cancelArrayAlgorithmPlayback();
+    applyArrayAlgorithmStep(Math.max(0, arrayAlgorithmSession.stepIndex - 1), { render: true });
+  }
+
+  function stepArrayAlgorithmNext() {
+    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
+    const nextIndex = Math.min(getArrayAlgorithmLastStepIndex(), arrayAlgorithmSession.stepIndex + 1);
+    runArrayAlgorithmStep(nextIndex);
+  }
+
+  function toggleArrayAlgorithmPlayback() {
+    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
+    if (arrayAlgorithmSession.isPlaying) {
+      cancelArrayAlgorithmPlayback();
+      syncArrayAlgorithmPanelState();
+      return;
+    }
+    if (arrayAlgorithmSession.stepIndex >= getArrayAlgorithmLastStepIndex()) return;
+    arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: true };
+    syncArrayAlgorithmPanelState();
+    scheduleArrayAlgorithmPlayback();
+  }
+
+  function resetArrayAlgorithmSession() {
+    if (!arrayAlgorithmSession) return;
+    const elementId = arrayAlgorithmSession.elementId;
+    cancelArrayAlgorithmPlayback();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    if (arrayAlgorithmSession.error || !arrayAlgorithmSession.steps) {
+      arrayAlgorithmSession = null;
+      syncArrayAlgorithmPanelState();
+      return;
+    }
+    const initialValues = arrayAlgorithmSession.initialValues ?? [];
+    board.elements = board.elements.map((element) => (
+      element.id === elementId
+        ? applyArrayAlgorithmValues(clearArrayAlgorithmMarkers(element), initialValues)
+        : element
+    ));
+    arrayAlgorithmSession = {
+      ...arrayAlgorithmSession,
+      stepIndex: 0,
+      stableStepIndex: 0,
+      isPlaying: false,
+      isAnimating: false,
+      committed: false,
+      error: "",
+    };
+    applyArrayAlgorithmStep(0, { render: false });
+    renderBoard();
+    selectIds([elementId]);
+    syncArrayAlgorithmPanelState();
+  }
+
+  function stopArrayAlgorithmSession() {
+    if (!arrayAlgorithmSession) return;
+    const elementId = arrayAlgorithmSession.elementId;
+    const shouldCommit = Boolean(arrayAlgorithmSession.steps) && !arrayAlgorithmSession.committed;
+    cancelArrayAlgorithmPlayback();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    board.elements = board.elements.map((element) => (
+      element.id === elementId ? clearArrayAlgorithmRuntimeMarkers(element) : element
+    ));
+    arrayAlgorithmSession = null;
+    renderBoard();
+    selectIds(board.elements.some((element) => element.id === elementId) ? [elementId] : []);
+    if (shouldCommit) {
+      pushHistory("已执行冒泡排序");
+    } else {
+      updateChrome();
+    }
+  }
+
+  function runArrayAlgorithmStep(nextIndex) {
+    if (!arrayAlgorithmSession?.steps) return;
+    const step = arrayAlgorithmSession.steps[nextIndex];
+    if (!step) return;
+    if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
+      playArrayAlgorithmSwapStep(nextIndex);
+      return;
+    }
+    applyArrayAlgorithmStep(nextIndex, { render: true });
+    if (step.type === ALGORITHM_STEP_TYPES.COMPLETE) {
+      arrayAlgorithmSession = {
+        ...arrayAlgorithmSession,
+        isPlaying: false,
+        committed: true,
+      };
+      pushHistory("已执行冒泡排序");
+      syncArrayAlgorithmPanelState();
+      return;
+    }
+    scheduleArrayAlgorithmPlayback();
+  }
+
+  function playArrayAlgorithmSwapStep(nextIndex) {
+    const session = arrayAlgorithmSession;
+    const step = session?.steps?.[nextIndex];
+    if (!session || !step || step.swapIndices?.length !== 2) return;
+    const previousStepIndex = session.stepIndex;
+    const [firstIndex, secondIndex] = step.swapIndices;
+    const element = board.elements.find((item) => item.id === session.elementId);
+    const group = contentLayer.findOne(`#${session.elementId}`);
+    const firstNode = findLinearItemNode(group, firstIndex);
+    const secondNode = findLinearItemNode(group, secondIndex);
+    if (!element || !group || !firstNode || !secondNode) {
+      applyArrayAlgorithmStep(nextIndex, { render: true });
+      scheduleArrayAlgorithmPlayback();
+      return;
+    }
+
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    const duration = getArrayAlgorithmStepMs() / 1000;
+    arrayAlgorithmSession = {
+      ...session,
+      isAnimating: true,
+      stableStepIndex: previousStepIndex,
+      pendingStepIndex: nextIndex,
+    };
+    syncArrayAlgorithmPanelState();
+    const firstStart = firstNode.x();
+    const secondStart = secondNode.x();
+    firstNode.moveToTop();
+    secondNode.moveToTop();
+    const firstTween = new Konva.Tween({
+      node: firstNode,
+      x: secondIndex * style.cellWidth,
+      duration,
+      easing: Konva.Easings.EaseInOut,
+    });
+    const secondTween = new Konva.Tween({
+      node: secondNode,
+      x: firstIndex * style.cellWidth,
+      duration,
+      easing: Konva.Easings.EaseInOut,
+      onFinish: () => {
+        firstTween.destroy();
+        secondTween.destroy();
+        arrayAlgorithmSwapTweens = [];
+        if (!arrayAlgorithmSession || arrayAlgorithmSession.elementId !== session.elementId) return;
+        applyArrayAlgorithmStep(nextIndex, { render: true });
+        arrayAlgorithmSession = {
+          ...arrayAlgorithmSession,
+          isAnimating: false,
+          pendingStepIndex: null,
+          stableStepIndex: nextIndex,
+        };
+        syncArrayAlgorithmPanelState();
+        scheduleArrayAlgorithmPlayback();
+      },
+    });
+    arrayAlgorithmSwapTweens = [firstTween, secondTween];
+    firstTween.play();
+    secondTween.play();
+    firstNode.x(firstStart);
+    secondNode.x(secondStart);
+  }
+
+  function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
+    const session = arrayAlgorithmSession;
+    const step = session?.steps?.[stepIndex];
+    if (!session || !step) return;
+    const pointer = step.activeIndices?.[0] ?? null;
+    board.elements = board.elements.map((element) => (
+      element.id === session.elementId
+        ? setArrayAlgorithmMarkers(
+          applyArrayAlgorithmValues(element, step.values),
+          {
+            activeIndices: step.activeIndices,
+            sortedIndices: step.sortedIndices,
+            pointer,
+            showPointer: Number.isInteger(pointer),
+          },
+        )
+        : element
+    ));
+    arrayAlgorithmSession = {
+      ...session,
+      stepIndex,
+      stableStepIndex: stepIndex,
+      isAnimating: false,
+      pendingStepIndex: null,
+    };
+    if (render) {
+      renderBoard();
+      selectIds([session.elementId]);
+      syncArrayAlgorithmPanelState();
+    }
+  }
+
+  function applyArrayAlgorithmValues(element, values) {
+    if (!isLinearStructureElement(element)) return element;
+    return {
+      ...element,
+      items: (element.items ?? []).map((item, index) => ({
+        ...item,
+        value: String(values[index] ?? item.value ?? ""),
+      })),
+    };
+  }
+
+  function scheduleArrayAlgorithmPlayback() {
+    cancelArrayAlgorithmTimer();
+    if (!arrayAlgorithmSession?.isPlaying || arrayAlgorithmSession.isAnimating) return;
+    if (arrayAlgorithmSession.stepIndex >= getArrayAlgorithmLastStepIndex()) {
+      arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: false };
+      syncArrayAlgorithmPanelState();
+      return;
+    }
+    arrayAlgorithmPlayTimer = window.setTimeout(() => {
+      arrayAlgorithmPlayTimer = null;
+      stepArrayAlgorithmNext();
+    }, getArrayAlgorithmStepMs());
+  }
+
+  function cancelArrayAlgorithmPlayback() {
+    cancelArrayAlgorithmTimer();
+    if (arrayAlgorithmSession) {
+      arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: false };
+    }
+  }
+
+  function cancelArrayAlgorithmTimer() {
+    if (!arrayAlgorithmPlayTimer) return;
+    window.clearTimeout(arrayAlgorithmPlayTimer);
+    arrayAlgorithmPlayTimer = null;
+  }
+
+  function cancelArrayAlgorithmSwapAnimation({ commitStableState = true } = {}) {
+    arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
+    arrayAlgorithmSwapTweens = [];
+    if (!arrayAlgorithmSession?.isAnimating) return;
+    const stableStepIndex = arrayAlgorithmSession.stableStepIndex ?? arrayAlgorithmSession.stepIndex ?? 0;
+    arrayAlgorithmSession = {
+      ...arrayAlgorithmSession,
+      isAnimating: false,
+      pendingStepIndex: null,
+      stepIndex: stableStepIndex,
+    };
+    if (commitStableState) applyArrayAlgorithmStep(stableStepIndex, { render: true });
+  }
+
+  function getArrayAlgorithmSpeed() {
+    const value = Number(arrayAlgorithmSpeed?.value ?? 1);
+    return Number.isFinite(value) ? Math.min(3, Math.max(0.5, value)) : 1;
+  }
+
+  function getArrayAlgorithmStepMs() {
+    const speed = arrayAlgorithmSession?.speed ?? getArrayAlgorithmSpeed();
+    return Math.round(700 / Math.max(0.5, speed));
+  }
+
+  function getArrayAlgorithmLastStepIndex() {
+    return Math.max(0, (arrayAlgorithmSession?.steps?.length ?? 1) - 1);
+  }
+
+  function isArrayAlgorithmLocked(elementId) {
+    return Boolean(arrayAlgorithmSession?.elementId === elementId);
+  }
+
+  function clearArrayAlgorithmSessionForRemovedIds(ids) {
+    if (!arrayAlgorithmSession || !ids.includes(arrayAlgorithmSession.elementId)) return;
+    cancelArrayAlgorithmPlayback();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    arrayAlgorithmSession = null;
+  }
+
+  function clearArrayAlgorithmRuntimeMarkers(element) {
+    const cleared = clearArrayAlgorithmMarkers(element);
+    return {
+      ...cleared,
+      markers: {
+        ...(cleared.markers ?? {}),
+        pointer: null,
+      },
+    };
+  }
+
+  function syncArrayAlgorithmPanelState() {
+    if (!arrayAlgorithmStatus) return;
+    const selected = getSelectedLinearStructure();
+    const session = arrayAlgorithmSession;
+    const isBoundSelection = Boolean(session && selected?.id === session.elementId);
+    root.dataset.arrayAlgorithmActive = isBoundSelection ? "true" : "false";
+    if (arrayAlgorithmSpeed) {
+      arrayAlgorithmSpeed.value = String(session?.speed ?? getArrayAlgorithmSpeed());
+    }
+    const buttons = {
+      start: root.querySelector("[data-action='array-algorithm-start']"),
+      prev: root.querySelector("[data-action='array-algorithm-prev']"),
+      next: root.querySelector("[data-action='array-algorithm-next']"),
+      play: root.querySelector("[data-action='array-algorithm-play']"),
+      reset: root.querySelector("[data-action='array-algorithm-reset']"),
+      stop: root.querySelector("[data-action='array-algorithm-stop']"),
+    };
+    if (!selected || selected.type !== "array-structure") {
+      arrayAlgorithmStatus.textContent = "选择数组后开始演示";
+      arrayAlgorithmStatus.dataset.state = "";
+      Object.values(buttons).forEach((button) => {
+        if (button) button.disabled = true;
+      });
+      return;
+    }
+    buttons.start.disabled = Boolean(session);
+    buttons.prev.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex <= 0;
+    buttons.next.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex >= getArrayAlgorithmLastStepIndex();
+    buttons.play.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex >= getArrayAlgorithmLastStepIndex();
+    buttons.reset.disabled = !isBoundSelection;
+    buttons.stop.disabled = !isBoundSelection;
+    if (buttons.play) buttons.play.textContent = session?.isPlaying ? "暂停" : "播放";
+    if (!session) {
+      arrayAlgorithmStatus.textContent = "选择冒泡排序后点击开始";
+      arrayAlgorithmStatus.dataset.state = "";
+      return;
+    }
+    if (!isBoundSelection) {
+      arrayAlgorithmStatus.textContent = "算法已暂停，重新选中原数组继续";
+      arrayAlgorithmStatus.dataset.state = "";
+      return;
+    }
+    if (session.error) {
+      arrayAlgorithmStatus.textContent = session.error;
+      arrayAlgorithmStatus.dataset.state = "error";
+      return;
+    }
+    const step = session.steps?.[session.stepIndex];
+    arrayAlgorithmStatus.textContent = `${session.stepIndex + 1} / ${session.steps.length}：${step?.message ?? ""}`;
+    arrayAlgorithmStatus.dataset.state = "";
   }
 
   function ensureLinearItemControls() {
@@ -4925,6 +5347,9 @@ export function createWhiteboardApp(root) {
   }
 
   function newBoard() {
+    arrayAlgorithmSession = null;
+    cancelArrayAlgorithmTimer();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     board = createEmptyBoard();
     history = createHistory(board);
     selectedIds = [];
@@ -5518,7 +5943,15 @@ export function createWhiteboardApp(root) {
   }
 
   function serializeCurrentBoard() {
-    return serializeBoard(board, {
+    const elements = board.elements.map((element) => (
+      isLinearStructureElement(element) && arrayAlgorithmSession?.elementId === element.id
+        ? clearArrayAlgorithmRuntimeMarkers(element)
+        : element
+    ));
+    return serializeBoard({
+      ...board,
+      elements,
+    }, {
       x: stage.x(),
       y: stage.y(),
       scale: stage.scaleX(),
@@ -5544,6 +5977,9 @@ export function createWhiteboardApp(root) {
 
   function restoreFromHistory(nextBoard, message) {
     if (!nextBoard) return;
+    arrayAlgorithmSession = null;
+    cancelArrayAlgorithmTimer();
+    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     board = normalizeBoard(nextBoard);
     selectedIds = [];
     applyViewport(board.viewport);
@@ -5642,6 +6078,7 @@ export function createWhiteboardApp(root) {
       );
     });
     syncLinearPanelState();
+    syncArrayAlgorithmPanelState();
     syncGraphStructurePanelState();
     syncTreeStructurePanelState();
     syncInspectorPanelState();
@@ -5676,45 +6113,10 @@ export function createWhiteboardApp(root) {
   }
 
   function renderLayerPanel() {
-    const orderedElements = reorderElements(board.elements);
-    const layerLevels = new Map(orderedElements.map((element, index) => [element.id, index]));
-    const elements = orderedElements.slice().reverse();
-    layerList.innerHTML = elements.map((element) => {
-      const active = selectedIds.includes(element.id) ? " active" : "";
-      const label = getElementLabel(element);
-      const meta = [
-        element.locked ? "锁定" : "",
-        element.groupId ? "分组" : "",
-      ].filter(Boolean).join(" · ");
-      const level = layerLevels.get(element.id) ?? 0;
-      return `
-        <button type="button" class="layer-item${active}" data-layer-id="${element.id}" data-layer-level="${level}" title="${escapeHtml(label)}">
-          <span class="layer-label">${escapeHtml(label)}</span>
-          <span class="layer-meta">${escapeHtml(meta)}</span>
-        </button>
-      `;
-    }).join("");
-  }
-
-  function getElementLabel(element) {
-    const labels = {
-      stroke: "笔触",
-      text: element.text ? `文字：${truncateWithEllipsis(element.text, 10)}` : "文字",
-      sticky: element.text ? `便签：${truncateWithEllipsis(element.text, 10)}` : "便签",
-      image: "图片",
-      rect: "矩形",
-      ellipse: "椭圆",
-      line: "直线",
-      arrow: "箭头",
-      "coordinate-plane": "坐标系",
-      "array-structure": `数组：${element.items?.length ?? 0} 项`,
-      "stack-structure": `栈：${element.items?.length ?? 0} 项`,
-      "queue-structure": `队列：${element.items?.length ?? 0} 项`,
-      "deque-structure": `双端队列：${element.items?.length ?? 0} 项`,
-      "graph-structure": `图：${element.nodes?.length ?? 0} 点 ${element.edges?.length ?? 0} 边`,
-      "tree-structure": `树：${element.nodes?.length ?? 0} 节点`,
-    };
-    return labels[element.type] ?? element.type;
+    layerList.innerHTML = renderLayerItemsMarkup({
+      elements: board.elements,
+      selectedIds,
+    });
   }
 
   function syncPropertyPanelTitle(selectedElements = []) {
@@ -5722,60 +6124,9 @@ export function createWhiteboardApp(root) {
     stylePanelTitle.textContent = getPropertyPanelTitle(selectedElements);
   }
 
-  function getPropertyPanelTitle(selectedElements) {
-    if (selectedElements.length !== 1) return "属性";
-    const element = selectedElements[0];
-    if (element.type === "tree-structure") return element.settings?.treeKind === "binary" ? "二叉树" : "树";
-    const elementTitles = {
-      stroke: "画笔",
-      text: "文字",
-      sticky: "便签",
-      image: "图片",
-      rect: "矩形",
-      ellipse: "椭圆",
-      line: "直线",
-      arrow: "箭头",
-      "coordinate-plane": "坐标系",
-      "array-structure": "数组",
-      "stack-structure": "栈",
-      "queue-structure": "队列",
-      "deque-structure": "双端队列",
-      "graph-structure": "图",
-    };
-    return elementTitles[element.type] ?? "属性";
-  }
-
   function syncToolPropertyPanelTitle() {
     if (!stylePanelTitle) return;
-    const toolTitles = {
-      [TOOLS.PEN]: "画笔",
-      [TOOLS.SHAPE]: getShapeToolTitle(activeShapeTool),
-      [TOOLS.RECT]: "矩形",
-      [TOOLS.ELLIPSE]: "椭圆",
-      [TOOLS.LINE]: "直线",
-      [TOOLS.ARROW]: "箭头",
-      [TOOLS.COORDINATE_PLANE]: "坐标系",
-    };
-    stylePanelTitle.textContent = toolTitles[currentTool] ?? "属性";
-  }
-
-  function getShapeToolTitle(shapeTool) {
-    return {
-      [TOOLS.RECT]: "矩形",
-      [TOOLS.ELLIPSE]: "椭圆",
-      [TOOLS.LINE]: "直线",
-      [TOOLS.ARROW]: "箭头",
-      [TOOLS.COORDINATE_PLANE]: "坐标系",
-    }[shapeTool] ?? "图形";
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+    stylePanelTitle.textContent = getToolPropertyPanelTitle(currentTool, activeShapeTool);
   }
 
   function isTypingInEditableControl(target) {
@@ -5795,42 +6146,6 @@ export function createWhiteboardApp(root) {
     return target?.parentElement?.closest?.(selector) ?? null;
   }
 
-  function getTokenSet(value) {
-    return new Set(String(value ?? "").split(/\s+/).filter((token) => token && token !== "normal" && token !== "none"));
-  }
-
-  function formatTokens(tokens, fallback = "") {
-    return Array.from(tokens).join(" ") || fallback;
-  }
-
-  function hasFontStyle(value, token) {
-    return getTokenSet(value).has(token);
-  }
-
-  function hasTextDecoration(value, token) {
-    return getTokenSet(value).has(token);
-  }
-
-  function toggleFontStyleToken(value, token) {
-    const tokens = getTokenSet(value);
-    if (tokens.has(token)) {
-      tokens.delete(token);
-    } else {
-      tokens.add(token);
-    }
-    return formatTokens(tokens, "normal");
-  }
-
-  function toggleTextDecorationToken(value, token) {
-    const tokens = getTokenSet(value);
-    if (tokens.has(token)) {
-      tokens.delete(token);
-    } else {
-      tokens.add(token);
-    }
-    return formatTokens(tokens);
-  }
-
   function updateContextPanel() {
     const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
     const first = selectedElements[0];
@@ -5840,42 +6155,20 @@ export function createWhiteboardApp(root) {
       hydrateControlsFromElement(hydrateSource);
       const capabilities = getSelectionInspectorCapabilities(selectedElements);
       syncSelectionInspectorDataset(capabilities);
-      const mode = selectedElements.length > 1
-        ? "multi"
-        : selectedElements.every((element) => element.type === "text")
-        ? "text"
-        : selectedElements.every((element) => element.type === "sticky")
-          ? "sticky"
-          : selectedElements.every((element) => element.type === "stroke")
-            ? "brush"
-          : selectedElements.every((element) => ["line", "arrow", "stroke"].includes(element.type))
-            ? "linear"
-          : selectedElements.every((element) => element.type === "coordinate-plane")
-            ? "coordinate"
-          : selectedElements.every((element) => isLinearStructureElement(element) || ["graph-structure", "tree-structure"].includes(element.type))
-            ? "structure"
-            : "element";
       stylePanel.hidden = false;
       stylePanelAvailable = true;
-      root.dataset.panelMode = mode;
+      root.dataset.panelMode = getSelectionPanelMode(selectedElements);
       syncPropertyPanelTitle(selectedElements);
       applyPanelState();
       return;
     }
 
-    const toolPanelModes = new Set([TOOLS.PEN, TOOLS.SHAPE, ...SHAPE_TOOLS]);
-    if (toolPanelModes.has(currentTool)) {
+    if (isToolPropertyPanelAvailable(currentTool)) {
       stylePanel.hidden = false;
       stylePanelAvailable = true;
       const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
       syncSelectionInspectorDataset(getToolInspectorCapabilities(drawingTool, currentTool));
-      root.dataset.panelMode = currentTool === TOOLS.PEN
-            ? "brush"
-          : drawingTool === TOOLS.COORDINATE_PLANE
-            ? "coordinate-tool"
-          : ["line", "arrow"].includes(drawingTool)
-            ? "linear-tool"
-            : "tool";
+      root.dataset.panelMode = getToolPanelMode(currentTool, drawingTool);
       syncToolPropertyPanelTitle();
       applyPanelState();
       return;
@@ -5888,40 +6181,6 @@ export function createWhiteboardApp(root) {
     syncPropertyPanelTitle([]);
     syncSelectionInspectorDataset(getSelectionInspectorCapabilities([]));
     applyPanelState();
-  }
-
-  function getSelectionInspectorCapabilities(elements) {
-    return {
-      text: elements.some((element) => element.type === "text"),
-      sticky: elements.some((element) => element.type === "sticky"),
-      stroke: elements.some((element) => element.type === "stroke"),
-      drawing: elements.some((element) => ["stroke", "line", "arrow", "rect", "ellipse"].includes(element.type)),
-      fillShape: elements.some((element) => ["rect", "ellipse"].includes(element.type)),
-      arrow: elements.some((element) => element.type === "arrow"),
-      coordinate: elements.some((element) => element.type === "coordinate-plane"),
-    };
-  }
-
-  function getSelectionHydrateSource(elements) {
-    return elements.find((element) => ["rect", "ellipse"].includes(element.type))
-      ?? elements.find((element) => element.type === "arrow")
-      ?? elements.find((element) => element.type === "line")
-      ?? elements.find((element) => element.type === "stroke")
-      ?? elements.find((element) => element.type === "sticky")
-      ?? elements.find((element) => element.type === "text")
-      ?? elements.find((element) => element.type === "coordinate-plane");
-  }
-
-  function getToolInspectorCapabilities(drawingTool, currentToolName) {
-    return {
-      text: currentToolName === TOOLS.TEXT,
-      sticky: currentToolName === TOOLS.STICKY,
-      stroke: currentToolName === TOOLS.PEN,
-      drawing: currentToolName === TOOLS.PEN || ["rect", "ellipse", "line", "arrow"].includes(drawingTool),
-      fillShape: ["rect", "ellipse"].includes(drawingTool),
-      arrow: drawingTool === "arrow",
-      coordinate: drawingTool === TOOLS.COORDINATE_PLANE,
-    };
   }
 
   function syncSelectionInspectorDataset(capabilities) {

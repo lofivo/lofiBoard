@@ -889,6 +889,9 @@ function createLinearStructureNode(element, common, {
   const dragLift = Boolean(element.runtime?.dragLift);
   const dragX = Number.isFinite(element.runtime?.dragX) ? element.runtime.dragX : 0;
   const dragY = Number.isFinite(element.runtime?.dragY) ? element.runtime.dragY : 0;
+  const highlightedIndices = new Set(element.markers?.highlight ?? []);
+  const algorithmActiveIndices = new Set(element.markers?.algorithm?.activeIndices ?? []);
+  const algorithmSortedIndices = new Set(element.markers?.algorithm?.sortedIndices ?? []);
   const dropIndicator = new Konva.Rect({
     name: "array-drop-indicator",
     y: valueY + 4,
@@ -944,7 +947,7 @@ function createLinearStructureNode(element, common, {
         height: cellHeight,
         stroke: isActive ? "#2563eb" : style.stroke,
         strokeWidth: isActive ? 3 : 2,
-        fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.indexFill,
+        fill: getLinearStructureCellFill(index, style.indexFill),
       });
       indexText = new Konva.Text({
         name: "array-item-index-hit",
@@ -968,7 +971,7 @@ function createLinearStructureNode(element, common, {
       height: cellHeight,
       stroke: isActive ? "#2563eb" : style.stroke,
       strokeWidth: isActive ? 3 : 2,
-      fill: (element.markers?.highlight ?? []).includes(index) ? style.highlightFill : style.valueFill,
+      fill: getLinearStructureCellFill(index, style.valueFill),
     });
     const valueText = new Konva.Text({
       name: "array-item-value-hit",
@@ -1110,6 +1113,13 @@ function createLinearStructureNode(element, common, {
   addLinearEndpointLabels(group, element, style, cellWidth);
 
   return group;
+
+  function getLinearStructureCellFill(index, defaultFill) {
+    if (algorithmActiveIndices.has(index)) return style.algorithmActiveFill;
+    if (algorithmSortedIndices.has(index)) return style.algorithmSortedFill;
+    if (highlightedIndices.has(index)) return style.highlightFill;
+    return defaultFill;
+  }
 }
 
 function addCoordinatePlaneContent(group, element, width, height) {

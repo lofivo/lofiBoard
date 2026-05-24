@@ -77,6 +77,8 @@ export const ARRAY_STRUCTURE_STYLE = Object.freeze({
   indexFill: "#eef2ff",
   valueFill: "#ffffff",
   highlightFill: "#fef3c7",
+  algorithmActiveFill: "#dbeafe",
+  algorithmSortedFill: "#dcfce7",
   pointerFill: "#2563eb",
   stroke: "#111827",
   textFill: "#111827",
@@ -399,6 +401,37 @@ export function clearArrayHighlight(element) {
   return {
     ...element,
     markers: { highlight: [], pointer: null },
+  };
+}
+
+export function setArrayAlgorithmMarkers(element, {
+  activeIndices = [],
+  sortedIndices = [],
+  pointer = null,
+  showPointer = true,
+} = {}) {
+  if (!isLinearStructureElement(element)) return element;
+  const length = element.items?.length ?? 0;
+  return {
+    ...element,
+    markers: {
+      ...(element.markers ?? {}),
+      algorithm: {
+        activeIndices: normalizeIndexList(activeIndices, length),
+        sortedIndices: normalizeIndexList(sortedIndices, length),
+      },
+      pointer: Number.isInteger(pointer) && length > 0 ? clampIndex(pointer, length - 1) : null,
+      showPointer: Boolean(showPointer),
+    },
+  };
+}
+
+export function clearArrayAlgorithmMarkers(element) {
+  if (!isLinearStructureElement(element)) return element;
+  const { algorithm, ...markers } = element.markers ?? {};
+  return {
+    ...element,
+    markers,
   };
 }
 
@@ -1207,6 +1240,13 @@ function getNextGraphNodeLabel(existing) {
 
 function clampIndex(index, maxIndex) {
   return Math.min(maxIndex, Math.max(0, Number(index) || 0));
+}
+
+function normalizeIndexList(indices, length) {
+  if (!Array.isArray(indices) || length <= 0) return [];
+  return [...new Set(indices
+    .map((index) => Number.parseInt(String(index), 10))
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < length))];
 }
 
 function clampNumber(value, min, max) {
