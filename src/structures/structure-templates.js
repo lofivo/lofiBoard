@@ -409,6 +409,33 @@ export function setLinearIndexOptions(element, { indexBase = element?.settings?.
   };
 }
 
+export function getLinearStructureLocalPoint(element, worldPoint, renderedNode = null) {
+  const renderedX = Number(renderedNode?.x?.());
+  const renderedY = Number(renderedNode?.y?.());
+  const originX = Number.isFinite(renderedX) ? renderedX : Number(element?.x) || 0;
+  const originY = Number.isFinite(renderedY) ? renderedY : Number(element?.y) || 0;
+  return {
+    x: Number(worldPoint?.x) - originX,
+    y: Number(worldPoint?.y) - originY,
+  };
+}
+
+export function clampLinearItemDropGap(gap, length) {
+  return Math.min(Math.max(0, Number(length) || 0), Math.max(0, Number(gap) || 0));
+}
+
+export function getLinearItemPreviewGap({ localX = 0, length = 0, cellWidth = ARRAY_STRUCTURE_STYLE.cellWidth } = {}) {
+  const safeCellWidth = Math.max(1, Number(cellWidth) || ARRAY_STRUCTURE_STYLE.cellWidth);
+  const paddedX = Number(localX) + safeCellWidth * 0.35;
+  return clampLinearItemDropGap(Math.floor(paddedX / safeCellWidth), length);
+}
+
+export function getLinearItemDropIndex(fromIndex, previewGap, length) {
+  const safeFrom = clampIndex(fromIndex, Math.max(0, (Number(length) || 0) - 1));
+  const safeGap = clampLinearItemDropGap(previewGap, length);
+  return safeGap > safeFrom ? safeGap - 1 : safeGap;
+}
+
 export function addGraphNode(element, label = "") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.GRAPH) return element;
   const existing = new Set((element.nodes ?? []).map((node) => node.label));

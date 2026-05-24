@@ -15,6 +15,9 @@ import {
   setArrayPointerVisibility,
   clearArrayHighlight,
   setLinearIndexOptions,
+  getLinearStructureLocalPoint,
+  getLinearItemPreviewGap,
+  getLinearItemDropIndex,
   addGraphNode,
   addGraphEdge,
   addGraphEdgeFromText,
@@ -409,6 +412,35 @@ describe("structure templates", () => {
     const moved = moveArrayItem(swapped, 2, 0);
     expect(moved.items.map((item) => item.value)).toEqual(["A", "C", "X"]);
     expect(moved.items.map((item) => item.index)).toEqual([0, 1, 2]);
+  });
+
+  it("uses the rendered array position when computing a moved item's forward and backward drop target", () => {
+    const [array] = createStructureElements({
+      type: STRUCTURE_TYPES.ARRAY,
+      input: "A, B, C, D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const renderedNode = {
+      x: () => 140,
+      y: () => 40,
+    };
+    const cellWidth = array.style.cellWidth;
+    const length = array.items.length;
+
+    const forwardLocalPoint = getLinearStructureLocalPoint(array, {
+      x: renderedNode.x() + cellWidth * 3.15,
+      y: renderedNode.y() + 12,
+    }, renderedNode);
+    const forwardGap = getLinearItemPreviewGap({ localX: forwardLocalPoint.x, length, cellWidth });
+    expect(getLinearItemDropIndex(1, forwardGap, length)).toBe(2);
+
+    const backwardLocalPoint = getLinearStructureLocalPoint(array, {
+      x: renderedNode.x() + cellWidth * 0.65,
+      y: renderedNode.y() + 12,
+    }, renderedNode);
+    const backwardGap = getLinearItemPreviewGap({ localX: backwardLocalPoint.x, length, cellWidth });
+    expect(getLinearItemDropIndex(2, backwardGap, length)).toBe(1);
   });
 
   it("sets and clears array teaching markers", () => {

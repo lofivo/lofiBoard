@@ -120,6 +120,10 @@ import {
   updateArrayItemValue,
   updateArrayValues,
   moveArrayItem,
+  getLinearStructureLocalPoint,
+  clampLinearItemDropGap,
+  getLinearItemPreviewGap,
+  getLinearItemDropIndex,
   setArrayHighlight,
   setArrayPointer,
   setArrayPointerVisibility,
@@ -3660,19 +3664,17 @@ export function createWhiteboardApp(root) {
   }
 
   function clampLinearGap(gap, length) {
-    return Math.min(length, Math.max(0, Number(gap) || 0));
+    return clampLinearItemDropGap(gap, length);
   }
 
   function getLinearPreviewGap(element, localX) {
     const length = element.items?.length ?? 0;
     const { cellWidth } = getLinearStructureGeometry(element);
-    const paddedX = localX + cellWidth * 0.35;
-    return clampLinearGap(Math.floor(paddedX / cellWidth), length);
+    return getLinearItemPreviewGap({ localX, length, cellWidth });
   }
 
   function getLinearDragInsertIndex(fromIndex, previewGap, length) {
-    const safeGap = clampLinearGap(previewGap, length);
-    return safeGap > fromIndex ? safeGap - 1 : safeGap;
+    return getLinearItemDropIndex(fromIndex, previewGap, length);
   }
 
   function getLinearPreviewXForGap(index, dragIndex, dragGap, dragX, cellWidth) {
@@ -3696,7 +3698,8 @@ export function createWhiteboardApp(root) {
     const length = element.items?.length ?? 0;
     if (length <= 0) return null;
     const { cellWidth } = getLinearStructureGeometry(element);
-    const localX = worldPoint.x - (element.x ?? 0);
+    const group = contentLayer.findOne(`#${element.id}`);
+    const localX = getLinearStructureLocalPoint(element, worldPoint, group).x;
     const centeredIndex = Math.floor(localX / cellWidth);
     return Math.min(length - 1, Math.max(0, centeredIndex));
   }
@@ -3881,8 +3884,8 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     const { cellWidth } = getLinearStructureGeometry(element);
-    const relativeX = worldPoint.x - (element.x ?? 0);
-    const relativeY = worldPoint.y - (element.y ?? 0);
+    const group = contentLayer.findOne(`#${elementId}`);
+    const { x: relativeX, y: relativeY } = getLinearStructureLocalPoint(element, worldPoint, group);
     const baseX = index * cellWidth;
     const previewGap = clampLinearGap(index, element.items?.length ?? 0);
     linearItemDragState = {
@@ -3935,8 +3938,8 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
     if (!isLinearStructureElement(element)) return false;
     const { cellWidth } = getLinearStructureGeometry(element);
-    const localX = worldPoint.x - (element.x ?? 0);
-    const localY = worldPoint.y - (element.y ?? 0);
+    const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
+    const { x: localX, y: localY } = getLinearStructureLocalPoint(element, worldPoint, group);
     const thresholdY = getLinearItemDragThresholdY(element);
     const offsetY = localY - linearItemDragState.pointerOffsetY;
     const cancelled = Math.abs(offsetY) > thresholdY;
