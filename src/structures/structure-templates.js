@@ -222,10 +222,15 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
   const element = type === STRUCTURE_TYPES.GRAPH
     ? createGraphStructureElement(parseGraphInput(normalizedInput), point, zIndexStart)
     : type === STRUCTURE_TYPES.TREE
-      ? createTreeStructureElement(parseTreeInput(normalizedInput), point, zIndexStart, { treeKind: "general" })
+      ? createTreeStructureElement(
+        parseTreeInput(initMode === "random" ? createCompleteTreeInput(randomCount) : normalizedInput),
+        point,
+        zIndexStart,
+        { treeKind: "general" },
+      )
       : type === STRUCTURE_TYPES.BINARY_TREE
         ? createTreeStructureElement(
-          parseTreeInput(initMode === "random" ? createCompleteBinaryTreeInput(randomCount) : normalizedInput),
+          parseTreeInput(initMode === "random" ? createCompleteTreeInput(randomCount) : normalizedInput),
           point,
           zIndexStart,
           { treeKind: "binary" },
@@ -1584,7 +1589,7 @@ function createLinearStructureElement(type, values, point, zIndex) {
   };
 }
 
-function createCompleteBinaryTreeInput(count) {
+function createCompleteTreeInput(count) {
   const safeCount = normalizeRandomArrayCount(count);
   const labels = Array.from({ length: safeCount }, (_, index) => String(index + 1));
   const edges = [];

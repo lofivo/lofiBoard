@@ -153,6 +153,22 @@ describe("app shell", () => {
     expect(insertSource.indexOf("selectIds(elements.map((element) => element.id))")).toBeGreaterThan(insertSource.indexOf("renderBoard()"));
   });
 
+  it("allows random initialization for both general and binary tree structures", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const supportSource = appSource.slice(
+      appSource.indexOf("function isRandomStructureInitSupported"),
+      appSource.indexOf("function getViewportCenterPoint"),
+    );
+    const hydrateSource = appSource.slice(
+      appSource.indexOf("function hydrateStructurePanel"),
+      appSource.indexOf("function setActiveStructureType"),
+    );
+
+    expect(supportSource).toContain("STRUCTURE_TYPES.TREE");
+    expect(supportSource).toContain("STRUCTURE_TYPES.BINARY_TREE");
+    expect(hydrateSource).toContain("isRandomStructureInitSupported(activeStructureType)");
+  });
+
   it("reuses ordinary Konva nodes across board renders", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 

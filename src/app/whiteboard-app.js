@@ -1039,8 +1039,7 @@ export function createWhiteboardApp(root) {
     if (resetInput) {
       structureInput.value = item.defaultInput;
     }
-    const activeTypeIsLinear = isLinearStructureType(activeStructureType);
-    const activeTypeSupportsRandom = activeTypeIsLinear || activeStructureType === STRUCTURE_TYPES.BINARY_TREE;
+    const activeTypeSupportsRandom = isRandomStructureInitSupported(activeStructureType);
     linearInitPanel.hidden = !activeTypeSupportsRandom;
     structureInputLabel.hidden = activeTypeSupportsRandom && activeArrayInitMode === "random";
     arrayRandomFields.hidden = !activeTypeSupportsRandom || activeArrayInitMode !== "random";
@@ -3115,7 +3114,7 @@ export function createWhiteboardApp(root) {
   }
 
   function isRandomStructureInitSupported(type) {
-    return isLinearStructureType(type) || type === STRUCTURE_TYPES.BINARY_TREE;
+    return isLinearStructureType(type) || type === STRUCTURE_TYPES.TREE || type === STRUCTURE_TYPES.BINARY_TREE;
   }
 
   function getViewportCenterPoint() {

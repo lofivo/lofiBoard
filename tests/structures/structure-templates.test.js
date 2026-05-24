@@ -235,6 +235,22 @@ describe("structure templates", () => {
     ]);
   });
 
+  it("creates a general tree from a random node count instead of the default input", () => {
+    const [tree] = createStructureElements({
+      type: STRUCTURE_TYPES.TREE,
+      input: "A->B, A->C, B->D, B->E",
+      initMode: "random",
+      randomCount: "8",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    expect(tree.type).toBe(STRUCTURE_ELEMENT_TYPES.TREE);
+    expect(tree.settings.treeKind).toBe("general");
+    expect(tree.nodes.map((node) => node.label)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
+    expect(tree.edges).toHaveLength(7);
+  });
+
   it("creates binary tree structures and random complete binary trees", () => {
     expect(getStructureItem(STRUCTURE_TYPES.BINARY_TREE)).toMatchObject({
       id: STRUCTURE_TYPES.BINARY_TREE,
