@@ -13,3 +13,5 @@ dist/
 .playwright-mcp/ 
 
 tmp/
+
+plan.md
