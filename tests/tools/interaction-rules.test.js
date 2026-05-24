@@ -518,6 +518,34 @@ describe("interaction rules", () => {
     })).toBeGreaterThan(25);
   });
 
+  it("uses complete line measurements for text wrapping at narrow boundary widths", () => {
+    const measureText = (value) => {
+      const text = String(value);
+      const baseWidth = Array.from(text).reduce((width, character) => (
+        width + (character === " " ? 5 : 10)
+      ), 0);
+      return /[^\s] [^\s]/.test(text) ? baseWidth + 10 : baseWidth;
+    };
+
+    expect(measureWrappedTextHeight({
+      text: "ab cd",
+      contentWidth: 50,
+      fontSize: 20,
+      lineHeight: 1,
+      measureText,
+      minHeight: 20,
+    })).toBe(40);
+    expect(getNormalizedTextBox({
+      text: "ab cd",
+      width: 50,
+      fontSize: 20,
+      padding: 0,
+      lineHeight: 1,
+      verticalGap: 0,
+      measureText,
+    })).toEqual({ width: 50, height: 40 });
+  });
+
   it("normalizes text box dimensions after text operations", () => {
     const measureText = (value) => String(value).length * 10;
 
@@ -586,6 +614,13 @@ describe("interaction rules", () => {
       measureText,
     })).toBeLessThan(90);
 
+    expect(getMinimumTextBoxWidth({
+      text: "$a+b=c$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBeGreaterThanOrEqual(measureText("+b") + 12 + 1);
+
     expect(getNormalizedTextBox({
       text: "$a+b=c$",
       width: 40,
@@ -593,7 +628,7 @@ describe("interaction rules", () => {
       padding: 6,
       verticalGap: 2,
       measureText,
-    }).width).toBeLessThan(90);
+    }).width).toBeGreaterThan(40);
 
     expect(getMinimumTextBoxWidth({
       text: "plain text",

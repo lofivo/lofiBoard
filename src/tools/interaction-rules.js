@@ -313,14 +313,20 @@ export function getMinimumLatexTextBoxWidth({
       .reduce((parts, part) => {
         if (!part) return parts;
         const previous = parts.at(-1);
-        if (previous && /[+\-=<>*/]$/.test(previous)) {
+        if (/^[+\-=<>*/]$/.test(part) && previous && !/[+\-=<>*/]$/.test(previous)) {
+          parts[parts.length - 1] = `${previous}${part}`;
+        } else if (/^[+\-=<>*/]$/.test(part) && previous && /[+\-=<>*/]$/.test(previous)) {
           parts[parts.length - 1] = `${previous}${part}`;
         } else {
           parts.push(part);
         }
         return parts;
       }, []);
-    return Math.max(...(baseLikeParts.length ? baseLikeParts : [expression]).map((part) => measure(part || " ")), 0);
+    return Math.max(
+      ...(baseLikeParts.length ? baseLikeParts : [expression])
+        .map((part) => measure(part || " ") + size * 0.35),
+      0,
+    );
   }), 0);
   const plainWidth = Math.max(0, ...tokens
     .filter((token) => token.type === "text")
@@ -407,36 +413,56 @@ export function measureWrappedTextHeight({
   const size = Math.max(1, Number(fontSize) || 1);
   const lineHeightPx = size * (Number(lineHeight) || 1.25);
   const measure = typeof measureText === "function" ? measureText : (value) => String(value).length * size * 0.55;
+  const getTextWidth = (value) => Math.max(0, Number(measure(value)) || 0);
+  const splitTextUnits = (value) => Array.from(String(value));
   const paragraphs = String(text || " ").split("\n");
   const lineCount = paragraphs.reduce((count, paragraph) => {
-    const tokens = String(paragraph || " ").split(/(\s+)/).filter((token) => token.length > 0);
     let lines = 1;
-    let currentWidth = 0;
+    let remaining = String(paragraph || " ");
 
-    for (const token of tokens.length ? tokens : [" "]) {
-      const tokenWidth = measure(token);
-      if (tokenWidth > width) {
-        for (const character of Array.from(token)) {
-          const characterWidth = Math.max(1, measure(character));
-          if (currentWidth > 0 && currentWidth + characterWidth > width) {
-            lines += 1;
-            currentWidth = 0;
-          }
-          if (characterWidth > width) {
-            lines += Math.max(0, Math.ceil(characterWidth / width) - 1);
-            currentWidth = characterWidth % width;
-            if (currentWidth === 0) currentWidth = width;
-          } else {
-            currentWidth += characterWidth;
+    if (getTextWidth(remaining) <= width) return count + lines;
+
+    lines = 0;
+    while (remaining.length > 0) {
+      const units = splitTextUnits(remaining);
+      let low = 0;
+      let high = units.length;
+      let match = "";
+
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        const candidate = units.slice(0, mid + 1).join("");
+        if (getTextWidth(candidate) <= width) {
+          low = mid + 1;
+          match = candidate;
+        } else {
+          high = mid;
+        }
+      }
+
+      if (!match) {
+        low = 1;
+        match = units[0] || " ";
+      } else {
+        const matchUnits = splitTextUnits(match);
+        const nextUnit = units[matchUnits.length];
+        const nextIsWordBoundary = nextUnit === " " || nextUnit === "-";
+        if (!nextIsWordBoundary) {
+          const lastSpaceIndex = matchUnits.lastIndexOf(" ");
+          const lastDashIndex = matchUnits.lastIndexOf("-");
+          const wrapIndex = Math.max(lastSpaceIndex, lastDashIndex) + 1;
+          if (wrapIndex > 0) {
+            low = wrapIndex;
+            match = units.slice(0, low).join("");
           }
         }
-        continue;
       }
-      if (currentWidth > 0 && currentWidth + tokenWidth > width) {
+
+      lines += 1;
+      remaining = units.slice(low).join("").trimStart();
+      if (remaining.length > 0 && getTextWidth(remaining) <= width) {
         lines += 1;
-        currentWidth = token.trim() ? tokenWidth : 0;
-      } else {
-        currentWidth += tokenWidth;
+        break;
       }
     }
 
