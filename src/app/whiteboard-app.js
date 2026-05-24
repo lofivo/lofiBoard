@@ -92,6 +92,7 @@ import {
   getBrushPreviewAttrs,
   getFillValue,
   getMinimumEraserRadius,
+  getObjectEraserIconAttrs,
   getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
@@ -432,6 +433,17 @@ export function createWhiteboardApp(root) {
     listening: false,
   });
   overlayLayer.add(eraserCursor);
+  const objectEraserCursor = new Konva.Group({
+    visible: false,
+    listening: false,
+  });
+  const objectEraserBody = new Konva.Rect();
+  const objectEraserSleeve = new Konva.Rect();
+  const objectEraserDivider = new Konva.Line();
+  objectEraserCursor.add(objectEraserBody);
+  objectEraserCursor.add(objectEraserSleeve);
+  objectEraserCursor.add(objectEraserDivider);
+  overlayLayer.add(objectEraserCursor);
 
   const brushCursorDot = new Konva.Circle({
     radius: 3,
@@ -1483,7 +1495,7 @@ export function createWhiteboardApp(root) {
       beginEraser(worldPoint);
       const radius = getVisibleEraserRadius(activeEraserRadius);
       eraseStrokeAt(worldPoint, radius);
-      showEraser(worldPoint, radius);
+      showStrokeEraser(worldPoint, radius);
       return;
     }
 
@@ -1491,7 +1503,7 @@ export function createWhiteboardApp(root) {
       eraseSnapshot = snapshotBoard();
       beginEraser(worldPoint);
       eraseObjectAt(event.target);
-      showEraser(worldPoint, getVisibleEraserRadius(activeEraserRadius));
+      showObjectEraser(worldPoint);
       return;
     }
 
@@ -1630,7 +1642,11 @@ export function createWhiteboardApp(root) {
     }
 
     if ((currentTool === TOOLS.ERASER_STROKE || currentTool === TOOLS.ERASER_OBJECT) && !eraseSnapshot) {
-      showEraser(worldPoint, getBaseEraserRadius());
+      if (currentTool === TOOLS.ERASER_OBJECT) {
+        showObjectEraser(worldPoint);
+      } else {
+        showStrokeEraser(worldPoint, getBaseEraserRadius());
+      }
       return;
     }
 
@@ -1638,14 +1654,14 @@ export function createWhiteboardApp(root) {
       const previousPoint = lastEraserPoint ? { x: lastEraserPoint.x, y: lastEraserPoint.y } : worldPoint;
       const radius = updateEraserRadius(worldPoint);
       eraseStrokeAlongPath(previousPoint, worldPoint, radius);
-      showEraser(worldPoint, radius);
+      showStrokeEraser(worldPoint, radius);
       return;
     }
 
     if (currentTool === TOOLS.ERASER_OBJECT && eraseSnapshot) {
-      const radius = updateEraserRadius(worldPoint);
+      updateEraserRadius(worldPoint);
       eraseObjectAt(event.target);
-      showEraser(worldPoint, radius);
+      showObjectEraser(worldPoint);
     }
   }
 
@@ -1885,6 +1901,7 @@ export function createWhiteboardApp(root) {
       };
     });
     renderBoard();
+    updateTreeControlsPosition();
   }
 
   function finishSelectionDrag() {
@@ -2010,6 +2027,7 @@ export function createWhiteboardApp(root) {
     });
     transformer.forceUpdate();
     contentLayer.batchDraw();
+    updateTreeControlsPosition();
     syncTextOverlays();
   }
 
@@ -2225,17 +2243,31 @@ export function createWhiteboardApp(root) {
     return Math.max(radius, getMinimumEraserRadius(stage.scaleX()));
   }
 
-  function showEraser(worldPoint, radius = activeEraserRadius) {
+  function showStrokeEraser(worldPoint, radius = activeEraserRadius) {
     eraserPreviewPoint = { ...worldPoint };
     const visibleRadius = getVisibleEraserRadius(radius);
     eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, visibleRadius));
     eraserCursor.visible(true);
+    objectEraserCursor.visible(false);
+    overlayLayer.batchDraw();
+  }
+
+  function showObjectEraser(worldPoint) {
+    eraserPreviewPoint = { ...worldPoint };
+    const attrs = getObjectEraserIconAttrs(worldPoint, stage.scaleX());
+    objectEraserCursor.setAttrs(attrs.group);
+    objectEraserBody.setAttrs(attrs.body);
+    objectEraserSleeve.setAttrs(attrs.sleeve);
+    objectEraserDivider.setAttrs(attrs.divider);
+    eraserCursor.visible(false);
+    objectEraserCursor.visible(true);
     overlayLayer.batchDraw();
   }
 
   function hideEraser() {
     eraserPreviewPoint = null;
     eraserCursor.visible(false);
+    objectEraserCursor.visible(false);
     overlayLayer.batchDraw();
   }
 
@@ -2259,6 +2291,7 @@ export function createWhiteboardApp(root) {
 
   function hideToolCursors() {
     eraserCursor.visible(false);
+    objectEraserCursor.visible(false);
     brushCursorGap.visible(false);
     brushCursorDot.visible(false);
     brushCursorRing.visible(false);
@@ -2277,8 +2310,14 @@ export function createWhiteboardApp(root) {
 
   function updateEraserCursorStyle() {
     if (isTemporaryPanActive()) return;
-    if (!eraserCursor.visible() || !eraserPreviewPoint) return;
-    showEraser(eraserPreviewPoint, eraseSnapshot ? activeEraserRadius : getBaseEraserRadius());
+    if (!eraserPreviewPoint) return;
+    if (currentTool === TOOLS.ERASER_OBJECT) {
+      if (!objectEraserCursor.visible()) return;
+      showObjectEraser(eraserPreviewPoint);
+      return;
+    }
+    if (!eraserCursor.visible()) return;
+    showStrokeEraser(eraserPreviewPoint, eraseSnapshot ? activeEraserRadius : getBaseEraserRadius());
   }
 
   function addElement(element, message) {
@@ -3399,11 +3438,7 @@ export function createWhiteboardApp(root) {
     controls.querySelector("[data-tree-node-action='add-left-sibling']").hidden = isRoot;
     controls.querySelector("[data-tree-node-action='add-right-sibling']").hidden = isRoot;
     controls.hidden = false;
-    const box = treeNode.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
-    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
-    controls.style.transform = "translateX(-50%)";
+    updateTreeNodeControlsPosition();
   }
 
   function renderBinaryTreeControls() {
@@ -3428,11 +3463,7 @@ export function createWhiteboardApp(root) {
     controls.querySelector("[data-binary-tree-node-action='add-left']").hidden = Boolean(sides.left);
     controls.querySelector("[data-binary-tree-node-action='add-right']").hidden = Boolean(sides.right);
     controls.hidden = false;
-    const box = treeNode.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
-    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
-    controls.style.transform = "translateX(-50%)";
+    updateBinaryTreeNodeControlsPosition();
   }
 
   function renderTreeTraversalControls() {
@@ -3448,11 +3479,7 @@ export function createWhiteboardApp(root) {
       return;
     }
     controls.hidden = false;
-    const box = group.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    controls.style.left = `${stageBox.left + box.x + box.width - controls.offsetWidth}px`;
-    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
-    controls.style.transform = "none";
+    updateTreeTraversalControlsPosition();
   }
 
   function renderBinaryTreeTraversalControls() {
@@ -3561,6 +3588,59 @@ export function createWhiteboardApp(root) {
     const stageBox = stage.container().getBoundingClientRect();
     linearItemControls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
     linearItemControls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+  }
+
+  function updateTreeControlsPosition() {
+    updateTreeNodeControlsPosition();
+    updateBinaryTreeNodeControlsPosition();
+    updateTreeTraversalControlsPosition();
+  }
+
+  function updateTreeNodeControlsPosition() {
+    if (!treeNodeControls || treeNodeControls.hidden || !activeTreeNode) return;
+    const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
+    if (!isSelectedGeneralTreeElement(element)) return;
+    const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);
+    if (!treeNode) {
+      treeNodeControls.hidden = true;
+      return;
+    }
+    positionNodeControls(treeNodeControls, treeNode);
+  }
+
+  function updateBinaryTreeNodeControlsPosition() {
+    if (!binaryTreeNodeControls || binaryTreeNodeControls.hidden || !activeTreeNode) return;
+    const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
+    if (!isSelectedBinaryTreeElement(element)) return;
+    const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);
+    if (!treeNode) {
+      binaryTreeNodeControls.hidden = true;
+      return;
+    }
+    positionNodeControls(binaryTreeNodeControls, treeNode);
+  }
+
+  function updateTreeTraversalControlsPosition() {
+    if (!binaryTreeTraversalControls || binaryTreeTraversalControls.hidden) return;
+    const element = board.elements.find((item) => isSelectedTreeElementWithTraversal(item));
+    const group = element ? contentLayer.findOne(`#${element.id}`) : null;
+    if (!group) {
+      binaryTreeTraversalControls.hidden = true;
+      return;
+    }
+    const box = group.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    binaryTreeTraversalControls.style.left = `${stageBox.left + box.x + box.width - binaryTreeTraversalControls.offsetWidth}px`;
+    binaryTreeTraversalControls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    binaryTreeTraversalControls.style.transform = "none";
+  }
+
+  function positionNodeControls(controls, treeNode) {
+    const box = treeNode.getClientRect();
+    const stageBox = stage.container().getBoundingClientRect();
+    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
+    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    controls.style.transform = "translateX(-50%)";
   }
 
   function clearLinearItemPressTimer() {

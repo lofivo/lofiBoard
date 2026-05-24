@@ -24,6 +24,53 @@ export function getSquareEraserPreviewAttrs(center, radius) {
   };
 }
 
+export function getObjectEraserIconAttrs(center, scale = 1, screenSize = 24) {
+  const safeScale = Math.max(0.01, Number(scale) || 1);
+  const size = Math.max(12, Number(screenSize) || 24) / safeScale;
+  const width = size * 1.08;
+  const height = size * 0.62;
+  const sleeveWidth = width * 0.34;
+  const strokeWidth = 1.5 / safeScale;
+  const cornerRadius = Math.max(2 / safeScale, height * 0.22);
+  const left = -width / 2;
+  const top = -height / 2;
+  const bottom = top + height;
+  const dividerX = left + sleeveWidth;
+
+  return {
+    group: {
+      x: center.x,
+      y: center.y,
+      rotation: 24,
+    },
+    body: {
+      x: left,
+      y: top,
+      width,
+      height,
+      cornerRadius,
+      fill: "#f8fafc",
+      stroke: "#0f172a",
+      strokeWidth,
+    },
+    sleeve: {
+      x: left,
+      y: top,
+      width: sleeveWidth,
+      height,
+      cornerRadius: [cornerRadius, 0, 0, cornerRadius],
+      fill: "#cbd5e1",
+      stroke: "#0f172a",
+      strokeWidth,
+    },
+    divider: {
+      points: [dividerX, top, dividerX, bottom],
+      stroke: "#0f172a",
+      strokeWidth: Math.max(1 / safeScale, strokeWidth * 0.8),
+    },
+  };
+}
+
 export function getBrushPreviewAttrs(center, strokeWidth, color, scale = 1) {
   const diameter = Math.max(1, Number(strokeWidth) || 1);
   const dotRadius = diameter / 2;

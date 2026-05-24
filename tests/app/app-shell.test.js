@@ -350,6 +350,7 @@ describe("app shell", () => {
     expect(controlSource).toContain('data-tree-node-action="delete"');
     expect(appSource).toContain("function renderTreeNodeControls()");
     expect(appSource).toContain("function renderTreeControls()");
+    expect(appSource).toContain("function updateTreeControlsPosition()");
     expect(appSource).toContain("function hideTreeControls()");
     expect(appSource).toContain("function getTreeParentNodeId(element, nodeId)");
     expect(appSource).toContain("function isTreeRootNode(element, nodeId)");
@@ -372,6 +373,21 @@ describe("app shell", () => {
     expect(appSource).toContain("if (!element || element.type !== \"tree-structure\" || element.settings?.treeKind !== \"binary\" || element.locked) return;");
     expect(appSource).toContain("renderTreeControls();");
     expect(appSource).toContain("hideTreeControls();");
+  });
+
+  it("updates floating tree controls while the whole tree selection is dragged", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectionDragSource = appSource.slice(
+      appSource.indexOf("function updateSelectionDrag(worldPoint)"),
+      appSource.indexOf("function finishSelectionDrag"),
+    );
+    const nodeDragSource = appSource.slice(
+      appSource.indexOf("function updateNodeDragSelection(node)"),
+      appSource.indexOf("function finishNodeDragSelection"),
+    );
+
+    expect(selectionDragSource).toContain("updateTreeControlsPosition();");
+    expect(nodeDragSource).toContain("updateTreeControlsPosition();");
   });
 
   it("rerenders binary tree node selection immediately and clears it from blank tree clicks", () => {
@@ -1049,6 +1065,24 @@ describe("app shell", () => {
     expect(appSource).toContain("getEraserPathSamples");
     expect(appSource).toContain("function eraseStrokeAlongPath");
     expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
+  });
+
+  it("shows a small icon for object eraser instead of the square erase footprint", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const objectEraserSource = appSource.slice(
+      appSource.indexOf("function showObjectEraser(worldPoint)"),
+      appSource.indexOf("function hideEraser"),
+    );
+    const strokeEraserSource = appSource.slice(
+      appSource.indexOf("function showStrokeEraser(worldPoint"),
+      appSource.indexOf("function showObjectEraser"),
+    );
+
+    expect(appSource).toContain("const objectEraserCursor = new Konva.Group");
+    expect(objectEraserSource).toContain("getObjectEraserIconAttrs(worldPoint, stage.scaleX())");
+    expect(objectEraserSource).toContain("eraserCursor.visible(false)");
+    expect(objectEraserSource).not.toContain("getSquareEraserPreviewAttrs");
+    expect(strokeEraserSource).toContain("getSquareEraserPreviewAttrs");
   });
 
   it("lets value-cell pointer down start whole-array drag only when the array is already selected", () => {

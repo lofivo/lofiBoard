@@ -4,6 +4,7 @@ import {
   getBrushPreviewAttrs,
   getFillValue,
   getMinimumEraserRadius,
+  getObjectEraserIconAttrs,
   getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
@@ -51,6 +52,23 @@ describe("tool behavior", () => {
 
   it("keeps square eraser dash spacing stable when the board is zoomed", () => {
     expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18).dash).toEqual([2.5, 1.8]);
+  });
+
+  it("keeps the object eraser cursor as a small icon instead of the erase footprint", () => {
+    const attrs = getObjectEraserIconAttrs({ x: 100, y: 80 }, 2, 24);
+
+    expect(attrs.group).toEqual({ x: 100, y: 80, rotation: 24 });
+    expect(attrs.body.width).toBeCloseTo(12.96);
+    expect(attrs.body.height).toBeCloseTo(7.44);
+    expect(attrs.body.fill).toBe("#f8fafc");
+    expect(attrs.body.strokeWidth).toBe(0.75);
+    expect(attrs.sleeve.x).toBeCloseTo(-6.48);
+    expect(attrs.sleeve.width).toBeCloseTo(4.4064);
+    expect(attrs.sleeve.fill).toBe("#cbd5e1");
+    expect(attrs.divider.points[0]).toBeCloseTo(-2.0736);
+    expect(attrs.divider.points[1]).toBeCloseTo(-3.72);
+    expect(attrs.divider.points[2]).toBeCloseTo(-2.0736);
+    expect(attrs.divider.points[3]).toBeCloseTo(3.72);
   });
 
   it("sizes the brush preview dot from the current stroke width", () => {
