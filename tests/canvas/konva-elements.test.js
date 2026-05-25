@@ -1301,6 +1301,38 @@ describe("konva elements", () => {
     expect(itemRects[2].fill()).toBe("#dcfce7");
   });
 
+  it("renders array algorithm min, key, and empty marker states", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "3" },
+        { id: "item_2", index: 1, value: "1" },
+        { id: "item_3", index: 2, value: "2" },
+      ],
+      markers: {
+        algorithm: {
+          minIndex: 0,
+          keyIndex: 1,
+          emptyIndex: 2,
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const itemRects = node.find(".array-item").map((item) => item.find("Rect").at(-1));
+    expect(itemRects[0].stroke()).toBe("#7c3aed");
+    expect(itemRects[0].strokeWidth()).toBe(3);
+    expect(itemRects[1].stroke()).toBe("#f59e0b");
+    expect(itemRects[1].strokeWidth()).toBe(3);
+    expect(itemRects[2].fill()).toBe("#f8fafc");
+    expect(itemRects[2].dash()).toEqual([6, 4]);
+  });
+
   it("hides the drag gap indicator on linear structure edges", () => {
     const leftEdgeNode = createElementNode({
       id: "array_1",

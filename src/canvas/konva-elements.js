@@ -892,6 +892,9 @@ function createLinearStructureNode(element, common, {
   const highlightedIndices = new Set(element.markers?.highlight ?? []);
   const algorithmActiveIndices = new Set(element.markers?.algorithm?.activeIndices ?? []);
   const algorithmSortedIndices = new Set(element.markers?.algorithm?.sortedIndices ?? []);
+  const algorithmMinIndex = Number.isInteger(element.markers?.algorithm?.minIndex) ? element.markers.algorithm.minIndex : null;
+  const algorithmKeyIndex = Number.isInteger(element.markers?.algorithm?.keyIndex) ? element.markers.algorithm.keyIndex : null;
+  const algorithmEmptyIndex = Number.isInteger(element.markers?.algorithm?.emptyIndex) ? element.markers.algorithm.emptyIndex : null;
   const dropIndicator = new Konva.Rect({
     name: "array-drop-indicator",
     y: valueY + 4,
@@ -945,9 +948,10 @@ function createLinearStructureNode(element, common, {
         y: 0,
         width: cellWidth,
         height: cellHeight,
-        stroke: isActive ? "#2563eb" : style.stroke,
-        strokeWidth: isActive ? 3 : 2,
+        stroke: getLinearStructureCellStroke(index, isActive, style.stroke),
+        strokeWidth: getLinearStructureCellStrokeWidth(index, isActive),
         fill: getLinearStructureCellFill(index, style.indexFill),
+        dash: getLinearStructureCellDash(index),
       });
       indexText = new Konva.Text({
         name: "array-item-index-hit",
@@ -969,16 +973,17 @@ function createLinearStructureNode(element, common, {
       y: valueY,
       width: cellWidth,
       height: cellHeight,
-      stroke: isActive ? "#2563eb" : style.stroke,
-      strokeWidth: isActive ? 3 : 2,
+      stroke: getLinearStructureCellStroke(index, isActive, style.stroke),
+      strokeWidth: getLinearStructureCellStrokeWidth(index, isActive),
       fill: getLinearStructureCellFill(index, style.valueFill),
+      dash: getLinearStructureCellDash(index),
     });
     const valueText = new Konva.Text({
       name: "array-item-value-hit",
       y: valueY + 10,
       width: cellWidth,
       height: 24,
-      text: String(item.value ?? ""),
+      text: algorithmEmptyIndex === index ? "" : String(item.value ?? ""),
       fontSize: 20,
       fontFamily: "Inter, system-ui, sans-serif",
       fill: style.textFill,
@@ -1115,10 +1120,26 @@ function createLinearStructureNode(element, common, {
   return group;
 
   function getLinearStructureCellFill(index, defaultFill) {
+    if (algorithmEmptyIndex === index) return style.algorithmEmptyFill;
     if (algorithmActiveIndices.has(index)) return style.algorithmActiveFill;
     if (algorithmSortedIndices.has(index)) return style.algorithmSortedFill;
     if (highlightedIndices.has(index)) return style.highlightFill;
     return defaultFill;
+  }
+
+  function getLinearStructureCellStroke(index, isActive, defaultStroke) {
+    if (isActive) return "#2563eb";
+    if (algorithmKeyIndex === index) return style.algorithmKeyStroke;
+    if (algorithmMinIndex === index) return style.algorithmMinStroke;
+    return defaultStroke;
+  }
+
+  function getLinearStructureCellStrokeWidth(index, isActive) {
+    return isActive || algorithmKeyIndex === index || algorithmMinIndex === index ? 3 : 2;
+  }
+
+  function getLinearStructureCellDash(index) {
+    return algorithmEmptyIndex === index ? [6, 4] : [];
   }
 }
 

@@ -22,6 +22,8 @@ import {
   ALGORITHM_STEP_TYPES,
   ARRAY_ALGORITHMS,
   createBubbleSortSteps,
+  createInsertionSortSteps,
+  createSelectionSortSteps,
 } from "../algorithms/array-algorithms.js";
 import {
   createClipboardSnapshot,
@@ -315,6 +317,7 @@ export function createWhiteboardApp(root) {
   let arrayAlgorithmSession = null;
   let arrayAlgorithmPlayTimer = null;
   let arrayAlgorithmSwapTweens = [];
+  let arrayAlgorithmAnimationNodes = [];
   let linearItemControls = null;
   let treeNodeControls = null;
   let binaryTreeNodeControls = null;
@@ -525,6 +528,8 @@ export function createWhiteboardApp(root) {
       cancelArrayAlgorithmTimer();
       arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
       arrayAlgorithmSwapTweens = [];
+      arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
+      arrayAlgorithmAnimationNodes = [];
       textOverlayController.clear();
       nodeRenderSnapshots.clear();
       nodeRegistry.clear();
@@ -3412,15 +3417,28 @@ export function createWhiteboardApp(root) {
     });
   }
 
+  function createArrayAlgorithmSteps(algorithm, values) {
+    if (algorithm === ARRAY_ALGORITHMS.SELECTION_SORT) return createSelectionSortSteps(values);
+    if (algorithm === ARRAY_ALGORITHMS.INSERTION_SORT) return createInsertionSortSteps(values);
+    return createBubbleSortSteps(values);
+  }
+
+  function getArrayAlgorithmLabel(algorithm) {
+    return {
+      [ARRAY_ALGORITHMS.BUBBLE_SORT]: "冒泡排序",
+      [ARRAY_ALGORITHMS.SELECTION_SORT]: "选择排序",
+      [ARRAY_ALGORITHMS.INSERTION_SORT]: "插入排序",
+    }[algorithm] ?? "排序";
+  }
+
   function startSelectedArrayAlgorithm() {
     const element = getSelectedLinearStructure();
     if (!element || element.type !== "array-structure" || element.locked) return;
     cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    clearActiveLinearItemForAlgorithmStart(element.id);
     const values = (element.items ?? []).map((item) => item.value ?? "");
-    const result = arrayAlgorithmSelect?.value === ARRAY_ALGORITHMS.BUBBLE_SORT
-      ? createBubbleSortSteps(values)
-      : createBubbleSortSteps(values);
+    const result = createArrayAlgorithmSteps(arrayAlgorithmSelect?.value, values);
     if (!result.ok) {
       arrayAlgorithmSession = {
         elementId: element.id,
@@ -3437,6 +3455,7 @@ export function createWhiteboardApp(root) {
     arrayAlgorithmSession = {
       elementId: element.id,
       algorithm: result.algorithm,
+      algorithmLabel: getArrayAlgorithmLabel(result.algorithm),
       initialValues: result.initialValues,
       steps: result.steps,
       stepIndex: 0,
@@ -3450,6 +3469,14 @@ export function createWhiteboardApp(root) {
     applyArrayAlgorithmStep(0, { render: true });
     selectIds([element.id]);
     syncArrayAlgorithmPanelState();
+  }
+
+  function clearActiveLinearItemForAlgorithmStart(elementId) {
+    if (activeLinearItem?.elementId !== elementId) return;
+    const previousActive = activeLinearItem;
+    activeLinearItem = null;
+    hideLinearItemControls();
+    syncLinearItemActiveVisual(previousActive.elementId);
   }
 
   function stepArrayAlgorithmPrevious() {
@@ -3511,6 +3538,7 @@ export function createWhiteboardApp(root) {
   function stopArrayAlgorithmSession() {
     if (!arrayAlgorithmSession) return;
     const elementId = arrayAlgorithmSession.elementId;
+    const algorithmLabel = arrayAlgorithmSession.algorithmLabel ?? "排序";
     const shouldCommit = Boolean(arrayAlgorithmSession.steps) && !arrayAlgorithmSession.committed;
     cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
@@ -3521,7 +3549,7 @@ export function createWhiteboardApp(root) {
     renderBoard();
     selectIds(board.elements.some((element) => element.id === elementId) ? [elementId] : []);
     if (shouldCommit) {
-      pushHistory("已执行冒泡排序");
+      pushHistory(`已执行${algorithmLabel}`);
     } else {
       updateChrome();
     }
@@ -3535,6 +3563,10 @@ export function createWhiteboardApp(root) {
       playArrayAlgorithmSwapStep(nextIndex);
       return;
     }
+    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || step.type === ALGORITHM_STEP_TYPES.INSERT) {
+      playArrayAlgorithmMoveStep(nextIndex);
+      return;
+    }
     applyArrayAlgorithmStep(nextIndex, { render: true });
     if (step.type === ALGORITHM_STEP_TYPES.COMPLETE) {
       arrayAlgorithmSession = {
@@ -3542,7 +3574,7 @@ export function createWhiteboardApp(root) {
         isPlaying: false,
         committed: true,
       };
-      pushHistory("已执行冒泡排序");
+      pushHistory(`已执行${arrayAlgorithmSession.algorithmLabel ?? "排序"}`);
       syncArrayAlgorithmPanelState();
       return;
     }
@@ -3552,13 +3584,16 @@ export function createWhiteboardApp(root) {
   function playArrayAlgorithmSwapStep(nextIndex) {
     const session = arrayAlgorithmSession;
     const step = session?.steps?.[nextIndex];
-    if (!session || !step || step.swapIndices?.length !== 2) return;
+    const moves = step?.animation?.moves ?? step?.swapIndices?.map((index, moveIndex, indices) => ({
+      from: index,
+      to: indices[moveIndex === 0 ? 1 : 0],
+    }));
+    if (!session || !step || moves?.length !== 2) return;
     const previousStepIndex = session.stepIndex;
-    const [firstIndex, secondIndex] = step.swapIndices;
     const element = board.elements.find((item) => item.id === session.elementId);
     const group = contentLayer.findOne(`#${session.elementId}`);
-    const firstNode = findLinearItemNode(group, firstIndex);
-    const secondNode = findLinearItemNode(group, secondIndex);
+    const firstNode = findLinearItemNode(group, moves[0].from);
+    const secondNode = findLinearItemNode(group, moves[1].from);
     if (!element || !group || !firstNode || !secondNode) {
       applyArrayAlgorithmStep(nextIndex, { render: true });
       scheduleArrayAlgorithmPlayback();
@@ -3580,13 +3615,13 @@ export function createWhiteboardApp(root) {
     secondNode.moveToTop();
     const firstTween = new Konva.Tween({
       node: firstNode,
-      x: secondIndex * style.cellWidth,
+      x: moves[0].to * style.cellWidth,
       duration,
       easing: Konva.Easings.EaseInOut,
     });
     const secondTween = new Konva.Tween({
       node: secondNode,
-      x: firstIndex * style.cellWidth,
+      x: moves[1].to * style.cellWidth,
       duration,
       easing: Konva.Easings.EaseInOut,
       onFinish: () => {
@@ -3612,6 +3647,79 @@ export function createWhiteboardApp(root) {
     secondNode.x(secondStart);
   }
 
+  function playArrayAlgorithmMoveStep(nextIndex) {
+    const session = arrayAlgorithmSession;
+    const step = session?.steps?.[nextIndex];
+    const move = step?.animation?.moves?.[0] ?? step?.shift ?? step?.insert;
+    if (!session || !step || !move) return;
+    const previousStepIndex = session.stepIndex;
+    const element = board.elements.find((item) => item.id === session.elementId);
+    const group = contentLayer.findOne(`#${session.elementId}`);
+    const itemNode = findLinearItemNode(group, move.from);
+    if (!element || !group || !itemNode) {
+      applyArrayAlgorithmStep(nextIndex, { render: true });
+      scheduleArrayAlgorithmPlayback();
+      return;
+    }
+
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    const duration = getArrayAlgorithmStepMs() / 1000;
+    const animatedNode = step.type === ALGORITHM_STEP_TYPES.INSERT
+      ? createArrayAlgorithmGhostNode(itemNode, step.keyValue)
+      : itemNode;
+    const startX = animatedNode.x();
+    arrayAlgorithmSession = {
+      ...session,
+      isAnimating: true,
+      stableStepIndex: previousStepIndex,
+      pendingStepIndex: nextIndex,
+    };
+    syncArrayAlgorithmPanelState();
+    animatedNode.moveToTop();
+    const tween = new Konva.Tween({
+      node: animatedNode,
+      x: move.to * style.cellWidth,
+      duration,
+      easing: Konva.Easings.EaseInOut,
+      onFinish: () => {
+        tween.destroy();
+        if (animatedNode !== itemNode) animatedNode.destroy();
+        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== animatedNode);
+        arrayAlgorithmSwapTweens = [];
+        if (!arrayAlgorithmSession || arrayAlgorithmSession.elementId !== session.elementId) return;
+        applyArrayAlgorithmStep(nextIndex, { render: true });
+        arrayAlgorithmSession = {
+          ...arrayAlgorithmSession,
+          isAnimating: false,
+          pendingStepIndex: null,
+          stableStepIndex: nextIndex,
+        };
+        syncArrayAlgorithmPanelState();
+        scheduleArrayAlgorithmPlayback();
+      },
+    });
+    arrayAlgorithmSwapTweens = [tween];
+    tween.play();
+    animatedNode.x(startX);
+  }
+
+  function createArrayAlgorithmGhostNode(sourceNode, value) {
+    const ghost = sourceNode.clone({
+      listening: false,
+      opacity: 0.92,
+      y: sourceNode.y() - 18,
+      shadowColor: "rgba(245,158,11,0.28)",
+      shadowBlur: 18,
+      shadowOpacity: 1,
+      shadowOffsetY: -8,
+    });
+    const valueText = ghost.find("Text").at(-1);
+    valueText?.text(String(value ?? ""));
+    ghost.moveTo(sourceNode.getParent());
+    arrayAlgorithmAnimationNodes.push(ghost);
+    return ghost;
+  }
+
   function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
     const session = arrayAlgorithmSession;
     const step = session?.steps?.[stepIndex];
@@ -3622,8 +3730,11 @@ export function createWhiteboardApp(root) {
         ? setArrayAlgorithmMarkers(
           applyArrayAlgorithmValues(element, step.values),
           {
-            activeIndices: step.activeIndices,
-            sortedIndices: step.sortedIndices,
+            activeIndices: step.markers?.activeIndices ?? step.activeIndices,
+            sortedIndices: step.markers?.sortedIndices ?? step.sortedIndices,
+            minIndex: step.markers?.minIndex,
+            keyIndex: step.markers?.keyIndex,
+            emptyIndex: step.markers?.emptyIndex,
             pointer,
             showPointer: Number.isInteger(pointer),
           },
@@ -3685,6 +3796,8 @@ export function createWhiteboardApp(root) {
   function cancelArrayAlgorithmSwapAnimation({ commitStableState = true } = {}) {
     arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
     arrayAlgorithmSwapTweens = [];
+    arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
+    arrayAlgorithmAnimationNodes = [];
     if (!arrayAlgorithmSession?.isAnimating) return;
     const stableStepIndex = arrayAlgorithmSession.stableStepIndex ?? arrayAlgorithmSession.stepIndex ?? 0;
     arrayAlgorithmSession = {
@@ -3765,7 +3878,7 @@ export function createWhiteboardApp(root) {
     buttons.stop.disabled = !isBoundSelection;
     if (buttons.play) buttons.play.textContent = session?.isPlaying ? "暂停" : "播放";
     if (!session) {
-      arrayAlgorithmStatus.textContent = "选择冒泡排序后点击开始";
+      arrayAlgorithmStatus.textContent = "选择排序算法后点击开始";
       arrayAlgorithmStatus.dataset.state = "";
       return;
     }

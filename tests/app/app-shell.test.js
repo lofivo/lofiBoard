@@ -235,6 +235,9 @@ describe("app shell", () => {
     expect(markup).toContain('data-action="linear-pointer-hide"');
     expect(markup).toContain('data-linear-algorithm-panel');
     expect(markup).toContain('data-array-algorithm-select');
+    expect(markup).toContain('value="bubble-sort"');
+    expect(markup).toContain('value="selection-sort"');
+    expect(markup).toContain('value="insertion-sort"');
     expect(markup).toContain('data-action="array-algorithm-start"');
     expect(markup).toContain('data-action="array-algorithm-prev"');
     expect(markup).toContain('data-action="array-algorithm-next"');
@@ -1324,6 +1327,31 @@ describe("app shell", () => {
     expect(setToolSource).toContain("resetLinearItemPressState()");
     expect(setToolSource).toContain("resetLinearPointerPressState()");
     expect(setToolSource).toContain("cancelSelectionDrag()");
+  });
+
+  it("clears the active array item when starting an array algorithm", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const startSource = appSource.slice(
+      appSource.indexOf("function startSelectedArrayAlgorithm()"),
+      appSource.indexOf("function stepArrayAlgorithmPrevious()"),
+    );
+
+    expect(startSource).toContain("clearActiveLinearItemForAlgorithmStart(element.id);");
+    expect(appSource).toContain("function clearActiveLinearItemForAlgorithmStart(elementId)");
+    expect(appSource).toContain("hideLinearItemControls();");
+  });
+
+  it("keeps the selected algorithm name when stopping an unfinished array algorithm", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const stopSource = appSource.slice(
+      appSource.indexOf("function stopArrayAlgorithmSession()"),
+      appSource.indexOf("function runArrayAlgorithmStep(nextIndex)"),
+    );
+
+    expect(stopSource).toContain("const algorithmLabel = arrayAlgorithmSession.algorithmLabel ?? \"排序\";");
+    expect(stopSource).toContain("arrayAlgorithmSession = null;");
+    expect(stopSource).toContain("pushHistory(`已执行${algorithmLabel}`);");
+    expect(stopSource).not.toContain("pushHistory(`已执行${arrayAlgorithmSession?.algorithmLabel");
   });
 
   it("returns to the select tool after adding non-pen, non-eraser elements", () => {

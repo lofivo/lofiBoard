@@ -79,6 +79,9 @@ export const ARRAY_STRUCTURE_STYLE = Object.freeze({
   highlightFill: "#fef3c7",
   algorithmActiveFill: "#dbeafe",
   algorithmSortedFill: "#dcfce7",
+  algorithmEmptyFill: "#f8fafc",
+  algorithmMinStroke: "#7c3aed",
+  algorithmKeyStroke: "#f59e0b",
   pointerFill: "#2563eb",
   stroke: "#111827",
   textFill: "#111827",
@@ -407,6 +410,9 @@ export function clearArrayHighlight(element) {
 export function setArrayAlgorithmMarkers(element, {
   activeIndices = [],
   sortedIndices = [],
+  minIndex = null,
+  keyIndex = null,
+  emptyIndex = null,
   pointer = null,
   showPointer = true,
 } = {}) {
@@ -419,6 +425,9 @@ export function setArrayAlgorithmMarkers(element, {
       algorithm: {
         activeIndices: normalizeIndexList(activeIndices, length),
         sortedIndices: normalizeIndexList(sortedIndices, length),
+        minIndex: normalizeOptionalIndex(minIndex, length),
+        keyIndex: normalizeOptionalIndex(keyIndex, length),
+        emptyIndex: normalizeOptionalIndex(emptyIndex, length),
       },
       pointer: Number.isInteger(pointer) && length > 0 ? clampIndex(pointer, length - 1) : null,
       showPointer: Boolean(showPointer),
@@ -1247,6 +1256,11 @@ function normalizeIndexList(indices, length) {
   return [...new Set(indices
     .map((index) => Number.parseInt(String(index), 10))
     .filter((index) => Number.isInteger(index) && index >= 0 && index < length))];
+}
+
+function normalizeOptionalIndex(index, length) {
+  const numericIndex = Number.parseInt(String(index), 10);
+  return Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < length ? numericIndex : null;
 }
 
 function clampNumber(value, min, max) {

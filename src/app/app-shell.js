@@ -332,12 +332,14 @@ export function renderShell() {
                     <button type="button" data-action="linear-pointer-hide">隐藏指针</button>
                   </div>
                   <div class="linear-algorithm-panel" data-linear-algorithm-panel>
-                    <div class="linear-values-header">
-                      <span>算法</span>
+                    <label class="algorithm-select-field">
+                      <span>排序算法</span>
                       <select data-array-algorithm-select aria-label="数组算法">
                         <option value="bubble-sort">冒泡排序</option>
+                        <option value="selection-sort">选择排序</option>
+                        <option value="insertion-sort">插入排序</option>
                       </select>
-                    </div>
+                    </label>
                     <div class="algorithm-status" data-array-algorithm-status>选择数组后开始演示</div>
                     <div class="quick-actions quick-actions-algorithm quick-actions-compact">
                       <button type="button" data-action="array-algorithm-start">开始</button>

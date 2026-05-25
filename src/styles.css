@@ -1686,6 +1686,21 @@ button {
   font-size: 12px;
 }
 
+.algorithm-select-field {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--fluent-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.algorithm-select-field select {
+  width: 100%;
+}
+
 .algorithm-status {
   min-height: 34px;
   padding: 7px 9px;
@@ -1701,6 +1716,12 @@ button {
   color: #b91c1c;
   background: #fef2f2;
   border-color: #fecaca;
+}
+
+.quick-actions-algorithm button:disabled {
+  cursor: not-allowed;
+  color: #94a3b8;
+  background: #f1f5f9;
 }
 
 .algorithm-speed-field {
