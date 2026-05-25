@@ -911,6 +911,7 @@ function createLinearStructureNode(element, common, {
   dropIndicator.x((Number.isInteger(dragGap) ? dragGap : 0) * cellWidth - 3);
 
   const itemGroups = [];
+  const topItemGroups = [];
   let activeItemGroup = null;
   let draggedItemGroup = null;
 
@@ -1052,12 +1053,15 @@ function createLinearStructureNode(element, common, {
       draggedItemGroup = itemGroup;
     } else if (isActive) {
       activeItemGroup = itemGroup;
+    } else if (hasAlgorithmTopVisual(index)) {
+      topItemGroups.push(itemGroup);
     } else {
       itemGroups.push(itemGroup);
     }
   });
 
   itemGroups.forEach((itemGroup) => group.add(itemGroup));
+  topItemGroups.forEach((itemGroup) => group.add(itemGroup));
   if (activeItemGroup) group.add(activeItemGroup);
   if (draggedItemGroup) group.add(draggedItemGroup);
   group.add(dropIndicator);
@@ -1140,6 +1144,14 @@ function createLinearStructureNode(element, common, {
 
   function getLinearStructureCellDash(index) {
     return algorithmEmptyIndex === index ? [6, 4] : [];
+  }
+
+  function hasAlgorithmTopVisual(index) {
+    return algorithmActiveIndices.has(index)
+      || algorithmSortedIndices.has(index)
+      || algorithmMinIndex === index
+      || algorithmKeyIndex === index
+      || algorithmEmptyIndex === index;
   }
 }
 

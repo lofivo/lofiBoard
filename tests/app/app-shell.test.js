@@ -1348,10 +1348,50 @@ describe("app shell", () => {
       appSource.indexOf("function runArrayAlgorithmStep(nextIndex)"),
     );
 
-    expect(stopSource).toContain("const algorithmLabel = arrayAlgorithmSession.algorithmLabel ?? \"排序\";");
-    expect(stopSource).toContain("arrayAlgorithmSession = null;");
+    expect(stopSource).toContain("const algorithmLabel = session.algorithmLabel ?? \"排序\";");
+    expect(stopSource).toContain("deleteArrayAlgorithmSession(elementId);");
     expect(stopSource).toContain("pushHistory(`已执行${algorithmLabel}`);");
     expect(stopSource).not.toContain("pushHistory(`已执行${arrayAlgorithmSession?.algorithmLabel");
+  });
+
+  it("keeps array algorithm sessions independent per array element", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("let arrayAlgorithmSessions = new Map();");
+    expect(appSource).toContain("function getArrayAlgorithmSession(elementId)");
+    expect(appSource).toContain("function setArrayAlgorithmSession(session)");
+    expect(appSource).toContain("function pauseUnselectedArrayAlgorithmSessions()");
+    expect(appSource).toContain("arrayAlgorithmSessions.set(session.elementId, session);");
+    expect(appSource).not.toContain("let arrayAlgorithmSession = null;");
+  });
+
+  it("keeps array algorithm panel choices independent per array element", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const startSource = appSource.slice(
+      appSource.indexOf("function startSelectedArrayAlgorithm()"),
+      appSource.indexOf("function clearActiveLinearItemForAlgorithmStart"),
+    );
+    const syncSource = appSource.slice(
+      appSource.indexOf("function syncArrayAlgorithmPanelState()"),
+      appSource.indexOf("function ensureLinearItemControls()"),
+    );
+
+    expect(appSource).toContain("let arrayAlgorithmPanelStateByElement = new Map();");
+    expect(appSource).toContain("function getArrayAlgorithmPanelState(elementId)");
+    expect(appSource).toContain("function setArrayAlgorithmPanelState(elementId, patch)");
+    expect(appSource).toContain("arrayAlgorithmSelect?.addEventListener(\"change\"");
+    expect(startSource).toContain("const panelState = getArrayAlgorithmPanelState(element.id);");
+    expect(startSource).toContain("createArrayAlgorithmSteps(panelState.algorithm, values)");
+    expect(syncSource).toContain("arrayAlgorithmSelect.value = session?.algorithm ?? panelState.algorithm;");
+    expect(syncSource).toContain("arrayAlgorithmSpeed.value = String(session?.speed ?? panelState.speed);");
+  });
+
+  it("uses a faster base duration for array algorithm animations", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const ARRAY_ALGORITHM_BASE_STEP_MS = 460;");
+    expect(appSource).toContain("ARRAY_ALGORITHM_BASE_STEP_MS / Math.max(0.5, speed)");
+    expect(appSource).not.toContain("Math.round(700 / Math.max(0.5, speed))");
   });
 
   it("returns to the select tool after adding non-pen, non-eraser elements", () => {

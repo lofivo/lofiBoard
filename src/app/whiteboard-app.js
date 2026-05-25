@@ -203,6 +203,11 @@ import { computeFitViewport, computeViewportForBoundsVisibility } from "../canva
 
 const LINEAR_POINTER_BASE_Y = -30;
 const LINEAR_POINTER_DRAG_Y = -40;
+const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
+const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
+  algorithm: ARRAY_ALGORITHMS.BUBBLE_SORT,
+  speed: 1,
+});
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -314,7 +319,8 @@ export function createWhiteboardApp(root) {
   let linearPointerDragState = null;
   let linearItemLiftTween = null;
   let linearPointerTween = null;
-  let arrayAlgorithmSession = null;
+  let arrayAlgorithmSessions = new Map();
+  let arrayAlgorithmPanelStateByElement = new Map();
   let arrayAlgorithmPlayTimer = null;
   let arrayAlgorithmSwapTweens = [];
   let arrayAlgorithmAnimationNodes = [];
@@ -558,11 +564,23 @@ export function createWhiteboardApp(root) {
       linearValuesDraft = linearValuesInput.value;
     });
     arrayAlgorithmSpeed?.addEventListener("input", () => {
-      if (!arrayAlgorithmSession) return;
-      arrayAlgorithmSession = {
-        ...arrayAlgorithmSession,
-        speed: getArrayAlgorithmSpeed(),
-      };
+      const session = getSelectedArrayAlgorithmSession();
+      const selected = getSelectedLinearStructure();
+      if (!selected) return;
+      const speed = getArrayAlgorithmSpeed();
+      setArrayAlgorithmPanelState(selected.id, { speed });
+      if (session) {
+        setArrayAlgorithmSession({
+          ...session,
+          speed,
+        });
+      }
+      syncArrayAlgorithmPanelState();
+    });
+    arrayAlgorithmSelect?.addEventListener("change", () => {
+      const selected = getSelectedLinearStructure();
+      if (!selected) return;
+      setArrayAlgorithmPanelState(selected.id, { algorithm: arrayAlgorithmSelect.value });
       syncArrayAlgorithmPanelState();
     });
     graphStructureInput?.addEventListener("input", () => {
@@ -2580,9 +2598,7 @@ export function createWhiteboardApp(root) {
   function selectIds(ids) {
     const previousActive = activeLinearItem;
     selectedIds = [...new Set(ids)];
-    if (arrayAlgorithmSession && !selectedIds.includes(arrayAlgorithmSession.elementId)) {
-      cancelArrayAlgorithmPlayback();
-    }
+    pauseUnselectedArrayAlgorithmSessions();
     const selectedLinear = getSelectedLinearStructure();
     if (!selectedLinear) {
       activeLinearItem = null;
@@ -3431,6 +3447,59 @@ export function createWhiteboardApp(root) {
     }[algorithm] ?? "排序";
   }
 
+  function getArrayAlgorithmPanelState(elementId) {
+    return {
+      ...DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
+      ...(arrayAlgorithmPanelStateByElement.get(elementId) ?? {}),
+    };
+  }
+
+  function setArrayAlgorithmPanelState(elementId, patch) {
+    if (!elementId) return;
+    arrayAlgorithmPanelStateByElement.set(elementId, {
+      ...getArrayAlgorithmPanelState(elementId),
+      ...patch,
+    });
+  }
+
+  function getSelectedArrayAlgorithmSession() {
+    const element = getSelectedLinearStructure();
+    return element ? arrayAlgorithmSessions.get(element.id) ?? null : null;
+  }
+
+  function getArrayAlgorithmSession(elementId) {
+    return elementId ? arrayAlgorithmSessions.get(elementId) ?? null : null;
+  }
+
+  function setArrayAlgorithmSession(session) {
+    if (!session?.elementId) return;
+    arrayAlgorithmSessions.set(session.elementId, session);
+  }
+
+  function deleteArrayAlgorithmSession(elementId) {
+    if (!elementId) return;
+    arrayAlgorithmSessions.delete(elementId);
+  }
+
+  function deleteArrayAlgorithmState(elementId) {
+    if (!elementId) return;
+    arrayAlgorithmSessions.delete(elementId);
+    arrayAlgorithmPanelStateByElement.delete(elementId);
+  }
+
+  function clearArrayAlgorithmSessions() {
+    arrayAlgorithmSessions.clear();
+    arrayAlgorithmPanelStateByElement.clear();
+  }
+
+  function pauseUnselectedArrayAlgorithmSessions() {
+    for (const [elementId, session] of arrayAlgorithmSessions) {
+      if (selectedIds.includes(elementId) || !session.isPlaying) continue;
+      arrayAlgorithmSessions.set(elementId, { ...session, isPlaying: false });
+    }
+    cancelArrayAlgorithmTimer();
+  }
+
   function startSelectedArrayAlgorithm() {
     const element = getSelectedLinearStructure();
     if (!element || element.type !== "array-structure" || element.locked) return;
@@ -3438,34 +3507,35 @@ export function createWhiteboardApp(root) {
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     clearActiveLinearItemForAlgorithmStart(element.id);
     const values = (element.items ?? []).map((item) => item.value ?? "");
-    const result = createArrayAlgorithmSteps(arrayAlgorithmSelect?.value, values);
+    const panelState = getArrayAlgorithmPanelState(element.id);
+    const result = createArrayAlgorithmSteps(panelState.algorithm, values);
     if (!result.ok) {
-      arrayAlgorithmSession = {
+      setArrayAlgorithmSession({
         elementId: element.id,
         error: result.message,
-        speed: getArrayAlgorithmSpeed(),
+        speed: panelState.speed,
         isPlaying: false,
         isAnimating: false,
-      };
+      });
       syncArrayAlgorithmPanelState();
       setStatus(result.message);
       return;
     }
 
-    arrayAlgorithmSession = {
+    setArrayAlgorithmSession({
       elementId: element.id,
       algorithm: result.algorithm,
       algorithmLabel: getArrayAlgorithmLabel(result.algorithm),
       initialValues: result.initialValues,
       steps: result.steps,
       stepIndex: 0,
-      speed: getArrayAlgorithmSpeed(),
+      speed: panelState.speed,
       isPlaying: false,
       isAnimating: false,
       committed: false,
       error: "",
       stableStepIndex: 0,
-    };
+    });
     applyArrayAlgorithmStep(0, { render: true });
     selectIds([element.id]);
     syncArrayAlgorithmPanelState();
@@ -3480,55 +3550,59 @@ export function createWhiteboardApp(root) {
   }
 
   function stepArrayAlgorithmPrevious() {
-    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session || session.error || session.isAnimating) return;
     cancelArrayAlgorithmPlayback();
-    applyArrayAlgorithmStep(Math.max(0, arrayAlgorithmSession.stepIndex - 1), { render: true });
+    applyArrayAlgorithmStep(Math.max(0, session.stepIndex - 1), { render: true });
   }
 
   function stepArrayAlgorithmNext() {
-    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
-    const nextIndex = Math.min(getArrayAlgorithmLastStepIndex(), arrayAlgorithmSession.stepIndex + 1);
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session || session.error || session.isAnimating) return;
+    const nextIndex = Math.min(getArrayAlgorithmLastStepIndex(session), session.stepIndex + 1);
     runArrayAlgorithmStep(nextIndex);
   }
 
   function toggleArrayAlgorithmPlayback() {
-    if (!arrayAlgorithmSession || arrayAlgorithmSession.error || arrayAlgorithmSession.isAnimating) return;
-    if (arrayAlgorithmSession.isPlaying) {
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session || session.error || session.isAnimating) return;
+    if (session.isPlaying) {
       cancelArrayAlgorithmPlayback();
       syncArrayAlgorithmPanelState();
       return;
     }
-    if (arrayAlgorithmSession.stepIndex >= getArrayAlgorithmLastStepIndex()) return;
-    arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: true };
+    if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) return;
+    setArrayAlgorithmSession({ ...session, isPlaying: true });
     syncArrayAlgorithmPanelState();
     scheduleArrayAlgorithmPlayback();
   }
 
   function resetArrayAlgorithmSession() {
-    if (!arrayAlgorithmSession) return;
-    const elementId = arrayAlgorithmSession.elementId;
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session) return;
+    const elementId = session.elementId;
     cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    if (arrayAlgorithmSession.error || !arrayAlgorithmSession.steps) {
-      arrayAlgorithmSession = null;
+    if (session.error || !session.steps) {
+      deleteArrayAlgorithmSession(elementId);
       syncArrayAlgorithmPanelState();
       return;
     }
-    const initialValues = arrayAlgorithmSession.initialValues ?? [];
+    const initialValues = session.initialValues ?? [];
     board.elements = board.elements.map((element) => (
       element.id === elementId
         ? applyArrayAlgorithmValues(clearArrayAlgorithmMarkers(element), initialValues)
         : element
     ));
-    arrayAlgorithmSession = {
-      ...arrayAlgorithmSession,
+    setArrayAlgorithmSession({
+      ...session,
       stepIndex: 0,
       stableStepIndex: 0,
       isPlaying: false,
       isAnimating: false,
       committed: false,
       error: "",
-    };
+    });
     applyArrayAlgorithmStep(0, { render: false });
     renderBoard();
     selectIds([elementId]);
@@ -3536,16 +3610,17 @@ export function createWhiteboardApp(root) {
   }
 
   function stopArrayAlgorithmSession() {
-    if (!arrayAlgorithmSession) return;
-    const elementId = arrayAlgorithmSession.elementId;
-    const algorithmLabel = arrayAlgorithmSession.algorithmLabel ?? "排序";
-    const shouldCommit = Boolean(arrayAlgorithmSession.steps) && !arrayAlgorithmSession.committed;
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session) return;
+    const elementId = session.elementId;
+    const algorithmLabel = session.algorithmLabel ?? "排序";
+    const shouldCommit = Boolean(session.steps) && !session.committed;
     cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     board.elements = board.elements.map((element) => (
       element.id === elementId ? clearArrayAlgorithmRuntimeMarkers(element) : element
     ));
-    arrayAlgorithmSession = null;
+    deleteArrayAlgorithmSession(elementId);
     renderBoard();
     selectIds(board.elements.some((element) => element.id === elementId) ? [elementId] : []);
     if (shouldCommit) {
@@ -3556,8 +3631,9 @@ export function createWhiteboardApp(root) {
   }
 
   function runArrayAlgorithmStep(nextIndex) {
-    if (!arrayAlgorithmSession?.steps) return;
-    const step = arrayAlgorithmSession.steps[nextIndex];
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session?.steps) return;
+    const step = session.steps[nextIndex];
     if (!step) return;
     if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
       playArrayAlgorithmSwapStep(nextIndex);
@@ -3569,12 +3645,12 @@ export function createWhiteboardApp(root) {
     }
     applyArrayAlgorithmStep(nextIndex, { render: true });
     if (step.type === ALGORITHM_STEP_TYPES.COMPLETE) {
-      arrayAlgorithmSession = {
-        ...arrayAlgorithmSession,
+      setArrayAlgorithmSession({
+        ...session,
         isPlaying: false,
         committed: true,
-      };
-      pushHistory(`已执行${arrayAlgorithmSession.algorithmLabel ?? "排序"}`);
+      });
+      pushHistory(`已执行${session.algorithmLabel ?? "排序"}`);
       syncArrayAlgorithmPanelState();
       return;
     }
@@ -3582,7 +3658,7 @@ export function createWhiteboardApp(root) {
   }
 
   function playArrayAlgorithmSwapStep(nextIndex) {
-    const session = arrayAlgorithmSession;
+    const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[nextIndex];
     const moves = step?.animation?.moves ?? step?.swapIndices?.map((index, moveIndex, indices) => ({
       from: index,
@@ -3602,12 +3678,12 @@ export function createWhiteboardApp(root) {
 
     const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
     const duration = getArrayAlgorithmStepMs() / 1000;
-    arrayAlgorithmSession = {
+    setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
       pendingStepIndex: nextIndex,
-    };
+    });
     syncArrayAlgorithmPanelState();
     const firstStart = firstNode.x();
     const secondStart = secondNode.x();
@@ -3628,14 +3704,15 @@ export function createWhiteboardApp(root) {
         firstTween.destroy();
         secondTween.destroy();
         arrayAlgorithmSwapTweens = [];
-        if (!arrayAlgorithmSession || arrayAlgorithmSession.elementId !== session.elementId) return;
+        const nextSession = getArrayAlgorithmSession(session.elementId);
+        if (!nextSession) return;
         applyArrayAlgorithmStep(nextIndex, { render: true });
-        arrayAlgorithmSession = {
-          ...arrayAlgorithmSession,
+        setArrayAlgorithmSession({
+          ...nextSession,
           isAnimating: false,
           pendingStepIndex: null,
           stableStepIndex: nextIndex,
-        };
+        });
         syncArrayAlgorithmPanelState();
         scheduleArrayAlgorithmPlayback();
       },
@@ -3648,7 +3725,7 @@ export function createWhiteboardApp(root) {
   }
 
   function playArrayAlgorithmMoveStep(nextIndex) {
-    const session = arrayAlgorithmSession;
+    const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[nextIndex];
     const move = step?.animation?.moves?.[0] ?? step?.shift ?? step?.insert;
     if (!session || !step || !move) return;
@@ -3664,16 +3741,29 @@ export function createWhiteboardApp(root) {
 
     const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
     const duration = getArrayAlgorithmStepMs() / 1000;
+    if (step.type === ALGORITHM_STEP_TYPES.INSERT) {
+      playArrayAlgorithmInsertStep({
+        session,
+        step,
+        nextIndex,
+        previousStepIndex,
+        itemNode,
+        move,
+        style,
+        duration,
+      });
+      return;
+    }
     const animatedNode = step.type === ALGORITHM_STEP_TYPES.INSERT
       ? createArrayAlgorithmGhostNode(itemNode, step.keyValue)
       : itemNode;
     const startX = animatedNode.x();
-    arrayAlgorithmSession = {
+    setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
       pendingStepIndex: nextIndex,
-    };
+    });
     syncArrayAlgorithmPanelState();
     animatedNode.moveToTop();
     const tween = new Konva.Tween({
@@ -3686,14 +3776,15 @@ export function createWhiteboardApp(root) {
         if (animatedNode !== itemNode) animatedNode.destroy();
         arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== animatedNode);
         arrayAlgorithmSwapTweens = [];
-        if (!arrayAlgorithmSession || arrayAlgorithmSession.elementId !== session.elementId) return;
+        const nextSession = getArrayAlgorithmSession(session.elementId);
+        if (!nextSession) return;
         applyArrayAlgorithmStep(nextIndex, { render: true });
-        arrayAlgorithmSession = {
-          ...arrayAlgorithmSession,
+        setArrayAlgorithmSession({
+          ...nextSession,
           isAnimating: false,
           pendingStepIndex: null,
           stableStepIndex: nextIndex,
-        };
+        });
         syncArrayAlgorithmPanelState();
         scheduleArrayAlgorithmPlayback();
       },
@@ -3703,11 +3794,80 @@ export function createWhiteboardApp(root) {
     animatedNode.x(startX);
   }
 
+  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, itemNode, move, style, duration }) {
+    const ghost = createArrayAlgorithmGhostNode(itemNode, step.keyValue);
+    const startX = ghost.x();
+    const liftedY = itemNode.y() - 24;
+    const targetX = move.to * style.cellWidth;
+    const targetY = itemNode.y();
+    setArrayAlgorithmSession({
+      ...session,
+      isAnimating: true,
+      stableStepIndex: previousStepIndex,
+      pendingStepIndex: nextIndex,
+    });
+    syncArrayAlgorithmPanelState();
+    ghost.moveToTop();
+    const liftDuration = Math.max(0.06, duration * 0.28);
+    const moveDuration = Math.max(0.08, duration * 0.44);
+    const dropDuration = Math.max(0.06, duration * 0.28);
+    const liftTween = new Konva.Tween({
+      node: ghost,
+      y: liftedY,
+      duration: liftDuration,
+      easing: Konva.Easings.EaseOut,
+      onFinish: () => {
+        liftTween.destroy();
+        const moveTween = new Konva.Tween({
+          node: ghost,
+          x: targetX,
+          duration: moveDuration,
+          easing: Konva.Easings.EaseInOut,
+          onFinish: () => {
+            moveTween.destroy();
+            const dropTween = new Konva.Tween({
+              node: ghost,
+              y: targetY,
+              duration: dropDuration,
+              easing: Konva.Easings.EaseIn,
+              onFinish: () => {
+                dropTween.destroy();
+                ghost.destroy();
+                arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
+                arrayAlgorithmSwapTweens = [];
+                if (!getArrayAlgorithmSession(session.elementId)) return;
+                applyArrayAlgorithmStep(nextIndex, { render: true });
+                const nextSession = getArrayAlgorithmSession(session.elementId);
+                if (nextSession) {
+                  setArrayAlgorithmSession({
+                    ...nextSession,
+                    isAnimating: false,
+                    pendingStepIndex: null,
+                    stableStepIndex: nextIndex,
+                  });
+                }
+                syncArrayAlgorithmPanelState();
+                scheduleArrayAlgorithmPlayback();
+              },
+            });
+            arrayAlgorithmSwapTweens = [dropTween];
+            dropTween.play();
+          },
+        });
+        arrayAlgorithmSwapTweens = [moveTween];
+        moveTween.play();
+      },
+    });
+    arrayAlgorithmSwapTweens = [liftTween];
+    liftTween.play();
+    ghost.x(startX);
+  }
+
   function createArrayAlgorithmGhostNode(sourceNode, value) {
     const ghost = sourceNode.clone({
       listening: false,
       opacity: 0.92,
-      y: sourceNode.y() - 18,
+      y: sourceNode.y(),
       shadowColor: "rgba(245,158,11,0.28)",
       shadowBlur: 18,
       shadowOpacity: 1,
@@ -3721,7 +3881,7 @@ export function createWhiteboardApp(root) {
   }
 
   function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
-    const session = arrayAlgorithmSession;
+    const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[stepIndex];
     if (!session || !step) return;
     const pointer = step.activeIndices?.[0] ?? null;
@@ -3741,13 +3901,13 @@ export function createWhiteboardApp(root) {
         )
         : element
     ));
-    arrayAlgorithmSession = {
+    setArrayAlgorithmSession({
       ...session,
       stepIndex,
       stableStepIndex: stepIndex,
       isAnimating: false,
       pendingStepIndex: null,
-    };
+    });
     if (render) {
       renderBoard();
       selectIds([session.elementId]);
@@ -3768,9 +3928,10 @@ export function createWhiteboardApp(root) {
 
   function scheduleArrayAlgorithmPlayback() {
     cancelArrayAlgorithmTimer();
-    if (!arrayAlgorithmSession?.isPlaying || arrayAlgorithmSession.isAnimating) return;
-    if (arrayAlgorithmSession.stepIndex >= getArrayAlgorithmLastStepIndex()) {
-      arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: false };
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session?.isPlaying || session.isAnimating) return;
+    if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) {
+      setArrayAlgorithmSession({ ...session, isPlaying: false });
       syncArrayAlgorithmPanelState();
       return;
     }
@@ -3782,9 +3943,8 @@ export function createWhiteboardApp(root) {
 
   function cancelArrayAlgorithmPlayback() {
     cancelArrayAlgorithmTimer();
-    if (arrayAlgorithmSession) {
-      arrayAlgorithmSession = { ...arrayAlgorithmSession, isPlaying: false };
-    }
+    const session = getSelectedArrayAlgorithmSession();
+    if (session) setArrayAlgorithmSession({ ...session, isPlaying: false });
   }
 
   function cancelArrayAlgorithmTimer() {
@@ -3798,14 +3958,15 @@ export function createWhiteboardApp(root) {
     arrayAlgorithmSwapTweens = [];
     arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
     arrayAlgorithmAnimationNodes = [];
-    if (!arrayAlgorithmSession?.isAnimating) return;
-    const stableStepIndex = arrayAlgorithmSession.stableStepIndex ?? arrayAlgorithmSession.stepIndex ?? 0;
-    arrayAlgorithmSession = {
-      ...arrayAlgorithmSession,
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session?.isAnimating) return;
+    const stableStepIndex = session.stableStepIndex ?? session.stepIndex ?? 0;
+    setArrayAlgorithmSession({
+      ...session,
       isAnimating: false,
       pendingStepIndex: null,
       stepIndex: stableStepIndex,
-    };
+    });
     if (commitStableState) applyArrayAlgorithmStep(stableStepIndex, { render: true });
   }
 
@@ -3815,23 +3976,26 @@ export function createWhiteboardApp(root) {
   }
 
   function getArrayAlgorithmStepMs() {
-    const speed = arrayAlgorithmSession?.speed ?? getArrayAlgorithmSpeed();
-    return Math.round(700 / Math.max(0.5, speed));
+    const speed = getSelectedArrayAlgorithmSession()?.speed ?? getArrayAlgorithmSpeed();
+    return Math.round(ARRAY_ALGORITHM_BASE_STEP_MS / Math.max(0.5, speed));
   }
 
-  function getArrayAlgorithmLastStepIndex() {
-    return Math.max(0, (arrayAlgorithmSession?.steps?.length ?? 1) - 1);
+  function getArrayAlgorithmLastStepIndex(session = getSelectedArrayAlgorithmSession()) {
+    return Math.max(0, (session?.steps?.length ?? 1) - 1);
   }
 
   function isArrayAlgorithmLocked(elementId) {
-    return Boolean(arrayAlgorithmSession?.elementId === elementId);
+    return Boolean(getArrayAlgorithmSession(elementId));
   }
 
   function clearArrayAlgorithmSessionForRemovedIds(ids) {
-    if (!arrayAlgorithmSession || !ids.includes(arrayAlgorithmSession.elementId)) return;
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    arrayAlgorithmSession = null;
+    const removedSet = new Set(ids);
+    const selectedSession = getSelectedArrayAlgorithmSession();
+    if (selectedSession && removedSet.has(selectedSession.elementId)) {
+      cancelArrayAlgorithmPlayback();
+      cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    }
+    ids.forEach((id) => deleteArrayAlgorithmState(id));
   }
 
   function clearArrayAlgorithmRuntimeMarkers(element) {
@@ -3848,11 +4012,16 @@ export function createWhiteboardApp(root) {
   function syncArrayAlgorithmPanelState() {
     if (!arrayAlgorithmStatus) return;
     const selected = getSelectedLinearStructure();
-    const session = arrayAlgorithmSession;
+    const session = selected ? getArrayAlgorithmSession(selected.id) : null;
+    const panelState = selected ? getArrayAlgorithmPanelState(selected.id) : DEFAULT_ARRAY_ALGORITHM_PANEL_STATE;
     const isBoundSelection = Boolean(session && selected?.id === session.elementId);
     root.dataset.arrayAlgorithmActive = isBoundSelection ? "true" : "false";
+    if (arrayAlgorithmSelect) {
+      arrayAlgorithmSelect.value = session?.algorithm ?? panelState.algorithm;
+      arrayAlgorithmSelect.disabled = Boolean(session);
+    }
     if (arrayAlgorithmSpeed) {
-      arrayAlgorithmSpeed.value = String(session?.speed ?? getArrayAlgorithmSpeed());
+      arrayAlgorithmSpeed.value = String(session?.speed ?? panelState.speed);
     }
     const buttons = {
       start: root.querySelector("[data-action='array-algorithm-start']"),
@@ -3871,9 +4040,9 @@ export function createWhiteboardApp(root) {
       return;
     }
     buttons.start.disabled = Boolean(session);
-    buttons.prev.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex <= 0;
-    buttons.next.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex >= getArrayAlgorithmLastStepIndex();
-    buttons.play.disabled = !isBoundSelection || Boolean(session.error) || session.isAnimating || session.stepIndex >= getArrayAlgorithmLastStepIndex();
+    buttons.prev.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) <= 0;
+    buttons.next.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) >= getArrayAlgorithmLastStepIndex(session);
+    buttons.play.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) >= getArrayAlgorithmLastStepIndex(session);
     buttons.reset.disabled = !isBoundSelection;
     buttons.stop.disabled = !isBoundSelection;
     if (buttons.play) buttons.play.textContent = session?.isPlaying ? "暂停" : "播放";
@@ -5460,7 +5629,7 @@ export function createWhiteboardApp(root) {
   }
 
   function newBoard() {
-    arrayAlgorithmSession = null;
+    clearArrayAlgorithmSessions();
     cancelArrayAlgorithmTimer();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     board = createEmptyBoard();
@@ -6057,7 +6226,7 @@ export function createWhiteboardApp(root) {
 
   function serializeCurrentBoard() {
     const elements = board.elements.map((element) => (
-      isLinearStructureElement(element) && arrayAlgorithmSession?.elementId === element.id
+      isLinearStructureElement(element) && getArrayAlgorithmSession(element.id)
         ? clearArrayAlgorithmRuntimeMarkers(element)
         : element
     ));
@@ -6090,7 +6259,7 @@ export function createWhiteboardApp(root) {
 
   function restoreFromHistory(nextBoard, message) {
     if (!nextBoard) return;
-    arrayAlgorithmSession = null;
+    clearArrayAlgorithmSessions();
     cancelArrayAlgorithmTimer();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     board = normalizeBoard(nextBoard);
