@@ -110,6 +110,17 @@ describe("array algorithms", () => {
     });
   });
 
+  it("records selection sort sorted prefix even when the current item is already minimum", () => {
+    const result = createSelectionSortSteps(["1", "2", "3"]);
+
+    expect(result.ok).toBe(true);
+    expect(result.steps.some((step) => (
+      step.type === ALGORITHM_STEP_TYPES.SELECT_MIN
+        && step.values.join(",") === "1,2,3"
+        && step.sortedIndices.includes(0)
+    ))).toBe(true);
+  });
+
   it("creates insertion sort key, compare, shift, and insert steps", () => {
     const result = createInsertionSortSteps(["3", "1", "2"]);
 
@@ -124,6 +135,11 @@ describe("array algorithms", () => {
       sortedIndices: [0],
       keyIndex: 1,
       keyValue: "1",
+      markers: {
+        keyIndex: 1,
+        emptyIndex: 1,
+        floatingKey: { sourceIndex: 1, currentIndex: 1, value: "1" },
+      },
       message: "取出 1，准备插入已排序区间",
     });
     expect(result.steps.find((step) => step.type === ALGORITHM_STEP_TYPES.SHIFT)).toMatchObject({
@@ -137,6 +153,7 @@ describe("array algorithms", () => {
       markers: {
         keyIndex: 1,
         emptyIndex: 0,
+        floatingKey: { sourceIndex: 1, currentIndex: 1, value: "1" },
       },
       message: "3 右移一格",
     });
@@ -148,8 +165,8 @@ describe("array algorithms", () => {
       animation: { type: "insert", moves: [{ from: 1, to: 0 }] },
       keyValue: "1",
       markers: {
-        keyIndex: 1,
-        emptyIndex: 0,
+        activeIndices: [0],
+        sortedIndices: [0, 1],
       },
       message: "将 1 插入位置 1",
     });
@@ -158,6 +175,71 @@ describe("array algorithms", () => {
       values: ["1", "2", "3"],
       sortedIndices: [0, 1, 2],
       message: "插入排序完成",
+    });
+  });
+
+  it("does not create no-op insertion animations when the key is already in place", () => {
+    const result = createInsertionSortSteps(["1", "2", "3"]);
+
+    expect(result.ok).toBe(true);
+    const insertSteps = result.steps.filter((step) => step.type === ALGORITHM_STEP_TYPES.INSERT);
+    expect(insertSteps).toHaveLength(2);
+    expect(insertSteps.every((step) => step.animation === null)).toBe(true);
+    expect(insertSteps.map((step) => step.message)).toEqual([
+      "2 已在位置 2",
+      "3 已在位置 3",
+    ]);
+    expect(result.steps.at(-1)).toMatchObject({
+      type: ALGORITHM_STEP_TYPES.COMPLETE,
+      values: ["1", "2", "3"],
+      sortedIndices: [0, 1, 2],
+    });
+  });
+
+  it("keeps insertion sort floating key and empty slot markers through shifts", () => {
+    const result = createInsertionSortSteps(["4", "3", "2"]);
+
+    expect(result.ok).toBe(true);
+    const keyTwoSteps = result.steps.filter((step) => step.keyValue === "2");
+    expect(keyTwoSteps.find((step) => step.type === ALGORITHM_STEP_TYPES.PICK_KEY)).toMatchObject({
+      markers: {
+        emptyIndex: 2,
+        floatingKey: { sourceIndex: 2, currentIndex: 2, value: "2" },
+      },
+    });
+    expect(keyTwoSteps.filter((step) => step.type === ALGORITHM_STEP_TYPES.SHIFT).map((step) => step.markers)).toEqual([
+      expect.objectContaining({
+        emptyIndex: 1,
+        floatingKey: { sourceIndex: 2, currentIndex: 2, value: "2" },
+      }),
+      expect.objectContaining({
+        emptyIndex: 0,
+        floatingKey: { sourceIndex: 2, currentIndex: 2, value: "2" },
+      }),
+    ]);
+    expect(keyTwoSteps.find((step) => step.type === ALGORITHM_STEP_TYPES.INSERT).markers.floatingKey).toBeUndefined();
+  });
+
+  it("separates insertion completion from the next key pickup", () => {
+    const result = createInsertionSortSteps(["2", "1", "3"]);
+
+    expect(result.ok).toBe(true);
+    const insertIndex = result.steps.findIndex((step) => (
+      step.type === ALGORITHM_STEP_TYPES.INSERT && step.keyValue === "1"
+    ));
+    expect(insertIndex).toBeGreaterThan(0);
+    expect(result.steps[insertIndex]).toMatchObject({
+      values: ["1", "2", "3"],
+      activeIndices: [0],
+      sortedIndices: [0, 1],
+      message: "将 1 插入位置 1",
+    });
+    expect(result.steps[insertIndex + 1]).toMatchObject({
+      type: ALGORITHM_STEP_TYPES.PICK_KEY,
+      keyValue: "3",
+      markers: {
+        floatingKey: { sourceIndex: 2, currentIndex: 2, value: "3" },
+      },
     });
   });
 });

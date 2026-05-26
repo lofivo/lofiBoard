@@ -413,6 +413,7 @@ export function setArrayAlgorithmMarkers(element, {
   minIndex = null,
   keyIndex = null,
   emptyIndex = null,
+  floatingKey = null,
   pointer = null,
   showPointer = true,
 } = {}) {
@@ -428,6 +429,7 @@ export function setArrayAlgorithmMarkers(element, {
         minIndex: normalizeOptionalIndex(minIndex, length),
         keyIndex: normalizeOptionalIndex(keyIndex, length),
         emptyIndex: normalizeOptionalIndex(emptyIndex, length),
+        floatingKey: normalizeFloatingKey(floatingKey, length),
       },
       pointer: Number.isInteger(pointer) && length > 0 ? clampIndex(pointer, length - 1) : null,
       showPointer: Boolean(showPointer),
@@ -1261,6 +1263,18 @@ function normalizeIndexList(indices, length) {
 function normalizeOptionalIndex(index, length) {
   const numericIndex = Number.parseInt(String(index), 10);
   return Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < length ? numericIndex : null;
+}
+
+function normalizeFloatingKey(floatingKey, length) {
+  if (!floatingKey || length <= 0) return null;
+  const sourceIndex = normalizeOptionalIndex(floatingKey.sourceIndex, length);
+  const currentIndex = normalizeOptionalIndex(floatingKey.currentIndex, length);
+  if (sourceIndex === null || currentIndex === null) return null;
+  return {
+    sourceIndex,
+    currentIndex,
+    value: String(floatingKey.value ?? ""),
+  };
 }
 
 function clampNumber(value, min, max) {

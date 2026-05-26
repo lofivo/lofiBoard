@@ -148,6 +148,70 @@ describe("app shell", () => {
     expect(insertSource.indexOf("selectIds(elements.map((element) => element.id))")).toBeGreaterThan(insertSource.indexOf("renderBoard()"));
   });
 
+  it("keeps array algorithm sessions on the animated step after swap and move animations finish", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const swapSource = appSource.slice(
+      appSource.indexOf("function playArrayAlgorithmSwapStep"),
+      appSource.indexOf("function playArrayAlgorithmMoveStep"),
+    );
+    const moveSource = appSource.slice(
+      appSource.indexOf("function playArrayAlgorithmMoveStep"),
+      appSource.indexOf("function playArrayAlgorithmInsertStep"),
+    );
+    const insertSource = appSource.slice(
+      appSource.indexOf("function playArrayAlgorithmInsertStep"),
+      appSource.indexOf("function createArrayAlgorithmGhostNode"),
+    );
+    const completeSource = appSource.slice(
+      appSource.indexOf("function runArrayAlgorithmStep"),
+      appSource.indexOf("function playArrayAlgorithmSwapStep"),
+    );
+
+    expect(swapSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(moveSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(insertSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(completeSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+  });
+
+  it("animates insertion sort key pickup separately from final insertion", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const runSource = appSource.slice(
+      appSource.indexOf("function runArrayAlgorithmStep"),
+      appSource.indexOf("function playArrayAlgorithmSwapStep"),
+    );
+    const pickupSource = appSource.slice(
+      appSource.indexOf("function playArrayAlgorithmPickKeyStep"),
+      appSource.indexOf("function playArrayAlgorithmMoveStep"),
+    );
+    const insertSource = appSource.slice(
+      appSource.indexOf("function playArrayAlgorithmInsertStep"),
+      appSource.indexOf("function createArrayAlgorithmGhostNode"),
+    );
+
+    expect(runSource).toContain("step.type === ALGORITHM_STEP_TYPES.PICK_KEY");
+    expect(runSource).toContain("playArrayAlgorithmPickKeyStep(nextIndex)");
+    expect(pickupSource).toContain("const valueNode = createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);");
+    expect(pickupSource).toContain("const liftedY = getArrayAlgorithmFloatingKeyY(style, element);");
+    expect(pickupSource).toContain("applyArrayAlgorithmStep(nextIndex, { render: true });");
+    expect(insertSource).toContain("findArrayAlgorithmFloatingKeyNode(group)");
+    expect(insertSource).toContain("const ghost = floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, step.keyValue, style);");
+    expect(insertSource).toContain("const targetY = getArrayAlgorithmValueY(element);");
+    expect(insertSource).toContain("element,");
+    expect(insertSource).toContain("function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, element, itemNode, move, style, duration })");
+  });
+
+  it("does not clear live array algorithm markers when pushing movement history", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pushHistorySource = appSource.slice(
+      appSource.indexOf("function pushHistory(message)"),
+      appSource.indexOf("function restoreFromHistory"),
+    );
+
+    expect(pushHistorySource).toContain("const historySnapshot = serializeCurrentBoard();");
+    expect(pushHistorySource).toContain("history.push(historySnapshot);");
+    expect(pushHistorySource).not.toContain("board = serializeCurrentBoard();");
+  });
+
   it("allows random initialization for both general and binary tree structures", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const supportSource = appSource.slice(

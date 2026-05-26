@@ -1333,6 +1333,132 @@ describe("konva elements", () => {
     expect(itemRects[2].dash()).toEqual([6, 4]);
   });
 
+  it("draws algorithm border overlays above array cells so highlighted borders stay complete", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "3" },
+        { id: "item_2", index: 1, value: "1" },
+        { id: "item_3", index: 2, value: "2" },
+      ],
+      markers: {
+        algorithm: {
+          activeIndices: [0],
+          minIndex: 1,
+          keyIndex: 2,
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const itemNodes = node.find(".array-item");
+    const overlayGroups = node.find(".array-item-border-overlay");
+    expect(overlayGroups.map((item) => item.getAttr("linearIndex"))).toEqual([0, 1, 2]);
+    expect(node.getChildren().indexOf(overlayGroups[0])).toBeGreaterThan(node.getChildren().indexOf(itemNodes.at(-1)));
+    expect(overlayGroups[0].find("Rect").at(-1).stroke()).toBe("#2563eb");
+    expect(overlayGroups[1].find("Rect").at(-1).stroke()).toBe("#7c3aed");
+    expect(overlayGroups[2].find("Rect").at(-1).stroke()).toBe("#f59e0b");
+  });
+
+  it("draws border overlays for sorted and empty algorithm cells too", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "1" },
+        { id: "item_2", index: 1, value: "2" },
+        { id: "item_3", index: 2, value: "3" },
+      ],
+      markers: {
+        algorithm: {
+          sortedIndices: [0],
+          emptyIndex: 2,
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const overlayGroups = node.find(".array-item-border-overlay");
+    expect(overlayGroups.map((item) => item.getAttr("linearIndex"))).toEqual([0, 2]);
+    expect(overlayGroups[0].find("Rect").at(-1).stroke()).toBe("#16a34a");
+    expect(overlayGroups[1].find("Rect").at(-1).stroke()).toBe("#94a3b8");
+    expect(overlayGroups[1].find("Rect").at(-1).dash()).toEqual([6, 4]);
+  });
+
+  it("renders insertion sort floating value cell below the array while keeping its index in place", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "3" },
+        { id: "item_2", index: 1, value: "1" },
+        { id: "item_3", index: 2, value: "2" },
+      ],
+      markers: {
+        algorithm: {
+          keyIndex: 1,
+          emptyIndex: 1,
+          floatingKey: { sourceIndex: 1, currentIndex: 1, value: "1" },
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const floatingKey = node.findOne(".array-floating-key");
+    const sourceItem = node.find(".array-item").find((itemNode) => itemNode.getAttr("linearIndex") === 1);
+
+    expect(floatingKey).toBeTruthy();
+    expect(floatingKey.x()).toBe(72);
+    expect(floatingKey.y()).toBe(100);
+    expect(floatingKey.height()).toBe(44);
+    expect(floatingKey.find("Rect")).toHaveLength(1);
+    expect(floatingKey.find("Text").at(-1).text()).toBe("1");
+    expect(sourceItem.find("Text").at(0).text()).toBe("1");
+    expect(sourceItem.find("Text").at(-1).text()).toBe("");
+  });
+
+  it("hides the array pointer while an insertion sort key is floating below the values", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "3" },
+        { id: "item_2", index: 1, value: "1" },
+        { id: "item_3", index: 2, value: "2" },
+      ],
+      markers: {
+        pointer: 1,
+        showPointer: true,
+        algorithm: {
+          keyIndex: 1,
+          emptyIndex: 1,
+          floatingKey: { sourceIndex: 1, currentIndex: 1, value: "1" },
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    expect(node.findOne(".array-floating-key")).toBeTruthy();
+    expect(node.findOne(".array-pointer-group")).toBeFalsy();
+  });
+
   it("hides the drag gap indicator on linear structure edges", () => {
     const leftEdgeNode = createElementNode({
       id: "array_1",

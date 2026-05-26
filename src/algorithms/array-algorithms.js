@@ -144,6 +144,7 @@ export function createSelectionSortSteps(values) {
     for (let scanIndex = index + 1; scanIndex < numbers.length; scanIndex += 1) {
       const isNewMin = numbers[scanIndex] < numbers[minIndex];
       if (isNewMin) minIndex = scanIndex;
+      const messageMinValue = displayValues[minIndex];
       steps.push(createStep({
         type: ALGORITHM_STEP_TYPES.SELECT_MIN,
         values: displayValues,
@@ -157,10 +158,24 @@ export function createSelectionSortSteps(values) {
         },
         message: isNewMin
           ? `扫描 ${displayValues[scanIndex]}，更新最小值`
-          : `扫描 ${displayValues[scanIndex]}，最小值仍是 ${displayValues[minIndex]}`,
+          : `扫描 ${displayValues[scanIndex]}，最小值仍是 ${messageMinValue}`,
       }));
     }
-    if (minIndex === index) continue;
+    if (minIndex === index) {
+      steps.push(createStep({
+        type: ALGORITHM_STEP_TYPES.SELECT_MIN,
+        values: displayValues,
+        activeIndices: [index],
+        sortedIndices: getSortedPrefixIndices(index + 1),
+        minIndex,
+        markers: {
+          focusIndices: [index],
+          minIndex,
+        },
+        message: `${displayValues[index]} 已在位置 ${index + 1}`,
+      }));
+      continue;
+    }
     const minValue = displayValues[minIndex];
     [numbers[index], numbers[minIndex]] = [numbers[minIndex], numbers[index]];
     [displayValues[index], displayValues[minIndex]] = [displayValues[minIndex], displayValues[index]];
@@ -216,6 +231,7 @@ export function createInsertionSortSteps(values) {
   for (let index = 1; index < numbers.length; index += 1) {
     const keyNumber = numbers[index];
     const keyValue = displayValues[index];
+    const floatingKey = { sourceIndex: index, currentIndex: index, value: keyValue };
     let compareIndex = index - 1;
     steps.push(createStep({
       type: ALGORITHM_STEP_TYPES.PICK_KEY,
@@ -226,6 +242,8 @@ export function createInsertionSortSteps(values) {
       keyValue,
       markers: {
         keyIndex: index,
+        emptyIndex: index,
+        floatingKey,
       },
       message: `取出 ${keyValue}，准备插入已排序区间`,
     }));
@@ -240,6 +258,8 @@ export function createInsertionSortSteps(values) {
         markers: {
           scanIndices: [compareIndex],
           keyIndex: index,
+          emptyIndex: compareIndex + 1,
+          floatingKey,
         },
         message: numbers[compareIndex] > keyNumber
           ? `比较 ${displayValues[compareIndex]} 和 ${keyValue}，需要右移`
@@ -259,6 +279,7 @@ export function createInsertionSortSteps(values) {
         markers: {
           keyIndex: index,
           emptyIndex: compareIndex,
+          floatingKey,
         },
         animation: createMoveAnimation("shift", [{ from: compareIndex, to: compareIndex + 1 }]),
         message: `${displayValues[compareIndex]} 右移一格`,
@@ -275,12 +296,11 @@ export function createInsertionSortSteps(values) {
       sortedIndices: getSortedPrefixIndices(index + 1),
       insert: { from: index, to: insertIndex },
       keyValue,
-      markers: {
-        keyIndex: index,
-        emptyIndex: insertIndex,
-      },
-      animation: createMoveAnimation("insert", [{ from: index, to: insertIndex }]),
-      message: `将 ${keyValue} 插入位置 ${insertIndex + 1}`,
+      markers: {},
+      animation: insertIndex !== index ? createMoveAnimation("insert", [{ from: index, to: insertIndex }]) : null,
+      message: insertIndex !== index
+        ? `将 ${keyValue} 插入位置 ${insertIndex + 1}`
+        : `${keyValue} 已在位置 ${insertIndex + 1}`,
     }));
   }
 
@@ -329,6 +349,7 @@ function createStep({
       activeIndices: [...activeIndices],
       sortedIndices: [...sortedIndices],
       ...markers,
+      floatingKey: markers.floatingKey ? { ...markers.floatingKey } : undefined,
     },
     animation,
     message,

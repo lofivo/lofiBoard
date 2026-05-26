@@ -13,6 +13,7 @@ import { getTextDisplayValue } from "../services/latex-service.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
+const ARRAY_ALGORITHM_FLOATING_KEY_GAP = 12;
 const PRESSURE_VARIATION_THRESHOLD = 0.08;
 export const PRESSURE_STROKE_PREVIEW_ATTR = "forcePressureStroke";
 
@@ -895,6 +896,7 @@ function createLinearStructureNode(element, common, {
   const algorithmMinIndex = Number.isInteger(element.markers?.algorithm?.minIndex) ? element.markers.algorithm.minIndex : null;
   const algorithmKeyIndex = Number.isInteger(element.markers?.algorithm?.keyIndex) ? element.markers.algorithm.keyIndex : null;
   const algorithmEmptyIndex = Number.isInteger(element.markers?.algorithm?.emptyIndex) ? element.markers.algorithm.emptyIndex : null;
+  const algorithmFloatingKey = getLinearStructureFloatingKey(element.markers?.algorithm?.floatingKey, element.items?.length ?? 0);
   const dropIndicator = new Konva.Rect({
     name: "array-drop-indicator",
     y: valueY + 4,
@@ -912,6 +914,7 @@ function createLinearStructureNode(element, common, {
 
   const itemGroups = [];
   const topItemGroups = [];
+  const borderOverlayGroups = [];
   let activeItemGroup = null;
   let draggedItemGroup = null;
 
@@ -1058,17 +1061,22 @@ function createLinearStructureNode(element, common, {
     } else {
       itemGroups.push(itemGroup);
     }
+    const borderOverlayGroup = createLinearStructureBorderOverlay(index, showIndexes);
+    if (borderOverlayGroup) borderOverlayGroups.push(borderOverlayGroup);
   });
 
   itemGroups.forEach((itemGroup) => group.add(itemGroup));
   topItemGroups.forEach((itemGroup) => group.add(itemGroup));
   if (activeItemGroup) group.add(activeItemGroup);
   if (draggedItemGroup) group.add(draggedItemGroup);
+  const floatingKeyGroup = createLinearStructureFloatingKeyNode();
+  if (floatingKeyGroup) group.add(floatingKeyGroup);
+  borderOverlayGroups.forEach((overlayGroup) => group.add(overlayGroup));
   group.add(dropIndicator);
 
   const pointerIndex = element.markers?.pointer;
   const showPointer = element.markers?.showPointer ?? true;
-  if (showPointer && Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
+  if (!algorithmFloatingKey && showPointer && Number.isInteger(pointerIndex) && pointerIndex >= 0 && pointerIndex < (element.items?.length ?? 0)) {
     const pointerGroup = new Konva.Group({
       name: "array-pointer-hit array-pointer-group",
       linearIndex: pointerIndex,
@@ -1142,6 +1150,60 @@ function createLinearStructureNode(element, common, {
     return isActive || algorithmKeyIndex === index || algorithmMinIndex === index ? 3 : 2;
   }
 
+  function getLinearStructureOverlayStroke(index) {
+    if (algorithmKeyIndex === index) return style.algorithmKeyStroke;
+    if (algorithmMinIndex === index) return style.algorithmMinStroke;
+    if (algorithmActiveIndices.has(index)) return "#2563eb";
+    if (algorithmEmptyIndex === index) return "#94a3b8";
+    if (algorithmSortedIndices.has(index)) return "#16a34a";
+    if (highlightedIndices.has(index)) return "#f59e0b";
+    return null;
+  }
+
+  function createLinearStructureBorderOverlay(index, includesIndexRow) {
+    const overlayStroke = getLinearStructureOverlayStroke(index);
+    if (!overlayStroke) return null;
+    const overlayDash = getLinearStructureCellDash(index);
+    const overlayGroup = new Konva.Group({
+      name: "array-item-border-overlay",
+      linearIndex: index,
+      x: getLinearStructurePreviewX({
+        index,
+        dragIndex,
+        dragGap,
+        dragX,
+        cellWidth,
+      }),
+      y: dragIndex === index ? dragY : 0,
+      width: cellWidth,
+      height: cellHeight * (includesIndexRow ? 2 : 1),
+      listening: false,
+      scaleX: dragIndex === index && dragLift ? 1.04 : 1,
+      scaleY: dragIndex === index && dragLift ? 1.04 : 1,
+    });
+    if (includesIndexRow) {
+      overlayGroup.add(new Konva.Rect({
+        y: 0,
+        width: cellWidth,
+        height: cellHeight,
+        stroke: overlayStroke,
+        strokeWidth: 3,
+        dash: overlayDash,
+        fillEnabled: false,
+      }));
+    }
+    overlayGroup.add(new Konva.Rect({
+      y: valueY,
+      width: cellWidth,
+      height: cellHeight,
+      stroke: overlayStroke,
+      strokeWidth: 3,
+      dash: overlayDash,
+      fillEnabled: false,
+    }));
+    return overlayGroup;
+  }
+
   function getLinearStructureCellDash(index) {
     return algorithmEmptyIndex === index ? [6, 4] : [];
   }
@@ -1153,6 +1215,56 @@ function createLinearStructureNode(element, common, {
       || algorithmKeyIndex === index
       || algorithmEmptyIndex === index;
   }
+
+  function createLinearStructureFloatingKeyNode() {
+    if (!algorithmFloatingKey) return null;
+    const floatingGroup = new Konva.Group({
+      name: "array-floating-key",
+      linearIndex: algorithmFloatingKey.currentIndex,
+      x: algorithmFloatingKey.currentIndex * cellWidth,
+      y: valueY + cellHeight + ARRAY_ALGORITHM_FLOATING_KEY_GAP,
+      width: cellWidth,
+      height: cellHeight,
+      listening: false,
+      opacity: 0.96,
+      shadowColor: "rgba(245,158,11,0.28)",
+      shadowBlur: 18,
+      shadowOpacity: 1,
+      shadowOffsetY: 8,
+    });
+    floatingGroup.add(new Konva.Rect({
+      width: cellWidth,
+      height: cellHeight,
+      stroke: style.algorithmKeyStroke,
+      strokeWidth: 3,
+      fill: style.valueFill,
+    }));
+    floatingGroup.add(new Konva.Text({
+      y: 10,
+      width: cellWidth,
+      height: 24,
+      text: algorithmFloatingKey.value,
+      fontSize: 20,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.textFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+    return floatingGroup;
+  }
+}
+
+function getLinearStructureFloatingKey(floatingKey, length) {
+  if (!floatingKey || length <= 0) return null;
+  const sourceIndex = Number(floatingKey.sourceIndex);
+  const currentIndex = Number(floatingKey.currentIndex);
+  if (!Number.isInteger(sourceIndex) || !Number.isInteger(currentIndex)) return null;
+  if (sourceIndex < 0 || sourceIndex >= length || currentIndex < 0 || currentIndex >= length) return null;
+  return {
+    sourceIndex,
+    currentIndex,
+    value: String(floatingKey.value ?? ""),
+  };
 }
 
 function addCoordinatePlaneContent(group, element, width, height) {

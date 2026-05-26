@@ -3635,18 +3635,24 @@ export function createWhiteboardApp(root) {
     if (!session?.steps) return;
     const step = session.steps[nextIndex];
     if (!step) return;
+    if (step.type === ALGORITHM_STEP_TYPES.PICK_KEY) {
+      playArrayAlgorithmPickKeyStep(nextIndex);
+      return;
+    }
     if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
       playArrayAlgorithmSwapStep(nextIndex);
       return;
     }
-    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || step.type === ALGORITHM_STEP_TYPES.INSERT) {
+    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || (step.type === ALGORITHM_STEP_TYPES.INSERT && step.animation)) {
       playArrayAlgorithmMoveStep(nextIndex);
       return;
     }
     applyArrayAlgorithmStep(nextIndex, { render: true });
     if (step.type === ALGORITHM_STEP_TYPES.COMPLETE) {
+      const appliedSession = getArrayAlgorithmSession(session.elementId);
+      if (!appliedSession) return;
       setArrayAlgorithmSession({
-        ...session,
+        ...appliedSession,
         isPlaying: false,
         committed: true,
       });
@@ -3707,8 +3713,10 @@ export function createWhiteboardApp(root) {
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
         applyArrayAlgorithmStep(nextIndex, { render: true });
+        const appliedSession = getArrayAlgorithmSession(session.elementId);
+        if (!appliedSession) return;
         setArrayAlgorithmSession({
-          ...nextSession,
+          ...appliedSession,
           isAnimating: false,
           pendingStepIndex: null,
           stableStepIndex: nextIndex,
@@ -3722,6 +3730,68 @@ export function createWhiteboardApp(root) {
     secondTween.play();
     firstNode.x(firstStart);
     secondNode.x(secondStart);
+  }
+
+  function playArrayAlgorithmPickKeyStep(nextIndex) {
+    const session = getSelectedArrayAlgorithmSession();
+    const step = session?.steps?.[nextIndex];
+    const floatingKey = step?.markers?.floatingKey;
+    if (!session || !step || !floatingKey) return;
+    const previousStepIndex = session.stepIndex;
+    const element = board.elements.find((item) => item.id === session.elementId);
+    const group = contentLayer.findOne(`#${session.elementId}`);
+    const itemNode = findLinearItemNode(group, floatingKey.sourceIndex);
+    if (!element || !group || !itemNode) {
+      applyArrayAlgorithmStep(nextIndex, { render: true });
+      scheduleArrayAlgorithmPlayback();
+      return;
+    }
+
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+    const valueNode = createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);
+    if (!valueNode) {
+      applyArrayAlgorithmStep(nextIndex, { render: true });
+      scheduleArrayAlgorithmPlayback();
+      return;
+    }
+    const ghost = valueNode;
+    const startY = ghost.y();
+    const liftedY = getArrayAlgorithmFloatingKeyY(style, element);
+    setArrayAlgorithmSession({
+      ...session,
+      isAnimating: true,
+      stableStepIndex: previousStepIndex,
+      pendingStepIndex: nextIndex,
+    });
+    syncArrayAlgorithmPanelState();
+    ghost.moveToTop();
+    const tween = new Konva.Tween({
+      node: ghost,
+      y: liftedY,
+      duration: getArrayAlgorithmStepMs() / 1000,
+      easing: Konva.Easings.EaseOut,
+      onFinish: () => {
+        tween.destroy();
+        ghost.destroy();
+        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
+        arrayAlgorithmSwapTweens = [];
+        if (!getArrayAlgorithmSession(session.elementId)) return;
+        applyArrayAlgorithmStep(nextIndex, { render: true });
+        const appliedSession = getArrayAlgorithmSession(session.elementId);
+        if (!appliedSession) return;
+        setArrayAlgorithmSession({
+          ...appliedSession,
+          isAnimating: false,
+          pendingStepIndex: null,
+          stableStepIndex: nextIndex,
+        });
+        syncArrayAlgorithmPanelState();
+        scheduleArrayAlgorithmPlayback();
+      },
+    });
+    arrayAlgorithmSwapTweens = [tween];
+    tween.play();
+    ghost.y(startY);
   }
 
   function playArrayAlgorithmMoveStep(nextIndex) {
@@ -3747,6 +3817,7 @@ export function createWhiteboardApp(root) {
         step,
         nextIndex,
         previousStepIndex,
+        element,
         itemNode,
         move,
         style,
@@ -3779,8 +3850,10 @@ export function createWhiteboardApp(root) {
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
         applyArrayAlgorithmStep(nextIndex, { render: true });
+        const appliedSession = getArrayAlgorithmSession(session.elementId);
+        if (!appliedSession) return;
         setArrayAlgorithmSession({
-          ...nextSession,
+          ...appliedSession,
           isAnimating: false,
           pendingStepIndex: null,
           stableStepIndex: nextIndex,
@@ -3794,12 +3867,20 @@ export function createWhiteboardApp(root) {
     animatedNode.x(startX);
   }
 
-  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, itemNode, move, style, duration }) {
-    const ghost = createArrayAlgorithmGhostNode(itemNode, step.keyValue);
+  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, element, itemNode, move, style, duration }) {
+    const group = contentLayer.findOne(`#${session.elementId}`);
+    const floatingKeyNode = findArrayAlgorithmFloatingKeyNode(group);
+    const ghost = floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, step.keyValue, style);
+    if (!ghost) {
+      applyArrayAlgorithmStep(nextIndex, { render: true });
+      scheduleArrayAlgorithmPlayback();
+      return;
+    }
     const startX = ghost.x();
-    const liftedY = itemNode.y() - 24;
+    const startY = ghost.y();
+    const liftedY = getArrayAlgorithmFloatingKeyY(style, element);
     const targetX = move.to * style.cellWidth;
-    const targetY = itemNode.y();
+    const targetY = getArrayAlgorithmValueY(element);
     setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
@@ -3832,15 +3913,17 @@ export function createWhiteboardApp(root) {
               easing: Konva.Easings.EaseIn,
               onFinish: () => {
                 dropTween.destroy();
-                ghost.destroy();
-                arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
+                if (ghost !== floatingKeyNode) {
+                  ghost.destroy();
+                  arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
+                }
                 arrayAlgorithmSwapTweens = [];
                 if (!getArrayAlgorithmSession(session.elementId)) return;
                 applyArrayAlgorithmStep(nextIndex, { render: true });
-                const nextSession = getArrayAlgorithmSession(session.elementId);
-                if (nextSession) {
+                const appliedSession = getArrayAlgorithmSession(session.elementId);
+                if (appliedSession) {
                   setArrayAlgorithmSession({
-                    ...nextSession,
+                    ...appliedSession,
                     isAnimating: false,
                     pendingStepIndex: null,
                     stableStepIndex: nextIndex,
@@ -3861,6 +3944,7 @@ export function createWhiteboardApp(root) {
     arrayAlgorithmSwapTweens = [liftTween];
     liftTween.play();
     ghost.x(startX);
+    ghost.y(startY);
   }
 
   function createArrayAlgorithmGhostNode(sourceNode, value) {
@@ -3880,6 +3964,68 @@ export function createWhiteboardApp(root) {
     return ghost;
   }
 
+  function createArrayAlgorithmValueGhostNode(sourceNode, value, style = ARRAY_STRUCTURE_STYLE) {
+    if (!sourceNode) return null;
+    const cellWidth = Number(style.cellWidth) || ARRAY_STRUCTURE_STYLE.cellWidth;
+    const cellHeight = Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight;
+    const valueY = getArrayAlgorithmValueYFromNode(sourceNode, style);
+    const ghost = new Konva.Group({
+      name: "array-floating-key",
+      linearIndex: sourceNode.getAttr?.("linearIndex"),
+      x: sourceNode.x(),
+      y: valueY,
+      width: cellWidth,
+      height: cellHeight,
+      listening: false,
+      opacity: 0.92,
+      shadowColor: "rgba(245,158,11,0.28)",
+      shadowBlur: 18,
+      shadowOpacity: 1,
+      shadowOffsetY: 8,
+    });
+    ghost.add(new Konva.Rect({
+      width: cellWidth,
+      height: cellHeight,
+      stroke: style.algorithmKeyStroke,
+      strokeWidth: 3,
+      fill: style.valueFill,
+    }));
+    ghost.add(new Konva.Text({
+      y: 10,
+      width: cellWidth,
+      height: 24,
+      text: String(value ?? ""),
+      fontSize: 20,
+      fontFamily: "Inter, system-ui, sans-serif",
+      fill: style.textFill,
+      align: "center",
+      verticalAlign: "middle",
+    }));
+    ghost.moveTo(sourceNode.getParent());
+    arrayAlgorithmAnimationNodes.push(ghost);
+    return ghost;
+  }
+
+  function findArrayAlgorithmFloatingKeyNode(group) {
+    return group?.findOne?.(".array-floating-key") ?? null;
+  }
+
+  function getArrayAlgorithmFloatingKeyY(style = ARRAY_STRUCTURE_STYLE, element = null) {
+    return getArrayAlgorithmValueY(element) + (Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight) + 12;
+  }
+
+  function getArrayAlgorithmValueY(element = null) {
+    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element?.style ?? {}) };
+    const showIndexes = element?.settings?.showIndexes ?? element?.type === "array-structure";
+    return showIndexes ? Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight : 0;
+  }
+
+  function getArrayAlgorithmValueYFromNode(sourceNode, style = ARRAY_STRUCTURE_STYLE) {
+    const valueRect = sourceNode?.findOne?.(".array-item-value-hit");
+    if (Number.isFinite(valueRect?.y?.())) return valueRect.y();
+    return Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight;
+  }
+
   function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
     const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[stepIndex];
@@ -3895,6 +4041,7 @@ export function createWhiteboardApp(root) {
             minIndex: step.markers?.minIndex,
             keyIndex: step.markers?.keyIndex,
             emptyIndex: step.markers?.emptyIndex,
+            floatingKey: step.markers?.floatingKey,
             pointer,
             showPointer: Number.isInteger(pointer),
           },
@@ -6245,8 +6392,8 @@ export function createWhiteboardApp(root) {
   }
 
   function pushHistory(message) {
-    board = serializeCurrentBoard();
-    history.push(board);
+    const historySnapshot = serializeCurrentBoard();
+    history.push(historySnapshot);
     dirty = true;
     const draftSaved = persistCurrentDraft();
     updateChrome();
