@@ -167,9 +167,9 @@ describe("app shell", () => {
       appSource.indexOf("function playArrayAlgorithmSwapStep"),
     );
 
-    expect(swapSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
-    expect(moveSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
-    expect(insertSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(swapSource).toMatch(/applyArrayAlgorithmStep\(targetStepIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(moveSource).toMatch(/applyArrayAlgorithmStep\(targetStepIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
+    expect(insertSource).toMatch(/applyArrayAlgorithmStep\(targetStepIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
     expect(completeSource).toMatch(/applyArrayAlgorithmStep\(nextIndex, \{ render: true \}\);[\s\S]*?const appliedSession = getArrayAlgorithmSession\(session\.elementId\);[\s\S]*?\.\.\.appliedSession/);
   });
 
@@ -190,14 +190,35 @@ describe("app shell", () => {
 
     expect(runSource).toContain("step.type === ALGORITHM_STEP_TYPES.PICK_KEY");
     expect(runSource).toContain("playArrayAlgorithmPickKeyStep(nextIndex)");
-    expect(pickupSource).toContain("const valueNode = createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);");
-    expect(pickupSource).toContain("const liftedY = getArrayAlgorithmFloatingKeyY(style, element);");
-    expect(pickupSource).toContain("applyArrayAlgorithmStep(nextIndex, { render: true });");
+    expect(pickupSource).toContain(": createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);");
+    expect(pickupSource).toContain("const liftedY = reverse ? getArrayAlgorithmValueY(element) : getArrayAlgorithmFloatingKeyY(style, element);");
+    expect(pickupSource).toContain("applyArrayAlgorithmStep(targetStepIndex, { render: true });");
     expect(insertSource).toContain("findArrayAlgorithmFloatingKeyNode(group)");
     expect(insertSource).toContain("const ghost = floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, step.keyValue, style);");
-    expect(insertSource).toContain("const targetY = getArrayAlgorithmValueY(element);");
+    expect(insertSource).toContain("const targetY = reverse ? liftedY : getArrayAlgorithmValueY(element);");
+    expect(insertSource).toContain("const insertDuration = duration * 1.45;");
+    expect(insertSource).toContain("const moveDuration = shouldMoveHorizontally ? Math.max(0.12, insertDuration * 0.52) : 0;");
     expect(insertSource).toContain("element,");
-    expect(insertSource).toContain("function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, element, itemNode, move, style, duration })");
+    expect(insertSource).toContain("function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, reverse = false, targetStepIndex = nextIndex, element, itemNode, move, style, duration })");
+  });
+
+  it("plays reverse transitions when stepping array algorithms backward", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const prevSource = appSource.slice(
+      appSource.indexOf("function stepArrayAlgorithmPrevious()"),
+      appSource.indexOf("function stepArrayAlgorithmNext()"),
+    );
+    const reverseSource = appSource.slice(
+      appSource.indexOf("function runArrayAlgorithmReverseStep"),
+      appSource.indexOf("function runArrayAlgorithmStep"),
+    );
+
+    expect(prevSource).toContain("runArrayAlgorithmReverseStep(session.stepIndex)");
+    expect(prevSource).not.toContain("applyArrayAlgorithmStep(Math.max(0, session.stepIndex - 1), { render: true });");
+    expect(reverseSource).toContain("playArrayAlgorithmSwapStep(currentIndex, { reverse: true })");
+    expect(reverseSource).toContain("playArrayAlgorithmMoveStep(currentIndex, { reverse: true })");
+    expect(reverseSource).toContain("playArrayAlgorithmPickKeyStep(currentIndex, { reverse: true })");
+    expect(reverseSource).toContain("applyArrayAlgorithmStep(previousIndex, { render: true });");
   });
 
   it("does not clear live array algorithm markers when pushing movement history", () => {
@@ -210,6 +231,14 @@ describe("app shell", () => {
     expect(pushHistorySource).toContain("const historySnapshot = serializeCurrentBoard();");
     expect(pushHistorySource).toContain("history.push(historySnapshot);");
     expect(pushHistorySource).not.toContain("board = serializeCurrentBoard();");
+  });
+
+  it("hides the native algorithm select arrow while an array algorithm is active", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toContain('[data-array-algorithm-active="true"] .algorithm-select-field select');
+    expect(styles).toContain("appearance: none;");
+    expect(styles).toContain("-webkit-appearance: none;");
   });
 
   it("allows random initialization for both general and binary tree structures", () => {
@@ -1292,12 +1321,18 @@ describe("app shell", () => {
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const visualSource = appSource.slice(
+      appSource.indexOf("function syncLinearItemActiveVisual"),
+      appSource.indexOf("function syncBinaryTreeActiveVisual"),
+    );
 
     expect(appSource).toContain("selectIds([elementId])");
     expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
     expect(appSource).toContain("setActiveLinearItem(elementId, index, { rerender: false })");
     expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
     expect(appSource).toContain("syncLinearItemActiveVisual(elementId)");
+    expect(visualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
+    expect(visualSource).not.toContain("node.stroke(isActive ? \"#2563eb\" : style.stroke)");
   });
 
   it("clears array item active styling when the canvas selection is cleared", () => {

@@ -952,10 +952,10 @@ function createLinearStructureNode(element, common, {
         y: 0,
         width: cellWidth,
         height: cellHeight,
-        stroke: getLinearStructureCellStroke(index, isActive, style.stroke),
-        strokeWidth: getLinearStructureCellStrokeWidth(index, isActive),
+        stroke: style.stroke,
+        strokeWidth: 2,
         fill: getLinearStructureCellFill(index, style.indexFill),
-        dash: getLinearStructureCellDash(index),
+        dash: [],
       });
       indexText = new Konva.Text({
         name: "array-item-index-hit",
@@ -977,10 +977,10 @@ function createLinearStructureNode(element, common, {
       y: valueY,
       width: cellWidth,
       height: cellHeight,
-      stroke: getLinearStructureCellStroke(index, isActive, style.stroke),
-      strokeWidth: getLinearStructureCellStrokeWidth(index, isActive),
+      stroke: style.stroke,
+      strokeWidth: 2,
       fill: getLinearStructureCellFill(index, style.valueFill),
-      dash: getLinearStructureCellDash(index),
+      dash: [],
     });
     const valueText = new Konva.Text({
       name: "array-item-value-hit",
@@ -1061,7 +1061,7 @@ function createLinearStructureNode(element, common, {
     } else {
       itemGroups.push(itemGroup);
     }
-    const borderOverlayGroup = createLinearStructureBorderOverlay(index, showIndexes);
+    const borderOverlayGroup = createLinearStructureBorderOverlay(index, isActive, showIndexes);
     if (borderOverlayGroup) borderOverlayGroups.push(borderOverlayGroup);
   });
 
@@ -1139,18 +1139,8 @@ function createLinearStructureNode(element, common, {
     return defaultFill;
   }
 
-  function getLinearStructureCellStroke(index, isActive, defaultStroke) {
+  function getLinearStructureOverlayStroke(index, isActive = false) {
     if (isActive) return "#2563eb";
-    if (algorithmKeyIndex === index) return style.algorithmKeyStroke;
-    if (algorithmMinIndex === index) return style.algorithmMinStroke;
-    return defaultStroke;
-  }
-
-  function getLinearStructureCellStrokeWidth(index, isActive) {
-    return isActive || algorithmKeyIndex === index || algorithmMinIndex === index ? 3 : 2;
-  }
-
-  function getLinearStructureOverlayStroke(index) {
     if (algorithmKeyIndex === index) return style.algorithmKeyStroke;
     if (algorithmMinIndex === index) return style.algorithmMinStroke;
     if (algorithmActiveIndices.has(index)) return "#2563eb";
@@ -1160,10 +1150,21 @@ function createLinearStructureNode(element, common, {
     return null;
   }
 
-  function createLinearStructureBorderOverlay(index, includesIndexRow) {
-    const overlayStroke = getLinearStructureOverlayStroke(index);
+  function createLinearStructureBorderOverlay(index, isActive, includesIndexRow) {
+    const overlayStroke = getLinearStructureOverlayStroke(index, isActive);
     if (!overlayStroke) return null;
     const overlayDash = getLinearStructureCellDash(index);
+    const outerStrokeWidth = 2;
+    const overlayStrokeWidth = 3;
+    const inset = outerStrokeWidth / 2 + overlayStrokeWidth / 2;
+    const overlaySize = {
+      x: inset,
+      width: Math.max(1, cellWidth - inset * 2),
+      height: Math.max(1, cellHeight - inset * 2),
+    };
+    const overlayHeight = includesIndexRow
+      ? Math.max(1, cellHeight * 2 - inset * 2)
+      : overlaySize.height;
     const overlayGroup = new Konva.Group({
       name: "array-item-border-overlay",
       linearIndex: index,
@@ -1181,26 +1182,25 @@ function createLinearStructureNode(element, common, {
       scaleX: dragIndex === index && dragLift ? 1.04 : 1,
       scaleY: dragIndex === index && dragLift ? 1.04 : 1,
     });
-    if (includesIndexRow) {
-      overlayGroup.add(new Konva.Rect({
-        y: 0,
-        width: cellWidth,
-        height: cellHeight,
-        stroke: overlayStroke,
-        strokeWidth: 3,
-        dash: overlayDash,
-        fillEnabled: false,
-      }));
-    }
     overlayGroup.add(new Konva.Rect({
-      y: valueY,
-      width: cellWidth,
-      height: cellHeight,
+      x: overlaySize.x,
+      y: includesIndexRow ? inset : valueY + inset,
+      width: overlaySize.width,
+      height: overlayHeight,
       stroke: overlayStroke,
-      strokeWidth: 3,
+      strokeWidth: overlayStrokeWidth,
       dash: overlayDash,
       fillEnabled: false,
     }));
+    if (includesIndexRow) {
+      overlayGroup.add(new Konva.Line({
+        points: [inset, valueY, cellWidth - inset, valueY],
+        stroke: overlayStroke,
+        strokeWidth: overlayStrokeWidth,
+        dash: overlayDash,
+        listening: false,
+      }));
+    }
     return overlayGroup;
   }
 

@@ -1,7 +1,9 @@
 import { SHAPE_TOOLS, TOOLS } from "../ui/ui-config.js";
 
 export function computeEraserRadius({ baseRadius, speed }) {
-  const speedBoost = Math.min(baseRadius * 2, Math.max(0, speed) * 18);
+  const speedDeadZone = 0.75;
+  const effectiveSpeed = Math.max(0, Number(speed) - speedDeadZone);
+  const speedBoost = Math.min(baseRadius * 2, effectiveSpeed * 18);
   return Math.round(baseRadius + speedBoost);
 }
 

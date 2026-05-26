@@ -1701,6 +1701,12 @@ button {
   width: 100%;
 }
 
+[data-array-algorithm-active="true"] .algorithm-select-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none;
+}
+
 .algorithm-status {
   min-height: 34px;
   padding: 7px 9px;

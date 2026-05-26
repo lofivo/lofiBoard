@@ -297,7 +297,7 @@ export function createInsertionSortSteps(values) {
       insert: { from: index, to: insertIndex },
       keyValue,
       markers: {},
-      animation: insertIndex !== index ? createMoveAnimation("insert", [{ from: index, to: insertIndex }]) : null,
+      animation: createMoveAnimation("insert", [{ from: index, to: insertIndex }]),
       message: insertIndex !== index
         ? `将 ${keyValue} 插入位置 ${insertIndex + 1}`
         : `${keyValue} 已在位置 ${insertIndex + 1}`,

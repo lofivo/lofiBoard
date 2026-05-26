@@ -17,6 +17,7 @@ describe("tool behavior", () => {
     const base = 24;
 
     expect(computeEraserRadius({ baseRadius: base, speed: 0 })).toBe(base);
+    expect(computeEraserRadius({ baseRadius: base, speed: 0.5 })).toBe(base);
     expect(computeEraserRadius({ baseRadius: base, speed: 2 })).toBeGreaterThan(base);
     expect(computeEraserRadius({ baseRadius: base, speed: 99 })).toBe(base * 3);
   });

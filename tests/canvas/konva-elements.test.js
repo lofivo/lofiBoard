@@ -1269,8 +1269,8 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     const itemRects = node.find(".array-item")[1].find("Rect");
-    expect(itemRects.at(-1).stroke()).toBe("#2563eb");
-    expect(itemRects.at(-1).strokeWidth()).toBe(3);
+    expect(itemRects.at(-1).stroke()).toBe("#111827");
+    expect(itemRects.at(-1).strokeWidth()).toBe(2);
   });
 
   it("renders array algorithm active and sorted marker states", () => {
@@ -1325,12 +1325,12 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     const itemRects = node.find(".array-item").map((item) => item.find("Rect").at(-1));
-    expect(itemRects[0].stroke()).toBe("#7c3aed");
-    expect(itemRects[0].strokeWidth()).toBe(3);
-    expect(itemRects[1].stroke()).toBe("#f59e0b");
-    expect(itemRects[1].strokeWidth()).toBe(3);
+    expect(itemRects[0].stroke()).toBe("#111827");
+    expect(itemRects[0].strokeWidth()).toBe(2);
+    expect(itemRects[1].stroke()).toBe("#111827");
+    expect(itemRects[1].strokeWidth()).toBe(2);
     expect(itemRects[2].fill()).toBe("#f8fafc");
-    expect(itemRects[2].dash()).toEqual([6, 4]);
+    expect(itemRects[2].dash()).toEqual([]);
   });
 
   it("draws algorithm border overlays above array cells so highlighted borders stay complete", () => {
@@ -1363,6 +1363,110 @@ describe("konva elements", () => {
     expect(overlayGroups[0].find("Rect").at(-1).stroke()).toBe("#2563eb");
     expect(overlayGroups[1].find("Rect").at(-1).stroke()).toBe("#7c3aed");
     expect(overlayGroups[2].find("Rect").at(-1).stroke()).toBe("#f59e0b");
+    expect(overlayGroups[0].find("Rect").at(-1).x()).toBe(2.5);
+    expect(overlayGroups[0].find("Rect").at(-1).width()).toBe(67);
+    expect(overlayGroups[0].findOne("Line").points()).toEqual([2.5, 44, 69.5, 44]);
+    expect(overlayGroups[0].findOne("Line").stroke()).toBe("#2563eb");
+  });
+
+  it("keeps the original black array cell border outside colored state borders", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { activeIndex: 0 },
+      markers: {
+        algorithm: {
+          keyIndex: 1,
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const itemRects = node.find(".array-item").map((item) => item.find("Rect").at(-1));
+    const overlayRects = node.find(".array-item-border-overlay").map((item) => item.find("Rect").at(-1));
+
+    expect(itemRects.map((rect) => rect.stroke())).toEqual(["#111827", "#111827"]);
+    expect(itemRects.map((rect) => rect.strokeWidth())).toEqual([2, 2]);
+    expect(overlayRects.map((rect) => rect.stroke())).toEqual(["#2563eb", "#f59e0b"]);
+    expect(overlayRects[0].x()).toBe(2.5);
+    expect(overlayRects[0].y()).toBe(2.5);
+    expect(overlayRects[0].width()).toBe(67);
+    expect(overlayRects[0].height()).toBe(83);
+    expect(overlayRects[1].x()).toBe(2.5);
+    expect(overlayRects[1].y()).toBe(2.5);
+    expect(overlayRects[1].width()).toBe(67);
+    expect(overlayRects[1].height()).toBe(83);
+    expect(node.find(".array-item-border-overlay").map((item) => item.findOne("Line").stroke()))
+      .toEqual(["#2563eb", "#f59e0b"]);
+    expect(node.find(".array-item-border-overlay").map((item) => item.findOne("Line").points()))
+      .toEqual([[2.5, 44, 69.5, 44], [2.5, 44, 69.5, 44]]);
+  });
+
+  it("connects the colored array middle divider to the inner colored side borders", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 72,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+      ],
+      runtime: { activeIndex: 0 },
+      style: {},
+    }, baseHandlers);
+
+    const overlayGroup = node.findOne(".array-item-border-overlay");
+    const overlayRect = overlayGroup.findOne("Rect");
+    const middleLine = overlayGroup.findOne("Line");
+
+    expect(overlayRect.x()).toBe(2.5);
+    expect(overlayRect.y()).toBe(2.5);
+    expect(overlayRect.width()).toBe(67);
+    expect(overlayRect.height()).toBe(83);
+    expect(middleLine.points()).toEqual([
+      overlayRect.x(),
+      44,
+      overlayRect.x() + overlayRect.width(),
+      44,
+    ]);
+  });
+
+  it("places colored array state borders directly against the inner edge of the black border", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 72,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+      ],
+      runtime: { activeIndex: 0 },
+      style: {},
+    }, baseHandlers);
+
+    const itemValueRect = node.findOne(".array-item").find("Rect").at(-1);
+    const overlayRect = node.findOne(".array-item-border-overlay").findOne("Rect");
+
+    const outerStrokeWidth = itemValueRect.strokeWidth();
+    const innerStrokeWidth = overlayRect.strokeWidth();
+    expect(overlayRect.x() - innerStrokeWidth / 2).toBe(outerStrokeWidth / 2);
+    expect(overlayRect.y() - innerStrokeWidth / 2).toBe(outerStrokeWidth / 2);
+    expect(overlayRect.x() + overlayRect.width() + innerStrokeWidth / 2)
+      .toBe(72 - outerStrokeWidth / 2);
+    expect(overlayRect.y() + overlayRect.height() + innerStrokeWidth / 2)
+      .toBe(88 - outerStrokeWidth / 2);
   });
 
   it("draws border overlays for sorted and empty algorithm cells too", () => {
@@ -1392,6 +1496,38 @@ describe("konva elements", () => {
     expect(overlayGroups[0].find("Rect").at(-1).stroke()).toBe("#16a34a");
     expect(overlayGroups[1].find("Rect").at(-1).stroke()).toBe("#94a3b8");
     expect(overlayGroups[1].find("Rect").at(-1).dash()).toEqual([6, 4]);
+  });
+
+  it("keeps empty array cell outer borders solid while only the inner colored border is dashed", () => {
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      markers: {
+        algorithm: {
+          emptyIndex: 1,
+        },
+      },
+      style: {},
+    }, baseHandlers);
+
+    const emptyItemRects = node.find(".array-item")
+      .find((itemNode) => itemNode.getAttr("linearIndex") === 1)
+      .find("Rect");
+    const overlayRect = node.findOne(".array-item-border-overlay").find("Rect").at(-1);
+
+    expect(emptyItemRects.map((rect) => rect.stroke())).toEqual(["#111827", "#111827"]);
+    expect(emptyItemRects.map((rect) => rect.dash())).toEqual([[], []]);
+    expect(overlayRect.stroke()).toBe("#94a3b8");
+    expect(overlayRect.dash()).toEqual([6, 4]);
+    expect(node.findOne(".array-item-border-overlay").findOne("Line").dash()).toEqual([6, 4]);
   });
 
   it("renders insertion sort floating value cell below the array while keeping its index in place", () => {

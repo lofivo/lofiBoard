@@ -184,7 +184,10 @@ describe("array algorithms", () => {
     expect(result.ok).toBe(true);
     const insertSteps = result.steps.filter((step) => step.type === ALGORITHM_STEP_TYPES.INSERT);
     expect(insertSteps).toHaveLength(2);
-    expect(insertSteps.every((step) => step.animation === null)).toBe(true);
+    expect(insertSteps.map((step) => step.animation)).toEqual([
+      { type: "insert", moves: [{ from: 1, to: 1 }] },
+      { type: "insert", moves: [{ from: 2, to: 2 }] },
+    ]);
     expect(insertSteps.map((step) => step.message)).toEqual([
       "2 已在位置 2",
       "3 已在位置 3",

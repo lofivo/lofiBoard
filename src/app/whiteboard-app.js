@@ -3553,7 +3553,7 @@ export function createWhiteboardApp(root) {
     const session = getSelectedArrayAlgorithmSession();
     if (!session || session.error || session.isAnimating) return;
     cancelArrayAlgorithmPlayback();
-    applyArrayAlgorithmStep(Math.max(0, session.stepIndex - 1), { render: true });
+    runArrayAlgorithmReverseStep(session.stepIndex);
   }
 
   function stepArrayAlgorithmNext() {
@@ -3630,6 +3630,30 @@ export function createWhiteboardApp(root) {
     }
   }
 
+  function runArrayAlgorithmReverseStep(currentIndex) {
+    const session = getSelectedArrayAlgorithmSession();
+    if (!session?.steps) return;
+    const previousIndex = Math.max(0, currentIndex - 1);
+    const step = session.steps[currentIndex];
+    if (!step || currentIndex <= 0) {
+      applyArrayAlgorithmStep(previousIndex, { render: true });
+      return;
+    }
+    if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
+      playArrayAlgorithmSwapStep(currentIndex, { reverse: true });
+      return;
+    }
+    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || (step.type === ALGORITHM_STEP_TYPES.INSERT && step.animation)) {
+      playArrayAlgorithmMoveStep(currentIndex, { reverse: true });
+      return;
+    }
+    if (step.type === ALGORITHM_STEP_TYPES.PICK_KEY) {
+      playArrayAlgorithmPickKeyStep(currentIndex, { reverse: true });
+      return;
+    }
+    applyArrayAlgorithmStep(previousIndex, { render: true });
+  }
+
   function runArrayAlgorithmStep(nextIndex) {
     const session = getSelectedArrayAlgorithmSession();
     if (!session?.steps) return;
@@ -3663,7 +3687,7 @@ export function createWhiteboardApp(root) {
     scheduleArrayAlgorithmPlayback();
   }
 
-  function playArrayAlgorithmSwapStep(nextIndex) {
+  function playArrayAlgorithmSwapStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[nextIndex];
     const moves = step?.animation?.moves ?? step?.swapIndices?.map((index, moveIndex, indices) => ({
@@ -3672,13 +3696,14 @@ export function createWhiteboardApp(root) {
     }));
     if (!session || !step || moves?.length !== 2) return;
     const previousStepIndex = session.stepIndex;
+    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
     const element = board.elements.find((item) => item.id === session.elementId);
     const group = contentLayer.findOne(`#${session.elementId}`);
-    const firstNode = findLinearItemNode(group, moves[0].from);
-    const secondNode = findLinearItemNode(group, moves[1].from);
+    const firstNode = findLinearItemNode(group, reverse ? moves[0].to : moves[0].from);
+    const secondNode = findLinearItemNode(group, reverse ? moves[1].to : moves[1].from);
     if (!element || !group || !firstNode || !secondNode) {
-      applyArrayAlgorithmStep(nextIndex, { render: true });
-      scheduleArrayAlgorithmPlayback();
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
     }
 
@@ -3688,7 +3713,7 @@ export function createWhiteboardApp(root) {
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
-      pendingStepIndex: nextIndex,
+      pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
     const firstStart = firstNode.x();
@@ -3697,13 +3722,13 @@ export function createWhiteboardApp(root) {
     secondNode.moveToTop();
     const firstTween = new Konva.Tween({
       node: firstNode,
-      x: moves[0].to * style.cellWidth,
+      x: (reverse ? moves[0].from : moves[0].to) * style.cellWidth,
       duration,
       easing: Konva.Easings.EaseInOut,
     });
     const secondTween = new Konva.Tween({
       node: secondNode,
-      x: moves[1].to * style.cellWidth,
+      x: (reverse ? moves[1].from : moves[1].to) * style.cellWidth,
       duration,
       easing: Konva.Easings.EaseInOut,
       onFinish: () => {
@@ -3712,17 +3737,17 @@ export function createWhiteboardApp(root) {
         arrayAlgorithmSwapTweens = [];
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
-        applyArrayAlgorithmStep(nextIndex, { render: true });
+        applyArrayAlgorithmStep(targetStepIndex, { render: true });
         const appliedSession = getArrayAlgorithmSession(session.elementId);
         if (!appliedSession) return;
         setArrayAlgorithmSession({
           ...appliedSession,
           isAnimating: false,
           pendingStepIndex: null,
-          stableStepIndex: nextIndex,
+          stableStepIndex: targetStepIndex,
         });
         syncArrayAlgorithmPanelState();
-        scheduleArrayAlgorithmPlayback();
+        if (!reverse) scheduleArrayAlgorithmPlayback();
       },
     });
     arrayAlgorithmSwapTweens = [firstTween, secondTween];
@@ -3732,36 +3757,40 @@ export function createWhiteboardApp(root) {
     secondNode.x(secondStart);
   }
 
-  function playArrayAlgorithmPickKeyStep(nextIndex) {
+  function playArrayAlgorithmPickKeyStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[nextIndex];
     const floatingKey = step?.markers?.floatingKey;
     if (!session || !step || !floatingKey) return;
     const previousStepIndex = session.stepIndex;
+    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
     const element = board.elements.find((item) => item.id === session.elementId);
     const group = contentLayer.findOne(`#${session.elementId}`);
     const itemNode = findLinearItemNode(group, floatingKey.sourceIndex);
     if (!element || !group || !itemNode) {
-      applyArrayAlgorithmStep(nextIndex, { render: true });
-      scheduleArrayAlgorithmPlayback();
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
     }
 
     const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    const valueNode = createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);
+    const floatingKeyNode = findArrayAlgorithmFloatingKeyNode(group);
+    const valueNode = reverse
+      ? floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style)
+      : createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);
     if (!valueNode) {
-      applyArrayAlgorithmStep(nextIndex, { render: true });
-      scheduleArrayAlgorithmPlayback();
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
     }
     const ghost = valueNode;
     const startY = ghost.y();
-    const liftedY = getArrayAlgorithmFloatingKeyY(style, element);
+    const liftedY = reverse ? getArrayAlgorithmValueY(element) : getArrayAlgorithmFloatingKeyY(style, element);
     setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
-      pendingStepIndex: nextIndex,
+      pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
     ghost.moveToTop();
@@ -3776,17 +3805,17 @@ export function createWhiteboardApp(root) {
         arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
         arrayAlgorithmSwapTweens = [];
         if (!getArrayAlgorithmSession(session.elementId)) return;
-        applyArrayAlgorithmStep(nextIndex, { render: true });
+        applyArrayAlgorithmStep(targetStepIndex, { render: true });
         const appliedSession = getArrayAlgorithmSession(session.elementId);
         if (!appliedSession) return;
         setArrayAlgorithmSession({
           ...appliedSession,
           isAnimating: false,
           pendingStepIndex: null,
-          stableStepIndex: nextIndex,
+          stableStepIndex: targetStepIndex,
         });
         syncArrayAlgorithmPanelState();
-        scheduleArrayAlgorithmPlayback();
+        if (!reverse) scheduleArrayAlgorithmPlayback();
       },
     });
     arrayAlgorithmSwapTweens = [tween];
@@ -3794,18 +3823,19 @@ export function createWhiteboardApp(root) {
     ghost.y(startY);
   }
 
-  function playArrayAlgorithmMoveStep(nextIndex) {
+  function playArrayAlgorithmMoveStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
     const step = session?.steps?.[nextIndex];
     const move = step?.animation?.moves?.[0] ?? step?.shift ?? step?.insert;
     if (!session || !step || !move) return;
     const previousStepIndex = session.stepIndex;
+    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
     const element = board.elements.find((item) => item.id === session.elementId);
     const group = contentLayer.findOne(`#${session.elementId}`);
-    const itemNode = findLinearItemNode(group, move.from);
+    const itemNode = findLinearItemNode(group, reverse ? move.to : move.from);
     if (!element || !group || !itemNode) {
-      applyArrayAlgorithmStep(nextIndex, { render: true });
-      scheduleArrayAlgorithmPlayback();
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
     }
 
@@ -3817,6 +3847,8 @@ export function createWhiteboardApp(root) {
         step,
         nextIndex,
         previousStepIndex,
+        reverse,
+        targetStepIndex,
         element,
         itemNode,
         move,
@@ -3833,13 +3865,13 @@ export function createWhiteboardApp(root) {
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
-      pendingStepIndex: nextIndex,
+      pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
     animatedNode.moveToTop();
     const tween = new Konva.Tween({
       node: animatedNode,
-      x: move.to * style.cellWidth,
+      x: (reverse ? move.from : move.to) * style.cellWidth,
       duration,
       easing: Konva.Easings.EaseInOut,
       onFinish: () => {
@@ -3849,17 +3881,17 @@ export function createWhiteboardApp(root) {
         arrayAlgorithmSwapTweens = [];
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
-        applyArrayAlgorithmStep(nextIndex, { render: true });
+        applyArrayAlgorithmStep(targetStepIndex, { render: true });
         const appliedSession = getArrayAlgorithmSession(session.elementId);
         if (!appliedSession) return;
         setArrayAlgorithmSession({
           ...appliedSession,
           isAnimating: false,
           pendingStepIndex: null,
-          stableStepIndex: nextIndex,
+          stableStepIndex: targetStepIndex,
         });
         syncArrayAlgorithmPanelState();
-        scheduleArrayAlgorithmPlayback();
+        if (!reverse) scheduleArrayAlgorithmPlayback();
       },
     });
     arrayAlgorithmSwapTweens = [tween];
@@ -3867,31 +3899,64 @@ export function createWhiteboardApp(root) {
     animatedNode.x(startX);
   }
 
-  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, element, itemNode, move, style, duration }) {
+  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, reverse = false, targetStepIndex = nextIndex, element, itemNode, move, style, duration }) {
     const group = contentLayer.findOne(`#${session.elementId}`);
     const floatingKeyNode = findArrayAlgorithmFloatingKeyNode(group);
     const ghost = floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, step.keyValue, style);
     if (!ghost) {
-      applyArrayAlgorithmStep(nextIndex, { render: true });
-      scheduleArrayAlgorithmPlayback();
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
     }
     const startX = ghost.x();
     const startY = ghost.y();
     const liftedY = getArrayAlgorithmFloatingKeyY(style, element);
-    const targetX = move.to * style.cellWidth;
-    const targetY = getArrayAlgorithmValueY(element);
+    const targetX = (reverse ? move.from : move.to) * style.cellWidth;
+    const targetY = reverse ? liftedY : getArrayAlgorithmValueY(element);
     setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
       stableStepIndex: previousStepIndex,
-      pendingStepIndex: nextIndex,
+      pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
     ghost.moveToTop();
-    const liftDuration = Math.max(0.06, duration * 0.28);
-    const moveDuration = Math.max(0.08, duration * 0.44);
-    const dropDuration = Math.max(0.06, duration * 0.28);
+    const insertDuration = duration * 1.45;
+    const liftDuration = Math.max(0.08, insertDuration * 0.24);
+    const shouldMoveHorizontally = Math.abs(targetX - startX) > 0.5;
+    const moveDuration = shouldMoveHorizontally ? Math.max(0.12, insertDuration * 0.52) : 0;
+    const dropDuration = Math.max(0.08, insertDuration * 0.24);
+    const finishDrop = () => {
+      const dropTween = new Konva.Tween({
+        node: ghost,
+        y: targetY,
+        duration: dropDuration,
+        easing: Konva.Easings.EaseIn,
+        onFinish: () => {
+          dropTween.destroy();
+          if (ghost !== floatingKeyNode) {
+            ghost.destroy();
+            arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
+          }
+          arrayAlgorithmSwapTweens = [];
+          if (!getArrayAlgorithmSession(session.elementId)) return;
+          applyArrayAlgorithmStep(targetStepIndex, { render: true });
+          const appliedSession = getArrayAlgorithmSession(session.elementId);
+          if (appliedSession) {
+            setArrayAlgorithmSession({
+              ...appliedSession,
+              isAnimating: false,
+              pendingStepIndex: null,
+              stableStepIndex: targetStepIndex,
+            });
+          }
+          syncArrayAlgorithmPanelState();
+          if (!reverse) scheduleArrayAlgorithmPlayback();
+        },
+      });
+      arrayAlgorithmSwapTweens = [dropTween];
+      dropTween.play();
+    };
     const liftTween = new Konva.Tween({
       node: ghost,
       y: liftedY,
@@ -3899,6 +3964,10 @@ export function createWhiteboardApp(root) {
       easing: Konva.Easings.EaseOut,
       onFinish: () => {
         liftTween.destroy();
+        if (!shouldMoveHorizontally) {
+          finishDrop();
+          return;
+        }
         const moveTween = new Konva.Tween({
           node: ghost,
           x: targetX,
@@ -3906,35 +3975,7 @@ export function createWhiteboardApp(root) {
           easing: Konva.Easings.EaseInOut,
           onFinish: () => {
             moveTween.destroy();
-            const dropTween = new Konva.Tween({
-              node: ghost,
-              y: targetY,
-              duration: dropDuration,
-              easing: Konva.Easings.EaseIn,
-              onFinish: () => {
-                dropTween.destroy();
-                if (ghost !== floatingKeyNode) {
-                  ghost.destroy();
-                  arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
-                }
-                arrayAlgorithmSwapTweens = [];
-                if (!getArrayAlgorithmSession(session.elementId)) return;
-                applyArrayAlgorithmStep(nextIndex, { render: true });
-                const appliedSession = getArrayAlgorithmSession(session.elementId);
-                if (appliedSession) {
-                  setArrayAlgorithmSession({
-                    ...appliedSession,
-                    isAnimating: false,
-                    pendingStepIndex: null,
-                    stableStepIndex: nextIndex,
-                  });
-                }
-                syncArrayAlgorithmPanelState();
-                scheduleArrayAlgorithmPlayback();
-              },
-            });
-            arrayAlgorithmSwapTweens = [dropTween];
-            dropTween.play();
+            finishDrop();
           },
         });
         arrayAlgorithmSwapTweens = [moveTween];
@@ -4402,22 +4443,8 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     const group = contentLayer.findOne(`#${elementId}`);
     if (!isLinearStructureElement(element) || !group) return;
-    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    group.find(".array-item").forEach((itemNode) => {
-      const index = getLinearItemNodeIndex(itemNode);
-      const isActive = activeLinearItem?.elementId === elementId && activeLinearItem.index === index;
-      itemNode.find(".array-item-index-hit").forEach((node) => {
-        if (node.getClassName?.() !== "Rect") return;
-        node.stroke(isActive ? "#2563eb" : style.stroke);
-        node.strokeWidth(isActive ? 3 : 2);
-      });
-      itemNode.find(".array-item-value-hit").forEach((node) => {
-        if (node.getClassName?.() !== "Rect") return;
-        node.stroke(isActive ? "#2563eb" : style.stroke);
-        node.strokeWidth(isActive ? 3 : 2);
-      });
-      if (isActive) itemNode.moveToTop();
-    });
+    const runtimeElement = buildRuntimeElement(element);
+    syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));
     group.findOne(".array-drop-indicator")?.moveToTop();
   }
 
