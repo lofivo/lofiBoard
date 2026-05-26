@@ -1216,17 +1216,25 @@ describe("app shell", () => {
     expect(strokeEraserSource).toContain("getSquareEraserPreviewAttrs");
   });
 
-  it("lets value-cell pointer down start whole-array drag only when the array is already selected", () => {
+  it("keeps array cell pointer down on the cell event route instead of the canvas drag route", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectPointerDownSource = appSource.slice(
+      appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
+      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+    );
+    const itemPressSource = appSource.slice(
+      appSource.indexOf("function handleArrayStructureItemPress"),
+      appSource.indexOf("function handleArrayStructureItemRelease"),
+    );
 
-    expect(appSource).toContain('event.target?.hasName?.("array-item-value-hit")');
-    expect(appSource).toContain('event.target?.findAncestor?.(".array-item-value-hit")');
-    expect(appSource).toContain("if (arrayValueHitNode && isLinearStructureElement(element))");
-    expect(appSource).toContain("targetIds.some((id) => selectedIds.includes(id))");
-    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+    expect(appSource).not.toContain("const arrayValueHitNode");
+    expect(selectPointerDownSource).not.toContain('array-item-value-hit');
+    expect(selectPointerDownSource).not.toContain("if (arrayValueHitNode && isLinearStructureElement(element))");
+    expect(itemPressSource).toContain("linearItemPressState = {");
+    expect(itemPressSource).toContain("setElementDraggableState(elementId, false)");
   });
 
-  it("requires a long press before selected linear items can start item reordering", () => {
+  it("moves the whole array from a linear item press movement before long press reordering starts", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pointerMoveSource = appSource.slice(
       appSource.indexOf("function handlePointerMove(event)"),
@@ -1243,8 +1251,13 @@ describe("app shell", () => {
 
     expect(itemPressMoveSource).not.toContain("activeLinearItem?.elementId");
     expect(itemPressMoveSource).not.toContain("beginLinearItemDrag({");
-    expect(itemPressMoveSource).toContain("beginSelectionDrag(pressStart)");
+    expect(itemPressMoveSource).toContain("const pressedElementId = linearItemPressState.elementId");
+    expect(itemPressMoveSource).toContain("selectIds([pressedElementId]);");
+    expect(itemPressMoveSource).toContain("beginSelectionDrag(pressStart);");
+    expect(itemPressMoveSource).toContain("updateSelectionDrag(worldPoint);");
+    expect(itemPressMoveSource).toContain("return;");
     expect(itemPressHandlerSource).toContain("window.setTimeout(() =>");
+    expect(itemPressHandlerSource).toContain("phase: \"hold\"");
     expect(itemPressHandlerSource).toContain("beginLinearItemDrag({");
   });
 
@@ -1329,6 +1342,7 @@ describe("app shell", () => {
     expect(appSource).toContain("selectIds([elementId])");
     expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
     expect(appSource).toContain("setActiveLinearItem(elementId, index, { rerender: false })");
+    expect(appSource).toMatch(/import \{[\s\S]*syncLinearStructureNodeContent,[\s\S]*\} from "\.\.\/canvas\/konva-elements\.js";/);
     expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
     expect(appSource).toContain("syncLinearItemActiveVisual(elementId)");
     expect(visualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
@@ -1533,12 +1547,21 @@ describe("app shell", () => {
     expect(appSource).toContain("window.removeEventListener(\"pointerdown\", handleCellEditorOutsidePointerDown, { capture: true })");
   });
 
-  it("starts whole-array drag from index press movement even when the array is already selected", () => {
+  it("keeps long-press linear item reordering separate from whole-array dragging", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerMoveSource = appSource.slice(
+      appSource.indexOf("function handlePointerMove(event)"),
+      appSource.indexOf("if (isPanning && panStart)"),
+    );
+    const itemPressMoveSource = pointerMoveSource.slice(
+      pointerMoveSource.indexOf("if (linearItemPressState?.phase === \"start\""),
+      pointerMoveSource.indexOf("if (isPanning && panStart)"),
+    );
 
-    expect(appSource).toContain("const pressedElementId = linearItemPressState.elementId");
-    expect(appSource).toContain("if (!selectedIds.some((id) => targetIds.includes(id))) {");
-    expect(appSource).toContain("beginSelectionDrag(pressStart)");
+    expect(itemPressMoveSource).toContain("linearItemPressState?.phase === \"start\"");
+    expect(itemPressMoveSource).toContain("beginSelectionDrag(pressStart)");
+    expect(itemPressMoveSource).toContain("updateSelectionDrag(worldPoint)");
+    expect(itemPressMoveSource).not.toContain("beginLinearItemDrag({");
   });
 
   it("supports dragging the linear pointer and syncing the pointer field", () => {

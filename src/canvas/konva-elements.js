@@ -746,7 +746,7 @@ export function syncCoordinatePlaneNodeContent(group, element) {
   addCoordinatePlaneContent(group, element, width, height);
 }
 
-function syncLinearStructureNodeContent(group, element, handlers) {
+export function syncLinearStructureNodeContent(group, element, handlers) {
   const reusableItems = new Map();
   group.find(".array-item").forEach((itemGroup) => {
     const index = itemGroup.getAttr("linearIndex");
@@ -1020,7 +1020,16 @@ function createLinearStructureNode(element, common, {
       event.cancelBubble = true;
     };
 
+    let skipLegacyPress = false;
+    let skipLegacyRelease = false;
+
     const handlePress = (event) => {
+      event.cancelBubble = true;
+      if ((event.type === "mousedown" || event.type === "touchstart") && skipLegacyPress) {
+        skipLegacyPress = false;
+        return;
+      }
+      skipLegacyPress = event.type === "pointerdown";
       onArrayItemPress?.({
         elementId: element.id,
         index,
@@ -1029,7 +1038,12 @@ function createLinearStructureNode(element, common, {
     };
 
     const handleRelease = (event) => {
-      event.cancelBubble = true;
+      if ((event.type === "mouseup" || event.type === "touchend" || event.type === "touchcancel") && skipLegacyRelease) {
+        skipLegacyRelease = false;
+        return;
+      }
+      skipLegacyPress = false;
+      skipLegacyRelease = event.type === "pointerup" || event.type === "pointercancel";
       onArrayItemRelease?.({
         elementId: element.id,
         index,
@@ -1041,16 +1055,16 @@ function createLinearStructureNode(element, common, {
       valueText.on("dblclick dbltap", handleValueEdit);
       valueRect.on("click tap", handleSelect);
       valueText.on("click tap", handleSelect);
-      valueRect.on("mousedown touchstart", handlePress);
-      valueText.on("mousedown touchstart", handlePress);
-      valueRect.on("mouseup touchend touchcancel", handleRelease);
-      valueText.on("mouseup touchend touchcancel", handleRelease);
+      valueRect.on("pointerdown mousedown touchstart", handlePress);
+      valueText.on("pointerdown mousedown touchstart", handlePress);
+      valueRect.on("pointerup pointercancel mouseup touchend touchcancel", handleRelease);
+      valueText.on("pointerup pointercancel mouseup touchend touchcancel", handleRelease);
       indexRect?.on("click tap", handleSelect);
       indexText?.on("click tap", handleSelect);
-      indexRect?.on("mousedown touchstart", handlePress);
-      indexText?.on("mousedown touchstart", handlePress);
-      indexRect?.on("mouseup touchend touchcancel", handleRelease);
-      indexText?.on("mouseup touchend touchcancel", handleRelease);
+      indexRect?.on("pointerdown mousedown touchstart", handlePress);
+      indexText?.on("pointerdown mousedown touchstart", handlePress);
+      indexRect?.on("pointerup pointercancel mouseup touchend touchcancel", handleRelease);
+      indexText?.on("pointerup pointercancel mouseup touchend touchcancel", handleRelease);
     }
     if (isDragging) {
       draggedItemGroup = itemGroup;
@@ -1191,6 +1205,7 @@ function createLinearStructureNode(element, common, {
       strokeWidth: overlayStrokeWidth,
       dash: overlayDash,
       fillEnabled: false,
+      listening: false,
     }));
     if (includesIndexRow) {
       overlayGroup.add(new Konva.Line({

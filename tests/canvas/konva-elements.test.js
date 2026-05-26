@@ -1469,6 +1469,50 @@ describe("konva elements", () => {
       .toBe(88 - outerStrokeWidth / 2);
   });
 
+  it("keeps array state border overlays out of hit testing so cells remain clickable and editable", () => {
+    const onArrayItemSelect = vi.fn();
+    const onArrayItemEdit = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 72,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+      ],
+      runtime: { activeIndex: 0 },
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemSelect,
+      onArrayItemEdit,
+    });
+
+    const overlayGroup = node.findOne(".array-item-border-overlay");
+    expect(overlayGroup.listening()).toBe(false);
+    overlayGroup.getChildren().forEach((child) => {
+      expect(child.listening()).toBe(false);
+    });
+
+    const item = node.findOne(".array-item");
+    item.findOne(".array-item-value-hit").fire("click", { cancelBubble: false });
+    item.findOne(".array-item-value-hit").fire("dblclick", { cancelBubble: false });
+
+    expect(onArrayItemSelect).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemEdit).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+      trigger: "double",
+    });
+  });
+
   it("draws border overlays for sorted and empty algorithm cells too", () => {
     const node = createElementNode({
       id: "array_1",
@@ -1754,7 +1798,7 @@ describe("konva elements", () => {
     });
   });
 
-  it("releases value-cell press gestures so long-press drag timers can be cleared", () => {
+  it("releases value-cell press gestures without blocking app-level drag cleanup", () => {
     const onArrayItemPress = vi.fn();
     const onArrayItemRelease = vi.fn();
     const node = createElementNode({
@@ -1790,7 +1834,7 @@ describe("konva elements", () => {
       elementId: "array_1",
       index: 0,
     });
-    expect(pointerUp.cancelBubble).toBe(true);
+    expect(pointerUp.cancelBubble).toBe(false);
   });
 
   it("does not handle array item editing events when item editing is disabled", () => {
@@ -1849,8 +1893,9 @@ describe("konva elements", () => {
     expect(itemNodes.at(-1).getAttr("linearIndex")).toBe(1);
   });
 
-  it("keeps value-cell pointer down available for selected-array drag while index press remains reserved for item drag", () => {
+  it("keeps array item pointer down out of root drag while release can finish app-level drags", () => {
     const onArrayItemPress = vi.fn();
+    const onArrayItemRelease = vi.fn();
     const node = createElementNode({
       id: "array_1",
       type: "array-structure",
@@ -1866,22 +1911,67 @@ describe("konva elements", () => {
     }, {
       ...baseHandlers,
       onArrayItemPress,
+      onArrayItemRelease,
     });
 
     const item = node.find(".array-item")[0];
     const valuePointerDown = { cancelBubble: false };
+    const valueMouseDown = { cancelBubble: false };
+    const valuePointerUp = { cancelBubble: false };
+    const valueMouseUp = { cancelBubble: false };
     const indexPointerDown = { cancelBubble: false };
 
-    item.findOne(".array-item-value-hit").fire("mousedown", valuePointerDown);
-    item.findOne(".array-item-index-hit").fire("mousedown", indexPointerDown);
+    item.findOne(".array-item-value-hit").fire("pointerdown", valuePointerDown);
+    item.findOne(".array-item-value-hit").fire("mousedown", valueMouseDown);
+    item.findOne(".array-item-value-hit").fire("pointerup", valuePointerUp);
+    item.findOne(".array-item-value-hit").fire("mouseup", valueMouseUp);
+    item.findOne(".array-item-index-hit").fire("pointerdown", indexPointerDown);
 
-    expect(valuePointerDown.cancelBubble).toBe(false);
-    expect(indexPointerDown.cancelBubble).toBe(false);
+    expect(valuePointerDown.cancelBubble).toBe(true);
+    expect(valueMouseDown.cancelBubble).toBe(true);
+    expect(valuePointerUp.cancelBubble).toBe(false);
+    expect(valueMouseUp.cancelBubble).toBe(false);
+    expect(indexPointerDown.cancelBubble).toBe(true);
     expect(onArrayItemPress).toHaveBeenCalledWith({
       elementId: "array_1",
       index: 0,
       value: "A",
     });
+    expect(onArrayItemPress).toHaveBeenCalledTimes(2);
+    expect(onArrayItemRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps legacy array item mousedown press handling when pointer events are not emitted", () => {
+    const onArrayItemPress = vi.fn();
+    const onArrayItemRelease = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+      ],
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemPress,
+      onArrayItemRelease,
+    });
+
+    const item = node.find(".array-item")[0];
+    item.findOne(".array-item-value-hit").fire("mousedown", { cancelBubble: false });
+    item.findOne(".array-item-value-hit").fire("mouseup", { cancelBubble: false });
+
+    expect(onArrayItemPress).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemPress).toHaveBeenCalledTimes(1);
+    expect(onArrayItemRelease).toHaveBeenCalledTimes(1);
   });
 
   it("keeps selected linear item cells clickable and pressable for active selection and long press drag", () => {
@@ -1926,6 +2016,47 @@ describe("konva elements", () => {
     expect(onArrayItemRelease).toHaveBeenCalledWith({
       elementId: "array_1",
       index: 0,
+    });
+  });
+
+  it("keeps selected linear value cells selectable and double-click editable", () => {
+    const onArrayItemSelect = vi.fn();
+    const onArrayItemEdit = vi.fn();
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 0,
+      y: 0,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+      ],
+      runtime: { activeIndex: 0 },
+      style: {},
+    }, {
+      ...baseHandlers,
+      onArrayItemSelect,
+      onArrayItemEdit,
+    });
+
+    const valueCell = node.find(".array-item")
+      .find((itemNode) => itemNode.getAttr("linearIndex") === 0)
+      .findOne(".array-item-value-hit");
+    valueCell.fire("click", { cancelBubble: false });
+    valueCell.fire("dblclick", { cancelBubble: false });
+
+    expect(onArrayItemSelect).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+    });
+    expect(onArrayItemEdit).toHaveBeenCalledWith({
+      elementId: "array_1",
+      index: 0,
+      value: "A",
+      trigger: "double",
     });
   });
 

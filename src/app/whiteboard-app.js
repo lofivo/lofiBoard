@@ -70,6 +70,7 @@ import {
   PRESSURE_STROKE_PREVIEW_ATTR,
   syncCoordinatePlaneNodeContent,
   syncElementNode,
+  syncLinearStructureNodeContent,
   syncTextNodeContent,
   syncTextNodeScalePreview,
   syncTextNodeSize,
@@ -1668,8 +1669,10 @@ export function createWhiteboardApp(root) {
         if (!selectedIds.some((id) => targetIds.includes(id))) {
           selectIds([pressedElementId]);
         }
-        beginSelectionDrag(pressStart);
         resetLinearItemPressState();
+        beginSelectionDrag(pressStart);
+        updateSelectionDrag(worldPoint);
+        return;
       }
     }
 
@@ -1876,9 +1879,6 @@ export function createWhiteboardApp(root) {
     const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
       fallbackNode: event.target,
     });
-    const arrayValueHitNode = event.target?.hasName?.("array-item-value-hit")
-      ? event.target
-      : event.target?.findAncestor?.(".array-item-value-hit");
     if (targetElement) {
       const element = board.elements.find((item) => item.id === targetElement);
       const targetIds = expandGroupedIds([targetElement]);
@@ -1905,12 +1905,6 @@ export function createWhiteboardApp(root) {
         return;
       }
       if (isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)) {
-        return;
-      }
-      if (arrayValueHitNode && isLinearStructureElement(element)) {
-        if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
-          beginSelectionDrag(worldPoint);
-        }
         return;
       }
       if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
