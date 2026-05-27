@@ -1,6 +1,9 @@
 import { createId } from "../board/ids.js";
 
 const PRESSURE_VARIATION_THRESHOLD = 0.08;
+const MIN_ERASER_FOOTPRINT_INSET = 1;
+const MAX_ERASER_FOOTPRINT_INSET = 3;
+const ERASER_FOOTPRINT_INSET_RATIO = 0.1;
 
 export function flattenPoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
@@ -23,7 +26,8 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   if (points.length < 2) return [];
   const localEraserPoint = toElementLocalPoint(stroke, eraserPoint);
   const localRadius = getLocalRadius(stroke, radius);
-  const localHalfSize = localRadius + getLocalStrokeRadius(stroke, points);
+  const localEraseRadius = getInsetEraserRadius(localRadius);
+  const localHalfSize = localEraseRadius + getLocalStrokeRadius(stroke, points);
 
   const fragments = [];
   let current = [];
@@ -204,6 +208,15 @@ function getLocalRadius(element, radius) {
   const scaleX = Math.abs(getSafeScale(element.scaleX));
   const scaleY = Math.abs(getSafeScale(element.scaleY));
   return radius / Math.max(scaleX, scaleY);
+}
+
+function getInsetEraserRadius(radius) {
+  const safeRadius = Math.max(1, Number(radius) || 1);
+  const inset = Math.min(
+    MAX_ERASER_FOOTPRINT_INSET,
+    Math.max(MIN_ERASER_FOOTPRINT_INSET, Math.round(safeRadius * ERASER_FOOTPRINT_INSET_RATIO)),
+  );
+  return Math.max(1, safeRadius - inset);
 }
 
 function getLocalStrokeRadius(stroke, points) {

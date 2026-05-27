@@ -20,8 +20,8 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 6]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([24, 30]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 7]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([23, 30]);
     expect(fragments.every((fragment) => fragment.stroke === "#111827")).toBe(true);
   });
 
@@ -41,9 +41,29 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 10);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 37]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([63, 100]);
-    expect(fragments.flatMap((fragment) => fragment.points).every((point) => point.x <= 37 || point.x >= 63)).toBe(true);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 38]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([62, 100]);
+    expect(fragments.flatMap((fragment) => fragment.points).every((point) => point.x <= 38 || point.x >= 62)).toBe(true);
+  });
+
+  it("keeps the actual erased footprint slightly inside the eraser preview border", () => {
+    const stroke = {
+      id: "stroke_inset",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 2,
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 20);
+
+    expect(fragments).toHaveLength(2);
+    expect(fragments[0].points.at(-1).x).toBe(31);
+    expect(fragments[1].points[0].x).toBe(69);
   });
 
   it("removes the stroke cap from the square eraser footprint", () => {
@@ -63,8 +83,8 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 10);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 30]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([70, 100]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 31]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([69, 100]);
   });
 
   it("drops tiny round-cap remnants after erasing a stroke", () => {
@@ -85,7 +105,7 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 30);
 
     expect(fragments).toHaveLength(1);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([90, 130]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([87, 130]);
   });
 
   it("removes a stroke when too few points remain", () => {
@@ -125,8 +145,8 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 115, y: 50 }, 6);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 6]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([24, 30]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 7]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([23, 30]);
     expect(fragments.every((fragment) => fragment.x === 100 && fragment.y === 50)).toBe(true);
   });
 
