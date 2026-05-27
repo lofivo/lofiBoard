@@ -1185,6 +1185,18 @@ describe("app shell", () => {
     expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
   });
 
+  it("treats endpoint-clipped eraser fragments as changed strokes", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const eraseSource = appSource.slice(
+      appSource.indexOf("function eraseStrokeAt(worldPoint, radius)"),
+      appSource.indexOf("function eraseStrokeAlongPath"),
+    );
+
+    expect(appSource).toContain("areStrokeFragmentsEquivalent");
+    expect(eraseSource).toContain("!areStrokeFragmentsEquivalent(element, fragments)");
+    expect(eraseSource).not.toContain("fragments.length !== 1 || fragments[0].points.length !== element.points.length");
+  });
+
   it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const eraserSource = appSource.slice(

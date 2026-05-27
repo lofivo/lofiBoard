@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEraserPathSamples, splitStrokeByEraser } from "../../src/canvas/geometry.js";
+import { areStrokeFragmentsEquivalent, getEraserPathSamples, splitStrokeByEraser } from "../../src/canvas/geometry.js";
 
 describe("geometry", () => {
   it("splits a stroke into editable fragments when the eraser crosses it", () => {
@@ -20,9 +20,72 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 10]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([20, 30]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 6]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([24, 30]);
     expect(fragments.every((fragment) => fragment.stroke === "#111827")).toBe(true);
+  });
+
+  it("clips stroke fragments to the square eraser boundary on a single click", () => {
+    const stroke = {
+      id: "stroke_sparse",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 6,
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 10);
+
+    expect(fragments).toHaveLength(2);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 37]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([63, 100]);
+    expect(fragments.flatMap((fragment) => fragment.points).every((point) => point.x <= 37 || point.x >= 63)).toBe(true);
+  });
+
+  it("removes the stroke cap from the square eraser footprint", () => {
+    const stroke = {
+      id: "stroke_cap",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 20,
+      lineCap: "round",
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 10);
+
+    expect(fragments).toHaveLength(2);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 30]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([70, 100]);
+  });
+
+  it("drops tiny round-cap remnants after erasing a stroke", () => {
+    const stroke = {
+      id: "stroke_tiny_remnant",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 25, y: 0, pressure: 0.5 },
+        { x: 130, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 20,
+      lineCap: "round",
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 30);
+
+    expect(fragments).toHaveLength(1);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([90, 130]);
   });
 
   it("removes a stroke when too few points remain", () => {
@@ -62,8 +125,8 @@ describe("geometry", () => {
     const fragments = splitStrokeByEraser(stroke, { x: 115, y: 50 }, 6);
 
     expect(fragments).toHaveLength(2);
-    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 10]);
-    expect(fragments[1].points.map((point) => point.x)).toEqual([20, 30]);
+    expect(fragments[0].points.map((point) => point.x)).toEqual([0, 6]);
+    expect(fragments[1].points.map((point) => point.x)).toEqual([24, 30]);
     expect(fragments.every((fragment) => fragment.x === 100 && fragment.y === 50)).toBe(true);
   });
 
@@ -99,5 +162,26 @@ describe("geometry", () => {
       if (index === 0) return true;
       return Math.hypot(point.x - samples[index - 1].x, point.y - samples[index - 1].y) <= 8;
     })).toBe(true);
+  });
+
+  it("detects endpoint-only eraser clipping as a stroke change", () => {
+    const stroke = {
+      id: "stroke_trimmed",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      strokeWidth: 10,
+    };
+
+    expect(areStrokeFragmentsEquivalent(stroke, [{ ...stroke, points: stroke.points.map((point) => ({ ...point })) }])).toBe(true);
+    expect(areStrokeFragmentsEquivalent(stroke, [{
+      ...stroke,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 90, y: 0, pressure: 0.5 },
+      ],
+    }])).toBe(false);
   });
 });

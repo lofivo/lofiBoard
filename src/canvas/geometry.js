@@ -1,5 +1,7 @@
 import { createId } from "../board/ids.js";
 
+const PRESSURE_VARIATION_THRESHOLD = 0.08;
+
 export function flattenPoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
 }
@@ -21,45 +23,71 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   if (points.length < 2) return [];
   const localEraserPoint = toElementLocalPoint(stroke, eraserPoint);
   const localRadius = getLocalRadius(stroke, radius);
-
-  if (points.every((point) => pointInSquare(point, localEraserPoint, localRadius))) {
-    return [];
-  }
+  const localHalfSize = localRadius + getLocalStrokeRadius(stroke, points);
 
   const fragments = [];
-  let current = [{ ...points[0] }];
+  let current = [];
+  let didErase = false;
+
+  const closeCurrent = () => {
+    if (current.length >= 2) {
+      fragments.push(current);
+    }
+    current = [];
+  };
+
+  const appendPoint = (point) => {
+    const previous = current.at(-1);
+    if (previous && nearlyEqualPoints(previous, point)) return;
+    current.push(point);
+  };
 
   for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const point = points[index];
-    const previousInside = pointInSquare(previous, localEraserPoint, localRadius);
-    const pointInside = pointInSquare(point, localEraserPoint, localRadius);
-    const cutsSegment = segmentIntersectsSquare(previous, point, localEraserPoint, localRadius);
+    const start = points[index - 1];
+    const end = points[index];
+    const outsideIntervals = getSegmentOutsideSquareIntervals(start, end, localEraserPoint, localHalfSize);
+    if (!isWholeSegmentOutside(outsideIntervals)) {
+      didErase = true;
+    }
 
-    if (cutsSegment && previousInside && pointInside) {
-      if (current.length >= 2) {
-        fragments.push(current);
+    if (outsideIntervals.length === 0) {
+      closeCurrent();
+      continue;
+    }
+
+    for (const [startT, endT] of outsideIntervals) {
+      if (startT > 0) {
+        closeCurrent();
       }
-      current = [{ ...point }];
-    } else if (cutsSegment && !previousInside && !pointInside) {
-      if (current.length >= 2) {
-        fragments.push(current);
+
+      appendPoint(getPointAtRatio(start, end, startT));
+      appendPoint(getPointAtRatio(start, end, endT));
+
+      if (endT < 1) {
+        closeCurrent();
       }
-      current = [{ ...point }];
-    } else {
-      current.push({ ...point });
     }
   }
 
-  if (current.length >= 2) {
-    fragments.push(current);
-  }
+  closeCurrent();
+  const retainedFragments = didErase
+    ? fragments.filter((fragment) => getPathLength(fragment) >= getMinimumRetainedFragmentLength(stroke, points))
+    : fragments;
 
-  return fragments.map((points, index) => ({
+  return retainedFragments.map((points, index) => ({
     ...stroke,
     id: index === 0 ? stroke.id : createId("stroke"),
     points: points.map((point) => ({ ...point })),
   }));
+}
+
+export function areStrokeFragmentsEquivalent(stroke, fragments) {
+  if (fragments.length !== 1) return false;
+  const points = stroke.points ?? [];
+  const fragmentPoints = fragments[0].points ?? [];
+  if (fragmentPoints.length !== points.length) return false;
+
+  return points.every((point, index) => nearlyEqualStrokePoints(point, fragmentPoints[index]));
 }
 
 export function getEraserPathSamples(fromPoint, toPoint, radius) {
@@ -82,28 +110,79 @@ function pointInSquare(point, center, halfSize) {
   return Math.abs(point.x - center.x) <= halfSize && Math.abs(point.y - center.y) <= halfSize;
 }
 
-function segmentIntersectsSquare(start, end, center, halfSize) {
-  if (pointInSquare(start, center, halfSize) || pointInSquare(end, center, halfSize)) return true;
+function getSegmentOutsideSquareIntervals(start, end, center, halfSize) {
+  const intersection = getSegmentSquareIntersectionInterval(start, end, center, halfSize);
+  if (!intersection) return [[0, 1]];
 
+  const { enter, exit } = intersection;
+  if (exit - enter <= Number.EPSILON) return [[0, 1]];
+
+  const intervals = [];
+  if (enter > Number.EPSILON) {
+    intervals.push([0, enter]);
+  }
+  if (exit < 1 - Number.EPSILON) {
+    intervals.push([exit, 1]);
+  }
+  return intervals;
+}
+
+function isWholeSegmentOutside(intervals) {
+  return intervals.length === 1 && intervals[0][0] === 0 && intervals[0][1] === 1;
+}
+
+function getSegmentSquareIntersectionInterval(start, end, center, halfSize) {
   const left = center.x - halfSize;
   const right = center.x + halfSize;
   const top = center.y - halfSize;
   const bottom = center.y + halfSize;
   const dx = end.x - start.x;
   const dy = end.y - start.y;
-  let tMin = 0;
-  let tMax = 1;
+  let enter = 0;
+  let exit = 1;
 
   const clip = (delta, min, max, value) => {
     if (delta === 0) return value >= min && value <= max;
     const t1 = (min - value) / delta;
     const t2 = (max - value) / delta;
-    tMin = Math.max(tMin, Math.min(t1, t2));
-    tMax = Math.min(tMax, Math.max(t1, t2));
-    return tMin <= tMax;
+    enter = Math.max(enter, Math.min(t1, t2));
+    exit = Math.min(exit, Math.max(t1, t2));
+    return enter <= exit;
   };
 
-  return clip(dx, left, right, start.x) && clip(dy, top, bottom, start.y) && tMax > 0 && tMin < 1;
+  if (!clip(dx, left, right, start.x) || !clip(dy, top, bottom, start.y)) {
+    return null;
+  }
+  if (exit < 0 || enter > 1) return null;
+  return {
+    enter: Math.max(0, enter),
+    exit: Math.min(1, exit),
+  };
+}
+
+function getPointAtRatio(start, end, ratio) {
+  if (ratio <= Number.EPSILON) return { ...start };
+  if (ratio >= 1 - Number.EPSILON) return { ...end };
+  return {
+    ...start,
+    x: start.x + (end.x - start.x) * ratio,
+    y: start.y + (end.y - start.y) * ratio,
+    pressure: interpolateNumber(start.pressure, end.pressure, ratio),
+  };
+}
+
+function interpolateNumber(start, end, ratio) {
+  if (typeof start !== "number" || typeof end !== "number") return start ?? end;
+  return start + (end - start) * ratio;
+}
+
+function nearlyEqualPoints(pointA, pointB) {
+  return Math.abs(pointA.x - pointB.x) <= Number.EPSILON && Math.abs(pointA.y - pointB.y) <= Number.EPSILON;
+}
+
+function nearlyEqualStrokePoints(pointA, pointB) {
+  return nearlyEqualPoints(pointA, pointB)
+    && Math.abs(normalizePressure(pointA.pressure) - normalizePressure(pointB.pressure)) <= Number.EPSILON;
 }
 
 function toElementLocalPoint(element, worldPoint) {
@@ -125,6 +204,45 @@ function getLocalRadius(element, radius) {
   const scaleX = Math.abs(getSafeScale(element.scaleX));
   const scaleY = Math.abs(getSafeScale(element.scaleY));
   return radius / Math.max(scaleX, scaleY);
+}
+
+function getLocalStrokeRadius(stroke, points) {
+  const baseWidth = Math.max(1, Number(stroke.strokeWidth) || 1);
+  if (!hasPressureVariation(points) && !stroke.forcePressureStroke) {
+    return baseWidth / 2;
+  }
+
+  const maxPressureWidth = points.reduce((maxWidth, point) => (
+    Math.max(maxWidth, getPressureStrokeWidth(baseWidth, point.pressure))
+  ), baseWidth);
+  return maxPressureWidth / 2;
+}
+
+function getMinimumRetainedFragmentLength(stroke, points) {
+  return Math.max(2, getLocalStrokeRadius(stroke, points) * 2);
+}
+
+function getPathLength(points) {
+  let length = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    length += distance(points[index - 1], points[index]);
+  }
+  return length;
+}
+
+function hasPressureVariation(points) {
+  if (points.length < 2) return false;
+  const firstPressure = normalizePressure(points[0].pressure);
+  return points.some((point) => Math.abs(normalizePressure(point.pressure) - firstPressure) > PRESSURE_VARIATION_THRESHOLD);
+}
+
+function getPressureStrokeWidth(strokeWidth, pressure) {
+  return Math.max(1, strokeWidth * (0.35 + normalizePressure(pressure) * 1.15));
+}
+
+function normalizePressure(pressure) {
+  if (!Number.isFinite(pressure) || pressure <= 0) return 0.5;
+  return Math.min(1, Math.max(0.05, pressure));
 }
 
 function getSafeScale(scale) {

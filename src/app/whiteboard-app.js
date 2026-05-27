@@ -60,7 +60,7 @@ import {
   saveLocalDraft,
 } from "../services/draft-storage-service.js";
 import { createTextOverlayController } from "../services/text-overlay-service.js";
-import { splitStrokeByEraser, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
+import { areStrokeFragmentsEquivalent, splitStrokeByEraser, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
 import {
@@ -2248,7 +2248,7 @@ export function createWhiteboardApp(root) {
       }
 
       const fragments = splitStrokeByEraser(element, worldPoint, radius);
-      if (fragments.length !== 1 || fragments[0].points.length !== element.points.length) {
+      if (!areStrokeFragmentsEquivalent(element, fragments)) {
         changed = true;
       }
       nextElements.push(...fragments);
