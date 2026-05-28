@@ -126,8 +126,12 @@ import {
   resolveActiveDrawingTool,
 } from "../tools/tool-behavior.js";
 import {
+  captureDrawingPointer,
   normalizePressure,
+  preventDrawingPointerDefault,
+  releaseDrawingPointer,
   shouldAppendStrokePoint,
+  shouldHandlePointerEvent,
   smoothStrokePoint,
 } from "../tools/stroke-engine.js";
 import {
@@ -287,6 +291,7 @@ export function createWhiteboardApp(root) {
   let isPanning = false;
   let panStart = null;
   let strokeDraft = null;
+  let activeDrawingPointerCapture = null;
   let shapeDraft = null;
   let selectionDraft = null;
   let selectionDrag = null;
@@ -1512,6 +1517,17 @@ export function createWhiteboardApp(root) {
     schedulePersistCurrentDraft();
   }
 
+  function beginDrawingPointerSession(event) {
+    const nativeEvent = event?.evt;
+    preventDrawingPointerDefault(nativeEvent);
+    activeDrawingPointerCapture = captureDrawingPointer(nativeEvent);
+  }
+
+  function endDrawingPointerSession() {
+    releaseDrawingPointer(activeDrawingPointerCapture);
+    activeDrawingPointerCapture = null;
+  }
+
   function handlePointerDown(event) {
     hideContextMenu();
     setZoomMenuOpen(false);
@@ -1557,12 +1573,14 @@ export function createWhiteboardApp(root) {
 
     if (currentTool === TOOLS.PEN) {
       showBrushCursor(worldPoint);
+      beginDrawingPointerSession(event);
       startStroke(worldPoint, event.evt.pressure);
       return;
     }
 
     if (currentTool === TOOLS.ERASER_STROKE) {
       eraseSnapshot = snapshotBoard();
+      beginDrawingPointerSession(event);
       beginEraser(worldPoint);
       const radius = getVisibleEraserRadius(activeEraserRadius);
       eraseStrokeAt(worldPoint, radius);
@@ -1572,6 +1590,7 @@ export function createWhiteboardApp(root) {
 
     if (currentTool === TOOLS.ERASER_OBJECT) {
       eraseSnapshot = snapshotBoard();
+      beginDrawingPointerSession(event);
       beginEraser(worldPoint);
       eraseObjectAt(event.target);
       showObjectEraser(worldPoint);
@@ -1609,11 +1628,15 @@ export function createWhiteboardApp(root) {
 
     const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
     if (isShapeTool(drawingTool)) {
+      beginDrawingPointerSession(event);
       startShape(worldPoint);
     }
   }
 
   function handlePointerMove(event) {
+    if (!shouldHandlePointerEvent(event?.evt, activeDrawingPointerCapture?.pointerId)) return;
+    if (activeDrawingPointerCapture) preventDrawingPointerDefault(event?.evt);
+
     const worldPoint = getWorldPointer(stage);
     if (!worldPoint) return;
     lastPointerWorldPoint = worldPoint;
@@ -1738,7 +1761,10 @@ export function createWhiteboardApp(root) {
     }
   }
 
-  function handlePointerUp() {
+  function handlePointerUp(event) {
+    if (!shouldHandlePointerEvent(event?.evt, activeDrawingPointerCapture?.pointerId)) return;
+    if (activeDrawingPointerCapture) preventDrawingPointerDefault(event?.evt);
+
     if (linearPointerDragState) {
       resetLinearPointerPressState();
       commitLinearPointerDrag();
@@ -1764,11 +1790,13 @@ export function createWhiteboardApp(root) {
     }
 
     if (strokeDraft) {
+      endDrawingPointerSession();
       finishStroke();
       return;
     }
 
     if (shapeDraft) {
+      endDrawingPointerSession();
       finishShape();
       return;
     }
@@ -1785,6 +1813,7 @@ export function createWhiteboardApp(root) {
 
 
     if (eraseSnapshot) {
+      endDrawingPointerSession();
       hideEraser();
       stage.container().classList.remove("is-erasing");
       if (JSON.stringify(eraseSnapshot.elements) !== JSON.stringify(board.elements)) {

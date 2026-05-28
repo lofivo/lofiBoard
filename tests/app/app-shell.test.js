@@ -1185,6 +1185,24 @@ describe("app shell", () => {
     expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
   });
 
+  it("captures the active drawing pointer so pen and touch strokes do not drop events", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(appSource).toContain("captureDrawingPointer");
+    expect(appSource).toContain("preventDrawingPointerDefault");
+    expect(appSource).toContain("releaseDrawingPointer");
+    expect(appSource).toContain("shouldHandlePointerEvent");
+    expect(appSource).toContain("let activeDrawingPointerCapture = null;");
+    expect(appSource).toContain("function beginDrawingPointerSession(event)");
+    expect(appSource).toContain("function endDrawingPointerSession()");
+    expect(appSource).toMatch(/if \(!shouldHandlePointerEvent\(event\?\.evt, activeDrawingPointerCapture\?\.pointerId\)\) return;/);
+    expect(appSource).toMatch(/if \(currentTool === TOOLS\.PEN\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?startStroke/);
+    expect(appSource).toMatch(/if \(currentTool === TOOLS\.ERASER_STROKE\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?beginEraser/);
+    expect(appSource).toMatch(/if \(isShapeTool\(drawingTool\)\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?startShape/);
+    expect(styles).toMatch(/\.stage-container \{[\s\S]*?touch-action: none;/);
+  });
+
   it("treats endpoint-clipped eraser fragments as changed strokes", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const eraseSource = appSource.slice(

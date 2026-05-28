@@ -3,7 +3,7 @@ import { createId } from "../board/ids.js";
 const PRESSURE_VARIATION_THRESHOLD = 0.08;
 const MIN_ERASER_FOOTPRINT_INSET = 1;
 const MAX_ERASER_FOOTPRINT_INSET = 5;
-const ERASER_FOOTPRINT_INSET_RATIO = 0.5;
+const ERASER_FOOTPRINT_INSET_RATIO = 0.2;
 
 export function flattenPoints(points) {
   return points.flatMap((point) => [point.x, point.y]);

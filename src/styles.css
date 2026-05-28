@@ -1929,6 +1929,7 @@ button {
   inset: 0;
   cursor: crosshair;
   background-color: #ffffff;
+  touch-action: none;
 }
 
 .stage-container[data-background="dots"] {
