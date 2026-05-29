@@ -939,14 +939,24 @@ describe("app shell", () => {
     expect(appSource).not.toMatch(/setBrushControlValue\(fillInput, button\.dataset\.shapeFillColor, "input"\);\s*applyStyleToSelection\(\);/);
   });
 
-  it("resets property panel controls and section state when switching tools", () => {
+  it("restores saved tool property controls and section state when switching tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("resetPropertyControlsForTool(tool)");
+    expect(appSource).toContain("saveToolPropertyControlsForCurrentTool()");
+    expect(appSource).toContain("restorePropertyControlsForTool(tool)");
     expect(appSource).toContain("syncInspectorPanelState({ forceReset: true })");
     expect(appSource).toContain("colorInput.value = DEFAULT_PROPERTY_CONTROLS.color");
     expect(appSource).toContain("brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle");
     expect(appSource).toContain("fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize");
+  });
+
+  it("keeps selected stroke controls separate from saved brush tool controls", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("const toolPropertyControlSnapshots = new Map()");
+    expect(appSource).toMatch(/function saveToolPropertyControlsForCurrentTool\(\) \{[\s\S]*?if \(selectedIds\.length > 0\) return;[\s\S]*?toolPropertyControlSnapshots\.set\(currentTool, capturePropertyControls\(\)\);/);
+    expect(appSource).toMatch(/function restorePropertyControlsForTool\(tool\) \{[\s\S]*?toolPropertyControlSnapshots\.get\(tool\)[\s\S]*?resetPropertyControlsForTool\(tool\);/);
+    expect(appSource).toMatch(/if \(selectedIds\.length === 0\) \{[\s\S]*?saveToolPropertyControlsForCurrentTool\(\);[\s\S]*?updateContextPanel\(\);[\s\S]*?return;/);
   });
 
   it("preserves property panel scroll when syncing without a context reset", () => {
@@ -1564,8 +1574,20 @@ describe("app shell", () => {
 
     expect(appSource).toContain("handleEditorOutsidePointerDown");
     expect(appSource).toContain("window.addEventListener(\"pointerdown\", handleEditorOutsidePointerDown, { capture: true })");
-    expect(appSource).toContain("if (editorFrame.contains(event.target)) return;");
+    expect(appSource).toContain("shouldPreserveTextEditorOnPointerDown({");
     expect(appSource).toContain("commit();");
+  });
+
+  it("preserves empty text boxes when the property panel receives pointer focus", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = appSource.slice(
+      appSource.indexOf("function editTextElement(id)"),
+      appSource.indexOf("async function openBoardFile()"),
+    );
+
+    expect(editSource).toContain("shouldPreserveTextEditorOnPointerDown");
+    expect(editSource).toContain("commit({ preserveEmptyText: true });");
+    expect(editSource).toMatch(/if \(!nextText && element\.type !== "sticky" && !preserveEmptyText\) \{[\s\S]*?已删除空文字/);
   });
 
   it("prevents array cell editor outside clicks from starting a tiny selection box", () => {

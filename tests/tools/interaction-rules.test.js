@@ -32,6 +32,7 @@ import {
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
   shouldEditTextOnTransformerDoubleClick,
+  shouldPreserveTextEditorOnPointerDown,
   shouldIgnoreCanvasPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
@@ -128,6 +129,31 @@ describe("interaction rules", () => {
   it("returns to select after placing text", () => {
     expect(nextToolAfterTextPlacement(TOOLS.TEXT)).toBe(TOOLS.SELECT);
     expect(nextToolAfterTextPlacement(TOOLS.PEN)).toBe(TOOLS.PEN);
+  });
+
+  it("treats property panel font-size controls as text editor preserving targets", () => {
+    const editorFrame = {
+      contains: (target) => target?.role === "editor",
+    };
+    const fontSizeControl = {
+      closest: (selector) => selector.includes("[data-style-panel]") ? { role: "style-panel" } : null,
+    };
+
+    expect(shouldPreserveTextEditorOnPointerDown({
+      target: fontSizeControl,
+      editorFrame,
+      isTransformer: false,
+    })).toBe(true);
+    expect(shouldPreserveTextEditorOnPointerDown({
+      target: { role: "canvas" },
+      editorFrame,
+      isTransformer: false,
+    })).toBe(false);
+    expect(shouldPreserveTextEditorOnPointerDown({
+      target: { role: "transformer" },
+      editorFrame,
+      isTransformer: true,
+    })).toBe(true);
   });
 
   it("keeps text selection resizing available on corners and invisible side edges", () => {

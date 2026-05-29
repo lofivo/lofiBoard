@@ -111,6 +111,7 @@ import {
   shouldPreventBrowserZoom,
   shouldEditTextOnTransformerDoubleClick,
   shouldIgnoreCanvasPointerDown,
+  shouldPreserveTextEditorOnPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
 } from "../tools/interaction-rules.js";
@@ -370,6 +371,7 @@ export function createWhiteboardApp(root) {
     fontSize: "28",
     fontFamily: "Inter, system-ui, sans-serif",
   });
+  const toolPropertyControlSnapshots = new Map();
 
   const MIN_TRANSFORM_SIZE = 12;
 
@@ -3097,6 +3099,7 @@ export function createWhiteboardApp(root) {
 
   function applyStyleToSelection() {
     if (selectedIds.length === 0) {
+      saveToolPropertyControlsForCurrentTool();
       updateContextPanel();
       return;
     }
@@ -5868,6 +5871,7 @@ export function createWhiteboardApp(root) {
 
   function setTool(tool) {
     const toolChanged = currentTool !== tool;
+    if (toolChanged) saveToolPropertyControlsForCurrentTool();
     currentTool = tool;
     if (tool !== TOOLS.SELECT) {
       resetLinearItemPressState();
@@ -5889,7 +5893,7 @@ export function createWhiteboardApp(root) {
     syncSelectionNodes();
     stage.container().dataset.tool = tool;
     if (toolChanged) {
-      resetPropertyControlsForTool(tool);
+      restorePropertyControlsForTool(tool);
       syncInspectorPanelState({ forceReset: true });
     }
     updateChrome();
@@ -6083,8 +6087,16 @@ export function createWhiteboardApp(root) {
     let editorClosed = false;
     const handleEditorOutsidePointerDown = (event) => {
       if (editorClosed) return;
-      if (editorFrame.contains(event.target)) return;
-      if (isTransformerTarget(event.target)) return;
+      const shouldPreserveEditor = shouldPreserveTextEditorOnPointerDown({
+        target: event.target,
+        editorFrame,
+        isTransformer: isTransformerTarget(event.target),
+      });
+      if (editorFrame.contains(event.target) || isTransformerTarget(event.target)) return;
+      if (shouldPreserveEditor) {
+        commit({ preserveEmptyText: true });
+        return;
+      }
       commit();
     };
 
@@ -6101,7 +6113,7 @@ export function createWhiteboardApp(root) {
       node.scaleY(1);
     };
 
-    const commit = ({ keepNode = false } = {}) => {
+    const commit = ({ keepNode = false, preserveEmptyText = false } = {}) => {
       if (editorClosed) return;
       editorClosed = true;
       isEditingText = false;
@@ -6114,7 +6126,7 @@ export function createWhiteboardApp(root) {
       measureTextarea.remove();
       cleanupEditorTransformer();
 
-      if (!nextText && element.type !== "sticky") {
+      if (!nextText && element.type !== "sticky" && !preserveEmptyText) {
         board.elements = removeElementsById(board.elements, [id]);
         selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
         transformer.show();
@@ -6698,6 +6710,77 @@ export function createWhiteboardApp(root) {
     coordinateAxisColorInput.value = element.style?.axisStroke ?? "#111827";
     coordinateLabelColorInput.value = element.style?.labelFill ?? "#64748b";
     syncCoordinateControls();
+  }
+
+  function capturePropertyControls() {
+    return {
+      color: colorInput.value,
+      fill: fillInput.value,
+      fillTransparent: fillTransparentInput.checked,
+      width: widthInput.value,
+      brushOpacity: brushOpacityInput.value,
+      brushSmoothing: brushSmoothingInput.value,
+      brushCap: brushCapInput.value,
+      brushStyle: brushStyleInput.value,
+      arrowDoubleEnded: arrowDoubleEndedInput.checked,
+      coordinateUnitSize: coordinateUnitSizeInput.value,
+      coordinateShowGrid: coordinateShowGridInput.checked,
+      coordinateShowTicks: coordinateShowTicksInput.checked,
+      coordinateShowLabels: coordinateShowLabelsInput.checked,
+      coordinateGridColor: coordinateGridColorInput.value,
+      coordinateAxisColor: coordinateAxisColorInput.value,
+      coordinateLabelColor: coordinateLabelColorInput.value,
+      fontSize: fontSizeInput.value,
+      fontFamily: fontFamilyInput.value,
+      fontStyle: "normal",
+      textDecoration: "",
+    };
+  }
+
+  function applyPropertyControlsSnapshot(snapshot) {
+    colorInput.value = snapshot.color;
+    fillInput.value = snapshot.fill;
+    fillTransparentInput.checked = snapshot.fillTransparent;
+    widthInput.value = snapshot.width;
+    brushOpacityInput.value = snapshot.brushOpacity;
+    brushSmoothingInput.value = snapshot.brushSmoothing;
+    brushCapInput.value = snapshot.brushCap;
+    brushStyleInput.value = snapshot.brushStyle;
+    arrowDoubleEndedInput.checked = snapshot.arrowDoubleEnded;
+    coordinateUnitSizeInput.value = snapshot.coordinateUnitSize;
+    coordinateShowGridInput.checked = snapshot.coordinateShowGrid;
+    coordinateShowTicksInput.checked = snapshot.coordinateShowTicks;
+    coordinateShowLabelsInput.checked = snapshot.coordinateShowLabels;
+    coordinateGridColorInput.value = snapshot.coordinateGridColor;
+    coordinateAxisColorInput.value = snapshot.coordinateAxisColor;
+    coordinateLabelColorInput.value = snapshot.coordinateLabelColor;
+    fontSizeInput.value = snapshot.fontSize;
+    fontFamilyInput.value = snapshot.fontFamily;
+    updateTextStyleButtons({
+      fontStyle: snapshot.fontStyle,
+      textDecoration: snapshot.textDecoration,
+    });
+    syncBrushWidthControl();
+    syncBrushPresetButtons();
+    syncTextInspectorControls();
+    syncShapeEndpointControls();
+    syncCoordinateControls();
+    updateBrushCursorStyle();
+  }
+
+  function saveToolPropertyControlsForCurrentTool() {
+    if (selectedIds.length > 0) return;
+    if (!isToolPropertyPanelAvailable(currentTool)) return;
+    toolPropertyControlSnapshots.set(currentTool, capturePropertyControls());
+  }
+
+  function restorePropertyControlsForTool(tool) {
+    const snapshot = toolPropertyControlSnapshots.get(tool);
+    if (snapshot) {
+      applyPropertyControlsSnapshot(snapshot);
+      return;
+    }
+    resetPropertyControlsForTool(tool);
   }
 
   function resetPropertyControlsForTool(tool) {

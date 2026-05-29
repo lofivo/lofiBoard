@@ -53,6 +53,23 @@ export function shouldIgnoreCanvasPointerDown({ target, isEditingText }) {
   return Boolean(isEditingText || isTransformerAnchorTarget(target));
 }
 
+function closestDomTarget(target, selector) {
+  if (!target || !selector) return null;
+  if (typeof target.closest === "function") return target.closest(selector);
+  return target.parentElement?.closest?.(selector) ?? null;
+}
+
+export function shouldPreserveTextEditorOnPointerDown({
+  target,
+  editorFrame,
+  isTransformer = false,
+  auxiliarySelector = "[data-style-panel], [data-panel-edge='style']",
+} = {}) {
+  if (editorFrame?.contains?.(target)) return true;
+  if (isTransformer) return true;
+  return Boolean(closestDomTarget(target, auxiliarySelector));
+}
+
 export function shouldEditTextOnTransformerDoubleClick({
   target,
   currentTool,
