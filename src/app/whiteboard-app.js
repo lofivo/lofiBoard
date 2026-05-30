@@ -342,6 +342,7 @@ export function createWhiteboardApp(root) {
   let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
   let suppressedBinaryTreeNodeClickElementIds = new Set();
+  let activeCellEditorSync = null;
   let inspectorSectionsState = {
     appearance: true,
     linear: false,
@@ -5475,18 +5476,22 @@ export function createWhiteboardApp(root) {
 
     const valueRect = itemNode.findOne(".array-item-value-hit");
     if (!valueRect) return;
-    const absolute = valueRect.getAbsolutePosition();
-    const scale = stage.scaleX() * (node.scaleX() || 1);
-    const box = stage.container().getBoundingClientRect();
     const input = document.createElement("input");
     input.className = "cell-editor";
     input.value = value;
-    input.style.left = `${box.left + absolute.x}px`;
-    input.style.top = `${box.top + absolute.y}px`;
-    input.style.width = `${valueRect.width() * scale}px`;
-    input.style.height = `${valueRect.height() * scale}px`;
-    input.style.fontSize = `${20 * scale}px`;
+    const syncCellEditorStyle = () => {
+      const absolute = valueRect.getAbsolutePosition();
+      const scale = stage.scaleX() * (node.scaleX() || 1);
+      const box = stage.container().getBoundingClientRect();
+      input.style.left = `${box.left + absolute.x}px`;
+      input.style.top = `${box.top + absolute.y}px`;
+      input.style.width = `${valueRect.width() * scale}px`;
+      input.style.height = `${valueRect.height() * scale}px`;
+      input.style.fontSize = `${20 * scale}px`;
+    };
     document.body.appendChild(input);
+    activeCellEditorSync = syncCellEditorStyle;
+    syncCellEditorStyle();
     input.focus();
     input.select();
 
@@ -5496,6 +5501,7 @@ export function createWhiteboardApp(root) {
       closed = true;
       const nextValue = input.value;
       window.removeEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
+      activeCellEditorSync = null;
       input.remove();
       if (!commit) return;
       board.elements = board.elements.map((item) => (
@@ -5526,6 +5532,10 @@ export function createWhiteboardApp(root) {
       close(true);
     };
     window.addEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
+  }
+
+  function syncActiveCellEditor() {
+    activeCellEditorSync?.();
   }
 
   function getLinearItemNodeIndex(node) {
@@ -6528,6 +6538,7 @@ export function createWhiteboardApp(root) {
     container.style.setProperty("--grid-x", `${stage.x()}px`);
     container.style.setProperty("--grid-y", `${stage.y()}px`);
     updateLinearItemControlsPosition();
+    syncActiveCellEditor();
     syncTextOverlays();
   }
 

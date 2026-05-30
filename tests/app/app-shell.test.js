@@ -1599,6 +1599,22 @@ describe("app shell", () => {
     expect(appSource).toContain("window.removeEventListener(\"pointerdown\", handleCellEditorOutsidePointerDown, { capture: true })");
   });
 
+  it("keeps the array cell editor synced when the viewport or structure scale changes", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = appSource.slice(
+      appSource.indexOf("function editLinearStructureItemInline"),
+      appSource.indexOf("function getLinearItemNodeIndex"),
+    );
+
+    expect(appSource).toContain("let activeCellEditorSync = null;");
+    expect(appSource).toContain("function syncActiveCellEditor()");
+    expect(editSource).toContain("activeCellEditorSync = syncCellEditorStyle;");
+    expect(editSource).toContain("const scale = stage.scaleX() * (node.scaleX() || 1)");
+    expect(editSource).toContain("syncCellEditorStyle();");
+    expect(editSource).toContain("activeCellEditorSync = null;");
+    expect(appSource).toMatch(/function updateGrid\(\) \{[\s\S]*?syncActiveCellEditor\(\);/);
+  });
+
   it("keeps long-press linear item reordering separate from whole-array dragging", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pointerMoveSource = appSource.slice(
