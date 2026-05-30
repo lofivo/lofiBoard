@@ -2,6 +2,8 @@ export const BOARD_VERSION = 1;
 export const APP_NAME = "lofiBoard";
 
 const DEFAULT_VIEWPORT = Object.freeze({ x: 0, y: 0, scale: 1 });
+const MIN_VIEWPORT_SCALE = 0.12;
+const MAX_VIEWPORT_SCALE = 4;
 const DEFAULT_CANVAS = Object.freeze({ backgroundMode: "plain" });
 const BACKGROUND_MODES = new Set(["dots", "plain"]);
 
@@ -225,11 +227,7 @@ export function normalizeBoard(input) {
     throw new Error(`不支持的白板版本：${input.version ?? "未知"}`);
   }
 
-  const viewport = {
-    x: Number(input.viewport?.x ?? DEFAULT_VIEWPORT.x),
-    y: Number(input.viewport?.y ?? DEFAULT_VIEWPORT.y),
-    scale: Number(input.viewport?.scale ?? DEFAULT_VIEWPORT.scale),
-  };
+  const viewport = normalizeViewport(input.viewport);
   const requestedBackgroundMode = input.canvas?.backgroundMode ?? DEFAULT_CANVAS.backgroundMode;
   const canvas = {
     backgroundMode: BACKGROUND_MODES.has(requestedBackgroundMode)
@@ -248,6 +246,25 @@ export function normalizeBoard(input) {
     viewport,
     elements,
   };
+}
+
+function normalizeViewport(viewport = {}) {
+  return {
+    x: normalizeFiniteNumber(viewport?.x, DEFAULT_VIEWPORT.x),
+    y: normalizeFiniteNumber(viewport?.y, DEFAULT_VIEWPORT.y),
+    scale: normalizeViewportScale(viewport?.scale),
+  };
+}
+
+function normalizeFiniteNumber(value, fallback) {
+  const next = Number(value ?? fallback);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function normalizeViewportScale(value) {
+  const next = Number(value ?? DEFAULT_VIEWPORT.scale);
+  if (!Number.isFinite(next) || next <= 0) return DEFAULT_VIEWPORT.scale;
+  return Math.min(MAX_VIEWPORT_SCALE, Math.max(MIN_VIEWPORT_SCALE, next));
 }
 
 export function normalizeElement(element, fallbackIndex = 0) {

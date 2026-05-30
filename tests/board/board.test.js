@@ -48,6 +48,30 @@ describe("board model", () => {
     });
   });
 
+  it("normalizes invalid viewport values to a usable canvas view", () => {
+    const board = normalizeBoard({
+      version: 1,
+      viewport: { x: "bad", y: Infinity, scale: 0 },
+      elements: [],
+    });
+
+    expect(board.viewport).toEqual({ x: 0, y: 0, scale: 1 });
+  });
+
+  it("clamps imported viewport zoom to the supported canvas zoom range", () => {
+    expect(normalizeBoard({
+      version: 1,
+      viewport: { x: 10, y: 20, scale: 0.01 },
+      elements: [],
+    }).viewport).toEqual({ x: 10, y: 20, scale: 0.12 });
+
+    expect(normalizeBoard({
+      version: 1,
+      viewport: { x: 10, y: 20, scale: 99 },
+      elements: [],
+    }).viewport).toEqual({ x: 10, y: 20, scale: 4 });
+  });
+
   it("normalizes brush stroke styling defaults for older files", () => {
     const board = normalizeBoard({
       version: 1,
