@@ -5481,7 +5481,6 @@ export function createWhiteboardApp(root) {
     if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
-    activeLinearItem = null;
     renderBoard();
     selectIds([elementId]);
     requestAnimationFrame(() => editLinearStructureItemInline({ elementId, index, value }));
@@ -5529,7 +5528,7 @@ export function createWhiteboardApp(root) {
       ));
       renderBoard();
       selectIds([elementId]);
-      setActiveLinearItem(elementId, index);
+      setActiveLinearItem(elementId, index, { rerender: false });
       pushHistory("已更新线性结构元素");
     };
 

@@ -1786,4 +1786,25 @@ describe("app shell", () => {
     expect(styles.indexOf(".stage-container.is-pan-ready")).toBeGreaterThan(styles.indexOf(".stage-container[data-tool=\"eraser-object\"]"));
     expect(styles).toMatch(/\.stage-container\.is-panning,[\s\S]*?\.stage-container\.is-panning \* \{[\s\S]*?cursor: var\(--cursor-panning\);/);
   });
+
+  it("keeps the blue selection border visible during and after array cell editing", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    const editSource = appSource.slice(
+      appSource.indexOf("function editArrayStructureItem"),
+      appSource.indexOf("function editLinearStructureItemInline"),
+    );
+
+    expect(editSource).toContain("selectIds([elementId])");
+    expect(editSource).toContain("renderBoard()");
+
+    const closeSource = appSource.slice(
+      appSource.indexOf("function editLinearStructureItemInline"),
+      appSource.indexOf("function syncActiveCellEditor"),
+    );
+
+    expect(closeSource).toContain("const close = (commit) => {");
+    expect(closeSource).toContain('selectIds([elementId]);');
+    expect(closeSource).toContain('setActiveLinearItem(elementId, index');
+  });
 });
