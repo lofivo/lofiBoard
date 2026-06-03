@@ -5483,6 +5483,7 @@ export function createWhiteboardApp(root) {
     if (!isLinearStructureElement(element) || element.locked) return;
     activeLinearItem = null;
     renderBoard();
+    selectIds([elementId]);
     requestAnimationFrame(() => editLinearStructureItemInline({ elementId, index, value }));
   }
 
