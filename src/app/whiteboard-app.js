@@ -116,6 +116,7 @@ import {
   shouldPreserveTextEditorOnPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
+  clampTransformerAnchorDragBySize,
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,

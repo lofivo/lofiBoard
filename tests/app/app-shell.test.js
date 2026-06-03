@@ -1807,4 +1807,14 @@ describe("app shell", () => {
     expect(closeSource).toContain('selectIds([elementId]);');
     expect(closeSource).toContain('setActiveLinearItem(elementId, index');
   });
+
+  it("imports and uses clampTransformerAnchorDragBySize for anchor drag bounds", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toContain("clampTransformerAnchorDragBySize");
+    expect(appSource).toContain("clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
+    expect(appSource).toContain("anchorDragBoundFunc: (oldAbsPos, newAbsPos) => clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
+    expect(appSource).toContain("function clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
+    expect(appSource).toContain("return clampTransformerAnchorDragBySize({");
+  });
 });
