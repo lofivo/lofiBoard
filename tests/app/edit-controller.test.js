@@ -164,7 +164,7 @@ describe("edit-controller", () => {
     expect(controller.isEditing).toBe(true);
     expect(deps.onStateChange).toHaveBeenCalledWith(true);
     expect(deps.textOverlayController.setHiddenIds).toHaveBeenCalledWith([element.id]);
-    expect(deps.transformer.hide).toHaveBeenCalled();
+    expect(deps.contentLayer.draw).toHaveBeenCalled();
   });
 
   it("does nothing when element is not found", () => {

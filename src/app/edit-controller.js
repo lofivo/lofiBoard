@@ -93,7 +93,6 @@ export function createEditController({
     isEditing = true;
     onStateChange(true);
     textOverlayController.setHiddenIds([id]);
-    transformer.hide();
     contentLayer.draw();
 
     const editorFrame = document.createElement("div");
