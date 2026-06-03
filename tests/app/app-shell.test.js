@@ -1486,6 +1486,14 @@ describe("app shell", () => {
     expect(setToolSource).toContain("resetLinearItemPressState()");
     expect(setToolSource).toContain("resetLinearPointerPressState()");
     expect(setToolSource).toContain("cancelSelectionDrag()");
+    expect(setToolSource).toContain("if (toolChanged && (tool === TOOLS.SELECT || previousTool === TOOLS.SELECT))");
+    expect(setToolSource).toContain("renderBoard();");
+  });
+
+  it("re-renders the board after the initial setTool so linear structure cells get interactivity", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource).toMatch(/setTool\(TOOLS\.PEN\);\s*\n\s*renderBoard\(\);/);
   });
 
   it("clears the active array item when starting an array algorithm", () => {

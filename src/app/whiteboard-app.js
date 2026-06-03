@@ -552,6 +552,7 @@ export function createWhiteboardApp(root) {
   applyBackground();
   renderBoard();
   setTool(TOOLS.PEN);
+  renderBoard();
   if (initialStatusMessage) setStatus(initialStatusMessage);
   applyPanelState();
   updateChrome();
@@ -5900,6 +5901,7 @@ export function createWhiteboardApp(root) {
 
   function setTool(tool) {
     const toolChanged = currentTool !== tool;
+    const previousTool = currentTool;
     if (toolChanged) saveToolPropertyControlsForCurrentTool();
     currentTool = tool;
     if (tool !== TOOLS.SELECT) {
@@ -5927,6 +5929,9 @@ export function createWhiteboardApp(root) {
     }
     updateChrome();
     setStatus(getToolStatus(tool));
+    if (toolChanged && (tool === TOOLS.SELECT || previousTool === TOOLS.SELECT)) {
+      renderBoard();
+    }
   }
 
   function getToolStatus(tool) {
