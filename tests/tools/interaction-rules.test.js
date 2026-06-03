@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clampResizeAnchorPosition,
+  clampTransformerAnchorDragBySize,
   getTextTransformMinimumSize,
   getTextScaleCommitBox,
   getTextEditorStyle,
@@ -778,6 +779,43 @@ describe("interaction rules", () => {
       minWidth: 40,
       minHeight: 20,
     })).toEqual({ x: 180, y: 70 });
+  });
+
+  it("clamps transformer anchor drag using the live anchor and box corners", () => {
+    const topLeftNode = { getAbsolutePosition: () => ({ x: 100, y: 50 }) };
+    const bottomRightNode = { getAbsolutePosition: () => ({ x: 220, y: 130 }) };
+    const transformer = {
+      getActiveAnchor: () => "middle-right",
+      findOne: (name) => {
+        if (name === ".top-left") return topLeftNode;
+        if (name === ".bottom-right") return bottomRightNode;
+        return null;
+      },
+    };
+
+    expect(clampTransformerAnchorDragBySize({
+      transformer,
+      oldAbsPos: { x: 230, y: 90 },
+      newAbsPos: { x: 80, y: 90 },
+      minWidth: 40,
+      minHeight: 20,
+    })).toEqual({ x: 140, y: 90 });
+
+    expect(clampTransformerAnchorDragBySize({
+      transformer: { ...transformer, getActiveAnchor: () => "rotater" },
+      oldAbsPos: { x: 230, y: 90 },
+      newAbsPos: { x: 80, y: 90 },
+      minWidth: 40,
+      minHeight: 20,
+    })).toEqual({ x: 80, y: 90 });
+
+    expect(clampTransformerAnchorDragBySize({
+      transformer: { ...transformer, getActiveAnchor: () => null },
+      oldAbsPos: { x: 230, y: 90 },
+      newAbsPos: { x: 80, y: 90 },
+      minWidth: 40,
+      minHeight: 20,
+    })).toEqual({ x: 80, y: 90 });
   });
 
   it("ignores the canvas click that closes an active text editor", () => {

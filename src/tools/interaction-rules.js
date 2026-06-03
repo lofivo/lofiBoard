@@ -579,6 +579,27 @@ export function clampResizeAnchorPosition({
   return nextPosition;
 }
 
+export function clampTransformerAnchorDragBySize({ transformer, oldAbsPos, newAbsPos, minWidth, minHeight }) {
+  const anchor = transformer?.getActiveAnchor?.();
+  if (!anchor || anchor === "rotater") return newAbsPos;
+  const topLeft = transformer?.findOne?.(".top-left");
+  const bottomRight = transformer?.findOne?.(".bottom-right");
+  if (!topLeft || !bottomRight) return newAbsPos;
+
+  const topLeftAbs = topLeft.getAbsolutePosition();
+  const bottomRightAbs = bottomRight.getAbsolutePosition();
+  const nextPos = clampResizeAnchorPosition({
+    anchor,
+    position: newAbsPos,
+    topLeft: topLeftAbs,
+    bottomRight: bottomRightAbs,
+    minWidth: Number(minWidth) || 1,
+    minHeight: Number(minHeight) || 1,
+  });
+
+  return Number.isFinite(nextPos.x) && Number.isFinite(nextPos.y) ? nextPos : oldAbsPos;
+}
+
 export function getSelectionHitRadius(scale) {
   return Math.max(6, Math.round(12 / scale));
 }
