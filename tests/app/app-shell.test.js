@@ -101,7 +101,7 @@ describe("app shell", () => {
   it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isInteractiveStructureElement(element)))");
+    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(interactionSM.state, selectedElements))");
     expect(appSource).toContain("transformer.forceUpdate()");
     expect(appSource).toContain("isTransformerAnchorTarget");
     expect(appSource).toContain("function disableTransformerHitAreaDrag()");
@@ -130,9 +130,9 @@ describe("app shell", () => {
       appSource.indexOf("function disableTransformerHitAreaDrag()"),
     );
 
-    expect(appSource).toContain("function isInteractiveStructureElement(element)");
-    expect(appSource).toContain("return isLinearStructureElement(element) || element?.type === \"tree-structure\";");
-    expect(syncSelectionSource).toContain("selectedElements.some((element) => isInteractiveStructureElement(element))");
+    expect(appSource).toContain("getTransformerOverdrawForState");
+    expect(appSource).toContain("import { createInteractionStateMachine, SM, getTransformerOverdrawForState }");
+    expect(syncSelectionSource).toContain("interactionSM.state");
     expect(syncSelectionSource).toContain("transformer.shouldOverdrawWholeArea");
   });
 
@@ -591,7 +591,7 @@ describe("app shell", () => {
     expect(handlerSource).toContain("target: event.target");
     expect(handlerSource).toContain("selectedIds");
     expect(handlerSource).toContain("event.cancelBubble = true");
-    expect(handlerSource).toContain("requestAnimationFrame(() => editTextElement(id))");
+    expect(handlerSource).toContain("requestAnimationFrame(() => editController.editElement(id))");
   });
 
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
@@ -1020,39 +1020,44 @@ describe("app shell", () => {
 
   it("keeps live text editor height aligned with committed text box normalization", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("}) + 2 * scale");
+    expect(editSource).toContain("}) + 2 * scale");
     expect(appSource).toContain("verticalGap: 2");
   });
 
   it("keeps the Konva text visible while the textarea only edits input", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("getTextEditorStyle");
-    expect(appSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
-    expect(appSource).toContain("syncTextNodeContent(node, {");
-    expect(appSource).toContain("text: textarea.value");
-    expect(appSource).toContain("}, { renderLatex: false });");
+    expect(editSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
+    expect(editSource).toContain("syncTextNodeContent(node, {");
+    expect(editSource).toContain("text: textarea.value");
+    expect(editSource).toContain("}, { renderLatex: false });");
   });
 
   it("uses a DOM vector overlay for rendered latex text while editing keeps source input", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createTextOverlayController");
     expect(appSource).toContain("textOverlayController.sync(elements)");
-    expect(appSource).toContain("textOverlayController.setHiddenIds([id])");
-    expect(styles).toMatch(/\.text-latex-overlay \{[\s\S]*?pointer-events: none;/);
-    expect(styles).toMatch(/\.text-latex-overlay \.katex \.base \{[\s\S]*?white-space: nowrap;/);
+    expect(editSource).toContain("textOverlayController.setHiddenIds([id])");
+    expect(styles).toContain(".text-latex-overlay,");
+    expect(styles).toContain("pointer-events: none;");
+    expect(styles).toMatch(/\.text-latex-overlay[\s\S]*?\.katex \.base \{[\s\S]*?white-space: nowrap;/);
   });
 
   it("widens new latex text while editing and preserves that width on commit", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("getPreferredTextBoxWidth({");
-    expect(appSource).toContain("latexDefaultWidth: 520 * scale");
-    expect(appSource).toContain("preferredTextWidth > maxAutoEditorWidth");
-    expect(appSource).toContain("getPreferredTextElementWidth(nextElement, nextWidth)");
+    expect(editSource).toContain("latexDefaultWidth: 520 * scale");
+    expect(editSource).toContain("preferredTextWidth > maxAutoEditorWidth");
+    expect(editSource).toContain("getPreferredTextElementWidth(nextElement, nextWidth)");
   });
 
   it("keeps text measurement font setup centralized without dead editor resize state", () => {
@@ -1078,21 +1083,22 @@ describe("app shell", () => {
   it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
     expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
     expect(styles).toMatch(/\.text-editor-frame\.is-sticky-editor \{[\s\S]*?box-shadow: none;/);
     expect(appSource).toContain('if (element.type === "sticky")');
-    expect(appSource).toContain('editorFrame.classList.add("is-sticky-editor")');
-    expect(appSource).toContain('const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;');
-    expect(appSource).toContain('const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;');
-    expect(appSource).toContain('element.type !== "sticky" && canAutoFitWidth && textarea.value');
-    expect(appSource).toContain('const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;');
-    expect(appSource).toContain("const stickyInsets = getStickyTextInsets(element.fontSize)");
-    expect(appSource).toContain("textarea.style.padding = `${stickyInsets.y * scale}px ${stickyInsets.x * scale}px`");
-    expect(appSource).not.toContain("editorFrame.style.background = stickyFill");
-    expect(appSource).toContain("editorFrame.style.borderColor = getStickyBorderColor(stickyFill)");
-    expect(appSource).toContain("Math.max(element.width, stickyBox.width)");
-    expect(appSource).toContain("Math.max(element.height, stickyBox.height)");
+    expect(editSource).toContain('editorFrame.classList.add("is-sticky-editor")');
+    expect(editSource).toContain('const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;');
+    expect(editSource).toContain('const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;');
+    expect(editSource).toContain('element.type !== "sticky" && canAutoFitWidth && textarea.value');
+    expect(editSource).toContain('const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;');
+    expect(editSource).toContain("const stickyInsets = getStickyTextInsets(element.fontSize)");
+    expect(editSource).toContain("textarea.style.padding = `${stickyInsets.y * scale}px ${stickyInsets.x * scale}px`");
+    expect(editSource).not.toContain("editorFrame.style.background = stickyFill");
+    expect(editSource).toContain("editorFrame.style.borderColor = getStickyBorderColor(stickyFill)");
+    expect(editSource).toContain("Math.max(element.width, stickyBox.width)");
+    expect(editSource).toContain("Math.max(element.height, stickyBox.height)");
   });
 
   it("aligns the transparent fill checkbox with its label text", () => {
@@ -1571,22 +1577,20 @@ describe("app shell", () => {
 
   it("commits text and sticky editors when pointer down starts outside the editor", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("handleEditorOutsidePointerDown");
-    expect(appSource).toContain("window.addEventListener(\"pointerdown\", handleEditorOutsidePointerDown, { capture: true })");
-    expect(appSource).toContain("shouldPreserveTextEditorOnPointerDown({");
-    expect(appSource).toContain("commit();");
+    expect(appSource).toContain("editController.editElement");
+    expect(editSource).toContain("handleEditorOutsidePointerDown");
+    expect(editSource).toContain("window.addEventListener(\"pointerdown\", handleEditorOutsidePointerDown, { capture: true })");
+    expect(editSource).toContain("shouldPreserveTextEditorOnPointerDown({");
+    expect(editSource).toContain("doCommit();");
   });
 
   it("preserves empty text boxes when the property panel receives pointer focus", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = appSource.slice(
-      appSource.indexOf("function editTextElement(id)"),
-      appSource.indexOf("async function openBoardFile()"),
-    );
+    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("shouldPreserveTextEditorOnPointerDown");
-    expect(editSource).toContain("commit({ preserveEmptyText: true });");
+    expect(editSource).toContain("doCommit({ preserveEmptyText: true });");
     expect(editSource).toMatch(/if \(!nextText && element\.type !== "sticky" && !preserveEmptyText\) \{[\s\S]*?已删除空文字/);
   });
 
@@ -1737,7 +1741,7 @@ describe("app shell", () => {
     expect(appSource).toContain("runtime.activeNodeId = activeTreeNode.nodeId");
     expect(appSource).toContain("activeTreeNode?.elementId === element.id");
     expect(appSource).toContain("isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element");
-    expect(appSource).toContain("selectedElements.some((element) => isInteractiveStructureElement(element))");
+    expect(appSource).toContain("isInteractiveStructureElement(element)");
     expect(appSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(appSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");

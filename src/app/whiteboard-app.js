@@ -1,5 +1,7 @@
 import Konva from "konva";
 import { renderShell } from "./app-shell.js";
+import { createEditController } from "./edit-controller.js";
+import { createInteractionStateMachine, SM, getTransformerOverdrawForState } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./dom-refs.js";
 import {
   getPropertyPanelTitle,
@@ -59,7 +61,7 @@ import {
   loadLocalDraft,
   saveLocalDraft,
 } from "../services/draft-storage-service.js";
-import { createTextOverlayController } from "../services/text-overlay-service.js";
+import { createTextOverlayController } from "../services/text-overlay-controller.js";
 import { areStrokeFragmentsEquivalent, splitStrokeByEraser, getEraserPathSamples, getWorldPointer, normalizeRect, rectsIntersect } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import { createId } from "../board/ids.js";
@@ -312,7 +314,6 @@ export function createWhiteboardApp(root) {
   let statusTimer = null;
   let dirty = false;
   let suppressNextTextHistory = false;
-  let activeTextEditorCommit = null;
   let initialStatusMessage = null;
   let draftSaveTimer = null;
   let lastTransformAnchor = null;
@@ -456,6 +457,32 @@ export function createWhiteboardApp(root) {
     },
   });
   overlayLayer.add(transformer);
+
+  const editController = createEditController({
+    findElement: (id) => board.elements.find((item) => item.id === id),
+    getBoardElements: () => board.elements,
+    setBoardElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    setSelectedIds: (ids) => { selectedIds = ids; },
+    contentLayer,
+    overlayLayer,
+    transformer,
+    stage,
+    textOverlayController,
+    onStateChange: (editing) => {
+      isEditingText = editing;
+      if (editing) {
+        interactionSM.enter(SM.EDITING);
+      } else {
+        interactionSM.exitToIdle();
+      }
+    },
+    onRender: () => renderBoard(),
+    onHistory: (msg) => pushHistory(msg),
+    measureTextValue: (element, value, fontSize) => measureTextElementValue(element, value, fontSize),
+  });
+
+  const interactionSM = createInteractionStateMachine();
 
   const selectionRect = new Konva.Rect({
     fill: "rgba(37, 99, 235, 0.08)",
@@ -830,7 +857,7 @@ export function createWhiteboardApp(root) {
     });
     transformer.on("dblclick dbltap", handleTransformerDoubleClick);
     transformer.on("dragend transformend", () => {
-      if (isEditingText) return;
+      if (editController.isEditing) return;
       if (handledNodeDragEnd) {
         handledNodeDragEnd = false;
         return;
@@ -1535,7 +1562,7 @@ export function createWhiteboardApp(root) {
     hideContextMenu();
     setZoomMenuOpen(false);
 
-    if (shouldIgnoreCanvasPointerDown({ target: event.target, isEditingText })) {
+    if (shouldIgnoreCanvasPointerDown({ target: event.target, isEditingText: editController.isEditing })) {
       return;
     }
 
@@ -1545,6 +1572,7 @@ export function createWhiteboardApp(root) {
 
     if (isSpaceDown || currentTool === TOOLS.PAN || event.evt.button === 1) {
       isPanning = true;
+      interactionSM.enter(SM.PANNING);
       stage.container().classList.add("is-panning");
       panStart = {
         pointer: stage.getPointerPosition(),
@@ -1578,6 +1606,7 @@ export function createWhiteboardApp(root) {
       showBrushCursor(worldPoint);
       beginDrawingPointerSession(event);
       startStroke(worldPoint, event.evt.pressure);
+      interactionSM.enter(SM.DRAWING);
       return;
     }
 
@@ -1608,7 +1637,7 @@ export function createWhiteboardApp(root) {
       addElement(element, "已添加文字");
       selectIds([element.id]);
       setTool(nextToolAfterTextPlacement(currentTool));
-      requestAnimationFrame(() => editTextElement(element.id));
+      requestAnimationFrame(() => editController.editElement(element.id));
       return;
     }
 
@@ -1620,7 +1649,7 @@ export function createWhiteboardApp(root) {
       addElement(element, "已添加便签");
       selectIds([element.id]);
       setTool(TOOLS.SELECT);
-      requestAnimationFrame(() => editTextElement(element.id));
+      requestAnimationFrame(() => editController.editElement(element.id));
       return;
     }
 
@@ -1787,6 +1816,7 @@ export function createWhiteboardApp(root) {
     if (isPanning) {
       isPanning = false;
       panStart = null;
+      interactionSM.exitToIdle();
       stage.container().classList.remove("is-panning");
       persistCurrentDraft();
       return;
@@ -1795,22 +1825,26 @@ export function createWhiteboardApp(root) {
     if (strokeDraft) {
       endDrawingPointerSession();
       finishStroke();
+      interactionSM.exitToIdle();
       return;
     }
 
     if (shapeDraft) {
       endDrawingPointerSession();
       finishShape();
+      interactionSM.exitToIdle();
       return;
     }
 
     if (selectionDraft) {
       finishSelectionDraft();
+      interactionSM.exitToIdle();
       return;
     }
 
     if (selectionDrag) {
       finishSelectionDrag();
+      interactionSM.exitToIdle();
       return;
     }
 
@@ -1824,6 +1858,7 @@ export function createWhiteboardApp(root) {
       }
       eraseSnapshot = null;
       lastEraserPoint = null;
+      interactionSM.exitToIdle();
     }
   }
 
@@ -1895,7 +1930,7 @@ export function createWhiteboardApp(root) {
     })) return;
     event.cancelBubble = true;
     selectIds([id]);
-    requestAnimationFrame(() => editTextElement(id));
+    requestAnimationFrame(() => editController.editElement(id));
   }
 
   function handleSelectPointerDown(event, worldPoint) {
@@ -1957,6 +1992,7 @@ export function createWhiteboardApp(root) {
     }
 
     clearSelection();
+    interactionSM.enter(SM.SELECTING);
     selectionDraft = { start: worldPoint };
     selectionRect.setAttrs({
       ...normalizeRect(worldPoint, worldPoint),
@@ -1967,6 +2003,7 @@ export function createWhiteboardApp(root) {
 
   function beginSelectionDrag(worldPoint) {
     if (linearItemDragState) return;
+    interactionSM.enter(SM.DRAGGING);
     selectionDrag = {
       start: worldPoint,
       moved: false,
@@ -2212,6 +2249,7 @@ export function createWhiteboardApp(root) {
     node.listening(false);
     contentLayer.add(node);
     shapeDraft = { start: worldPoint, element, node };
+    interactionSM.enter(SM.DRAWING);
   }
 
   function updateShapeDraft(worldPoint) {
@@ -2310,6 +2348,7 @@ export function createWhiteboardApp(root) {
 
   function beginEraser(worldPoint) {
     activeEraserRadius = getBaseEraserRadius();
+    interactionSM.enter(SM.ERASING);
     lastEraserPoint = { ...worldPoint, time: performance.now() };
     stage.container().classList.add("is-erasing");
   }
@@ -2453,7 +2492,7 @@ export function createWhiteboardApp(root) {
         const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
         if (!editable || editable.locked) return;
         selectIds([id]);
-        requestAnimationFrame(() => editTextElement(id));
+        requestAnimationFrame(() => editController.editElement(id));
       },
       onArrayItemMove: moveArrayStructureItem,
       onArrayItemEdit: editArrayStructureItem,
@@ -2516,7 +2555,7 @@ export function createWhiteboardApp(root) {
     ));
   }
 
-  function syncTextOverlays({ hiddenIds = isEditingText ? selectedIds : [], elements = board.elements } = {}) {
+  function syncTextOverlays({ hiddenIds = editController.isEditing ? selectedIds : [], elements = board.elements } = {}) {
     textOverlayController.setHiddenIds(hiddenIds);
     textOverlayController.sync(elements);
   }
@@ -2543,7 +2582,7 @@ export function createWhiteboardApp(root) {
     renderTreeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
-    syncTextOverlays({ hiddenIds: isEditingText ? selectedIds : [] });
+    syncTextOverlays({ hiddenIds: editController.isEditing ? selectedIds : [] });
   }
 
   function syncOrCreateElementNode(element) {
@@ -2693,7 +2732,7 @@ export function createWhiteboardApp(root) {
     transformer.resizeEnabled(canTransform);
     transformer.rotateEnabled(canTransform);
     transformer.enabledAnchors(getTransformerAnchorsForSelection(selectedElements, canTransform));
-    transformer.shouldOverdrawWholeArea(hasSelection && !selectedElements.some((element) => isInteractiveStructureElement(element)));
+    transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(interactionSM.state, selectedElements));
     transformer.forceUpdate();
     disableTransformerHitAreaDrag();
   }
@@ -2703,33 +2742,13 @@ export function createWhiteboardApp(root) {
   }
 
   function clampTransformerAnchorDrag(oldAbsPos, newAbsPos) {
-    return clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, {
+    return clampTransformerAnchorDragBySize({
+      transformer,
+      oldAbsPos,
+      newAbsPos,
       minWidth: getActiveTransformerMinWidth(),
       minHeight: getActiveTransformerMinHeight(),
     });
-  }
-
-  function clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, { minWidth, minHeight }) {
-    const anchor = transformer.getActiveAnchor?.();
-    if (!anchor || anchor === "rotater") return newAbsPos;
-    const topLeft = transformer.findOne?.(".top-left");
-    const bottomRight = transformer.findOne?.(".bottom-right");
-    if (!topLeft || !bottomRight) return newAbsPos;
-
-    const minimumWidth = Math.max(1, Number(minWidth) || 1);
-    const minimumHeight = Math.max(1, Number(minHeight) || 1);
-    const topLeftAbs = topLeft.getAbsolutePosition();
-    const bottomRightAbs = bottomRight.getAbsolutePosition();
-    const nextPos = clampResizeAnchorPosition({
-      anchor,
-      position: newAbsPos,
-      topLeft: topLeftAbs,
-      bottomRight: bottomRightAbs,
-      minWidth: minimumWidth,
-      minHeight: minimumHeight,
-    });
-
-    return Number.isFinite(nextPos.x) && Number.isFinite(nextPos.y) ? nextPos : oldAbsPos;
   }
 
   function getActiveTransformerMinWidth() {
@@ -5928,324 +5947,6 @@ export function createWhiteboardApp(root) {
     }[tool];
   }
 
-  function editTextElement(id) {
-    const element = board.elements.find((item) => item.id === id);
-    const node = contentLayer.findOne(`#${id}`);
-    if (!element || !node) return;
-
-    isEditingText = true;
-    textOverlayController.setHiddenIds([id]);
-    transformer.hide();
-    contentLayer.draw();
-
-    const editorFrame = document.createElement("div");
-    editorFrame.className = "text-editor-frame";
-    const textarea = document.createElement("textarea");
-    textarea.className = "text-editor";
-    textarea.rows = 1;
-    textarea.value = element.text;
-    editorFrame.appendChild(textarea);
-    const measureTextarea = document.createElement("textarea");
-    measureTextarea.className = "text-editor text-editor-measure";
-    measureTextarea.tabIndex = -1;
-    measureTextarea.rows = 1;
-    measureTextarea.value = element.text;
-    document.body.appendChild(measureTextarea);
-    const originalText = element.text;
-    document.body.appendChild(editorFrame);
-
-    const box = stage.container().getBoundingClientRect();
-    const absolute = node.getAbsolutePosition();
-    const stageScale = stage.scaleX();
-    const scale = stageScale * (node.scaleX() || 1);
-    const editorPadding = Number(element.padding ?? 6);
-    const horizontalPadding = editorPadding * scale;
-    const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale + horizontalPadding * 2;
-    const minEditorHeight = getSingleLineTextEditorHeight(element.fontSize, scale);
-    const editorWidth = Math.max(minEditorWidth, node.width() * scale);
-    const editorHeight = Math.max(minEditorHeight, (node.height?.() || element.height || element.fontSize * 1.25) * scale);
-    const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
-    const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
-    const maxAutoEditorWidth = editorWidth;
-
-    const getEditorWidth = () => Math.max(minEditorWidth, editorFrame.offsetWidth || editorWidth);
-    const applyNodeSizeFromEditor = () => {
-      const nextWidth = editorFrame.offsetWidth / scale;
-      const nextHeight = editorFrame.offsetHeight / scale;
-      if (element.type === "text") {
-        syncTextNodeSize(node, {
-          width: nextWidth,
-          height: nextHeight,
-          padding: editorPadding,
-        });
-        return;
-      }
-      node.width(nextWidth);
-      node.height(nextHeight);
-    };
-
-    const measureTextHeight = (width = getEditorWidth()) => {
-      const currentFontSize = Number.parseFloat(textarea.style.fontSize) || element.fontSize * scale;
-      return measureTextareaContentHeight({
-        sourceTextarea: textarea,
-        measureTextarea,
-        width: Math.max(minEditorWidth, width),
-        minHeight: currentFontSize * 1.25,
-      }) + 2 * scale;
-    };
-
-    const setEditorSize = (width, height = measureTextHeight(width)) => {
-      const nextWidth = Math.max(minLiveEditorWidth, width);
-      const nextHeight = Math.max(minLiveEditorHeight, height);
-      editorFrame.style.width = `${nextWidth}px`;
-      editorFrame.style.height = `${nextHeight}px`;
-    };
-
-    const getTextLineWidth = (line) => {
-      return measureTextElementValue(element, line, element.fontSize * scale);
-    };
-
-    const fitEditorToContent = () => {
-      const lines = textarea.value.split("\n");
-      const contentWidth = Math.max(...lines.map(getTextLineWidth));
-      const canAutoFitWidth = !originalText;
-      const measuredAutoWidth = Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1));
-      const preferredTextWidth = getPreferredTextBoxWidth({
-        text: textarea.value,
-        baseWidth: maxAutoEditorWidth,
-        contentWidth,
-        padding: horizontalPadding,
-        latexDefaultWidth: 520 * scale,
-        maxWidth: 960 * scale,
-      });
-      const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
-        ? (preferredTextWidth > maxAutoEditorWidth ? preferredTextWidth : Math.min(maxAutoEditorWidth, measuredAutoWidth))
-        : getEditorWidth();
-      setEditorSize(nextWidth);
-      applyNodeSizeFromEditor();
-      if (["text", "sticky"].includes(element.type)) {
-        syncTextNodeContent(node, {
-          ...element,
-          text: textarea.value,
-          width: editorFrame.offsetWidth / scale,
-          height: editorFrame.offsetHeight / scale,
-        }, { renderLatex: false });
-      }
-      transformer.forceUpdate();
-      overlayLayer.batchDraw();
-    };
-
-    editorFrame.style.left = `${box.left + absolute.x}px`;
-    editorFrame.style.top = `${box.top + absolute.y}px`;
-    setEditorSize(editorWidth, editorHeight);
-    editorFrame.style.minWidth = `${minEditorWidth}px`;
-    editorFrame.style.minHeight = `${minEditorHeight}px`;
-    Object.assign(textarea.style, getTextEditorStyle({ element, scale, horizontalPadding }));
-    if (element.type === "sticky") {
-      const stickyFill = node.findOne?.("Rect")?.fill?.() ?? element.fill;
-      const stickyInsets = getStickyTextInsets(element.fontSize);
-      editorFrame.classList.add("is-sticky-editor");
-      editorFrame.style.borderColor = getStickyBorderColor(stickyFill);
-      textarea.style.padding = `${stickyInsets.y * scale}px ${stickyInsets.x * scale}px`;
-    }
-    editorFrame.style.transform = `rotate(${node.getAbsoluteRotation()}deg)`;
-    applyNodeSizeFromEditor();
-    syncTextNodeContent(node, {
-      ...element,
-      width: editorFrame.offsetWidth / scale,
-      height: editorFrame.offsetHeight / scale,
-    }, { renderLatex: false });
-    transformer.nodes([node]);
-    transformer.visible(true);
-    transformer.resizeEnabled(true);
-    transformer.rotateEnabled(true);
-    transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
-    const previousBoundBoxFunc = transformer.boundBoxFunc();
-    const previousAnchorDragBoundFunc = transformer.anchorDragBoundFunc();
-    transformer.anchorDragBoundFunc((oldAbsPos, newAbsPos) => {
-      return clampTransformerAnchorDragBySize(oldAbsPos, newAbsPos, {
-        minWidth: minEditorWidth,
-        minHeight: minEditorHeight,
-      });
-    });
-    transformer.boundBoxFunc((oldBox, newBox) => {
-      if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
-      const anchor = transformer.getActiveAnchor?.();
-      const nextBox = getUniformScaledBoxForResize({
-        elements: [element],
-        anchor,
-        oldBox,
-        newBox,
-        minWidth: minEditorWidth,
-        minHeight: minEditorHeight,
-      });
-      if (nextBox.width < minEditorWidth) {
-        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minEditorWidth;
-        nextBox.width = minEditorWidth;
-      }
-      if (nextBox.height < minEditorHeight) {
-        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - minEditorHeight;
-        nextBox.height = minEditorHeight;
-      }
-      return nextBox;
-    });
-    transformer.forceUpdate();
-    overlayLayer.batchDraw();
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-    let editorClosed = false;
-    const handleEditorOutsidePointerDown = (event) => {
-      if (editorClosed) return;
-      const shouldPreserveEditor = shouldPreserveTextEditorOnPointerDown({
-        target: event.target,
-        editorFrame,
-        isTransformer: isTransformerTarget(event.target),
-      });
-      if (editorFrame.contains(event.target) || isTransformerTarget(event.target)) return;
-      if (shouldPreserveEditor) {
-        commit({ preserveEmptyText: true });
-        return;
-      }
-      commit();
-    };
-
-    const cleanupEditorTransformer = () => {
-      window.removeEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
-      transformer.off(".editor");
-      transformer.boundBoxFunc(previousBoundBoxFunc);
-      transformer.anchorDragBoundFunc(previousAnchorDragBoundFunc);
-    };
-
-    const applyCommittedTextToNode = (nextElement) => {
-      syncTextNodeContent(node, nextElement);
-      node.scaleX(1);
-      node.scaleY(1);
-    };
-
-    const commit = ({ keepNode = false, preserveEmptyText = false } = {}) => {
-      if (editorClosed) return;
-      editorClosed = true;
-      isEditingText = false;
-      activeTextEditorCommit = null;
-      textOverlayController.setHiddenIds([]);
-      const nextText = textarea.value.trim();
-      const committedWidth = editorFrame.offsetWidth;
-      const committedHeight = editorFrame.offsetHeight;
-      editorFrame.remove();
-      measureTextarea.remove();
-      cleanupEditorTransformer();
-
-      if (!nextText && element.type !== "sticky" && !preserveEmptyText) {
-        board.elements = removeElementsById(board.elements, [id]);
-        selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
-        transformer.show();
-        renderBoard();
-        pushHistory("已删除空文字");
-        return;
-      }
-
-      let committedElement = null;
-      board.elements = board.elements.map((item) => {
-        if (item.id !== id) return item;
-        const nextFontSize = item.fontSize;
-        const nextElement = {
-          ...item,
-          text: nextText,
-          fontSize: nextFontSize,
-          scaleX: 1,
-          scaleY: 1,
-        };
-        if (item.type === "text") {
-          const nextWidth = Math.max(
-            getMinimumTextElementWidth(nextElement, nextFontSize),
-            committedWidth / scale,
-          );
-          committedElement = normalizeTextElementBox({
-            ...nextElement,
-            width: getPreferredTextElementWidth(nextElement, nextWidth),
-            height: Math.max(nextFontSize * 1.25, committedHeight / scale),
-          });
-          return committedElement;
-        }
-        if (item.type === "sticky") {
-          const stickyBox = getStickyEditorCommitBox({
-            committedWidth,
-            committedHeight,
-            stageScale,
-          });
-          nextElement.width = Math.max(element.width, stickyBox.width);
-          nextElement.height = Math.max(element.height, stickyBox.height);
-          committedElement = nextElement;
-        }
-        return nextElement;
-      });
-      transformer.show();
-      if (keepNode && committedElement) {
-        if (!selectedIds.includes(id)) selectedIds = [id];
-        applyCommittedTextToNode(committedElement);
-        node.show();
-        transformer.nodes([node]);
-        transformer.forceUpdate();
-        contentLayer.batchDraw();
-        overlayLayer.batchDraw();
-        pushHistory("已编辑文字");
-        return;
-      }
-      renderBoard();
-      pushHistory("已编辑文字");
-    };
-    activeTextEditorCommit = () => commit();
-    window.addEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
-
-    const exitEditorForTransform = () => {
-      commit({ keepNode: true });
-    };
-
-    transformer.on("transformstart.editor dragstart.editor", exitEditorForTransform);
-
-    const cancel = () => {
-      if (editorClosed) return;
-      editorClosed = true;
-      isEditingText = false;
-      if (activeTextEditorCommit) activeTextEditorCommit = null;
-      textOverlayController.setHiddenIds([]);
-      editorFrame.remove();
-      measureTextarea.remove();
-      cleanupEditorTransformer();
-
-      if (!originalText && element.type !== "sticky") {
-        board.elements = removeElementsById(board.elements, [id]);
-        selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
-        transformer.show();
-        renderBoard();
-        pushHistory("已取消空文字");
-        return;
-      }
-
-      node.show();
-      transformer.show();
-      renderBoard();
-    };
-
-    textarea.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        commit();
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        cancel();
-      }
-    });
-    textarea.addEventListener("input", fitEditorToContent);
-    textarea.addEventListener("blur", () => {
-      window.setTimeout(() => {
-        if (!transformer.isTransforming?.()) commit();
-      });
-    });
-  }
-
   async function openBoardFile() {
     if (!supportsFileSystemAccess()) {
       setStatus("当前浏览器不支持原地打开保存，请使用 Chrome 或 Edge");
@@ -6497,9 +6198,9 @@ export function createWhiteboardApp(root) {
       window.clearTimeout(draftSaveTimer);
       draftSaveTimer = null;
     }
-    if (activeTextEditorCommit) {
+    if (editController.commit) {
       suppressNextTextHistory = true;
-      activeTextEditorCommit();
+      editController.commit();
     }
     const result = saveLocalDraft(serializeCurrentBoard());
     if (!result.ok) {

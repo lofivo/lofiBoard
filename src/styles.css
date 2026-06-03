@@ -1968,21 +1968,32 @@ button {
   cursor: var(--cursor-panning);
 }
 
-.text-latex-overlay {
+.text-latex-overlay,
+.text-dom-overlay {
   user-select: none;
   pointer-events: none;
 }
 
-.text-latex-overlay .katex-display {
+.text-dom-overlay.is-editing {
+  user-select: text;
+  pointer-events: auto;
+  cursor: text;
+}
+
+.text-latex-overlay .katex-display,
+.text-dom-overlay .katex-display {
   margin: 0.35em 0;
 }
 
 .text-latex-overlay .katex,
-.text-latex-overlay .katex-html {
+.text-dom-overlay .katex,
+.text-latex-overlay .katex-html,
+.text-dom-overlay .katex-html {
   white-space: normal;
 }
 
-.text-latex-overlay .katex .base {
+.text-latex-overlay .katex .base,
+.text-dom-overlay .katex .base {
   white-space: nowrap;
 }
 
