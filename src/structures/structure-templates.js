@@ -410,6 +410,7 @@ export function clearArrayHighlight(element) {
 export function setArrayAlgorithmMarkers(element, {
   activeIndices = [],
   sortedIndices = [],
+  pendingSwapIndices = [],
   minIndex = null,
   keyIndex = null,
   emptyIndex = null,
@@ -426,6 +427,7 @@ export function setArrayAlgorithmMarkers(element, {
       algorithm: {
         activeIndices: normalizeIndexList(activeIndices, length),
         sortedIndices: normalizeIndexList(sortedIndices, length),
+        pendingSwapIndices: normalizeIndexList(pendingSwapIndices, length),
         minIndex: normalizeOptionalIndex(minIndex, length),
         keyIndex: normalizeOptionalIndex(keyIndex, length),
         emptyIndex: normalizeOptionalIndex(emptyIndex, length),

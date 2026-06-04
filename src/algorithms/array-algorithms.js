@@ -8,6 +8,7 @@ export const ALGORITHM_STEP_TYPES = Object.freeze({
   START: "start",
   COMPARE: "compare",
   SELECT_MIN: "select-min",
+  PREPARE_SWAP: "prepare-swap",
   SWAP: "swap",
   PICK_KEY: "pick-key",
   SHIFT: "shift",
@@ -80,6 +81,17 @@ export function createBubbleSortSteps(values) {
       if (!shouldSwap) continue;
       const firstValue = displayValues[index];
       const secondValue = displayValues[index + 1];
+      steps.push(createStep({
+        type: ALGORITHM_STEP_TYPES.PREPARE_SWAP,
+        values: displayValues,
+        activeIndices: [index, index + 1],
+        sortedIndices,
+        swapIndices: [index, index + 1],
+        markers: {
+          pendingSwapIndices: [index, index + 1],
+        },
+        message: `准备交换 ${firstValue} 和 ${secondValue}`,
+      }));
       [numbers[index], numbers[index + 1]] = [numbers[index + 1], numbers[index]];
       [displayValues[index], displayValues[index + 1]] = [displayValues[index + 1], displayValues[index]];
       steps.push(createStep({
@@ -177,6 +189,18 @@ export function createSelectionSortSteps(values) {
       continue;
     }
     const minValue = displayValues[minIndex];
+    steps.push(createStep({
+      type: ALGORITHM_STEP_TYPES.PREPARE_SWAP,
+      values: displayValues,
+      activeIndices: [index, minIndex],
+      sortedIndices: getSortedPrefixIndices(index),
+      swapIndices: [index, minIndex],
+      markers: {
+        pendingSwapIndices: [index, minIndex],
+        focusIndices: [index],
+      },
+      message: `准备将最小值 ${minValue} 放到位置 ${index + 1}`,
+    }));
     [numbers[index], numbers[minIndex]] = [numbers[minIndex], numbers[index]];
     [displayValues[index], displayValues[minIndex]] = [displayValues[minIndex], displayValues[index]];
     steps.push(createStep({

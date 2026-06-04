@@ -22,7 +22,7 @@ describe("array algorithms", () => {
     });
   });
 
-  it("creates separate compare and swap steps for bubble sort", () => {
+  it("creates separate compare, prepare-swap, and swap steps for bubble sort", () => {
     const result = createBubbleSortSteps(["3", "1", "2"]);
 
     expect(result.ok).toBe(true);
@@ -30,8 +30,10 @@ describe("array algorithms", () => {
     expect(result.steps.map((step) => step.type)).toEqual([
       ALGORITHM_STEP_TYPES.START,
       ALGORITHM_STEP_TYPES.COMPARE,
+      ALGORITHM_STEP_TYPES.PREPARE_SWAP,
       ALGORITHM_STEP_TYPES.SWAP,
       ALGORITHM_STEP_TYPES.COMPARE,
+      ALGORITHM_STEP_TYPES.PREPARE_SWAP,
       ALGORITHM_STEP_TYPES.SWAP,
       ALGORITHM_STEP_TYPES.COMPARE,
       ALGORITHM_STEP_TYPES.COMPLETE,
@@ -45,6 +47,14 @@ describe("array algorithms", () => {
       message: "比较 3 和 1，需要交换",
     });
     expect(result.steps[2]).toMatchObject({
+      type: ALGORITHM_STEP_TYPES.PREPARE_SWAP,
+      values: ["3", "1", "2"],
+      activeIndices: [0, 1],
+      sortedIndices: [],
+      swapIndices: [0, 1],
+      message: "准备交换 3 和 1",
+    });
+    expect(result.steps[3]).toMatchObject({
       type: ALGORITHM_STEP_TYPES.SWAP,
       values: ["1", "3", "2"],
       activeIndices: [0, 1],
@@ -244,5 +254,102 @@ describe("array algorithms", () => {
         floatingKey: { sourceIndex: 2, currentIndex: 2, value: "3" },
       },
     });
+  });
+
+  it("inserts PREPARE_SWAP steps before each swap in bubble sort", () => {
+    const result = createBubbleSortSteps(["3", "1", "2"]);
+
+    expect(result.ok).toBe(true);
+    const stepTypes = result.steps.map((step) => step.type);
+    expect(stepTypes).toContain("prepare-swap");
+    const prepareSwaps = result.steps.filter((step) => step.type === "prepare-swap");
+    expect(prepareSwaps).toHaveLength(2);
+
+    expect(prepareSwaps[0]).toMatchObject({
+      type: "prepare-swap",
+      values: ["3", "1", "2"],
+      activeIndices: [0, 1],
+      sortedIndices: [],
+      swapIndices: [0, 1],
+      markers: expect.objectContaining({
+        pendingSwapIndices: [0, 1],
+      }),
+      message: "准备交换 3 和 1",
+    });
+
+    expect(prepareSwaps[1]).toMatchObject({
+      type: "prepare-swap",
+      values: ["1", "3", "2"],
+      activeIndices: [1, 2],
+      sortedIndices: [],
+      swapIndices: [1, 2],
+      markers: expect.objectContaining({
+        pendingSwapIndices: [1, 2],
+      }),
+      message: "准备交换 3 和 2",
+    });
+
+    const stopIndex = stepTypes.indexOf("prepare-swap");
+    expect(stopIndex).toBeGreaterThan(0);
+    expect(stepTypes[stopIndex - 1]).toBe(ALGORITHM_STEP_TYPES.COMPARE);
+    expect(stepTypes[stopIndex + 1]).toBe(ALGORITHM_STEP_TYPES.SWAP);
+  });
+
+  it("does not generate PREPARE_SWAP when bubble sort compare needs no swap", () => {
+    const result = createBubbleSortSteps(["1", "2", "3"]);
+
+    expect(result.ok).toBe(true);
+    expect(result.steps.map((step) => step.type)).not.toContain("prepare-swap");
+  });
+
+  it("inserts PREPARE_SWAP step before each selection sort swap", () => {
+    const result = createSelectionSortSteps(["3", "1", "2"]);
+    expect(result.ok).toBe(true);
+    const prepareSwaps = result.steps.filter((step) => step.type === "prepare-swap");
+    expect(prepareSwaps).toHaveLength(2);
+
+    expect(prepareSwaps[0]).toMatchObject({
+      type: "prepare-swap",
+      values: ["3", "1", "2"],
+      activeIndices: [0, 1],
+      sortedIndices: [],
+      swapIndices: [0, 1],
+      markers: expect.objectContaining({
+        pendingSwapIndices: [0, 1],
+      }),
+      message: "准备将最小值 1 放到位置 1",
+    });
+
+    const secondSwaps = result.steps.filter((step) => step.type === "prepare-swap" && step.swapIndices[0] === 1);
+    expect(secondSwaps).toHaveLength(1);
+    expect(secondSwaps[0].swapIndices).toEqual([1, 2]);
+    expect(secondSwaps[0].sortedIndices).toEqual([0]);
+
+    const stepTypes = result.steps.map((step) => step.type);
+    const firstPrepareIndex = stepTypes.indexOf("prepare-swap");
+    expect(stepTypes[firstPrepareIndex - 1]).toBe(ALGORITHM_STEP_TYPES.SELECT_MIN);
+    expect(stepTypes[firstPrepareIndex + 1]).toBe(ALGORITHM_STEP_TYPES.SWAP);
+  });
+
+  it("does not generate PREPARE_SWAP when selection sort item is already minimum", () => {
+    const result = createSelectionSortSteps(["1", "2", "3"]);
+
+    expect(result.ok).toBe(true);
+    expect(result.steps.map((step) => step.type)).not.toContain("prepare-swap");
+  });
+
+  it("keeps values unchanged during PREPARE_SWAP step", () => {
+    const bubble = createBubbleSortSteps(["3", "1"]);
+    const selection = createSelectionSortSteps(["3", "1"]);
+
+    const bubblePrepare = bubble.steps.find((step) => step.type === "prepare-swap");
+    expect(bubblePrepare.values).toEqual(["3", "1"]);
+    const bubbleSwap = bubble.steps.find((step) => step.type === ALGORITHM_STEP_TYPES.SWAP);
+    expect(bubbleSwap.values).toEqual(["1", "3"]);
+
+    const selectionPrepare = selection.steps.find((step) => step.type === "prepare-swap");
+    expect(selectionPrepare.values).toEqual(["3", "1"]);
+    const selectionSwap = selection.steps.find((step) => step.type === ALGORITHM_STEP_TYPES.SWAP);
+    expect(selectionSwap.values).toEqual(["1", "3"]);
   });
 });

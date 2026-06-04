@@ -1333,6 +1333,89 @@ describe("konva elements", () => {
     expect(itemRects[2].dash()).toEqual([]);
   });
 
+  it("renders pending swap markers with yellow background and orange border overlay", () => {
+    const context = {
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      getImageData: () => ({ data: [0, 0, 0, 0] }),
+      measureText: () => ({ width: 60 }),
+      font: "",
+    };
+    globalThis.document = {
+      createElement: () => ({
+        getContext: () => context,
+      }),
+    };
+    const element = {
+      id: "array_ps_only",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 144,
+      height: 88,
+      items: [
+        { id: "psa", index: 0, value: "A" },
+        { id: "psb", index: 1, value: "B" },
+      ],
+      markers: {
+        algorithm: {
+          pendingSwapIndices: [0],
+        },
+      },
+      style: {},
+    };
+    const node = createElementNode(element, baseHandlers);
+
+    const valueRects = node.find(".array-item").map((item) => item.find("Rect").at(-1));
+    expect(valueRects[0].fill()).toBe("#fef3c7");
+    expect(valueRects[1].fill()).toBe("#ffffff");
+
+    const overlayGroups = node.find(".array-item-border-overlay");
+    expect(overlayGroups).toHaveLength(1);
+    expect(overlayGroups[0].getAttr("linearIndex")).toBe(0);
+    expect(overlayGroups[0].find("Rect").at(-1).stroke()).toBe("#f59e0b");
+  });
+
+  it("renders value sub-groups inside array items for split rendering", () => {
+    const context = {
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      getImageData: () => ({ data: [0, 0, 0, 0] }),
+      measureText: () => ({ width: 60 }),
+      font: "",
+    };
+    globalThis.document = {
+      createElement: () => ({
+        getContext: () => context,
+      }),
+    };
+    const node = createElementNode({
+      id: "array_1",
+      type: "array-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 88,
+      items: [
+        { id: "item_1", index: 0, value: "A" },
+        { id: "item_2", index: 1, value: "B" },
+        { id: "item_3", index: 2, value: "C" },
+      ],
+      style: {},
+    }, baseHandlers);
+
+    const items = node.find(".array-item");
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      const valueGroup = item.findOne(".array-item-value-group");
+      expect(valueGroup).not.toBeNull();
+      expect(valueGroup.find("Rect")).toHaveLength(1);
+      expect(valueGroup.find("Text")).toHaveLength(1);
+    }
+    expect(items[0].findOne(".array-item-value-group").find("Text").at(-1).text()).toBe("A");
+    expect(items[1].findOne(".array-item-value-group").find("Text").at(-1).text()).toBe("B");
+  });
+
   it("draws algorithm border overlays above array cells so highlighted borders stay complete", () => {
     const node = createElementNode({
       id: "array_1",

@@ -801,6 +801,10 @@ function syncLinearStructureItemNode(target, source) {
   target.eventListeners = source.eventListeners;
   targetChildren.forEach((targetChild, index) => {
     const sourceChild = sourceChildren[index];
+    if (targetChild.getClassName() === "Group") {
+      syncLinearStructureItemNode(targetChild, sourceChild);
+      return;
+    }
     targetChild.setAttrs({
       ...sourceChild.getAttrs(),
       listening: sourceChild.listening(),
@@ -893,6 +897,7 @@ function createLinearStructureNode(element, common, {
   const highlightedIndices = new Set(element.markers?.highlight ?? []);
   const algorithmActiveIndices = new Set(element.markers?.algorithm?.activeIndices ?? []);
   const algorithmSortedIndices = new Set(element.markers?.algorithm?.sortedIndices ?? []);
+  const algorithmPendingSwapIndices = new Set(element.markers?.algorithm?.pendingSwapIndices ?? []);
   const algorithmMinIndex = Number.isInteger(element.markers?.algorithm?.minIndex) ? element.markers.algorithm.minIndex : null;
   const algorithmKeyIndex = Number.isInteger(element.markers?.algorithm?.keyIndex) ? element.markers.algorithm.keyIndex : null;
   const algorithmEmptyIndex = Number.isInteger(element.markers?.algorithm?.emptyIndex) ? element.markers.algorithm.emptyIndex : null;
@@ -972,6 +977,9 @@ function createLinearStructureNode(element, common, {
       itemGroup.add(indexRect);
       itemGroup.add(indexText);
     }
+    const valueGroup = new Konva.Group({
+      name: "array-item-value-group",
+    });
     const valueRect = new Konva.Rect({
       name: "array-item-value-hit",
       y: valueY,
@@ -994,8 +1002,9 @@ function createLinearStructureNode(element, common, {
       align: "center",
       verticalAlign: "middle",
     });
-    itemGroup.add(valueRect);
-    itemGroup.add(valueText);
+    valueGroup.add(valueRect);
+    valueGroup.add(valueText);
+    itemGroup.add(valueGroup);
 
     const handleSelect = (event) => {
       event.cancelBubble = true;
@@ -1147,6 +1156,7 @@ function createLinearStructureNode(element, common, {
 
   function getLinearStructureCellFill(index, defaultFill) {
     if (algorithmEmptyIndex === index) return style.algorithmEmptyFill;
+    if (algorithmPendingSwapIndices.has(index)) return style.highlightFill;
     if (algorithmActiveIndices.has(index)) return style.algorithmActiveFill;
     if (algorithmSortedIndices.has(index)) return style.algorithmSortedFill;
     if (highlightedIndices.has(index)) return style.highlightFill;
@@ -1155,6 +1165,7 @@ function createLinearStructureNode(element, common, {
 
   function getLinearStructureOverlayStroke(index, isActive = false) {
     if (isActive) return "#2563eb";
+    if (algorithmPendingSwapIndices.has(index)) return style.algorithmKeyStroke;
     if (algorithmKeyIndex === index) return style.algorithmKeyStroke;
     if (algorithmMinIndex === index) return style.algorithmMinStroke;
     if (algorithmActiveIndices.has(index)) return "#2563eb";
@@ -1162,6 +1173,15 @@ function createLinearStructureNode(element, common, {
     if (algorithmSortedIndices.has(index)) return "#16a34a";
     if (highlightedIndices.has(index)) return "#f59e0b";
     return null;
+  }
+
+  function hasAlgorithmTopVisual(index) {
+    return algorithmPendingSwapIndices.has(index)
+      || algorithmActiveIndices.has(index)
+      || algorithmSortedIndices.has(index)
+      || algorithmMinIndex === index
+      || algorithmKeyIndex === index
+      || algorithmEmptyIndex === index;
   }
 
   function createLinearStructureBorderOverlay(index, isActive, includesIndexRow) {

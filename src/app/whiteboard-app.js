@@ -3747,9 +3747,11 @@ export function createWhiteboardApp(root) {
     const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
     const element = board.elements.find((item) => item.id === session.elementId);
     const group = contentLayer.findOne(`#${session.elementId}`);
-    const firstNode = findLinearItemNode(group, reverse ? moves[0].to : moves[0].from);
-    const secondNode = findLinearItemNode(group, reverse ? moves[1].to : moves[1].from);
-    if (!element || !group || !firstNode || !secondNode) {
+    const firstItem = findLinearItemNode(group, reverse ? moves[0].to : moves[0].from);
+    const secondItem = findLinearItemNode(group, reverse ? moves[1].to : moves[1].from);
+    const firstValue = firstItem?.findOne?.(".array-item-value-group");
+    const secondValue = secondItem?.findOne?.(".array-item-value-group");
+    if (!element || !group || !firstValue || !secondValue) {
       applyArrayAlgorithmStep(targetStepIndex, { render: true });
       if (!reverse) scheduleArrayAlgorithmPlayback();
       return;
@@ -3764,24 +3766,49 @@ export function createWhiteboardApp(root) {
       pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
-    const firstStart = firstNode.x();
-    const secondStart = secondNode.x();
-    firstNode.moveToTop();
-    secondNode.moveToTop();
+
+    const firstStartX = firstItem.x() + (firstValue.x() || 0);
+    const secondStartX = secondItem.x() + (secondValue.x() || 0);
+    const firstTargetX = (reverse ? moves[0].from : moves[0].to) * style.cellWidth;
+    const secondTargetX = (reverse ? moves[1].from : moves[1].to) * style.cellWidth;
+
+    const firstGhost = firstValue.clone({
+      name: "array-swap-ghost",
+      x: firstStartX,
+      listening: false,
+      opacity: 0.95,
+    });
+    const secondGhost = secondValue.clone({
+      name: "array-swap-ghost",
+      x: secondStartX,
+      listening: false,
+      opacity: 0.95,
+    });
+    group.add(firstGhost);
+    group.add(secondGhost);
+    arrayAlgorithmAnimationNodes.push(firstGhost, secondGhost);
+    firstValue.visible(false);
+    secondValue.visible(false);
+
+    firstGhost.moveToTop();
+    secondGhost.moveToTop();
     const firstTween = new Konva.Tween({
-      node: firstNode,
-      x: (reverse ? moves[0].from : moves[0].to) * style.cellWidth,
+      node: firstGhost,
+      x: firstTargetX,
       duration,
       easing: Konva.Easings.EaseInOut,
     });
     const secondTween = new Konva.Tween({
-      node: secondNode,
-      x: (reverse ? moves[1].from : moves[1].to) * style.cellWidth,
+      node: secondGhost,
+      x: secondTargetX,
       duration,
       easing: Konva.Easings.EaseInOut,
       onFinish: () => {
         firstTween.destroy();
         secondTween.destroy();
+        firstGhost.destroy();
+        secondGhost.destroy();
+        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((n) => n !== firstGhost && n !== secondGhost);
         arrayAlgorithmSwapTweens = [];
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
@@ -3801,8 +3828,6 @@ export function createWhiteboardApp(root) {
     arrayAlgorithmSwapTweens = [firstTween, secondTween];
     firstTween.play();
     secondTween.play();
-    firstNode.x(firstStart);
-    secondNode.x(secondStart);
   }
 
   function playArrayAlgorithmPickKeyStep(nextIndex, { reverse = false } = {}) {
@@ -3905,10 +3930,14 @@ export function createWhiteboardApp(root) {
       });
       return;
     }
-    const animatedNode = step.type === ALGORITHM_STEP_TYPES.INSERT
-      ? createArrayAlgorithmGhostNode(itemNode, step.keyValue)
-      : itemNode;
-    const startX = animatedNode.x();
+    const valueGroup = itemNode.findOne?.(".array-item-value-group");
+    if (!valueGroup) {
+      applyArrayAlgorithmStep(targetStepIndex, { render: true });
+      if (!reverse) scheduleArrayAlgorithmPlayback();
+      return;
+    }
+    const startX = itemNode.x() + (valueGroup.x() || 0);
+    const targetX = (reverse ? move.from : move.to) * style.cellWidth;
     setArrayAlgorithmSession({
       ...session,
       isAnimating: true,
@@ -3916,16 +3945,27 @@ export function createWhiteboardApp(root) {
       pendingStepIndex: targetStepIndex,
     });
     syncArrayAlgorithmPanelState();
-    animatedNode.moveToTop();
+
+    const ghost = valueGroup.clone({
+      name: "array-shift-ghost",
+      x: startX,
+      listening: false,
+      opacity: 0.95,
+    });
+    group.add(ghost);
+    arrayAlgorithmAnimationNodes.push(ghost);
+    valueGroup.visible(false);
+
+    ghost.moveToTop();
     const tween = new Konva.Tween({
-      node: animatedNode,
-      x: (reverse ? move.from : move.to) * style.cellWidth,
+      node: ghost,
+      x: targetX,
       duration,
       easing: Konva.Easings.EaseInOut,
       onFinish: () => {
         tween.destroy();
-        if (animatedNode !== itemNode) animatedNode.destroy();
-        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== animatedNode);
+        ghost.destroy();
+        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
         arrayAlgorithmSwapTweens = [];
         const nextSession = getArrayAlgorithmSession(session.elementId);
         if (!nextSession) return;
@@ -3944,7 +3984,6 @@ export function createWhiteboardApp(root) {
     });
     arrayAlgorithmSwapTweens = [tween];
     tween.play();
-    animatedNode.x(startX);
   }
 
   function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, reverse = false, targetStepIndex = nextIndex, element, itemNode, move, style, duration }) {
@@ -4127,6 +4166,7 @@ export function createWhiteboardApp(root) {
           {
             activeIndices: step.markers?.activeIndices ?? step.activeIndices,
             sortedIndices: step.markers?.sortedIndices ?? step.sortedIndices,
+            pendingSwapIndices: step.markers?.pendingSwapIndices,
             minIndex: step.markers?.minIndex,
             keyIndex: step.markers?.keyIndex,
             emptyIndex: step.markers?.emptyIndex,
@@ -5565,6 +5605,11 @@ export function createWhiteboardApp(root) {
 
   function findLinearItemNode(group, index) {
     return group?.find(".array-item")?.find((node) => getLinearItemNodeIndex(node) === index) ?? null;
+  }
+
+  function findLinearItemValueGroup(group, index) {
+    const itemGroup = findLinearItemNode(group, index);
+    return itemGroup?.findOne?.(".array-item-value-group") ?? null;
   }
 
   function findTreeNodeGroup(group, nodeId) {
