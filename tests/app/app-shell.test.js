@@ -62,7 +62,8 @@ describe("app shell", () => {
     expect(styles).toContain("--fluent-panel-bg");
     expect(styles).toContain("--fluent-radius-lg");
     expect(sidePanelStyles).toContain("backdrop-filter: blur(24px)");
-    expect(sidePanelStyles).toContain("border-radius: 24px");
+    expect(sidePanelStyles).toContain("border-radius: 0 24px 24px 0");
+    expect(sidePanelStyles).toContain("border-radius: 24px 0 0 24px");
     expect(sidePanelStyles).not.toMatch(/gradient\(/);
     expect(styles).toMatch(/\.layer-item\.active \{[\s\S]*?box-shadow: 0 1px 5px rgba\(15, 23, 42, 0\.08\);/);
   });
@@ -70,7 +71,7 @@ describe("app shell", () => {
   it("uses the lightweight white property panel language across inspectors", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
-    expect(styles).toMatch(/\.style-panel \{[\s\S]*?border-radius: 24px;/);
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?border-radius: 0 24px 24px 0;/);
     expect(styles).toMatch(/\.style-panel \{[\s\S]*?background: #ffffff;/);
     expect(styles).toMatch(/\.inspector-section \{[\s\S]*?background: transparent;/);
     expect(styles).toMatch(/\.brush-preset-row \{[\s\S]*?background: #f8fafc;/);
@@ -82,12 +83,22 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.layer-item \{[\s\S]*?border-radius: 12px;/);
   });
 
-  it("keeps side panels compact for the whiteboard workspace", () => {
+  it("docks side panels to the viewport edges and keeps the property panel compact", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
-    expect(styles).toMatch(/\.style-panel \{[\s\S]*?width: 304px;/);
-    expect(styles).toMatch(/\[data-panel-mode="structure"\] \.style-panel \{[\s\S]*?width: 284px;/);
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?left: 0;[\s\S]*?width: 260px;[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    expect(styles).toMatch(/\.style-panel \{[\s\S]*?border-left: 0;[\s\S]*?border-radius: 0 24px 24px 0;/);
+    expect(styles).toMatch(/\[data-panel-mode="structure"\] \.style-panel \{[\s\S]*?width: 268px;[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    expect(styles).toMatch(/\.layer-panel \{[\s\S]*?right: 0;/);
+    expect(styles).toMatch(/\.layer-panel \{[\s\S]*?border-right: 0;[\s\S]*?border-radius: 24px 0 0 24px;/);
     expect(styles).toMatch(/\.layer-panel \{[\s\S]*?width: 236px;/);
+  });
+
+  it("keeps bottom status controls flush with the viewport sides", () => {
+    const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.statusbar \{[\s\S]*?right: 0;[\s\S]*?left: 0;/);
+    expect(styles).toMatch(/@media \(max-width: 760px\) \{[\s\S]*?\.statusbar \{[\s\S]*?right: 0;[\s\S]*?left: 0;/);
   });
 
   it("keeps the current selection when pointer down starts on an already selected element", () => {
@@ -918,8 +929,9 @@ describe("app shell", () => {
     expect(appSource).toContain('root.dataset.selectionHasArrow = String(capabilities.arrow)');
     expect(appSource).toContain('root.dataset.selectionHasCoordinate = String(capabilities.coordinate)');
 
-    expect(styles).toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 168px\);/);
-    expect(styles).not.toMatch(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?max-height: calc\(100vh - 64px\);/);
+    const multiStylePanelStyles = styles.match(/\[data-panel-mode="multi"\] \.style-panel \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(multiStylePanelStyles).toContain("max-height: calc(100vh - 64px);");
+    expect(multiStylePanelStyles).not.toContain("max-height: calc(100vh - 168px);");
     expect(styles).toMatch(/\[data-panel-mode="multi"\] \.panel-body \{[\s\S]*?overflow-y: auto;/);
     expect(styles).toMatch(/\[data-panel-mode="multi"\]\[data-selection-has-drawing="true"\] \.brush-inspector \{[\s\S]*?display: grid !important;/);
     expect(styles).toContain('[data-panel-mode="multi"][data-selection-has-text="true"] .text-inspector');

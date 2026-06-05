@@ -547,14 +547,15 @@ button {
   position: fixed;
   z-index: 26;
   top: 50%;
-  left: 16px;
+  left: 0;
   display: flex;
   flex-direction: column;
-  width: 304px;
-  max-height: calc(100vh - 168px);
+  width: 260px;
+  max-height: calc(100vh - 64px);
   padding: 18px;
   border: 1px solid var(--fluent-stroke);
-  border-radius: 24px;
+  border-left: 0;
+  border-radius: 0 24px 24px 0;
   background: #ffffff;
   box-shadow: var(--fluent-shadow);
   backdrop-filter: blur(24px) saturate(1.18);
@@ -566,8 +567,8 @@ button {
 }
 
 [data-panel-mode="structure"] .style-panel {
-  width: 284px;
-  max-height: calc(100vh - 168px);
+  width: 268px;
+  max-height: calc(100vh - 64px);
   padding-block: 14px;
 }
 
@@ -580,7 +581,7 @@ button {
 }
 
 [data-panel-mode="multi"] .style-panel {
-  max-height: calc(100vh - 168px);
+  max-height: calc(100vh - 64px);
   padding-block: 14px;
 }
 
@@ -593,7 +594,7 @@ button {
   position: fixed;
   z-index: 25;
   top: 50%;
-  right: 16px;
+  right: 0;
   display: grid;
   width: 236px;
   max-height: calc(100vh - 168px);
@@ -601,7 +602,8 @@ button {
   overflow: hidden;
   padding: 18px;
   border: 1px solid var(--fluent-stroke);
-  border-radius: 24px;
+  border-right: 0;
+  border-radius: 24px 0 0 24px;
   background: #ffffff;
   box-shadow: var(--fluent-shadow);
   backdrop-filter: blur(24px) saturate(1.18);
@@ -2000,9 +2002,9 @@ button {
 .statusbar {
   position: fixed;
   z-index: 27;
-  right: 16px;
+  right: 0;
   bottom: 18px;
-  left: 16px;
+  left: 0;
   display: flex;
   justify-content: space-between;
   pointer-events: none;
@@ -2211,6 +2213,8 @@ button {
     left: 8px;
     width: auto;
     max-height: calc(100vh - 180px);
+    border-left: 1px solid var(--fluent-stroke);
+    border-radius: 24px;
     transform: none;
   }
 
@@ -2255,8 +2259,8 @@ button {
   }
 
   .statusbar {
-    right: 8px;
+    right: 0;
     bottom: 8px;
-    left: 8px;
+    left: 0;
   }
 }
