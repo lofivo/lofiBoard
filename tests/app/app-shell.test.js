@@ -472,7 +472,7 @@ describe("app shell", () => {
     expect(appSource).toContain('controls.style.transform = "translateX(-50%)";');
     expect(actionSource).toContain("addTreeChild(element, nodeId, \"0\")");
     expect(actionSource).toContain("addTreeSibling(element, nodeId, side, \"0\")");
-    expect(actionSource).toContain("activeTreeNode = { elementId, nodeId };");
+    expect(actionSource).toContain("structureInteraction.setActiveTreeNode({ elementId, nodeId });");
     expect(actionSource).toContain("editTreeStructureNode({ elementId, nodeId, label:");
     expect(clickSource).toContain("renderTreeNodeControls();");
     expect(generalTreeNodeBranch).toContain("isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)");
@@ -514,9 +514,9 @@ describe("app shell", () => {
 
     expect(appSource).toContain("function isTreeNodeHitTarget(target)");
     expect(appSource).toContain("function syncBinaryTreeActiveVisual(elementId)");
-    expect(clickSource).toMatch(/if \(isBinaryTreeElement\(clickedElement\)\) \{[\s\S]*?const previousActive = activeTreeNode;[\s\S]*?activeTreeNode = \{ elementId, nodeId \};[\s\S]*?selectIds\(\[elementId\]\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActive\?\.elementId\);[\s\S]*?syncBinaryTreeActiveVisual\(elementId\);/);
+    expect(clickSource).toMatch(/if \(isBinaryTreeElement\(clickedElement\)\) \{[\s\S]*?const \{ previousActiveTreeNode \} = structureInteraction\.setActiveTreeNode\(\{ elementId, nodeId \}\);[\s\S]*?selectIds\(\[elementId\]\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeNode\?\.elementId\);[\s\S]*?syncBinaryTreeActiveVisual\(elementId\);/);
     expect(pointerDownSource).toContain("isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target)");
-    expect(pointerDownSource).toMatch(/const previousActiveTreeElementId = activeTreeNode\.elementId;[\s\S]*?activeTreeNode = null;[\s\S]*?hideBinaryTreeControls\(\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeElementId\);/);
+    expect(pointerDownSource).toMatch(/const previousActiveTreeElementId = activeTreeNode\.elementId;[\s\S]*?structureInteraction\.clearActiveTreeNode\(\);[\s\S]*?hideBinaryTreeControls\(\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeElementId\);/);
     expect(pointerDownSource).toMatch(/const shouldDragBinaryTreeBlank = !event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\);[\s\S]*?if \(shouldDragBinaryTreeBlank\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);/);
     expect(pointerDownSource).toMatch(/if \(!event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
   });
@@ -607,6 +607,7 @@ describe("app shell", () => {
 
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const finishDragSource = appSource.slice(
       appSource.indexOf("function finishSelectionDrag()"),
       appSource.indexOf("function setSelectionDragNodeDraggable(enabled)"),
@@ -616,10 +617,12 @@ describe("app shell", () => {
       appSource.indexOf("function connectGraphStructureNodes"),
     );
 
-    expect(appSource).toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
+    expect(appSource).not.toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
+    expect(structureSource).toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
+    expect(appSource).toContain("structureInteraction.suppressBinaryTreeNodeClicks(");
     expect(finishDragSource).toContain("suppressBinaryTreeNodeClickAfterDrag();");
     expect(clickSource).toContain("consumeSuppressedBinaryTreeNodeClick(elementId)");
-    expect(clickSource.indexOf("consumeSuppressedBinaryTreeNodeClick(elementId)")).toBeLessThan(clickSource.indexOf("activeTreeNode = { elementId, nodeId };"));
+    expect(clickSource.indexOf("consumeSuppressedBinaryTreeNodeClick(elementId)")).toBeLessThan(clickSource.indexOf("structureInteraction.setActiveTreeNode({ elementId, nodeId });"));
   });
 
   it("renders the linear structure inspector without an outer category title", () => {
@@ -1124,7 +1127,7 @@ describe("app shell", () => {
   it("hides transformer handles while linear item drag preview is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (linearItemDragState)");
+    expect(appSource).toContain("if (structureInteraction.hasLinearItemDragState())");
     expect(appSource).toContain("transformer.enabledAnchors([])");
     expect(appSource).toContain("transformer.visible(false)");
   });
@@ -1321,13 +1324,14 @@ describe("app shell", () => {
 
   it("does not auto-activate the first linear item just because the array itself became selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (!selectedLinear) {");
-    expect(appSource).toContain("activeLinearItem = null;");
-    expect(appSource).toContain("} else if (activeLinearItem?.elementId === selectedLinear.id) {");
-    expect(appSource).toContain("if (activeLinearItem?.elementId !== elementId) {");
-    expect(appSource).toContain("activeLinearItem = null;");
-    expect(appSource).not.toContain("const fallbackIndex = activeLinearItem?.elementId === elementId ? activeLinearItem.index : 0;");
+    expect(appSource).toContain("const structureInteraction = createStructureInteraction();");
+    expect(appSource).toContain("structureInteraction.syncSelection({");
+    expect(interactionSource).toContain("if (!selectedLinear) {");
+    expect(interactionSource).toContain("activeLinearItem = null;");
+    expect(interactionSource).toContain("if (activeLinearItem?.elementId === selectedLinear.id) {");
+    expect(interactionSource).not.toContain("const fallbackIndex = activeLinearItem?.elementId === elementId ? activeLinearItem.index : 0;");
     expect(appSource).not.toContain("setActiveLinearItem(selectedLinear.id, 0, { syncPanel: false })");
   });
 
@@ -1371,6 +1375,7 @@ describe("app shell", () => {
 
   it("keeps array item selection suppressed until the post-drag click is consumed", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const commitSource = appSource.slice(
       appSource.indexOf("function commitLinearItemDrag()"),
       appSource.indexOf("function beginLinearPointerDrag"),
@@ -1380,14 +1385,20 @@ describe("app shell", () => {
       appSource.indexOf("function handleArrayStructureItemPress"),
     );
 
+    expect(appSource).not.toContain("let suppressLinearItemSelect = null;");
+    expect(structureSource).toContain("let suppressLinearItemSelect = null;");
     expect(appSource).toContain("let suppressLinearItemSelectTimer = null;");
     expect(appSource).toContain("function suppressNextLinearItemSelect(elementId)");
     expect(appSource).toContain("function clearLinearItemSelectSuppression()");
+    expect(appSource).toContain("structureInteraction.suppressNextLinearItemSelect(elementId);");
+    expect(appSource).toContain("structureInteraction.clearLinearItemSelectSuppression();");
     expect(commitSource).toContain("suppressNextLinearItemSelect(dragState.elementId)");
     expect(appSource).toContain("function suppressLinearItemSelectAfterSelectionDrag()");
     expect(appSource).toContain("if (didMove) suppressLinearItemSelectAfterSelectionDrag();");
     expect(commitSource).not.toContain("requestAnimationFrame(() =>");
-    expect(selectSource).toMatch(/if \(suppressLinearItemSelect\?\.elementId === elementId\) \{[\s\S]*?clearLinearItemSelectSuppression\(\);[\s\S]*?return;/);
+    expect(selectSource).not.toContain("isLinearItemSelectSuppressed: suppressLinearItemSelect?.elementId === elementId");
+    expect(selectSource).toContain("structureInteraction.handleEvent({");
+    expect(selectSource).toMatch(/if \(result\.clearSuppression\) \{[\s\S]*?clearLinearItemSelectSuppression\(\);[\s\S]*?return;/);
   });
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {
@@ -1397,12 +1408,13 @@ describe("app shell", () => {
       appSource.indexOf("function syncBinaryTreeActiveVisual"),
     );
 
-    expect(appSource).toContain("selectIds([elementId])");
     expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
-    expect(appSource).toContain("setActiveLinearItem(elementId, index, { rerender: false })");
+    expect(appSource).toContain("structureInteraction.handleEvent({");
+    expect(appSource).toContain('type: "linear.item.select"');
+    expect(appSource).toContain("selectIds(result.selectedIds)");
     expect(appSource).toMatch(/import \{[\s\S]*syncLinearStructureNodeContent,[\s\S]*\} from "\.\.\/canvas\/konva-elements\.js";/);
-    expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
-    expect(appSource).toContain("syncLinearItemActiveVisual(elementId)");
+    expect(appSource).toContain("syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId)");
+    expect(appSource).toContain("syncLinearItemActiveVisual(result.activeLinearItem?.elementId)");
     expect(visualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
     expect(visualSource).not.toContain("node.stroke(isActive ? \"#2563eb\" : style.stroke)");
   });
@@ -1410,8 +1422,8 @@ describe("app shell", () => {
   it("clears array item active styling when the canvas selection is cleared", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const previousActive = activeLinearItem");
-    expect(appSource).toContain("syncLinearItemActiveVisual(previousActive?.elementId)");
+    expect(appSource).toContain("const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({");
+    expect(appSource).toContain("syncLinearItemActiveVisual(previousActiveLinearItem?.elementId)");
     expect(appSource).toContain("contentLayer.batchDraw()");
   });
 
@@ -1428,7 +1440,7 @@ describe("app shell", () => {
 
     expect(appSource).toContain("animateLinearItemLift");
     expect(appSource).toContain("animateLinearItemDrop");
-    expect(appSource).toContain("linearItemDragState.longPressTriggered = true");
+    expect(appSource).toContain("structureInteraction.markLinearItemDragLifted()");
     expect(appSource).toContain("onFinish: finishLinearItemDrop");
   });
 
@@ -1475,6 +1487,7 @@ describe("app shell", () => {
 
   it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const selectHandlerSource = appSource.slice(
       appSource.indexOf("function handleArrayStructureItemSelect"),
       appSource.indexOf("function handleArrayStructureItemPress"),
@@ -1492,7 +1505,10 @@ describe("app shell", () => {
       appSource.indexOf("function getToolStatus(tool)"),
     );
 
-    expect(selectHandlerSource).toContain("currentTool !== TOOLS.SELECT");
+    expect(selectHandlerSource).toContain("structureInteraction.handleEvent");
+    expect(selectHandlerSource).toContain("currentTool,");
+    expect(selectHandlerSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
+    expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
     expect(pressHandlerSource).toContain("currentTool !== TOOLS.SELECT");
     expect(pointerHandlerSource).toContain("currentTool !== TOOLS.SELECT");
     expect(setToolSource).toContain("resetLinearItemPressState()");
@@ -1535,17 +1551,22 @@ describe("app shell", () => {
 
   it("keeps array algorithm sessions independent per array element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("let arrayAlgorithmSessions = new Map();");
+    expect(appSource).not.toContain("let arrayAlgorithmSessions = new Map();");
+    expect(structureSource).toContain("let arrayAlgorithmSessions = new Map();");
     expect(appSource).toContain("function getArrayAlgorithmSession(elementId)");
+    expect(appSource).toContain("return structureInteraction.getArrayAlgorithmSession(elementId);");
     expect(appSource).toContain("function setArrayAlgorithmSession(session)");
+    expect(appSource).toContain("structureInteraction.setArrayAlgorithmSession(session);");
     expect(appSource).toContain("function pauseUnselectedArrayAlgorithmSessions()");
-    expect(appSource).toContain("arrayAlgorithmSessions.set(session.elementId, session);");
+    expect(appSource).toContain("structureInteraction.pauseUnselectedArrayAlgorithmSessions(selectedIds);");
     expect(appSource).not.toContain("let arrayAlgorithmSession = null;");
   });
 
   it("keeps array algorithm panel choices independent per array element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const startSource = appSource.slice(
       appSource.indexOf("function startSelectedArrayAlgorithm()"),
       appSource.indexOf("function clearActiveLinearItemForAlgorithmStart"),
@@ -1555,9 +1576,12 @@ describe("app shell", () => {
       appSource.indexOf("function ensureLinearItemControls()"),
     );
 
-    expect(appSource).toContain("let arrayAlgorithmPanelStateByElement = new Map();");
+    expect(appSource).not.toContain("let arrayAlgorithmPanelStateByElement = new Map();");
+    expect(structureSource).toContain("let arrayAlgorithmPanelStateByElement = new Map();");
     expect(appSource).toContain("function getArrayAlgorithmPanelState(elementId)");
+    expect(appSource).toContain("return structureInteraction.getArrayAlgorithmPanelState(elementId, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);");
     expect(appSource).toContain("function setArrayAlgorithmPanelState(elementId, patch)");
+    expect(appSource).toContain("structureInteraction.setArrayAlgorithmPanelState(elementId, patch, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);");
     expect(appSource).toContain("arrayAlgorithmSelect?.addEventListener(\"change\"");
     expect(startSource).toContain("const panelState = getArrayAlgorithmPanelState(element.id);");
     expect(startSource).toContain("createArrayAlgorithmSteps(panelState.algorithm, values)");
@@ -1681,7 +1705,7 @@ describe("app shell", () => {
     expect(appSource).toContain("let linearPointerTween = null");
     expect(appSource).toContain("function animateLinearPointerDragVisual");
     expect(appSource).toContain("new Konva.Tween({");
-    expect(appSource).toMatch(/function updateLinearPointerDrag\(worldPoint\) \{[\s\S]*?animateLinearPointerDragVisual\(linearPointerDragState\.elementId, nextIndex\);[\s\S]*?return true;[\s\S]*?\}/);
+    expect(appSource).toMatch(/function updateLinearPointerDrag\(worldPoint\) \{[\s\S]*?structureInteraction\.getLinearPointerDragState\(\);[\s\S]*?structureInteraction\.updateLinearPointerDrag\(\{[\s\S]*?nextIndex,[\s\S]*?\}\);[\s\S]*?animateLinearPointerDragVisual\(dragState\.elementId, nextIndex\);[\s\S]*?return true;[\s\S]*?\}/);
   });
 
   it("lifts the linear pointer when dragging starts and drops it before rerendering on release", () => {
@@ -1698,8 +1722,8 @@ describe("app shell", () => {
   it("hides transformer bounds while the linear pointer is being dragged", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (linearItemDragState || linearPointerDragState) {");
-    expect(appSource).toMatch(/if \(linearItemDragState \|\| linearPointerDragState\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
+    expect(appSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {");
+    expect(appSource).toMatch(/if \(structureInteraction\.hasLinearItemDragState\(\) \|\| structureInteraction\.hasLinearPointerDragState\(\)\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
   });
 
   it("suppresses custom tool cursors while spacebar panning is active", () => {
@@ -1743,8 +1767,15 @@ describe("app shell", () => {
 
   it("uses shared graph and tree connect state for structure node editing", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("let structureConnectState = null;");
+    expect(interactionSource).toContain("let structureConnectState = null;");
+    expect(appSource).not.toContain("let structureConnectState = null;");
+    expect(appSource).toContain("structureInteraction.beginStructureConnect({ kind: \"tree\", elementId: treeId })");
+    expect(appSource).toContain("structureInteraction.getStructureConnectState({ kind: \"tree\", elementId })");
+    expect(appSource).toContain("structureInteraction.setStructureConnectSource({ kind: \"tree\", elementId, sourceNodeId: nodeId })");
+    expect(appSource).toContain("structureInteraction.finishStructureConnect({");
+    expect(appSource).toContain("structureInteraction.clearStructureConnectState()");
     expect(appSource).toContain('"tree-connect-mode": beginTreeConnectMode');
     expect(appSource).toContain("function beginTreeConnectMode()");
     expect(appSource).toContain("function handleTreeNodeClick({ elementId, nodeId })");
@@ -1758,7 +1789,8 @@ describe("app shell", () => {
     expect(appSource).toContain("isSelectedTreeElementWithTraversal(item)");
     expect(appSource).toContain("function findTreeNodeGroup(group, nodeId)");
     expect(appSource).toContain("const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId)");
-    expect(appSource).toContain("runtime.activeNodeId = activeTreeNode.nodeId");
+    expect(appSource).toContain("structureInteraction.projectRuntime(element)");
+    expect(interactionSource).toContain("runtime.activeNodeId = activeTreeNode.nodeId");
     expect(appSource).toContain("activeTreeNode?.elementId === element.id");
     expect(appSource).toContain("isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element");
     expect(appSource).toContain("isInteractiveStructureElement(element)");

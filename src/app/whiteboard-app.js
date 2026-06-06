@@ -202,6 +202,7 @@ import {
   deleteLastTreeNode,
   updateTreeFromInput,
 } from "../structures/structure-templates.js";
+import { createStructureInteraction } from "../structures/structure-interaction.js";
 import {
   getNextPanelCollapsedState,
   getPanelStateForLayerContent,
@@ -319,17 +320,10 @@ export function createWhiteboardApp(root) {
   let draftSaveTimer = null;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
-  let structureConnectState = null;
-  let activeTreeNode = null;
-  let activeLinearItem = null;
   let linearItemPressState = null;
-  let linearItemDragState = null;
   let linearPointerPressState = null;
-  let linearPointerDragState = null;
   let linearItemLiftTween = null;
   let linearPointerTween = null;
-  let arrayAlgorithmSessions = new Map();
-  let arrayAlgorithmPanelStateByElement = new Map();
   let arrayAlgorithmPlayTimer = null;
   let arrayAlgorithmSwapTweens = [];
   let arrayAlgorithmAnimationNodes = [];
@@ -337,13 +331,11 @@ export function createWhiteboardApp(root) {
   let treeNodeControls = null;
   let binaryTreeNodeControls = null;
   let binaryTreeTraversalControls = null;
-  let suppressLinearItemSelect = null;
   let suppressLinearItemSelectTimer = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
   let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
-  let suppressedBinaryTreeNodeClickElementIds = new Set();
   let activeCellEditorSync = null;
   let inspectorSectionsState = {
     appearance: true,
@@ -362,6 +354,7 @@ export function createWhiteboardApp(root) {
   const nodeRegistry = new Map();
   const nodeRenderSnapshots = new Map();
   const elementRenderSnapshotValues = new WeakMap();
+  const structureInteraction = createStructureInteraction();
   const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
     color: "#111827",
     fill: "#ffffff",
@@ -565,7 +558,7 @@ export function createWhiteboardApp(root) {
     getBoard: () => serializeCurrentBoard(),
     __debug: {
       getSelectedIds: () => [...selectedIds],
-      getActiveLinearItem: () => (activeLinearItem ? { ...activeLinearItem } : null),
+      getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
     },
     destroy: () => {
       if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
@@ -970,6 +963,7 @@ export function createWhiteboardApp(root) {
   }
 
   function runLinearItemAction(action) {
+    const activeLinearItem = structureInteraction.getActiveLinearItem();
     const elementId = activeLinearItem?.elementId;
     const index = activeLinearItem?.index;
     const element = board.elements.find((item) => item.id === elementId);
@@ -1003,6 +997,7 @@ export function createWhiteboardApp(root) {
   }
 
   function runTreeNodeAction(action) {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const elementId = activeTreeNode?.elementId;
     const nodeId = activeTreeNode?.nodeId;
     const element = board.elements.find((item) => item.id === elementId);
@@ -1012,7 +1007,7 @@ export function createWhiteboardApp(root) {
       const nextElement = addTreeChild(element, nodeId, "0");
       if (nextElement === element) return;
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      activeTreeNode = { elementId, nodeId };
+      structureInteraction.setActiveTreeNode({ elementId, nodeId });
       renderBoard();
       selectIds([elementId]);
       syncTreeStructurePanelState();
@@ -1025,7 +1020,7 @@ export function createWhiteboardApp(root) {
       const nextElement = addTreeSibling(element, nodeId, side, "0");
       if (nextElement === element) return;
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      activeTreeNode = { elementId, nodeId };
+      structureInteraction.setActiveTreeNode({ elementId, nodeId });
       renderBoard();
       selectIds([elementId]);
       syncTreeStructurePanelState();
@@ -1042,7 +1037,7 @@ export function createWhiteboardApp(root) {
     if (action === "delete") {
       if (isTreeRootNode(element, nodeId)) {
         board.elements = removeElementsById(board.elements, [elementId]);
-        activeTreeNode = null;
+        structureInteraction.clearActiveTreeNode();
         selectedIds = selectedIds.filter((id) => id !== elementId);
         hideTreeControls();
         renderBoard();
@@ -1052,7 +1047,10 @@ export function createWhiteboardApp(root) {
       }
       const nextElement = deleteTreeSubtree(element, nodeId);
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      activeTreeNode = { elementId, nodeId: getTreeParentNodeId(element, nodeId) ?? nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null };
+      structureInteraction.setActiveTreeNode({
+        elementId,
+        nodeId: getTreeParentNodeId(element, nodeId) ?? nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null,
+      });
       renderBoard();
       selectIds([elementId]);
       syncTreeStructurePanelState();
@@ -1061,6 +1059,7 @@ export function createWhiteboardApp(root) {
   }
 
   function runBinaryTreeNodeAction(action) {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const elementId = activeTreeNode?.elementId;
     const nodeId = activeTreeNode?.nodeId;
     const element = board.elements.find((item) => item.id === elementId);
@@ -1079,7 +1078,7 @@ export function createWhiteboardApp(root) {
     if (action === "delete") {
       if (nodeId === element.settings?.rootId) {
         board.elements = removeElementsById(board.elements, [elementId]);
-        activeTreeNode = null;
+        structureInteraction.clearActiveTreeNode();
         selectedIds = selectedIds.filter((id) => id !== elementId);
         hideBinaryTreeControls();
         renderBoard();
@@ -1089,7 +1088,10 @@ export function createWhiteboardApp(root) {
       }
       const nextElement = deleteTreeSubtree(element, nodeId);
       board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      activeTreeNode = { elementId, nodeId: nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null };
+      structureInteraction.setActiveTreeNode({
+        elementId,
+        nodeId: nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null,
+      });
       renderBoard();
       selectIds([elementId]);
       syncTreeStructurePanelState();
@@ -1680,7 +1682,7 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    if (linearPointerDragState) {
+    if (structureInteraction.hasLinearPointerDragState()) {
       updateLinearPointerDrag(worldPoint);
       return;
     }
@@ -1705,7 +1707,7 @@ export function createWhiteboardApp(root) {
       }
     }
 
-    if (linearItemDragState) {
+    if (structureInteraction.hasLinearItemDragState()) {
       updateLinearItemDrag(worldPoint);
       return;
     }
@@ -1799,7 +1801,7 @@ export function createWhiteboardApp(root) {
     if (!shouldHandlePointerEvent(event?.evt, activeDrawingPointerCapture?.pointerId)) return;
     if (activeDrawingPointerCapture) preventDrawingPointerDefault(event?.evt);
 
-    if (linearPointerDragState) {
+    if (structureInteraction.hasLinearPointerDragState()) {
       resetLinearPointerPressState();
       commitLinearPointerDrag();
       return;
@@ -1807,7 +1809,7 @@ export function createWhiteboardApp(root) {
 
     resetLinearPointerPressState();
 
-    if (linearItemDragState) {
+    if (structureInteraction.hasLinearItemDragState()) {
       resetLinearItemPressState();
       commitLinearItemDrag();
       return;
@@ -1951,10 +1953,11 @@ export function createWhiteboardApp(root) {
     if (targetElement) {
       const element = board.elements.find((item) => item.id === targetElement);
       const targetIds = expandGroupedIds([targetElement]);
+      const activeTreeNode = structureInteraction.getActiveTreeNode();
       if (isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
         const shouldDragBinaryTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
         const previousActiveTreeElementId = activeTreeNode.elementId;
-        activeTreeNode = null;
+        structureInteraction.clearActiveTreeNode();
         hideBinaryTreeControls();
         syncBinaryTreeActiveVisual(previousActiveTreeElementId);
         if (shouldDragBinaryTreeBlank) {
@@ -1965,7 +1968,7 @@ export function createWhiteboardApp(root) {
       if (isGeneralTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
         const shouldDragTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
         const previousActiveTreeElementId = activeTreeNode.elementId;
-        activeTreeNode = null;
+        structureInteraction.clearActiveTreeNode();
         hideTreeControls();
         syncGeneralTreeActiveVisual(previousActiveTreeElementId);
         if (shouldDragTreeBlank) {
@@ -2004,7 +2007,7 @@ export function createWhiteboardApp(root) {
   }
 
   function beginSelectionDrag(worldPoint) {
-    if (linearItemDragState) return;
+    if (structureInteraction.hasLinearItemDragState()) return;
     interactionSM.enter(SM.DRAGGING);
     selectionDrag = {
       start: worldPoint,
@@ -2063,7 +2066,7 @@ export function createWhiteboardApp(root) {
   }
 
   function suppressBinaryTreeNodeClickAfterDrag() {
-    suppressedBinaryTreeNodeClickElementIds = new Set(
+    structureInteraction.suppressBinaryTreeNodeClicks(
       selectionDrag?.originals
         .map(({ id }) => board.elements.find((item) => item.id === id))
         .filter(isBinaryTreeElement)
@@ -2072,9 +2075,7 @@ export function createWhiteboardApp(root) {
   }
 
   function consumeSuppressedBinaryTreeNodeClick(elementId) {
-    if (!suppressedBinaryTreeNodeClickElementIds.has(elementId)) return false;
-    suppressedBinaryTreeNodeClickElementIds.delete(elementId);
-    return true;
+    return structureInteraction.consumeSuppressedBinaryTreeNodeClick(elementId);
   }
 
   function suppressLinearItemSelectAfterSelectionDrag() {
@@ -2507,13 +2508,13 @@ export function createWhiteboardApp(root) {
       onGraphNodeConnect: connectGraphStructureNodes,
       onGraphNodeEdit: editGraphStructureNode,
       onGraphEdgeEdit: editGraphStructureEdge,
-      getGraphEdgeState: (elementId) => (structureConnectState?.kind === "graph" && structureConnectState.elementId === elementId ? structureConnectState : null),
+      getGraphEdgeState: (elementId) => structureInteraction.getStructureConnectState({ kind: "graph", elementId }),
       onTreeNodeEdit: editTreeStructureNode,
       onTreeNodeClick: handleTreeNodeClick,
       onTreeNodePress: handleTreeStructureNodePress,
       onTreeNodeMove: moveTreeStructureNode,
       onTreeNodeConnect: connectTreeStructureNodes,
-      getTreeConnectState: (elementId) => (structureConnectState?.kind === "tree" && structureConnectState.elementId === elementId ? structureConnectState : null),
+      getTreeConnectState: (elementId) => structureInteraction.getStructureConnectState({ kind: "tree", elementId }),
     };
   }
 
@@ -2622,6 +2623,7 @@ export function createWhiteboardApp(root) {
   }
 
   function getElementRenderHandlerSnapshot(element) {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (isBinaryTreeElement(element)) {
       return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
     }
@@ -2633,47 +2635,18 @@ export function createWhiteboardApp(root) {
   }
 
   function buildRuntimeElement(element) {
-    const runtime = {};
-    if (isBinaryTreeElement(element) && activeTreeNode?.elementId === element.id) {
-      runtime.activeNodeId = activeTreeNode.nodeId;
-    }
-    if (isGeneralTreeElement(element) && activeTreeNode?.elementId === element.id) {
-      runtime.activeNodeId = activeTreeNode.nodeId;
-    }
-    if (!isLinearStructureElement(element)) {
-      return Object.keys(runtime).length > 0
-        ? { ...element, runtime: { ...(element.runtime ?? {}), ...runtime } }
-        : element;
-    }
-    if (activeLinearItem?.elementId === element.id) {
-      runtime.activeIndex = activeLinearItem.index;
-    }
-    if (linearItemDragState?.elementId === element.id) {
-      Object.assign(runtime, {
-        dragIndex: linearItemDragState.fromIndex,
-        dragGap: linearItemDragState.previewGap,
-        dragX: linearItemDragState.dragX,
-        dragY: linearItemDragState.dragY,
-        dragLift: linearItemDragState.longPressTriggered,
-      });
-    }
-    return Object.keys(runtime).length > 0
-      ? { ...element, runtime: { ...(element.runtime ?? {}), ...runtime } }
-      : element;
+    return structureInteraction.projectRuntime(element);
   }
 
   function selectIds(ids) {
-    const previousActive = activeLinearItem;
     selectedIds = [...new Set(ids)];
     pauseUnselectedArrayAlgorithmSessions();
-    const selectedLinear = getSelectedLinearStructure();
-    if (!selectedLinear) {
-      activeLinearItem = null;
-    } else if (activeLinearItem?.elementId === selectedLinear.id) {
-      syncActiveLinearItemAfterEdit(selectedLinear.id);
-    }
+    const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({
+      elements: board.elements,
+      selectedIds,
+    });
     syncSelectionNodes();
-    syncLinearItemActiveVisual(previousActive?.elementId);
+    syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
     syncLinearItemActiveVisual(activeLinearItem?.elementId);
     renderLinearItemControls();
     renderTreeControls();
@@ -2707,14 +2680,14 @@ export function createWhiteboardApp(root) {
     resetLinearItemPressState();
     hideLinearItemControls();
     clearLinearItemSelectSuppression();
-    activeTreeNode = null;
+    structureInteraction.clearActiveTreeNode();
     hideTreeControls();
     hideBinaryTreeControls();
     selectIds([]);
   }
 
   function syncSelectionNodes() {
-    if (linearItemDragState || linearPointerDragState) {
+    if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {
       transformer.nodes([]);
       transformer.visible(false);
       transformer.resizeEnabled(false);
@@ -3376,33 +3349,25 @@ export function createWhiteboardApp(root) {
   }
 
   function getActiveLinearIndex(element, fallback = 0) {
-    const maxIndex = Math.max(0, (element?.items?.length ?? 1) - 1);
-    if (activeLinearItem?.elementId === element?.id) {
-      return Math.min(maxIndex, Math.max(0, activeLinearItem.index));
-    }
-    return Math.min(maxIndex, Math.max(0, fallback));
+    return structureInteraction.getActiveLinearIndex(element, fallback);
   }
 
   function setActiveLinearItem(elementId, index, { syncPanel = true, rerender = true } = {}) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element)) {
-      const previousActive = activeLinearItem;
-      activeLinearItem = null;
+    const { previousActiveLinearItem, activeLinearItem } = structureInteraction.setActiveLinearItem({
+      elements: board.elements,
+      elementId,
+      index,
+    });
+    if (!activeLinearItem) {
       if (syncPanel) syncLinearPanelState();
-      syncLinearItemActiveVisual(previousActive?.elementId);
+      syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
       return;
     }
-    const previousActive = activeLinearItem;
-    const maxIndex = Math.max(0, (element.items?.length ?? 1) - 1);
-    activeLinearItem = {
-      elementId,
-      index: Math.min(maxIndex, Math.max(0, Number(index) || 0)),
-    };
     if (syncPanel) syncLinearPanelState();
     if (rerender) {
       renderBoard();
     } else {
-      syncLinearItemActiveVisual(previousActive?.elementId);
+      syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
       syncLinearItemActiveVisual(elementId);
       renderLinearItemControls();
       renderBinaryTreeControls();
@@ -3411,26 +3376,11 @@ export function createWhiteboardApp(root) {
   }
 
   function syncActiveLinearItemAfterEdit(elementId, preferredIndex = null) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element)) {
-      activeLinearItem = null;
-      return;
-    }
-    if (activeLinearItem?.elementId !== elementId) {
-      activeLinearItem = null;
-      return;
-    }
-    const length = element.items?.length ?? 0;
-    if (length === 0) {
-      activeLinearItem = null;
-      return;
-    }
-    const fallbackIndex = activeLinearItem.index;
-    const nextIndex = preferredIndex ?? fallbackIndex;
-    activeLinearItem = {
+    structureInteraction.syncActiveLinearItemAfterEdit({
+      elements: board.elements,
       elementId,
-      index: Math.min(length - 1, Math.max(0, Number(nextIndex) || 0)),
-    };
+      preferredIndex,
+    });
   }
 
   function syncLinearPanelState() {
@@ -3496,55 +3446,40 @@ export function createWhiteboardApp(root) {
   }
 
   function getArrayAlgorithmPanelState(elementId) {
-    return {
-      ...DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
-      ...(arrayAlgorithmPanelStateByElement.get(elementId) ?? {}),
-    };
+    return structureInteraction.getArrayAlgorithmPanelState(elementId, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);
   }
 
   function setArrayAlgorithmPanelState(elementId, patch) {
-    if (!elementId) return;
-    arrayAlgorithmPanelStateByElement.set(elementId, {
-      ...getArrayAlgorithmPanelState(elementId),
-      ...patch,
-    });
+    structureInteraction.setArrayAlgorithmPanelState(elementId, patch, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);
   }
 
   function getSelectedArrayAlgorithmSession() {
     const element = getSelectedLinearStructure();
-    return element ? arrayAlgorithmSessions.get(element.id) ?? null : null;
+    return element ? structureInteraction.getArrayAlgorithmSession(element.id) : null;
   }
 
   function getArrayAlgorithmSession(elementId) {
-    return elementId ? arrayAlgorithmSessions.get(elementId) ?? null : null;
+    return structureInteraction.getArrayAlgorithmSession(elementId);
   }
 
   function setArrayAlgorithmSession(session) {
-    if (!session?.elementId) return;
-    arrayAlgorithmSessions.set(session.elementId, session);
+    structureInteraction.setArrayAlgorithmSession(session);
   }
 
   function deleteArrayAlgorithmSession(elementId) {
-    if (!elementId) return;
-    arrayAlgorithmSessions.delete(elementId);
+    structureInteraction.deleteArrayAlgorithmSession(elementId);
   }
 
   function deleteArrayAlgorithmState(elementId) {
-    if (!elementId) return;
-    arrayAlgorithmSessions.delete(elementId);
-    arrayAlgorithmPanelStateByElement.delete(elementId);
+    structureInteraction.deleteArrayAlgorithmState(elementId);
   }
 
   function clearArrayAlgorithmSessions() {
-    arrayAlgorithmSessions.clear();
-    arrayAlgorithmPanelStateByElement.clear();
+    structureInteraction.clearArrayAlgorithmSessions();
   }
 
   function pauseUnselectedArrayAlgorithmSessions() {
-    for (const [elementId, session] of arrayAlgorithmSessions) {
-      if (selectedIds.includes(elementId) || !session.isPlaying) continue;
-      arrayAlgorithmSessions.set(elementId, { ...session, isPlaying: false });
-    }
+    structureInteraction.pauseUnselectedArrayAlgorithmSessions(selectedIds);
     cancelArrayAlgorithmTimer();
   }
 
@@ -3590,11 +3525,11 @@ export function createWhiteboardApp(root) {
   }
 
   function clearActiveLinearItemForAlgorithmStart(elementId) {
+    const activeLinearItem = structureInteraction.getActiveLinearItem();
     if (activeLinearItem?.elementId !== elementId) return;
-    const previousActive = activeLinearItem;
-    activeLinearItem = null;
+    const { previousActiveLinearItem } = structureInteraction.clearActiveLinearItem();
     hideLinearItemControls();
-    syncLinearItemActiveVisual(previousActive.elementId);
+    syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
   }
 
   function stepArrayAlgorithmPrevious() {
@@ -4261,7 +4196,7 @@ export function createWhiteboardApp(root) {
   }
 
   function isArrayAlgorithmLocked(elementId) {
-    return Boolean(getArrayAlgorithmSession(elementId));
+    return structureInteraction.isArrayAlgorithmLocked(elementId);
   }
 
   function clearArrayAlgorithmSessionForRemovedIds(ids) {
@@ -4418,8 +4353,9 @@ export function createWhiteboardApp(root) {
 
   function renderLinearItemControls() {
     const controls = ensureLinearItemControls();
+    const activeLinearItem = structureInteraction.getActiveLinearItem();
     const element = board.elements.find((item) => item.id === activeLinearItem?.elementId);
-    if (!isLinearStructureElement(element) || !selectedIds.includes(element.id) || linearItemDragState) {
+    if (!isLinearStructureElement(element) || !selectedIds.includes(element.id) || structureInteraction.hasLinearItemDragState()) {
       controls.hidden = true;
       return;
     }
@@ -4435,6 +4371,7 @@ export function createWhiteboardApp(root) {
 
   function renderTreeNodeControls() {
     const controls = ensureTreeNodeControls();
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
     if (!isSelectedGeneralTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
       controls.hidden = true;
@@ -4460,6 +4397,7 @@ export function createWhiteboardApp(root) {
 
   function renderBinaryTreeNodeControls() {
     const controls = ensureBinaryTreeNodeControls();
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
     if (!isSelectedBinaryTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
       controls.hidden = true;
@@ -4538,6 +4476,7 @@ export function createWhiteboardApp(root) {
 
   function syncBinaryTreeActiveVisual(elementId) {
     if (!elementId) return;
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const element = board.elements.find((item) => item.id === elementId);
     const group = contentLayer.findOne(`#${elementId}`);
     if (!isBinaryTreeElement(element) || !group) return;
@@ -4557,6 +4496,7 @@ export function createWhiteboardApp(root) {
 
   function syncGeneralTreeActiveVisual(elementId) {
     if (!elementId) return;
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     const element = board.elements.find((item) => item.id === elementId);
     const group = contentLayer.findOne(`#${elementId}`);
     if (!isGeneralTreeElement(element) || !group) return;
@@ -4575,6 +4515,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateLinearItemControlsPosition() {
+    const activeLinearItem = structureInteraction.getActiveLinearItem();
     if (!linearItemControls || linearItemControls.hidden || !activeLinearItem) return;
     const group = contentLayer.findOne(`#${activeLinearItem.elementId}`);
     const itemNode = findLinearItemNode(group, activeLinearItem.index);
@@ -4595,6 +4536,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateTreeNodeControlsPosition() {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (!treeNodeControls || treeNodeControls.hidden || !activeTreeNode) return;
     const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
     if (!isSelectedGeneralTreeElement(element)) return;
@@ -4607,6 +4549,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateBinaryTreeNodeControlsPosition() {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (!binaryTreeNodeControls || binaryTreeNodeControls.hidden || !activeTreeNode) return;
     const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
     if (!isSelectedBinaryTreeElement(element)) return;
@@ -4663,9 +4606,9 @@ export function createWhiteboardApp(root) {
 
   function isLinearPointerGestureElement(elementId) {
     return linearItemPressState?.elementId === elementId
-      || linearItemDragState?.elementId === elementId
+      || structureInteraction.getLinearItemDragState()?.elementId === elementId
       || linearPointerPressState?.elementId === elementId
-      || linearPointerDragState?.elementId === elementId;
+      || structureInteraction.getLinearPointerDragState()?.elementId === elementId;
   }
 
   function setElementDraggableState(elementId, enabled) {
@@ -4684,7 +4627,7 @@ export function createWhiteboardApp(root) {
 
   function suppressNextLinearItemSelect(elementId) {
     clearLinearItemSelectSuppression();
-    suppressLinearItemSelect = { elementId };
+    structureInteraction.suppressNextLinearItemSelect(elementId);
     suppressLinearItemSelectTimer = window.setTimeout(() => {
       clearLinearItemSelectSuppression();
     }, 500);
@@ -4695,7 +4638,7 @@ export function createWhiteboardApp(root) {
       window.clearTimeout(suppressLinearItemSelectTimer);
       suppressLinearItemSelectTimer = null;
     }
-    suppressLinearItemSelect = null;
+    structureInteraction.clearLinearItemSelectSuppression();
   }
 
   function resetLinearPointerPressState() {
@@ -4709,17 +4652,17 @@ export function createWhiteboardApp(root) {
   }
 
   function cancelLinearItemDragPreview() {
-    if (!linearItemDragState) return;
-    linearItemDragState = null;
+    if (!structureInteraction.hasLinearItemDragState()) return;
+    structureInteraction.clearLinearItemDrag();
     renderBoard();
   }
 
   function cancelLinearPointerDrag() {
-    const elementId = linearPointerDragState?.elementId ?? linearPointerPressState?.elementId;
+    const elementId = structureInteraction.getLinearPointerDragState()?.elementId ?? linearPointerPressState?.elementId;
     clearLinearPointerPressTimer();
     stopLinearPointerTween();
     linearPointerPressState = null;
-    linearPointerDragState = null;
+    structureInteraction.clearLinearPointerDrag();
     if (elementId) {
       const element = board.elements.find((item) => item.id === elementId);
       setElementDraggableState(elementId, shouldElementBeDraggable(element));
@@ -4852,6 +4795,7 @@ export function createWhiteboardApp(root) {
   }
 
   function animateLinearDragGapChange() {
+    const linearItemDragState = structureInteraction.getLinearItemDragState();
     if (!linearItemDragState) return;
     const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
     if (!group) return;
@@ -4892,6 +4836,7 @@ export function createWhiteboardApp(root) {
   }
 
   function animateLinearItemLift() {
+    const linearItemDragState = structureInteraction.getLinearItemDragState();
     if (!linearItemDragState) return;
     const itemNode = findLinearItemNode(
       contentLayer.findOne(`#${linearItemDragState.elementId}`),
@@ -4914,8 +4859,8 @@ export function createWhiteboardApp(root) {
       onFinish: () => {
         linearItemLiftTween?.destroy();
         linearItemLiftTween = null;
-        if (!linearItemDragState) return;
-        linearItemDragState.longPressTriggered = true;
+        if (!structureInteraction.hasLinearItemDragState()) return;
+        structureInteraction.markLinearItemDragLifted();
       },
     });
     linearItemLiftTween.play();
@@ -4965,7 +4910,7 @@ export function createWhiteboardApp(root) {
     const { x: relativeX, y: relativeY } = getLinearStructureLocalPoint(element, worldPoint, group);
     const baseX = index * cellWidth;
     const previewGap = clampLinearGap(index, element.items?.length ?? 0);
-    linearItemDragState = {
+    structureInteraction.beginLinearItemDrag({
       elementId,
       fromIndex: index,
       pointerOffsetX: relativeX - baseX,
@@ -4973,10 +4918,7 @@ export function createWhiteboardApp(root) {
       dragX: baseX,
       dragY: 0,
       previewGap,
-      lastAnimatedGap: previewGap,
-      longPressTriggered: false,
-      cancelled: false,
-    };
+    });
     setElementDraggableState(elementId, false);
     setActiveLinearItem(elementId, index, { syncPanel: false, rerender: false });
     renderBoard();
@@ -4984,6 +4926,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateLinearDragVisualPosition() {
+    let linearItemDragState = structureInteraction.getLinearItemDragState();
     if (!linearItemDragState) return;
     const group = contentLayer.findOne(`#${linearItemDragState.elementId}`);
     const itemNode = findLinearItemNode(group, linearItemDragState.fromIndex);
@@ -4992,7 +4935,9 @@ export function createWhiteboardApp(root) {
     if (!itemNode) return;
     stopLinearItemLiftTween();
     if (!linearItemDragState.longPressTriggered) {
-      linearItemDragState.longPressTriggered = true;
+      structureInteraction.markLinearItemDragLifted();
+      linearItemDragState = structureInteraction.getLinearItemDragState();
+      if (!linearItemDragState) return;
     }
     itemNode.x(linearItemDragState.dragX);
     itemNode.y(linearItemDragState.cancelled ? 0 : linearItemDragState.dragY);
@@ -5011,6 +4956,7 @@ export function createWhiteboardApp(root) {
   }
 
   function updateLinearItemDrag(worldPoint) {
+    const linearItemDragState = structureInteraction.getLinearItemDragState();
     if (!linearItemDragState) return false;
     const element = board.elements.find((item) => item.id === linearItemDragState.elementId);
     if (!isLinearStructureElement(element)) return false;
@@ -5024,16 +4970,15 @@ export function createWhiteboardApp(root) {
     const baseX = localX - linearItemDragState.pointerOffsetX;
     const gapChanged = linearItemDragState.previewGap !== previewGap;
     const cancelChanged = linearItemDragState.cancelled !== cancelled;
-    linearItemDragState = {
-      ...linearItemDragState,
+    structureInteraction.updateLinearItemDrag({
       dragX: baseX,
       dragY: cancelled ? 0 : -12,
       previewGap,
       cancelled,
       dragYRaw: offsetY,
-    };
+    });
     if (gapChanged || cancelChanged) {
-      linearItemDragState.lastAnimatedGap = previewGap;
+      structureInteraction.updateLinearItemDrag({ lastAnimatedGap: previewGap });
       animateLinearDragGapChange();
       return true;
     }
@@ -5042,10 +4987,10 @@ export function createWhiteboardApp(root) {
   }
 
   function commitLinearItemDrag() {
-    if (!linearItemDragState) return false;
-    const dragState = linearItemDragState;
+    if (!structureInteraction.hasLinearItemDragState()) return false;
+    const { linearItemDragState: dragState } = structureInteraction.finishLinearItemDrag();
+    if (!dragState) return false;
     const element = board.elements.find((item) => item.id === dragState.elementId);
-    linearItemDragState = null;
     stopLinearItemLiftTween();
     suppressSelectionDragOnce = false;
     suppressedNodeDragElementId = dragState.elementId;
@@ -5079,12 +5024,12 @@ export function createWhiteboardApp(root) {
     contentLayer.findOne(`#${elementId}`)?.stopDrag();
     nodeDragSelection = null;
     cancelSelectionDrag();
-    linearPointerDragState = {
+    structureInteraction.beginLinearPointerDrag({
       elementId,
       fromIndex: index,
       nextIndex,
-      didMove: nextIndex !== index || !hadPointer,
-    };
+      hadPointer,
+    });
     setElementDraggableState(elementId, false);
     selectIds([elementId]);
     animateLinearPointerLift(elementId);
@@ -5103,32 +5048,32 @@ export function createWhiteboardApp(root) {
   }
 
   function updateLinearPointerDrag(worldPoint) {
+    const linearPointerDragState = structureInteraction.getLinearPointerDragState();
     if (!linearPointerDragState) return false;
     const element = board.elements.find((item) => item.id === linearPointerDragState.elementId);
     if (!isLinearStructureElement(element)) return false;
     const nextIndex = getLinearPointerIndexFromWorldPoint(element, worldPoint);
     if (!Number.isInteger(nextIndex) || nextIndex === linearPointerDragState.nextIndex) return true;
-    linearPointerDragState = {
-      ...linearPointerDragState,
+    const { linearPointerDragState: dragState } = structureInteraction.updateLinearPointerDrag({
       nextIndex,
-      didMove: linearPointerDragState.didMove || nextIndex !== linearPointerDragState.fromIndex,
-    };
+    });
+    if (!dragState) return false;
     board.elements = board.elements.map((item) => (
-      item.id === linearPointerDragState.elementId ? setArrayPointer(item, nextIndex) : item
+      item.id === dragState.elementId ? setArrayPointer(item, nextIndex) : item
     ));
     linearPanelState = {
       ...linearPanelState,
       highlightPointer: String(nextIndex),
     };
     applyLinearPanelState(linearPanelState);
-    animateLinearPointerDragVisual(linearPointerDragState.elementId, nextIndex);
+    animateLinearPointerDragVisual(dragState.elementId, nextIndex);
     return true;
   }
 
   function commitLinearPointerDrag() {
-    if (!linearPointerDragState) return false;
-    const dragState = linearPointerDragState;
-    linearPointerDragState = null;
+    if (!structureInteraction.hasLinearPointerDragState()) return false;
+    const { linearPointerDragState: dragState } = structureInteraction.finishLinearPointerDrag();
+    if (!dragState) return false;
     suppressedNodeDragElementId = dragState.elementId;
     contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag();
     nodeDragSelection = null;
@@ -5194,7 +5139,7 @@ export function createWhiteboardApp(root) {
       return element?.type === "graph-structure" && !element.locked;
     });
     if (!graphId) return;
-    structureConnectState = { kind: "graph", elementId: graphId, sourceNodeId: null };
+    structureInteraction.beginStructureConnect({ kind: "graph", elementId: graphId });
     renderBoard();
     selectIds([graphId]);
     setStatus("连边模式：点击源节点，再点击目标节点");
@@ -5206,29 +5151,34 @@ export function createWhiteboardApp(root) {
       return element?.type === "tree-structure" && !element.locked;
     });
     if (!treeId) return;
-    structureConnectState = { kind: "tree", elementId: treeId, sourceNodeId: null };
+    structureInteraction.beginStructureConnect({ kind: "tree", elementId: treeId });
     renderBoard();
     selectIds([treeId]);
     setStatus("连接父子：点击父节点，再点击子节点");
   }
 
   function handleGraphNodeClick({ elementId, nodeId }) {
-    if (structureConnectState?.kind !== "graph" || structureConnectState.elementId !== elementId) {
+    const connectState = structureInteraction.getStructureConnectState({ kind: "graph", elementId });
+    if (!connectState) {
       selectIds([elementId]);
       return;
     }
-    if (!structureConnectState.sourceNodeId) {
-      structureConnectState = { kind: "graph", elementId, sourceNodeId: nodeId };
+    if (!connectState.sourceNodeId) {
+      structureInteraction.setStructureConnectSource({ kind: "graph", elementId, sourceNodeId: nodeId });
       renderBoard();
       selectIds([elementId]);
       setStatus("连边模式：点击目标节点");
       return;
     }
-    const sourceNodeId = structureConnectState.sourceNodeId;
-    structureConnectState = null;
+    const { connection } = structureInteraction.finishStructureConnect({
+      kind: "graph",
+      elementId,
+      targetNodeId: nodeId,
+    });
+    if (!connection) return;
     board.elements = board.elements.map((item) => (
       item.id === elementId
-        ? addGraphEdge(item, sourceNodeId, nodeId, { directed: item.settings?.directedDefault ?? false })
+        ? addGraphEdge(item, connection.sourceNodeId, connection.targetNodeId, { directed: item.settings?.directedDefault ?? false })
         : item
     ));
     renderBoard();
@@ -5241,36 +5191,39 @@ export function createWhiteboardApp(root) {
     const clickedElement = board.elements.find((item) => item.id === elementId);
     if (isBinaryTreeElement(clickedElement)) {
       if (consumeSuppressedBinaryTreeNodeClick(elementId)) return;
-      const previousActive = activeTreeNode;
-      structureConnectState = null;
-      activeTreeNode = { elementId, nodeId };
+      structureInteraction.clearStructureConnectState();
+      const { previousActiveTreeNode } = structureInteraction.setActiveTreeNode({ elementId, nodeId });
       selectIds([elementId]);
-      syncBinaryTreeActiveVisual(previousActive?.elementId);
+      syncBinaryTreeActiveVisual(previousActiveTreeNode?.elementId);
       syncBinaryTreeActiveVisual(elementId);
       setStatus("已选择二叉树节点");
       return;
     }
-    if (structureConnectState?.kind !== "tree" || structureConnectState.elementId !== elementId) {
-      const previousActive = activeTreeNode;
-      activeTreeNode = { elementId, nodeId };
+    const connectState = structureInteraction.getStructureConnectState({ kind: "tree", elementId });
+    if (!connectState) {
+      const { previousActiveTreeNode } = structureInteraction.setActiveTreeNode({ elementId, nodeId });
       selectIds([elementId]);
-      syncGeneralTreeActiveVisual(previousActive?.elementId);
+      syncGeneralTreeActiveVisual(previousActiveTreeNode?.elementId);
       syncGeneralTreeActiveVisual(elementId);
       renderTreeNodeControls();
       setStatus("已选择树节点");
       return;
     }
-    if (!structureConnectState.sourceNodeId) {
-      structureConnectState = { kind: "tree", elementId, sourceNodeId: nodeId };
+    if (!connectState.sourceNodeId) {
+      structureInteraction.setStructureConnectSource({ kind: "tree", elementId, sourceNodeId: nodeId });
       renderBoard();
       selectIds([elementId]);
       setStatus("连接父子：点击子节点");
       return;
     }
-    const sourceNodeId = structureConnectState.sourceNodeId;
-    structureConnectState = null;
+    const { connection } = structureInteraction.finishStructureConnect({
+      kind: "tree",
+      elementId,
+      targetNodeId: nodeId,
+    });
+    if (!connection) return;
     const element = board.elements.find((item) => item.id === elementId);
-    const nextElement = addTreeEdge(element, sourceNodeId, nodeId);
+    const nextElement = addTreeEdge(element, connection.sourceNodeId, connection.targetNodeId);
     if (nextElement === element) {
       renderBoard();
       selectIds([elementId]);
@@ -5287,7 +5240,7 @@ export function createWhiteboardApp(root) {
   function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "graph-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
-    structureConnectState = null;
+    structureInteraction.clearStructureConnectState();
     board.elements = board.elements.map((item) => (
       item.id === elementId
         ? addGraphEdge(item, sourceNodeId, targetNodeId, { directed: item.settings?.directedDefault ?? false })
@@ -5301,7 +5254,7 @@ export function createWhiteboardApp(root) {
   function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!element || element.type !== "tree-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
-    structureConnectState = null;
+    structureInteraction.clearStructureConnectState();
     const nextElement = addTreeEdge(element, sourceNodeId, targetNodeId);
     if (nextElement === element) {
       renderBoard();
@@ -5421,7 +5374,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => item.id === elementId);
     if (!isLinearStructureElement(element) || element.locked) return;
     if (fromIndex === toIndex) {
-      activeLinearItem = null;
+      structureInteraction.clearActiveLinearItem();
       renderBoard();
       selectIds([]);
       return;
@@ -5429,22 +5382,33 @@ export function createWhiteboardApp(root) {
     board.elements = board.elements.map((item) => (
       item.id === elementId ? moveArrayItem(item, fromIndex, toIndex) : item
     ));
-    activeLinearItem = null;
+    structureInteraction.clearActiveLinearItem();
     renderBoard();
     selectIds([]);
     pushHistory("已移动数组元素");
   }
 
   function handleArrayStructureItemSelect({ elementId, index }) {
-    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked) return;
-    if (suppressLinearItemSelect?.elementId === elementId) {
+    const result = structureInteraction.handleEvent({
+      type: "linear.item.select",
+      elementId,
+      index,
+    }, {
+      elements: board.elements,
+      currentTool,
+      isTemporaryPanActive: isTemporaryPanActive(),
+    });
+    if (!result.handled) return;
+    if (result.clearSuppression) {
       clearLinearItemSelectSuppression();
       return;
     }
-    selectIds([elementId]);
-    setActiveLinearItem(elementId, index, { rerender: false });
+    selectIds(result.selectedIds);
+    syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId);
+    syncLinearItemActiveVisual(result.activeLinearItem?.elementId);
+    renderLinearItemControls();
+    renderBinaryTreeControls();
+    contentLayer.batchDraw();
   }
 
   function handleArrayStructureItemPress({ elementId, index }) {
@@ -5479,7 +5443,7 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemRelease() {
-    if (linearItemDragState) return;
+    if (structureInteraction.hasLinearItemDragState()) return;
     resetLinearItemPressState();
   }
 
@@ -5682,7 +5646,7 @@ export function createWhiteboardApp(root) {
       board.elements = board.elements.map((item) => (
         item.id === elementId ? updateTreeNodeValue(item, nodeId, nextValue) : item
       ));
-      activeTreeNode = { elementId, nodeId };
+      structureInteraction.setActiveTreeNode({ elementId, nodeId });
       renderBoard();
       selectIds([elementId]);
       syncTreeStructurePanelState();
@@ -5711,6 +5675,7 @@ export function createWhiteboardApp(root) {
   }
 
   function getActiveTreeNodeId(element) {
+    const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (activeTreeNode?.elementId === element.id) return activeTreeNode.nodeId;
     return element.settings?.rootId ?? element.nodes?.[0]?.id ?? null;
   }

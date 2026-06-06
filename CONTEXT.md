@@ -35,3 +35,15 @@ _Avoid_: level
 **结构 (Structure)**:
 一类可内部交互的复合元素，包括线性结构（数组/栈/队列/双端队列）和关联结构（图/树）。
 _Avoid_: composite, container
+
+**结构交互 (Structure Interaction)**:
+结构元素内部的操作流程，包括线性结构单元格选择/拖拽/指针拖拽、数组算法演示、图节点连边、树节点选择/编辑/遍历、结构浮动控件，以及这些操作引发的选区、历史记录和形状同步。
+_Avoid_: structure widget logic, algorithm panel logic
+
+**结构运行时投影 (Structure Runtime Projection)**:
+结构交互在渲染前附加到结构元素上的临时状态，用来表达当前会话里的活动单元格、拖拽预览、活动树节点、连边状态和算法动画状态；不写入画板文件。
+_Avoid_: persisted structure data, render flags
+
+**结构事件 (Structure Event)**:
+结构元素内部发生的用户操作或动画操作，例如单元格按下、单元格释放、指针拖拽、图节点点击、树节点编辑、算法播放步进；由形状事件适配后交给结构交互处理。
+_Avoid_: raw Konva handler, DOM callback
