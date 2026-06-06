@@ -485,6 +485,16 @@ export function createWhiteboardApp(root) {
   });
   overlayLayer.add(transformer);
 
+  const selectionRect = new Konva.Rect({
+    fill: "rgba(37, 99, 235, 0.08)",
+    stroke: "#2563eb",
+    strokeWidth: 1,
+    dash: [4, 4],
+    visible: false,
+    listening: false,
+  });
+  contentLayer.add(selectionRect);
+
   const {
     measureTextElementValue,
     getTextElementWrappedHeight,
@@ -1208,16 +1218,6 @@ export function createWhiteboardApp(root) {
     schedulePersistCurrentDraft,
     closeZoomMenu: () => setZoomMenuOpen(false),
   });
-
-  const selectionRect = new Konva.Rect({
-    fill: "rgba(37, 99, 235, 0.08)",
-    stroke: "#2563eb",
-    strokeWidth: 1,
-    dash: [4, 4],
-    visible: false,
-    listening: false,
-  });
-  contentLayer.add(selectionRect);
 
   hydrateLocalDraft();
   bindControls();

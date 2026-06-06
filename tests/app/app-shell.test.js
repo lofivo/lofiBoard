@@ -242,13 +242,20 @@ describe("app shell", () => {
     );
     const boardSessionSource = appSource.slice(
       appSource.indexOf("const boardSession = createBoardSessionController"),
-      appSource.indexOf("const selectionRect = new Konva.Rect"),
+      appSource.indexOf("board = boardSession.getBoard();"),
     );
 
     expect(pushHistorySource).toContain("boardSession.pushHistory(message);");
     expect(pushHistorySource).not.toContain("board = serializeCurrentBoard();");
     expect(boardSessionSource).toContain("sanitizeElementsForPersistence");
     expect(boardSessionSource).toContain("clearArrayAlgorithmRuntimeMarkers(element)");
+  });
+
+  it("initializes the selection rectangle before export PNG wiring uses it", () => {
+    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+
+    expect(appSource.indexOf("const selectionRect = new Konva.Rect"))
+      .toBeLessThan(appSource.indexOf("const { exportPng } = createExportPngController"));
   });
 
   it("hides the native algorithm select arrow while an array algorithm is active", () => {
@@ -1744,7 +1751,7 @@ describe("app shell", () => {
     const viewportSource = readFileSync(new URL("../../src/app/viewport-controller.js", import.meta.url), "utf8");
     const viewportControllerSource = appSource.slice(
       appSource.indexOf("const viewportController = createViewportController"),
-      appSource.indexOf("const selectionRect = new Konva.Rect"),
+      appSource.indexOf("hydrateLocalDraft();"),
     );
 
     expect(appSource).toContain("createStructureCellEditorController");
