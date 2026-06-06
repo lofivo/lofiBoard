@@ -14,6 +14,7 @@ import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
 } from "./selection-controller.js";
+import { createSelectionHitQuery } from "./selection-hit-query.js";
 import { createShapeRenderAdapter } from "./shape-render-adapter.js";
 import { createShapeRenderController } from "./shape-render-controller.js";
 import { createStructureActiveVisualController } from "./structure-active-visual-controller.js";
@@ -49,11 +50,16 @@ import {
   toggleTextDecorationToken,
 } from "./text-style-tokens.js";
 import {
+  DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
+  applyArrayAlgorithmValues,
+  clearArrayAlgorithmRuntimeMarkers,
+  createArrayAlgorithmSteps,
+  getArrayAlgorithmLabel,
+} from "./array-algorithm-model.js";
+import { createTextElementMeasurer } from "./text-element-measure.js";
+import { createToolCursorController } from "./tool-cursor-controller.js";
+import {
   ALGORITHM_STEP_TYPES,
-  ARRAY_ALGORITHMS,
-  createBubbleSortSteps,
-  createInsertionSortSteps,
-  createSelectionSortSteps,
 } from "../algorithms/array-algorithms.js";
 import { removeElementsById } from "../services/clipboard-service.js";
 import {
@@ -119,9 +125,6 @@ import {
   getStickyTextInsets,
   getTextTransformMinimumSize,
   getUniformScaledBoxForResize,
-  getMinimumTextBoxWidth,
-  getNormalizedTextBox,
-  getPreferredTextBoxWidth,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
@@ -144,12 +147,7 @@ import {
 } from "../tools/interaction-rules.js";
 import {
   computeEraserRadius,
-  getBaseEraserRadiusForWidth,
-  getBrushPreviewAttrs,
   getFillValue,
-  getObjectEraserIconAttrs,
-  getScaledEraserRadius,
-  getSquareEraserPreviewAttrs,
   isShapeTool,
   resolveActiveDrawingTool,
 } from "../tools/tool-behavior.js";
@@ -185,7 +183,6 @@ import {
   setArrayPointer,
   setArrayPointerVisibility,
   setArrayAlgorithmMarkers,
-  clearArrayAlgorithmMarkers,
   clearArrayHighlight,
   setLinearIndexOptions,
   addGraphNode,
@@ -237,10 +234,6 @@ import { computeFitViewport, computeViewportForBoundsVisibility } from "../canva
 const LINEAR_POINTER_BASE_Y = -30;
 const LINEAR_POINTER_DRAG_Y = -40;
 const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
-const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
-  algorithm: ARRAY_ALGORITHMS.BUBBLE_SORT,
-  speed: 1,
-});
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -322,7 +315,6 @@ export function createWhiteboardApp(root) {
   let eraseSnapshot = null;
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
-  let eraserPreviewPoint = null;
   let isEditingText = false;
   let lastPointerWorldPoint = null;
   let stylePanelAvailable = true;
@@ -373,6 +365,24 @@ export function createWhiteboardApp(root) {
   const overlayLayer = new Konva.Layer();
   stage.add(contentLayer);
   stage.add(overlayLayer);
+
+  const {
+    expandGroupedIds,
+    getElementIdAtPointer,
+    getElementIdFromNode,
+    getNearbySelectedElementId,
+    getSelectableElementIdAtWorldPoint,
+    isElementLocked,
+  } = createSelectionHitQuery({
+    getStage: () => stage,
+    getContentLayer: () => contentLayer,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getSelectionHitRadius,
+    pickElementIdAtPoint,
+    pointHitsSelectionBounds,
+    expandGroupedIds: expandSelectionGroupIds,
+  });
 
   const shapeRenderAdapter = createShapeRenderAdapter({
     getCurrentTool: () => currentTool,
@@ -513,6 +523,15 @@ export function createWhiteboardApp(root) {
   });
   overlayLayer.add(transformer);
 
+  const {
+    measureTextElementValue,
+    getTextElementWrappedHeight,
+    getMinimumTextElementWidth,
+    getPreferredTextElementWidth,
+    getNormalizedTextElementBox,
+    normalizeTextElementBox,
+  } = createTextElementMeasurer();
+
   const editController = createEditController({
     findElement: (id) => board.elements.find((item) => item.id === id),
     getBoardElements: () => board.elements,
@@ -582,6 +601,27 @@ export function createWhiteboardApp(root) {
     onStatus: (message) => setStatus(message),
   });
   board = boardSession.getBoard();
+  const {
+    getBaseEraserRadius,
+    getVisibleEraserRadius,
+    hideEraser,
+    hideToolCursors,
+    showBrushCursor,
+    showObjectEraser,
+    showStrokeEraser,
+    updateBrushCursorStyle,
+    updateEraserCursorStyle,
+  } = createToolCursorController({
+    Konva,
+    overlayLayer,
+    getBrushColor: () => colorInput.value,
+    getCurrentTool: () => currentTool,
+    getScale: () => stage.scaleX(),
+    getStrokeWidth: () => widthInput.value,
+    isTemporaryPanActive,
+    getActiveEraserRadius: () => activeEraserRadius,
+    hasActiveEraserSnapshot: () => Boolean(eraseSnapshot),
+  });
   const viewportController = createViewportController({
     stage,
     container,
@@ -606,58 +646,6 @@ export function createWhiteboardApp(root) {
     listening: false,
   });
   contentLayer.add(selectionRect);
-
-  const eraserCursor = new Konva.Rect({
-    x: -18,
-    y: -18,
-    width: 36,
-    height: 36,
-    stroke: "#111827",
-    strokeWidth: 2,
-    dash: [2.5, 1.8],
-    fill: "rgba(0,0,0,0)",
-    strokeScaleEnabled: false,
-    visible: false,
-    listening: false,
-  });
-  overlayLayer.add(eraserCursor);
-  const objectEraserCursor = new Konva.Group({
-    visible: false,
-    listening: false,
-  });
-  const objectEraserBody = new Konva.Rect();
-  const objectEraserSleeve = new Konva.Rect();
-  const objectEraserDivider = new Konva.Line();
-  objectEraserCursor.add(objectEraserBody);
-  objectEraserCursor.add(objectEraserSleeve);
-  objectEraserCursor.add(objectEraserDivider);
-  overlayLayer.add(objectEraserCursor);
-
-  const brushCursorDot = new Konva.Circle({
-    radius: 3,
-    fill: colorInput.value,
-    visible: false,
-    listening: false,
-  });
-  const brushCursorGap = new Konva.Circle({
-    radius: 6,
-    fill: "#ffffff",
-    visible: false,
-    listening: false,
-  });
-  const brushCursorRing = new Konva.Circle({
-    radius: 3,
-    stroke: "#111827",
-    strokeWidth: 1,
-    dash: [1, 1],
-    fill: "rgba(0,0,0,0)",
-    strokeScaleEnabled: false,
-    visible: false,
-    listening: false,
-  });
-  overlayLayer.add(brushCursorGap);
-  overlayLayer.add(brushCursorDot);
-  overlayLayer.add(brushCursorRing);
 
   hydrateLocalDraft();
   hydrateControls();
@@ -2408,89 +2396,8 @@ export function createWhiteboardApp(root) {
     return activeEraserRadius;
   }
 
-  function getBaseEraserRadius() {
-    return getBaseEraserRadiusForWidth(widthInput.value);
-  }
-
-  function getVisibleEraserRadius(radius = getBaseEraserRadius()) {
-    return getScaledEraserRadius(radius, stage.scaleX());
-  }
-
-  function showStrokeEraser(worldPoint, radius = activeEraserRadius) {
-    eraserPreviewPoint = { ...worldPoint };
-    const visibleRadius = getVisibleEraserRadius(radius);
-    eraserCursor.setAttrs(getSquareEraserPreviewAttrs(worldPoint, visibleRadius, stage.scaleX()));
-    eraserCursor.visible(true);
-    objectEraserCursor.visible(false);
-    overlayLayer.batchDraw();
-  }
-
-  function showObjectEraser(worldPoint) {
-    eraserPreviewPoint = { ...worldPoint };
-    const attrs = getObjectEraserIconAttrs(worldPoint, stage.scaleX());
-    objectEraserCursor.setAttrs(attrs.group);
-    objectEraserBody.setAttrs(attrs.body);
-    objectEraserSleeve.setAttrs(attrs.sleeve);
-    objectEraserDivider.setAttrs(attrs.divider);
-    eraserCursor.visible(false);
-    objectEraserCursor.visible(true);
-    overlayLayer.batchDraw();
-  }
-
-  function hideEraser() {
-    eraserPreviewPoint = null;
-    eraserCursor.visible(false);
-    objectEraserCursor.visible(false);
-    overlayLayer.batchDraw();
-  }
-
-  function showBrushCursor(worldPoint) {
-    const attrs = getBrushPreviewAttrs(worldPoint, widthInput.value, colorInput.value, stage.scaleX());
-    brushCursorGap.setAttrs(attrs.gap);
-    brushCursorDot.setAttrs(attrs.dot);
-    brushCursorRing.setAttrs(attrs.ring);
-    brushCursorGap.visible(true);
-    brushCursorDot.visible(true);
-    brushCursorRing.visible(true);
-    overlayLayer.batchDraw();
-  }
-
-  function hideBrushCursor() {
-    brushCursorGap.visible(false);
-    brushCursorDot.visible(false);
-    brushCursorRing.visible(false);
-    overlayLayer.batchDraw();
-  }
-
-  function hideToolCursors() {
-    eraserCursor.visible(false);
-    objectEraserCursor.visible(false);
-    brushCursorGap.visible(false);
-    brushCursorDot.visible(false);
-    brushCursorRing.visible(false);
-    overlayLayer.batchDraw();
-  }
-
   function isTemporaryPanActive() {
     return isSpaceDown || currentTool === TOOLS.PAN;
-  }
-
-  function updateBrushCursorStyle() {
-    if (isTemporaryPanActive()) return;
-    if (!brushCursorDot.visible()) return;
-    showBrushCursor(brushCursorDot.position());
-  }
-
-  function updateEraserCursorStyle() {
-    if (isTemporaryPanActive()) return;
-    if (!eraserPreviewPoint) return;
-    if (currentTool === TOOLS.ERASER_OBJECT) {
-      if (!objectEraserCursor.visible()) return;
-      showObjectEraser(eraserPreviewPoint);
-      return;
-    }
-    if (!eraserCursor.visible()) return;
-    showStrokeEraser(eraserPreviewPoint, eraseSnapshot ? activeEraserRadius : getBaseEraserRadius());
   }
 
   function addElement(element, message) {
@@ -2803,73 +2710,6 @@ export function createWhiteboardApp(root) {
     overlayLayer.batchDraw();
   }
 
-  function getTextMeasureContext() {
-    const canvas = getTextMeasureContext.canvas ?? document.createElement("canvas");
-    getTextMeasureContext.canvas = canvas;
-    return canvas.getContext("2d");
-  }
-
-  function getTextMeasureContextForElement(element, fontSize = element.fontSize) {
-    const context = getTextMeasureContext();
-    const fontWeight = hasFontStyle(element.fontStyle, "bold") ? "700" : "400";
-    const fontStyle = hasFontStyle(element.fontStyle, "italic") ? "italic" : "normal";
-    context.font = `${fontStyle} ${fontWeight} ${fontSize}px ${element.fontFamily}`;
-    return context;
-  }
-
-  function measureTextElementValue(element, value, fontSize = element.fontSize) {
-    return getTextMeasureContextForElement(element, fontSize).measureText(value || " ").width;
-  }
-
-  function getTextElementWrappedHeight(element, width) {
-    return getNormalizedTextElementBox(element, width).height;
-  }
-
-  function getMinimumTextElementWidth(element, fontSize = element.fontSize) {
-    const padding = Number(element.padding ?? 0);
-    return getMinimumTextBoxWidth({
-      text: element.text,
-      fontSize,
-      padding,
-      measureText: (value) => measureTextElementValue(element, value, fontSize),
-    });
-  }
-
-  function getPreferredTextElementWidth(element, baseWidth = element.width) {
-    const padding = Number(element.padding ?? 0);
-    return getPreferredTextBoxWidth({
-      text: element.text,
-      baseWidth,
-      contentWidth: measureTextElementValue(element, element.text),
-      padding,
-    });
-  }
-
-  function getNormalizedTextElementBox(element, width = element.width) {
-    const padding = Number(element.padding ?? 0);
-    return getNormalizedTextBox({
-      text: element.text,
-      width,
-      fontSize: element.fontSize,
-      padding,
-      lineHeight: 1.25,
-      verticalGap: 2,
-      measureText: (value) => measureTextElementValue(element, value),
-    });
-  }
-
-  function normalizeTextElementBox(element, { preserveHeight = false } = {}) {
-    if (element.type !== "text") return element;
-    const box = getNormalizedTextElementBox(element);
-    return {
-      ...element,
-      width: box.width,
-      height: preserveHeight && Number.isFinite(element.height) ? element.height : box.height,
-      scaleX: 1,
-      scaleY: 1,
-    };
-  }
-
   function syncNodeToElement(node) {
     const id = getElementIdFromNode(node);
     const index = board.elements.findIndex((element) => element.id === id);
@@ -2928,65 +2768,6 @@ export function createWhiteboardApp(root) {
         scaleY: 1,
       };
     }
-  }
-
-  function getElementIdFromNode(node) {
-    if (!node || node === stage) return null;
-    const elementNode = node.hasName?.("element") ? node : node.findAncestor?.(".element");
-    return elementNode?.id() ?? null;
-  }
-
-  function getElementIdAtPointer(fallbackNode) {
-    const fallbackId = getElementIdFromNode(fallbackNode);
-    if (fallbackId) return fallbackId;
-
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return null;
-    return getElementIdFromNode(stage.getIntersection(pointer));
-  }
-
-  function getSelectableElementIdAtWorldPoint(worldPoint, {
-    fallbackNode = null,
-    preferUnselected = false,
-  } = {}) {
-    const fallbackId = getElementIdFromNode(fallbackNode);
-    const candidates = board.elements.map((element) => {
-      const node = contentLayer.findOne(`#${element.id}`);
-      if (!node) return null;
-      return {
-        id: element.id,
-        zIndex: element.zIndex,
-        box: node.getClientRect({ relativeTo: contentLayer }),
-      };
-    }).filter(Boolean);
-
-    return pickElementIdAtPoint({
-      point: worldPoint,
-      candidates,
-      padding: getSelectionHitRadius(stage.scaleX()),
-      fallbackId,
-      selectedIds,
-      preferUnselected,
-    });
-  }
-
-  function getNearbySelectedElementId(worldPoint) {
-    if (selectedIds.length === 0) return null;
-    const padding = getSelectionHitRadius(stage.scaleX());
-    const boxes = selectedIds
-      .map((id) => contentLayer.findOne(`#${id}`))
-      .filter(Boolean)
-      .map((node) => node.getClientRect({ relativeTo: contentLayer }));
-
-    return pointHitsSelectionBounds(worldPoint, boxes, padding) ? selectedIds[0] : null;
-  }
-
-  function expandGroupedIds(ids) {
-    return expandSelectionGroupIds(ids, board.elements);
-  }
-
-  function isElementLocked(id) {
-    return Boolean(board.elements.find((element) => element.id === id)?.locked);
   }
 
   function snapNodeToAlignment(node) {
@@ -3384,20 +3165,6 @@ export function createWhiteboardApp(root) {
     });
   }
 
-  function createArrayAlgorithmSteps(algorithm, values) {
-    if (algorithm === ARRAY_ALGORITHMS.SELECTION_SORT) return createSelectionSortSteps(values);
-    if (algorithm === ARRAY_ALGORITHMS.INSERTION_SORT) return createInsertionSortSteps(values);
-    return createBubbleSortSteps(values);
-  }
-
-  function getArrayAlgorithmLabel(algorithm) {
-    return {
-      [ARRAY_ALGORITHMS.BUBBLE_SORT]: "冒泡排序",
-      [ARRAY_ALGORITHMS.SELECTION_SORT]: "选择排序",
-      [ARRAY_ALGORITHMS.INSERTION_SORT]: "插入排序",
-    }[algorithm] ?? "排序";
-  }
-
   function getArrayAlgorithmPanelState(elementId) {
     return structureInteraction.getArrayAlgorithmPanelState(elementId, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);
   }
@@ -3527,7 +3294,7 @@ export function createWhiteboardApp(root) {
     const initialValues = session.initialValues ?? [];
     board.elements = board.elements.map((element) => (
       element.id === elementId
-        ? applyArrayAlgorithmValues(clearArrayAlgorithmMarkers(element), initialValues)
+        ? applyArrayAlgorithmValues(clearArrayAlgorithmRuntimeMarkers(element), initialValues)
         : element
     ));
     setArrayAlgorithmSession({
@@ -4079,17 +3846,6 @@ export function createWhiteboardApp(root) {
     }
   }
 
-  function applyArrayAlgorithmValues(element, values) {
-    if (!isLinearStructureElement(element)) return element;
-    return {
-      ...element,
-      items: (element.items ?? []).map((item, index) => ({
-        ...item,
-        value: String(values[index] ?? item.value ?? ""),
-      })),
-    };
-  }
-
   function scheduleArrayAlgorithmPlayback() {
     cancelArrayAlgorithmTimer();
     const session = getSelectedArrayAlgorithmSession();
@@ -4160,17 +3916,6 @@ export function createWhiteboardApp(root) {
       cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
     }
     ids.forEach((id) => deleteArrayAlgorithmState(id));
-  }
-
-  function clearArrayAlgorithmRuntimeMarkers(element) {
-    const cleared = clearArrayAlgorithmMarkers(element);
-    return {
-      ...cleared,
-      markers: {
-        ...(cleared.markers ?? {}),
-        pointer: null,
-      },
-    };
   }
 
   function syncArrayAlgorithmPanelState() {

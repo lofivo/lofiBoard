@@ -122,14 +122,16 @@ describe("app shell", () => {
 
   it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const selectionHitSource = readFileSync(new URL("../../src/app/selection-hit-query.js", import.meta.url), "utf8");
     const selectSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
       appSource.indexOf("function beginSelectionDrag(worldPoint)"),
     );
 
-    expect(appSource).toContain("function getSelectableElementIdAtWorldPoint(worldPoint");
-    expect(appSource).toContain("pickElementIdAtPoint");
-    expect(appSource).toContain("padding: getSelectionHitRadius(stage.scaleX())");
+    expect(appSource).toContain("createSelectionHitQuery");
+    expect(selectionHitSource).toContain("function getSelectableElementIdAtWorldPoint(worldPoint");
+    expect(selectionHitSource).toContain("pickElementIdAtPoint");
+    expect(selectionHitSource).toContain("padding: getSelectionHitRadius(stage.scaleX())");
     expect(selectSource).toContain("getSelectableElementIdAtWorldPoint(worldPoint");
     expect(selectSource).toContain("fallbackNode: event.target");
   });
@@ -1051,9 +1053,10 @@ describe("app shell", () => {
   it("keeps live text editor height aligned with committed text box normalization", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("}) + 2 * scale");
-    expect(appSource).toContain("verticalGap: 2");
+    expect(textMeasureSource).toContain("verticalGap: 2");
   });
 
   it("keeps the Konva text visible while the textarea only edits input", () => {
@@ -1081,10 +1084,10 @@ describe("app shell", () => {
   });
 
   it("widens new latex text while editing and preserves that width on commit", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("getPreferredTextBoxWidth({");
+    expect(textMeasureSource).toContain("getPreferredTextBoxWidth({");
     expect(editSource).toContain("latexDefaultWidth: 520 * scale");
     expect(editSource).toContain("preferredTextWidth > maxAutoEditorWidth");
     expect(editSource).toContain("getPreferredTextElementWidth(nextElement, nextWidth)");
@@ -1092,10 +1095,11 @@ describe("app shell", () => {
 
   it("keeps text measurement font setup centralized without dead editor resize state", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("function getTextMeasureContextForElement");
+    expect(textMeasureSource).toContain("function getTextMeasureContextForElement");
     expect(appSource).not.toContain("hasManualEditorResize");
-    expect((appSource.match(/context\.font =/g) ?? []).length).toBeLessThanOrEqual(2);
+    expect((textMeasureSource.match(/context\.font =/g) ?? []).length).toBeLessThanOrEqual(1);
   });
 
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
@@ -1210,7 +1214,7 @@ describe("app shell", () => {
 
     expect(resizePreviewSource).toContain("syncTextOverlays({ elements: getTextOverlayPreviewElements() })");
     expect(resizePreviewSource).toContain("getMinimumTextElementWidth(element)");
-    expect(minWidthSource).toContain("measureText: (value) => measureTextElementValue(element, value)");
+    expect(appSource).toContain("getTextTransformMinimumSize({");
     expect(resizePreviewSource).not.toContain("textOverlayController.setHiddenIds([id])");
     expect(appSource).toContain("transformer.on(\"transform\", syncTextTransformPreview)");
     expect(appSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
@@ -1263,30 +1267,34 @@ describe("app shell", () => {
 
   it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const eraserSource = appSource.slice(
-      appSource.indexOf("function getBaseEraserRadius()"),
-      appSource.indexOf("function showObjectEraser"),
+    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
+    const eraserSource = toolCursorSource.slice(
+      toolCursorSource.indexOf("function getBaseEraserRadius()"),
+      toolCursorSource.indexOf("function showObjectEraser"),
     );
 
     expect(appSource).not.toContain("getMinimumEraserRadius");
-    expect(eraserSource).toContain("getBaseEraserRadiusForWidth(widthInput.value)");
-    expect(eraserSource).toContain("getScaledEraserRadius(radius, stage.scaleX())");
-    expect(eraserSource).toContain("getSquareEraserPreviewAttrs(worldPoint, visibleRadius, stage.scaleX())");
+    expect(appSource).toContain("createToolCursorController");
+    expect(eraserSource).toContain("getBaseEraserRadiusForWidth(getStrokeWidth())");
+    expect(eraserSource).toContain("getScaledEraserRadius(radius, getScale())");
+    expect(eraserSource).toContain("getSquareEraserPreviewAttrs(worldPoint, visibleRadius, getScale())");
   });
 
   it("shows a small icon for object eraser instead of the square erase footprint", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const objectEraserSource = appSource.slice(
-      appSource.indexOf("function showObjectEraser(worldPoint)"),
-      appSource.indexOf("function hideEraser"),
+    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
+    const objectEraserSource = toolCursorSource.slice(
+      toolCursorSource.indexOf("function showObjectEraser(worldPoint)"),
+      toolCursorSource.indexOf("function hideEraser"),
     );
-    const strokeEraserSource = appSource.slice(
-      appSource.indexOf("function showStrokeEraser(worldPoint"),
-      appSource.indexOf("function showObjectEraser"),
+    const strokeEraserSource = toolCursorSource.slice(
+      toolCursorSource.indexOf("function showStrokeEraser(worldPoint"),
+      toolCursorSource.indexOf("function showObjectEraser"),
     );
 
-    expect(appSource).toContain("const objectEraserCursor = new Konva.Group");
-    expect(objectEraserSource).toContain("getObjectEraserIconAttrs(worldPoint, stage.scaleX())");
+    expect(appSource).toContain("createToolCursorController");
+    expect(toolCursorSource).toContain("const objectEraserCursor = new Konva.Group");
+    expect(objectEraserSource).toContain("getObjectEraserIconAttrs(worldPoint, getScale())");
     expect(objectEraserSource).toContain("eraserCursor.visible(false)");
     expect(objectEraserSource).not.toContain("getSquareEraserPreviewAttrs");
     expect(strokeEraserSource).toContain("getSquareEraserPreviewAttrs");
@@ -1753,6 +1761,7 @@ describe("app shell", () => {
 
   it("suppresses custom tool cursors while spacebar panning is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?isSpaceDown = true;[\s\S]*?classList\.add\("is-pan-ready"\);[\s\S]*?updateDraggableState\(\);[\s\S]*?hideToolCursors\(\);/);
     expect(appSource).toMatch(/if \(isSpaceDown \|\| currentTool === TOOLS\.PAN \|\| event\.evt\.button === 1\) \{[\s\S]*?isPanning = true;[\s\S]*?classList\.add\("is-panning"\);/);
@@ -1761,8 +1770,9 @@ describe("app shell", () => {
     expect(appSource).toContain("function isTemporaryPanActive()");
     expect(appSource).toMatch(/function handlePointerMove\(event\) \{[\s\S]*?if \(isTemporaryPanActive\(\) && !isPanning\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?return;[\s\S]*?\}/);
     expect(appSource).toMatch(/if \(isPanning && panStart\) \{[\s\S]*?hideToolCursors\(\);[\s\S]*?const pointer = stage\.getPointerPosition\(\);/);
-    expect(appSource).toMatch(/function updateBrushCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
-    expect(appSource).toMatch(/function updateEraserCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+    expect(appSource).toContain("isTemporaryPanActive,");
+    expect(toolCursorSource).toMatch(/function updateBrushCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
+    expect(toolCursorSource).toMatch(/function updateEraserCursorStyle\(\) \{[\s\S]*?if \(isTemporaryPanActive\(\)\) return;/);
   });
 
   it("keeps temporary spacebar panning from selecting or dragging elements", () => {
