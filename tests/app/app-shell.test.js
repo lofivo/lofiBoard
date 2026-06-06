@@ -1292,7 +1292,7 @@ describe("app shell", () => {
     expect(selectPointerDownSource).not.toContain('array-item-value-hit');
     expect(selectPointerDownSource).not.toContain("if (arrayValueHitNode && isLinearStructureElement(element))");
     expect(itemPressSource).toContain("linearItemPressState = {");
-    expect(itemPressSource).toContain("setElementDraggableState(elementId, false)");
+    expect(itemPressSource).toContain("setElementDraggableState(result.pressState.elementId, false)");
   });
 
   it("moves the whole array from a linear item press movement before long press reordering starts", () => {
@@ -1408,9 +1408,12 @@ describe("app shell", () => {
       appSource.indexOf("function syncBinaryTreeActiveVisual"),
     );
 
+    expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);");
+    expect(appSource).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
+    expect(appSource).toContain("function dispatchLinearStructureEvent(event)");
     expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
     expect(appSource).toContain("structureInteraction.handleEvent({");
-    expect(appSource).toContain('type: "linear.item.select"');
+    expect(appSource).toContain("type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT");
     expect(appSource).toContain("selectIds(result.selectedIds)");
     expect(appSource).toMatch(/import \{[\s\S]*syncLinearStructureNodeContent,[\s\S]*\} from "\.\.\/canvas\/konva-elements\.js";/);
     expect(appSource).toContain("syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId)");
@@ -1509,7 +1512,10 @@ describe("app shell", () => {
     expect(selectHandlerSource).toContain("currentTool,");
     expect(selectHandlerSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
     expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
-    expect(pressHandlerSource).toContain("currentTool !== TOOLS.SELECT");
+    expect(pressHandlerSource).toContain("structureInteraction.handleEvent({");
+    expect(pressHandlerSource).toContain("type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_PRESS");
+    expect(pressHandlerSource).toContain("currentTool,");
+    expect(pressHandlerSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
     expect(pointerHandlerSource).toContain("currentTool !== TOOLS.SELECT");
     expect(setToolSource).toContain("resetLinearItemPressState()");
     expect(setToolSource).toContain("resetLinearPointerPressState()");
@@ -1742,11 +1748,13 @@ describe("app shell", () => {
 
   it("keeps temporary spacebar panning from selecting or dragging elements", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
     expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
-    expect(appSource).toMatch(/function handleArrayStructureItemSelect\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
+    expect(appSource).toContain("createLinearStructureEventAdapter(dispatchLinearStructureEvent)");
+    expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
     expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
   });
 

@@ -202,6 +202,10 @@ import {
   deleteLastTreeNode,
   updateTreeFromInput,
 } from "../structures/structure-templates.js";
+import {
+  LINEAR_STRUCTURE_EVENT_TYPES,
+  createLinearStructureEventAdapter,
+} from "../structures/structure-event-adapter.js";
 import { createStructureInteraction } from "../structures/structure-interaction.js";
 import {
   getNextPanelCollapsedState,
@@ -355,6 +359,7 @@ export function createWhiteboardApp(root) {
   const nodeRenderSnapshots = new Map();
   const elementRenderSnapshotValues = new WeakMap();
   const structureInteraction = createStructureInteraction();
+  const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);
   const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
     color: "#111827",
     fill: "#ffffff",
@@ -2499,9 +2504,9 @@ export function createWhiteboardApp(root) {
       },
       onArrayItemMove: moveArrayStructureItem,
       onArrayItemEdit: editArrayStructureItem,
-      onArrayItemSelect: handleArrayStructureItemSelect,
-      onArrayItemPress: handleArrayStructureItemPress,
-      onArrayItemRelease: handleArrayStructureItemRelease,
+      onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect,
+      onArrayItemPress: linearStructureEventAdapter.onArrayItemPress,
+      onArrayItemRelease: linearStructureEventAdapter.onArrayItemRelease,
       onArrayPointerPress: handleArrayPointerPress,
       onGraphNodeMove: moveGraphStructureNode,
       onGraphNodeClick: handleGraphNodeClick,
@@ -5388,9 +5393,23 @@ export function createWhiteboardApp(root) {
     pushHistory("已移动数组元素");
   }
 
+  function dispatchLinearStructureEvent(event) {
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT) {
+      handleArrayStructureItemSelect(event);
+      return;
+    }
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_PRESS) {
+      handleArrayStructureItemPress(event);
+      return;
+    }
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_RELEASE) {
+      handleArrayStructureItemRelease(event);
+    }
+  }
+
   function handleArrayStructureItemSelect({ elementId, index }) {
     const result = structureInteraction.handleEvent({
-      type: "linear.item.select",
+      type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT,
       elementId,
       index,
     }, {
@@ -5412,39 +5431,45 @@ export function createWhiteboardApp(root) {
   }
 
   function handleArrayStructureItemPress({ elementId, index }) {
-    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked) return;
-    const worldPoint = getWorldPointer(stage);
-    clearLinearItemSelectSuppression();
-    suppressSelectionDragOnce = false;
-    contentLayer.findOne(`#${elementId}`)?.stopDrag();
-    linearItemPressState = {
+    const result = structureInteraction.handleEvent({
+      type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_PRESS,
       elementId,
       index,
-      phase: "start",
+    }, {
+      elements: board.elements,
+      currentTool,
+      isTemporaryPanActive: isTemporaryPanActive(),
+    });
+    if (!result.handled || !result.pressState) return;
+    const worldPoint = getWorldPointer(stage);
+    if (result.clearSuppression) clearLinearItemSelectSuppression();
+    suppressSelectionDragOnce = result.suppressSelectionDragOnce;
+    if (result.stopElementDrag) contentLayer.findOne(`#${elementId}`)?.stopDrag();
+    linearItemPressState = {
+      ...result.pressState,
       holdTimer: window.setTimeout(() => {
-        if (!linearItemPressState || linearItemPressState.elementId !== elementId || linearItemPressState.index !== index) return;
+        if (!linearItemPressState || linearItemPressState.elementId !== result.pressState.elementId || linearItemPressState.index !== result.pressState.index) return;
         linearItemPressState = {
           ...linearItemPressState,
           phase: "hold",
           holdTimer: null,
         };
         beginLinearItemDrag({
-          elementId,
-          index,
+          elementId: result.pressState.elementId,
+          index: result.pressState.index,
           worldPoint: linearItemPressState.currentWorldPoint ?? linearItemPressState.startWorldPoint ?? worldPoint,
         });
       }, 250),
       startWorldPoint: worldPoint,
       currentWorldPoint: worldPoint,
     };
-    setElementDraggableState(elementId, false);
+    setElementDraggableState(result.pressState.elementId, false);
   }
 
   function handleArrayStructureItemRelease() {
-    if (structureInteraction.hasLinearItemDragState()) return;
-    resetLinearItemPressState();
+    const result = structureInteraction.handleEvent({ type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_RELEASE });
+    if (!result.handled) return;
+    if (result.resetLinearItemPressState) resetLinearItemPressState();
   }
 
   function handleArrayPointerPress({ elementId, index }) {

@@ -80,6 +80,73 @@ describe("structure interaction", () => {
     }
   });
 
+  it("handles linear item press as a structure event result", () => {
+    const interaction = createStructureInteraction();
+    const element = linearElement();
+
+    const result = interaction.handleEvent({
+      type: "linear.item.press",
+      elementId: element.id,
+      index: 1,
+    }, {
+      elements: [element],
+      currentTool: "select",
+      isTemporaryPanActive: false,
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      clearSuppression: true,
+      suppressSelectionDragOnce: false,
+      stopElementDrag: true,
+      pressState: {
+        elementId: element.id,
+        index: 1,
+        phase: "start",
+      },
+    });
+  });
+
+  it("ignores linear item press when the structure cannot be pressed", () => {
+    const cases = [
+      { currentTool: "pen", isTemporaryPanActive: false, element: linearElement() },
+      { currentTool: "select", isTemporaryPanActive: true, element: linearElement() },
+      { currentTool: "select", isTemporaryPanActive: false, element: linearElement({ locked: true }) },
+      { currentTool: "select", isTemporaryPanActive: false, element: { id: "text_1", type: "text" } },
+    ];
+
+    for (const testCase of cases) {
+      const interaction = createStructureInteraction();
+      const result = interaction.handleEvent({
+        type: "linear.item.press",
+        elementId: testCase.element.id,
+        index: 0,
+      }, {
+        elements: [testCase.element],
+        currentTool: testCase.currentTool,
+        isTemporaryPanActive: testCase.isTemporaryPanActive,
+      });
+
+      expect(result).toEqual({ handled: false });
+    }
+  });
+
+  it("handles linear item release according to active drag state", () => {
+    const interaction = createStructureInteraction();
+
+    expect(interaction.handleEvent({ type: "linear.item.release" })).toEqual({
+      handled: true,
+      resetLinearItemPressState: true,
+    });
+
+    interaction.beginLinearItemDrag({ elementId: "array_1", fromIndex: 0 });
+
+    expect(interaction.handleEvent({ type: "linear.item.release" })).toEqual({
+      handled: true,
+      resetLinearItemPressState: false,
+    });
+  });
+
   it("consumes a suppressed linear item selection without changing active state", () => {
     const interaction = createStructureInteraction();
     const element = linearElement();

@@ -1,7 +1,7 @@
+import { LINEAR_STRUCTURE_EVENT_TYPES } from "./structure-event-adapter.js";
 import { STRUCTURE_ELEMENT_TYPES, isLinearStructureElement } from "./structure-templates.js";
 
 const SELECT_TOOL = "select";
-const LINEAR_ITEM_SELECT_EVENT = "linear.item.select";
 
 export function createStructureInteraction() {
   let activeLinearItem = null;
@@ -258,8 +258,16 @@ export function createStructureInteraction() {
   }
 
   function handleEvent(event, context = {}) {
-    if (event?.type !== LINEAR_ITEM_SELECT_EVENT) return { handled: false };
-    return handleLinearItemSelectEvent(event, context);
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT) {
+      return handleLinearItemSelectEvent(event, context);
+    }
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_PRESS) {
+      return handleLinearItemPressEvent(event, context);
+    }
+    if (event?.type === LINEAR_STRUCTURE_EVENT_TYPES.ITEM_RELEASE) {
+      return handleLinearItemReleaseEvent();
+    }
+    return { handled: false };
   }
 
   function beginLinearItemDrag({
@@ -448,6 +456,34 @@ export function createStructureInteraction() {
       render: false,
       clearSuppression: false,
       ...result,
+    };
+  }
+
+  function handleLinearItemPressEvent(event, {
+    elements = [],
+    currentTool = SELECT_TOOL,
+    isTemporaryPanActive = false,
+  } = {}) {
+    if (isTemporaryPanActive || currentTool !== SELECT_TOOL) return { handled: false };
+    const element = findElement(elements, event.elementId);
+    if (!isLinearStructureElement(element) || element.locked) return { handled: false };
+    return {
+      handled: true,
+      clearSuppression: true,
+      suppressSelectionDragOnce: false,
+      stopElementDrag: true,
+      pressState: {
+        elementId: event.elementId,
+        index: normalizeLinearIndex(element, event.index),
+        phase: "start",
+      },
+    };
+  }
+
+  function handleLinearItemReleaseEvent() {
+    return {
+      handled: true,
+      resetLinearItemPressState: !linearItemDragState,
     };
   }
 
