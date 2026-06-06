@@ -14,7 +14,18 @@ import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
 } from "./selection-controller.js";
+import { createShapeRenderAdapter } from "./shape-render-adapter.js";
+import { createShapeRenderController } from "./shape-render-controller.js";
+import { createStructureActiveVisualController } from "./structure-active-visual-controller.js";
+import { createStructureControlsController } from "./structure-controls-controller.js";
+import { createStructureControlsPositionController } from "./structure-controls-position-controller.js";
 import { createStructureInspectorController } from "./structure-inspector-controller.js";
+import {
+  findLinearItemNode,
+  findLinearItemValueGroup,
+  findTreeNodeGroup,
+  getLinearItemNodeIndex,
+} from "./structure-node-query.js";
 import { createStructurePanelController } from "./structure-panel-controller.js";
 import { createToolController, getToolStatus as getToolStatusText } from "./tool-controller.js";
 import { createViewportController } from "./viewport-controller.js";
@@ -327,19 +338,12 @@ export function createWhiteboardApp(root) {
   let arrayAlgorithmPlayTimer = null;
   let arrayAlgorithmSwapTweens = [];
   let arrayAlgorithmAnimationNodes = [];
-  let linearItemControls = null;
-  let treeNodeControls = null;
-  let binaryTreeNodeControls = null;
-  let binaryTreeTraversalControls = null;
   let suppressLinearItemSelectTimer = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
   let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
   let activeCellEditorSync = null;
-  const nodeRegistry = new Map();
-  const nodeRenderSnapshots = new Map();
-  const elementRenderSnapshotValues = new WeakMap();
   const structureInteraction = createStructureInteraction();
   const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);
   const toolController = createToolController({
@@ -369,6 +373,75 @@ export function createWhiteboardApp(root) {
   const overlayLayer = new Konva.Layer();
   stage.add(contentLayer);
   stage.add(overlayLayer);
+
+  const shapeRenderAdapter = createShapeRenderAdapter({
+    getCurrentTool: () => currentTool,
+    isTemporaryPanActive,
+    isArrayAlgorithmLocked,
+    structureInteraction,
+  });
+
+  const shapeRenderController = createShapeRenderController({
+    contentLayer,
+    createNode,
+    syncNode: syncElementNode,
+    getHandlers: getElementNodeHandlers,
+    getHandlerSnapshot: shapeRenderAdapter.getElementRenderHandlerSnapshot,
+    projectRuntimeElement: shapeRenderAdapter.projectRuntimeElement,
+    isNodeDraggable: (element) => shouldElementBeDraggable(element)
+      && !isLinearPointerGestureElement(element.id)
+      && !isSelectionDragElement(element.id),
+  });
+
+  const structureActiveVisualController = createStructureActiveVisualController({
+    contentLayer,
+    getElements: () => board.elements,
+    structureInteraction,
+    projectRuntimeElement: shapeRenderAdapter.projectRuntimeElement,
+    getElementNodeHandlers,
+    syncLinearStructureNodeContent,
+    isLinearStructureElement,
+    isBinaryTreeElement,
+    isGeneralTreeElement,
+    treeStructureStyle: TREE_STRUCTURE_STYLE,
+    renderBinaryTreeControls,
+    renderTreeNodeControls,
+  });
+
+  const structureControlsController = createStructureControlsController({
+    root,
+    contentLayer,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    structureInteraction,
+    isLinearStructureElement,
+    isSelectedGeneralTreeElement,
+    isSelectedBinaryTreeElement,
+    isSelectedTreeElementWithTraversal,
+    findTreeNodeGroup,
+    isTreeRootNode,
+    getBinaryTreeChildSides,
+    updateLinearItemControlsPosition,
+    updateTreeNodeControlsPosition,
+    updateBinaryTreeNodeControlsPosition,
+    updateTreeTraversalControlsPosition,
+  });
+
+  const structureControlsPositionController = createStructureControlsPositionController({
+    contentLayer,
+    getStageContainerRect: () => stage.container().getBoundingClientRect(),
+    getElements: () => board.elements,
+    structureInteraction,
+    findLinearItemNode,
+    findTreeNodeGroup,
+    isSelectedGeneralTreeElement,
+    isSelectedBinaryTreeElement,
+    isSelectedTreeElementWithTraversal,
+    getLinearItemControls: structureControlsController.getLinearItemControls,
+    getTreeNodeControls: structureControlsController.getTreeNodeControls,
+    getBinaryTreeNodeControls: structureControlsController.getBinaryTreeNodeControls,
+    getTreeTraversalControls: structureControlsController.getTreeTraversalControls,
+  });
 
   const textOverlayController = createTextOverlayController({
     container,
@@ -614,8 +687,7 @@ export function createWhiteboardApp(root) {
       arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
       arrayAlgorithmAnimationNodes = [];
       textOverlayController.clear();
-      nodeRenderSnapshots.clear();
-      nodeRegistry.clear();
+      shapeRenderController.clear();
       stage.destroy();
     },
   };
@@ -2527,21 +2599,7 @@ export function createWhiteboardApp(root) {
   }
 
   function renderBoard() {
-    const orderedElements = reorderElements(board.elements);
-    const nextIds = new Set(orderedElements.map((element) => element.id));
-    for (const [id, node] of nodeRegistry) {
-      if (!nextIds.has(id)) {
-        node.destroy();
-        nodeRegistry.delete(id);
-        nodeRenderSnapshots.delete(id);
-      }
-    }
-    for (const element of orderedElements) {
-      const runtimeElement = buildRuntimeElement(element);
-      const node = syncOrCreateElementNode(runtimeElement);
-      node.moveTo(contentLayer);
-      node.moveToTop();
-    }
+    shapeRenderController.syncElementNodes(reorderElements(board.elements));
     selectionRect.moveToTop();
     syncSelectionNodes();
     renderLinearItemControls();
@@ -2549,56 +2607,6 @@ export function createWhiteboardApp(root) {
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
     syncTextOverlays({ hiddenIds: editController.isEditing ? selectedIds : [] });
-  }
-
-  function syncOrCreateElementNode(element) {
-    const existingNode = nodeRegistry.get(element.id);
-    const nextSnapshot = createElementRenderSnapshot(element);
-    const previousSnapshot = nodeRenderSnapshots.get(element.id);
-    if (existingNode && previousSnapshot === nextSnapshot) {
-      existingNode.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id) && !isSelectionDragElement(element.id));
-      return existingNode;
-    }
-    if (existingNode && syncElementNode(existingNode, element, getElementNodeHandlers(element))) {
-      existingNode.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id) && !isSelectionDragElement(element.id));
-      nodeRenderSnapshots.set(element.id, nextSnapshot);
-      return existingNode;
-    }
-    if (existingNode) {
-      existingNode.destroy();
-      nodeRegistry.delete(element.id);
-      nodeRenderSnapshots.delete(element.id);
-    }
-    const node = createNode(element);
-    nodeRegistry.set(element.id, node);
-    nodeRenderSnapshots.set(element.id, nextSnapshot);
-    return node;
-  }
-
-  function createElementRenderSnapshot(element) {
-    if (!element || typeof element !== "object") return "";
-    const handlerSnapshot = getElementRenderHandlerSnapshot(element);
-    const cachedSnapshot = elementRenderSnapshotValues.get(element);
-    if (cachedSnapshot) return `${cachedSnapshot}|${handlerSnapshot}`;
-    const snapshot = JSON.stringify(element);
-    elementRenderSnapshotValues.set(element, snapshot);
-    return `${snapshot}|${handlerSnapshot}`;
-  }
-
-  function getElementRenderHandlerSnapshot(element) {
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    if (isBinaryTreeElement(element)) {
-      return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
-    }
-    if (isGeneralTreeElement(element)) {
-      return `activeTreeNode:${activeTreeNode?.elementId === element.id ? activeTreeNode.nodeId : ""}`;
-    }
-    if (!isLinearStructureElement(element)) return "";
-    return `canEditArrayItems:${currentTool === TOOLS.SELECT && !isTemporaryPanActive() && !isArrayAlgorithmLocked(element.id)}`;
-  }
-
-  function buildRuntimeElement(element) {
-    return structureInteraction.projectRuntime(element);
   }
 
   function selectIds(ids) {
@@ -4223,158 +4231,55 @@ export function createWhiteboardApp(root) {
   }
 
   function ensureLinearItemControls() {
-    if (linearItemControls) return linearItemControls;
-    const controls = document.createElement("div");
-    controls.className = "linear-item-controls";
-    controls.hidden = true;
-    controls.innerHTML = `
-      <button type="button" data-linear-item-action="insert-before" title="前插" aria-label="前插">+左</button>
-      <button type="button" data-linear-item-action="insert-after" title="后插" aria-label="后插">+右</button>
-      <button type="button" data-linear-item-action="delete" title="删除" aria-label="删除">删除</button>
-    `;
-    root.appendChild(controls);
-    linearItemControls = controls;
-    return controls;
+    return structureControlsController.ensureLinearItemControls();
   }
 
   function hideLinearItemControls() {
-    if (linearItemControls) linearItemControls.hidden = true;
+    structureControlsController.hideLinearItemControls();
   }
 
   function ensureTreeNodeControls() {
-    if (treeNodeControls) return treeNodeControls;
-    const controls = document.createElement("div");
-    controls.className = "tree-node-controls";
-    controls.hidden = true;
-    controls.innerHTML = `
-      <button type="button" data-tree-node-action="add-child" title="添加子节点" aria-label="添加子节点">子+</button>
-      <button type="button" data-tree-node-action="add-left-sibling" title="添加左兄弟" aria-label="添加左兄弟">左兄+</button>
-      <button type="button" data-tree-node-action="add-right-sibling" title="添加右兄弟" aria-label="添加右兄弟">右兄+</button>
-      <button type="button" data-tree-node-action="edit" title="改值" aria-label="改值">改值</button>
-      <button type="button" data-tree-node-action="delete" title="删除子树" aria-label="删除子树">删除</button>
-    `;
-    root.appendChild(controls);
-    treeNodeControls = controls;
-    return controls;
+    return structureControlsController.ensureTreeNodeControls();
   }
 
   function ensureBinaryTreeNodeControls() {
-    if (binaryTreeNodeControls) return binaryTreeNodeControls;
-    const controls = document.createElement("div");
-    controls.className = "binary-tree-node-controls";
-    controls.hidden = true;
-    controls.innerHTML = `
-      <button type="button" data-binary-tree-node-action="add-left" title="添加左子节点" aria-label="添加左子节点">左+</button>
-      <button type="button" data-binary-tree-node-action="add-right" title="添加右子节点" aria-label="添加右子节点">右+</button>
-      <button type="button" data-binary-tree-node-action="delete" title="删除子树" aria-label="删除子树">删除</button>
-    `;
-    root.appendChild(controls);
-    binaryTreeNodeControls = controls;
-    return controls;
+    return structureControlsController.ensureBinaryTreeNodeControls();
   }
 
   function ensureBinaryTreeTraversalControls() {
-    if (binaryTreeTraversalControls) return binaryTreeTraversalControls;
-    const controls = document.createElement("div");
-    controls.className = "binary-tree-traversal-controls";
-    controls.hidden = true;
-    controls.innerHTML = `
-      <button type="button" data-binary-tree-traversal-action="prev" title="上一步" aria-label="上一步">‹</button>
-      <button type="button" data-binary-tree-traversal-action="next" title="下一步" aria-label="下一步">›</button>
-    `;
-    root.appendChild(controls);
-    binaryTreeTraversalControls = controls;
-    return controls;
+    return structureControlsController.ensureBinaryTreeTraversalControls();
   }
 
   function hideBinaryTreeControls() {
-    if (binaryTreeNodeControls) binaryTreeNodeControls.hidden = true;
-    if (binaryTreeTraversalControls) binaryTreeTraversalControls.hidden = true;
+    structureControlsController.hideBinaryTreeControls();
   }
 
   function hideTreeControls() {
-    if (treeNodeControls) treeNodeControls.hidden = true;
+    structureControlsController.hideTreeControls();
   }
 
   function renderLinearItemControls() {
-    const controls = ensureLinearItemControls();
-    const activeLinearItem = structureInteraction.getActiveLinearItem();
-    const element = board.elements.find((item) => item.id === activeLinearItem?.elementId);
-    if (!isLinearStructureElement(element) || !selectedIds.includes(element.id) || structureInteraction.hasLinearItemDragState()) {
-      controls.hidden = true;
-      return;
-    }
-    controls.hidden = false;
-    updateLinearItemControlsPosition();
+    structureControlsController.renderLinearItemControls();
   }
 
   function renderTreeControls() {
-    renderTreeNodeControls();
-    renderTreeTraversalControls();
-    renderBinaryTreeControls();
+    structureControlsController.renderTreeControls();
   }
 
   function renderTreeNodeControls() {
-    const controls = ensureTreeNodeControls();
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
-    if (!isSelectedGeneralTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
-      controls.hidden = true;
-      return;
-    }
-    const group = contentLayer.findOne(`#${element.id}`);
-    const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId);
-    if (!treeNode) {
-      controls.hidden = true;
-      return;
-    }
-    const isRoot = isTreeRootNode(element, activeTreeNode.nodeId);
-    controls.querySelector("[data-tree-node-action='add-left-sibling']").hidden = isRoot;
-    controls.querySelector("[data-tree-node-action='add-right-sibling']").hidden = isRoot;
-    controls.hidden = false;
-    updateTreeNodeControlsPosition();
+    structureControlsController.renderTreeNodeControls();
   }
 
   function renderBinaryTreeControls() {
-    renderBinaryTreeNodeControls();
-    renderTreeTraversalControls();
+    structureControlsController.renderBinaryTreeControls();
   }
 
   function renderBinaryTreeNodeControls() {
-    const controls = ensureBinaryTreeNodeControls();
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const element = board.elements.find((item) => item.id === activeTreeNode?.elementId);
-    if (!isSelectedBinaryTreeElement(element) || element.locked || !activeTreeNode?.nodeId) {
-      controls.hidden = true;
-      return;
-    }
-    const group = contentLayer.findOne(`#${element.id}`);
-    const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId);
-    if (!treeNode) {
-      controls.hidden = true;
-      return;
-    }
-    const sides = getBinaryTreeChildSides(element, activeTreeNode.nodeId);
-    controls.querySelector("[data-binary-tree-node-action='add-left']").hidden = Boolean(sides.left);
-    controls.querySelector("[data-binary-tree-node-action='add-right']").hidden = Boolean(sides.right);
-    controls.hidden = false;
-    updateBinaryTreeNodeControlsPosition();
+    structureControlsController.renderBinaryTreeNodeControls();
   }
 
   function renderTreeTraversalControls() {
-    const controls = ensureBinaryTreeTraversalControls();
-    const element = board.elements.find((item) => isSelectedTreeElementWithTraversal(item));
-    if (!element || !element.markers?.traversalMode) {
-      controls.hidden = true;
-      return;
-    }
-    const group = contentLayer.findOne(`#${element.id}`);
-    if (!group) {
-      controls.hidden = true;
-      return;
-    }
-    controls.hidden = false;
-    updateTreeTraversalControlsPosition();
+    structureControlsController.renderTreeTraversalControls();
   }
 
   function renderBinaryTreeTraversalControls() {
@@ -4410,123 +4315,35 @@ export function createWhiteboardApp(root) {
   }
 
   function syncLinearItemActiveVisual(elementId) {
-    if (!elementId) return;
-    const element = board.elements.find((item) => item.id === elementId);
-    const group = contentLayer.findOne(`#${elementId}`);
-    if (!isLinearStructureElement(element) || !group) return;
-    const runtimeElement = buildRuntimeElement(element);
-    syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));
-    group.findOne(".array-drop-indicator")?.moveToTop();
+    structureActiveVisualController.syncLinearItemActiveVisual(elementId);
   }
 
   function syncBinaryTreeActiveVisual(elementId) {
-    if (!elementId) return;
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const element = board.elements.find((item) => item.id === elementId);
-    const group = contentLayer.findOne(`#${elementId}`);
-    if (!isBinaryTreeElement(element) || !group) return;
-    const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    group.find(".tree-node").forEach((nodeGroup) => {
-      const nodeId = nodeGroup.getAttr("treeNodeId");
-      const ellipse = nodeGroup.findOne("Ellipse");
-      if (!ellipse) return;
-      const isActive = activeTreeNode?.elementId === elementId && activeTreeNode.nodeId === nodeId;
-      ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
-      ellipse.strokeWidth(isActive ? 3 : 2);
-      if (isActive) nodeGroup.moveToTop();
-    });
-    renderBinaryTreeControls();
-    contentLayer.batchDraw();
+    structureActiveVisualController.syncBinaryTreeActiveVisual(elementId);
   }
 
   function syncGeneralTreeActiveVisual(elementId) {
-    if (!elementId) return;
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const element = board.elements.find((item) => item.id === elementId);
-    const group = contentLayer.findOne(`#${elementId}`);
-    if (!isGeneralTreeElement(element) || !group) return;
-    const style = { ...TREE_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    group.find(".tree-node").forEach((nodeGroup) => {
-      const nodeId = nodeGroup.getAttr("treeNodeId");
-      const ellipse = nodeGroup.findOne("Ellipse");
-      if (!ellipse) return;
-      const isActive = activeTreeNode?.elementId === elementId && activeTreeNode.nodeId === nodeId;
-      ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
-      ellipse.strokeWidth(isActive ? 3 : 2);
-      if (isActive) nodeGroup.moveToTop();
-    });
-    renderTreeNodeControls();
-    contentLayer.batchDraw();
+    structureActiveVisualController.syncGeneralTreeActiveVisual(elementId);
   }
 
   function updateLinearItemControlsPosition() {
-    const activeLinearItem = structureInteraction.getActiveLinearItem();
-    if (!linearItemControls || linearItemControls.hidden || !activeLinearItem) return;
-    const group = contentLayer.findOne(`#${activeLinearItem.elementId}`);
-    const itemNode = findLinearItemNode(group, activeLinearItem.index);
-    if (!itemNode) {
-      linearItemControls.hidden = true;
-      return;
-    }
-    const box = itemNode.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    linearItemControls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
-    linearItemControls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
+    structureControlsPositionController.updateLinearItemControlsPosition();
   }
 
   function updateTreeControlsPosition() {
-    updateTreeNodeControlsPosition();
-    updateBinaryTreeNodeControlsPosition();
-    updateTreeTraversalControlsPosition();
+    structureControlsPositionController.updateTreeControlsPosition();
   }
 
   function updateTreeNodeControlsPosition() {
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    if (!treeNodeControls || treeNodeControls.hidden || !activeTreeNode) return;
-    const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
-    if (!isSelectedGeneralTreeElement(element)) return;
-    const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);
-    if (!treeNode) {
-      treeNodeControls.hidden = true;
-      return;
-    }
-    positionNodeControls(treeNodeControls, treeNode);
+    structureControlsPositionController.updateTreeNodeControlsPosition();
   }
 
   function updateBinaryTreeNodeControlsPosition() {
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    if (!binaryTreeNodeControls || binaryTreeNodeControls.hidden || !activeTreeNode) return;
-    const element = board.elements.find((item) => item.id === activeTreeNode.elementId);
-    if (!isSelectedBinaryTreeElement(element)) return;
-    const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);
-    if (!treeNode) {
-      binaryTreeNodeControls.hidden = true;
-      return;
-    }
-    positionNodeControls(binaryTreeNodeControls, treeNode);
+    structureControlsPositionController.updateBinaryTreeNodeControlsPosition();
   }
 
   function updateTreeTraversalControlsPosition() {
-    if (!binaryTreeTraversalControls || binaryTreeTraversalControls.hidden) return;
-    const element = board.elements.find((item) => isSelectedTreeElementWithTraversal(item));
-    const group = element ? contentLayer.findOne(`#${element.id}`) : null;
-    if (!group) {
-      binaryTreeTraversalControls.hidden = true;
-      return;
-    }
-    const box = group.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    binaryTreeTraversalControls.style.left = `${stageBox.left + box.x + box.width - binaryTreeTraversalControls.offsetWidth}px`;
-    binaryTreeTraversalControls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
-    binaryTreeTraversalControls.style.transform = "none";
-  }
-
-  function positionNodeControls(controls, treeNode) {
-    const box = treeNode.getClientRect();
-    const stageBox = stage.container().getBoundingClientRect();
-    controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;
-    controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
-    controls.style.transform = "translateX(-50%)";
+    structureControlsPositionController.updateTreeTraversalControlsPosition();
   }
 
   function clearLinearItemPressTimer() {
@@ -5523,25 +5340,6 @@ export function createWhiteboardApp(root) {
 
   function syncActiveCellEditor() {
     activeCellEditorSync?.();
-  }
-
-  function getLinearItemNodeIndex(node) {
-    const linearIndex = node?.getAttr?.("linearIndex");
-    return Number.isInteger(linearIndex) ? linearIndex : 0;
-  }
-
-  function findLinearItemNode(group, index) {
-    return group?.find(".array-item")?.find((node) => getLinearItemNodeIndex(node) === index) ?? null;
-  }
-
-  function findLinearItemValueGroup(group, index) {
-    const itemGroup = findLinearItemNode(group, index);
-    return itemGroup?.findOne?.(".array-item-value-group") ?? null;
-  }
-
-  function findTreeNodeGroup(group, nodeId) {
-    if (!group || !nodeId) return null;
-    return group.find(".tree-node").find((node) => node.getAttr("treeNodeId") === nodeId) ?? null;
   }
 
   function getTreeRootNodeId(element) {

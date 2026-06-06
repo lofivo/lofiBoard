@@ -20,6 +20,10 @@ _Avoid_: item, node(数据语境), shape
 Konva 渲染实例，是元素在 Canvas 上的视觉表现。一个元素可能对应一个或多个形状。
 _Avoid_: node, element(渲染语境)
 
+**形状渲染 (Shape Rendering)**:
+将元素和结构运行时投影同步为画板上的形状表现的过程。
+_Avoid_: render loop, node sync, canvas redraw
+
 **工具 (Tool)**:
 当前激活的操作模式。包括选择、平移、画笔、橡皮、文字、便签、结构、图形等。
 _Avoid_: mode, action

@@ -272,27 +272,31 @@ describe("app shell", () => {
 
   it("reuses ordinary Konva nodes across board renders", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const shapeRenderSource = readFileSync(new URL("../../src/app/shape-render-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const nodeRegistry = new Map();");
-    expect(appSource).toContain("function syncOrCreateElementNode(element)");
-    expect(appSource).toContain("if (existingNode && syncElementNode(existingNode, element, getElementNodeHandlers(element)))");
-    expect(appSource).toContain("nodeRegistry.set(element.id, node)");
+    expect(appSource).toContain("const shapeRenderController = createShapeRenderController({");
+    expect(appSource).toContain("shapeRenderController.syncElementNodes(reorderElements(board.elements));");
+    expect(shapeRenderSource).toContain("const nodeRegistry = new Map();");
+    expect(shapeRenderSource).toContain("function syncOrCreateElementNode(element)");
+    expect(shapeRenderSource).toContain("if (existingNode && syncNode(existingNode, element, getHandlers(element)))");
+    expect(shapeRenderSource).toContain("nodeRegistry.set(element.id, node)");
     expect(appSource).not.toContain('contentLayer.find(".element").forEach((node) => node.destroy());');
   });
 
   it("skips Konva node synchronization when an element did not change", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const shapeRenderSource = readFileSync(new URL("../../src/app/shape-render-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const nodeRenderSnapshots = new Map();");
-    expect(appSource).toContain("const elementRenderSnapshotValues = new WeakMap();");
-    expect(appSource).toContain("function createElementRenderSnapshot(element)");
-    expect(appSource).toContain("const cachedSnapshot = elementRenderSnapshotValues.get(element);");
-    expect(appSource).toContain("const handlerSnapshot = getElementRenderHandlerSnapshot(element);");
+    expect(shapeRenderSource).toContain("const nodeRenderSnapshots = new Map();");
+    expect(shapeRenderSource).toContain("const elementRenderSnapshotValues = new WeakMap();");
+    expect(shapeRenderSource).toContain("function createElementRenderSnapshot(element)");
+    expect(shapeRenderSource).toContain("const cachedSnapshot = elementRenderSnapshotValues.get(element);");
+    expect(shapeRenderSource).toContain("const handlerSnapshot = getHandlerSnapshot(element);");
     expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
-    expect(appSource).toMatch(/if \(existingNode && previousSnapshot === nextSnapshot\) \{[\s\S]*?return existingNode;[\s\S]*?\}/);
-    expect(appSource).toMatch(/if \(existingNode && syncElementNode\(existingNode, element, getElementNodeHandlers\(element\)\)\) \{[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
-    expect(appSource).toMatch(/nodeRegistry\.set\(element\.id, node\);[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
-    expect(appSource).toMatch(/node\.destroy\(\);[\s\S]*?nodeRegistry\.delete\(id\);[\s\S]*?nodeRenderSnapshots\.delete\(id\);/);
+    expect(shapeRenderSource).toMatch(/if \(existingNode && previousSnapshot === nextSnapshot\) \{[\s\S]*?return existingNode;[\s\S]*?\}/);
+    expect(shapeRenderSource).toMatch(/if \(existingNode && syncNode\(existingNode, element, getHandlers\(element\)\)\) \{[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
+    expect(shapeRenderSource).toMatch(/nodeRegistry\.set\(element\.id, node\);[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
+    expect(shapeRenderSource).toMatch(/node\.destroy\(\);[\s\S]*?nodeRegistry\.delete\(id\);[\s\S]*?nodeRenderSnapshots\.delete\(id\);/);
   });
 
   it("renders array structure quick edit actions", () => {
@@ -434,9 +438,11 @@ describe("app shell", () => {
 
   it("uses floating node controls for ordinary tree edits", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const controlSource = appSource.slice(
-      appSource.indexOf("function ensureTreeNodeControls()"),
-      appSource.indexOf("function ensureBinaryTreeNodeControls()"),
+    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../src/app/structure-controls-position-controller.js", import.meta.url), "utf8");
+    const controlSource = controlsSource.slice(
+      controlsSource.indexOf("function ensureTreeNodeControls()"),
+      controlsSource.indexOf("function ensureBinaryTreeNodeControls()"),
     );
     const actionSource = appSource.slice(
       appSource.indexOf("function runTreeNodeAction(action)"),
@@ -454,8 +460,8 @@ describe("app shell", () => {
 
     expect(appSource).toContain("addTreeChild,");
     expect(appSource).toContain("addTreeSibling,");
-    expect(appSource).toContain("let treeNodeControls = null;");
-    expect(appSource).toContain("[data-tree-node-action]");
+    expect(controlsSource).toContain("let treeNodeControls = null;");
+    expect(controlsSource).toContain("data-tree-node-action");
     expect(controlSource).toContain('data-tree-node-action="add-child"');
     expect(controlSource).toContain('data-tree-node-action="add-left-sibling"');
     expect(controlSource).toContain('data-tree-node-action="add-right-sibling"');
@@ -467,11 +473,11 @@ describe("app shell", () => {
     expect(appSource).toContain("function hideTreeControls()");
     expect(appSource).toContain("function getTreeParentNodeId(element, nodeId)");
     expect(appSource).toContain("function isTreeRootNode(element, nodeId)");
-    expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-left-sibling']\").hidden = isRoot;");
-    expect(appSource).toContain("controls.querySelector(\"[data-tree-node-action='add-right-sibling']\").hidden = isRoot;");
-    expect(appSource).toContain("controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;");
-    expect(appSource).toContain("controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;");
-    expect(appSource).toContain('controls.style.transform = "translateX(-50%)";');
+    expect(controlsSource).toContain("controls.querySelector(\"[data-tree-node-action='add-left-sibling']\").hidden = isRoot;");
+    expect(controlsSource).toContain("controls.querySelector(\"[data-tree-node-action='add-right-sibling']\").hidden = isRoot;");
+    expect(controlsPositionSource).toContain("controls.style.left = `${stageBox.left + box.x + box.width / 2}px`;");
+    expect(controlsPositionSource).toContain("controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;");
+    expect(controlsPositionSource).toContain('controls.style.transform = "translateX(-50%)";');
     expect(actionSource).toContain("addTreeChild(element, nodeId, \"0\")");
     expect(actionSource).toContain("addTreeSibling(element, nodeId, side, \"0\")");
     expect(actionSource).toContain("structureInteraction.setActiveTreeNode({ elementId, nodeId });");
@@ -1412,10 +1418,7 @@ describe("app shell", () => {
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const visualSource = appSource.slice(
-      appSource.indexOf("function syncLinearItemActiveVisual"),
-      appSource.indexOf("function syncBinaryTreeActiveVisual"),
-    );
+    const activeVisualSource = readFileSync(new URL("../../src/app/structure-active-visual-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);");
     expect(appSource).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
@@ -1427,8 +1430,8 @@ describe("app shell", () => {
     expect(appSource).toMatch(/import \{[\s\S]*syncLinearStructureNodeContent,[\s\S]*\} from "\.\.\/canvas\/konva-elements\.js";/);
     expect(appSource).toContain("syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId)");
     expect(appSource).toContain("syncLinearItemActiveVisual(result.activeLinearItem?.elementId)");
-    expect(visualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
-    expect(visualSource).not.toContain("node.stroke(isActive ? \"#2563eb\" : style.stroke)");
+    expect(activeVisualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
+    expect(activeVisualSource).not.toContain("node.stroke(isActive ? \"#2563eb\" : style.stroke)");
   });
 
   it("clears array item active styling when the canvas selection is cleared", () => {
@@ -1468,10 +1471,11 @@ describe("app shell", () => {
 
   it("renders direct array item controls around the selected item", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
     expect(appSource).toContain("renderLinearItemControls");
-    expect(appSource).toContain("data-linear-item-action");
+    expect(controlsSource).toContain("data-linear-item-action");
     expect(appSource).toContain('"insert-before"');
     expect(appSource).toContain('"insert-after"');
     expect(appSource).toContain('"delete"');
@@ -1793,6 +1797,10 @@ describe("app shell", () => {
   it("uses shared graph and tree connect state for structure node editing", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const shapeRenderAdapterSource = readFileSync(new URL("../../src/app/shape-render-adapter.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../src/app/structure-controls-position-controller.js", import.meta.url), "utf8");
+    const structureNodeQuerySource = readFileSync(new URL("../../src/app/structure-node-query.js", import.meta.url), "utf8");
 
     expect(interactionSource).toContain("let structureConnectState = null;");
     expect(appSource).not.toContain("let structureConnectState = null;");
@@ -1811,12 +1819,12 @@ describe("app shell", () => {
     expect(appSource).toContain("function renderBinaryTreeTraversalControls()");
     expect(appSource).toContain("function runTreeTraversalAction(action)");
     expect(appSource).toContain("function renderTreeTraversalControls()");
-    expect(appSource).toContain("isSelectedTreeElementWithTraversal(item)");
-    expect(appSource).toContain("function findTreeNodeGroup(group, nodeId)");
-    expect(appSource).toContain("const treeNode = findTreeNodeGroup(group, activeTreeNode.nodeId)");
-    expect(appSource).toContain("structureInteraction.projectRuntime(element)");
+    expect(controlsSource).toContain("isSelectedTreeElementWithTraversal(item)");
+    expect(structureNodeQuerySource).toContain("function findTreeNodeGroup(group, nodeId)");
+    expect(controlsPositionSource).toContain("const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);");
+    expect(shapeRenderAdapterSource).toContain("structureInteraction.projectRuntime(element)");
     expect(interactionSource).toContain("runtime.activeNodeId = activeTreeNode.nodeId");
-    expect(appSource).toContain("activeTreeNode?.elementId === element.id");
+    expect(shapeRenderAdapterSource).toContain("activeTreeNode?.elementId === element.id");
     expect(appSource).toContain("isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element");
     expect(appSource).toContain("isInteractiveStructureElement(element)");
     expect(appSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
