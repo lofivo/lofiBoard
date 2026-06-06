@@ -2,14 +2,15 @@ import Konva from "konva";
 import { renderShell } from "./app-shell.js";
 import { createBoardSessionController } from "./board-session-controller.js";
 import { createClipboardController } from "./clipboard-controller.js";
+import { createContextMenuDomController } from "./context-menu-dom-controller.js";
 import { createContextMenuController } from "./context-menu-controller.js";
+import { createControlsBindingController } from "./controls-binding-controller.js";
 import { createEditController } from "./edit-controller.js";
 import { createMenuStateController } from "./menu-state-controller.js";
 import { createPanelStateController } from "./panel-state-controller.js";
-import {
-  DEFAULT_PROPERTY_CONTROLS,
-  createPropertyControlsController,
-} from "./property-controls-controller.js";
+import { createPropertyControlsController } from "./property-controls-controller.js";
+import { createPropertyControlsDomController } from "./property-controls-dom-controller.js";
+import { createContentBoundsQuery } from "./content-bounds-query.js";
 import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
@@ -29,38 +30,42 @@ import {
 } from "./structure-node-query.js";
 import { createStructurePanelController } from "./structure-panel-controller.js";
 import { createToolController, getToolStatus as getToolStatusText } from "./tool-controller.js";
+import { createViewportActionController } from "./viewport-action-controller.js";
 import { createViewportController } from "./viewport-controller.js";
 import { createInteractionStateMachine, SM, getTransformerOverdrawForState } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./dom-refs.js";
-import {
-  getPropertyPanelTitle,
-  getSelectionHydrateSource,
-  getSelectionInspectorCapabilities,
-  getSelectionPanelMode,
-  getToolInspectorCapabilities,
-  getToolPanelMode,
-  getToolPropertyPanelTitle,
-  isToolPropertyPanelAvailable,
-} from "./inspector-model.js";
+import { isToolPropertyPanelAvailable } from "./inspector-model.js";
 import { renderLayerItemsMarkup } from "./layer-panel.js";
 import {
-  hasFontStyle,
-  hasTextDecoration,
   toggleFontStyleToken,
   toggleTextDecorationToken,
 } from "./text-style-tokens.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
-  applyArrayAlgorithmValues,
   clearArrayAlgorithmRuntimeMarkers,
-  createArrayAlgorithmSteps,
-  getArrayAlgorithmLabel,
 } from "./array-algorithm-model.js";
+import { createAppActionController } from "./app-action-controller.js";
+import { createAppChromeController } from "./app-chrome-controller.js";
+import { createAppPanelController } from "./app-panel-controller.js";
+import { createArrayAlgorithmPanelController } from "./array-algorithm-panel-controller.js";
+import { createArrayAlgorithmSessionController } from "./array-algorithm-session-controller.js";
+import { createExportPngController } from "./export-png-controller.js";
+import { createImportWorkflowController } from "./import-workflow-controller.js";
+import { createInspectorPanelDomController } from "./inspector-panel-dom-controller.js";
+import { createKeyboardController } from "./keyboard-controller.js";
+import { createLayerPanelController } from "./layer-panel-controller.js";
+import { createPanelDomController } from "./panel-dom-controller.js";
+import { createSelectionActionController } from "./selection-action-controller.js";
+import { createSelectionClipboardController } from "./selection-clipboard-controller.js";
+import { createStructureCellEditorController } from "./structure-cell-editor-controller.js";
+import { createStructureEditActionController } from "./structure-edit-action-controller.js";
+import { createStructureExportController } from "./structure-export-controller.js";
+import { createStructureInspectorSyncController } from "./structure-inspector-sync-controller.js";
+import { createStructureNodeActionController } from "./structure-node-action-controller.js";
+import { createStatusController } from "./status-controller.js";
 import { createTextElementMeasurer } from "./text-element-measure.js";
 import { createToolCursorController } from "./tool-cursor-controller.js";
-import {
-  ALGORITHM_STEP_TYPES,
-} from "../algorithms/array-algorithms.js";
+import { createUiEventsController } from "./ui-events-controller.js";
 import { removeElementsById } from "../services/clipboard-service.js";
 import {
   createEmptyBoard,
@@ -70,17 +75,14 @@ import {
   serializeBoard,
 } from "../board/board-model.js";
 import {
-  DEFAULT_TEXT_STYLE,
   createImageElement as buildImageElement,
   createShapeElement as buildShapeElement,
   createStickyElement as buildStickyElement,
   createTextElement as buildTextElement,
   isTinyElement,
 } from "../board/element-factory.js";
-import { createExportBackground } from "../canvas/export-renderer.js";
 import {
   chooseWhiteboardSaveFile,
-  downloadDataUrl,
   openWhiteboardFile,
   supportsFileSystemAccess,
   writeWhiteboardFile,
@@ -170,55 +172,15 @@ import {
   LINEAR_STRUCTURE_TYPES,
   createStructureElements,
   isLinearStructureElement,
-  insertArrayItem,
-  deleteArrayItem,
-  updateArrayItemValue,
-  updateArrayValues,
   moveArrayItem,
   getLinearStructureLocalPoint,
   clampLinearItemDropGap,
   getLinearItemPreviewGap,
   getLinearItemDropIndex,
-  setArrayHighlight,
   setArrayPointer,
-  setArrayPointerVisibility,
-  setArrayAlgorithmMarkers,
-  clearArrayHighlight,
-  setLinearIndexOptions,
-  addGraphNode,
-  addGraphEdge,
-  addGraphEdgeFromText,
-  deleteGraphNode,
-  deleteLastGraphEdge,
-  moveGraphNode,
-  setGraphDirectedDefault,
-  updateGraphEdge,
-  updateGraphNodeLabel,
-  setGraphHighlight,
-  clearGraphHighlight,
-  layoutGraph,
   exportGraph,
   exportTree,
-  importGraphFromText,
-  updateGraphFromInput,
-  addTreeNode,
-  addTreeChild,
-  addTreeSibling,
-  addBinaryTreeChild,
-  addTreeEdge,
   getBinaryTreeChildSides,
-  moveTreeNode,
-  updateTreeNodeValue,
-  layoutTreeStructure,
-  setTreeTraversalHighlight,
-  stepTreeTraversalHighlight,
-  clearTreeHighlight,
-  setTreeSubtreeCollapsed,
-  copyTreeSubtreeValues,
-  moveTreeSubtree,
-  deleteTreeSubtree,
-  deleteLastTreeNode,
-  updateTreeFromInput,
 } from "../structures/structure-templates.js";
 import {
   LINEAR_STRUCTURE_EVENT_TYPES,
@@ -229,11 +191,9 @@ import {
   isLayerPanelAvailable,
   shouldShowPanelEdgeToggle,
 } from "../ui/panel-state.js";
-import { computeFitViewport, computeViewportForBoundsVisibility } from "../canvas/viewport-service.js";
 
 const LINEAR_POINTER_BASE_Y = -30;
 const LINEAR_POINTER_DRAG_Y = -40;
-const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
 
 export function createWhiteboardApp(root) {
   if (!root) return null;
@@ -317,9 +277,6 @@ export function createWhiteboardApp(root) {
   let activeEraserRadius = 24;
   let isEditingText = false;
   let lastPointerWorldPoint = null;
-  let stylePanelAvailable = true;
-  let layerPanelAvailable = false;
-  let statusTimer = null;
   let initialStatusMessage = null;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
@@ -327,15 +284,11 @@ export function createWhiteboardApp(root) {
   let linearPointerPressState = null;
   let linearItemLiftTween = null;
   let linearPointerTween = null;
-  let arrayAlgorithmPlayTimer = null;
-  let arrayAlgorithmSwapTweens = [];
-  let arrayAlgorithmAnimationNodes = [];
   let suppressLinearItemSelectTimer = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
   let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
-  let activeCellEditorSync = null;
   const structureInteraction = createStructureInteraction();
   const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);
   const toolController = createToolController({
@@ -352,6 +305,8 @@ export function createWhiteboardApp(root) {
   const propertyControlsController = createPropertyControlsController();
   const structureInspectorController = createStructureInspectorController();
   const structurePanelController = createStructurePanelController();
+  let isArrayAlgorithmLockedDelegate = () => false;
+  let viewportActions = null;
 
   const MIN_TRANSFORM_SIZE = 12;
 
@@ -382,6 +337,13 @@ export function createWhiteboardApp(root) {
     pickElementIdAtPoint,
     pointHitsSelectionBounds,
     expandGroupedIds: expandSelectionGroupIds,
+  });
+  const {
+    getContentBounds,
+    getSelectedContentBounds,
+  } = createContentBoundsQuery({
+    getContentLayer: () => contentLayer,
+    getSelectedIds: () => selectedIds,
   });
 
   const shapeRenderAdapter = createShapeRenderAdapter({
@@ -557,6 +519,7 @@ export function createWhiteboardApp(root) {
   });
 
   const interactionSM = createInteractionStateMachine();
+  const { setStatus } = createStatusController({ status });
   const boardSession = createBoardSessionController({
     createInitialBoard: createEmptyBoard,
     createHistory,
@@ -622,6 +585,615 @@ export function createWhiteboardApp(root) {
     getActiveEraserRadius: () => activeEraserRadius,
     hasActiveEraserSnapshot: () => Boolean(eraseSnapshot),
   });
+  const {
+    bindPropertyControlEvents,
+    getBrushInputSmoothingValue,
+    getBrushOpacityValue,
+    getBrushSmoothingValue,
+    getStrokeStyleFromControls,
+    hydrateControlsFromElement,
+    restorePropertyControlsForTool,
+    saveToolPropertyControlsForCurrentTool,
+    setBrushControlValue,
+    syncBrushPresetButtons,
+    syncBrushPreview,
+    syncBrushWidthControl,
+    syncFillTransparentControls,
+  } = createPropertyControlsDomController({
+    root,
+    refs: {
+      colorInput,
+      fillInput,
+      fillTransparentInput,
+      widthInput,
+      brushOpacityInput,
+      brushSmoothingInput,
+      brushCapInput,
+      brushStyleInput,
+      arrowDoubleEndedInput,
+      coordinateUnitSizeInput,
+      coordinateShowGridInput,
+      coordinateShowTicksInput,
+      coordinateShowLabelsInput,
+      coordinateGridColorInput,
+      coordinateAxisColorInput,
+      coordinateLabelColorInput,
+      brushCustomColorInput,
+      brushWidthSlider,
+      brushWidthValue,
+      brushOpacityValue,
+      brushPreviewPath,
+      fontSizeInput,
+      fontFamilyInput,
+    },
+    propertyControlsController,
+    getCurrentTool: () => currentTool,
+    getSelectedIds: () => selectedIds,
+    isToolPropertyPanelAvailable,
+    onApplyCoordinateStyleToSelection: applyCoordinateStyleToSelection,
+    onApplyStyleToSelection: applyStyleToSelection,
+    onBrushCursorStyleChange: updateBrushCursorStyle,
+    onToggleTextStyle: toggleTextStyle,
+  });
+  const {
+    setPanelBindings: setArrayAlgorithmPanelBindings,
+    getArrayAlgorithmPanelState,
+    setArrayAlgorithmPanelState,
+    getSelectedArrayAlgorithmSession,
+    getArrayAlgorithmSession,
+    setArrayAlgorithmSession,
+    clearArrayAlgorithmSessions,
+    pauseUnselectedArrayAlgorithmSessions,
+    startSelectedArrayAlgorithm,
+    stepArrayAlgorithmPrevious,
+    stepArrayAlgorithmNext,
+    toggleArrayAlgorithmPlayback,
+    resetArrayAlgorithmSession,
+    stopArrayAlgorithmSession,
+    cancelArrayAlgorithmPlayback,
+    cancelArrayAlgorithmSwapAnimation,
+    getArrayAlgorithmLastStepIndex,
+    isArrayAlgorithmLocked: isArrayAlgorithmLockedFromController,
+    clearArrayAlgorithmSessionForRemovedIds,
+    destroy: destroyArrayAlgorithmSessionController,
+  } = createArrayAlgorithmSessionController({
+    contentLayer,
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    getSelectedLinearStructure,
+    structureInteraction,
+    findLinearItemNode,
+    hideLinearItemControls,
+    syncLinearItemActiveVisual,
+    renderBoard,
+    selectIds,
+    setStatus,
+    pushHistory,
+    updateChrome: () => updateChrome(),
+  });
+  isArrayAlgorithmLockedDelegate = isArrayAlgorithmLockedFromController;
+  const {
+    bindArrayAlgorithmPanelEvents,
+    getArrayAlgorithmSpeed,
+    syncArrayAlgorithmPanelState,
+  } = createArrayAlgorithmPanelController({
+    root,
+    arrayAlgorithmSelect,
+    arrayAlgorithmSpeed,
+    arrayAlgorithmStatus,
+    getSelectedLinearStructure,
+    getSelectedArrayAlgorithmSession,
+    getArrayAlgorithmPanelState,
+    setArrayAlgorithmPanelState,
+    setArrayAlgorithmSession,
+    getArrayAlgorithmLastStepIndex,
+    defaultPanelState: DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
+  });
+  setArrayAlgorithmPanelBindings({
+    getArrayAlgorithmSpeed,
+    syncArrayAlgorithmPanelState,
+  });
+  const {
+    bindContextMenuActions,
+    hideContextMenu,
+    showContextMenu,
+    updateContextMenuActions,
+  } = createContextMenuDomController({
+    root,
+    contextMenu,
+    contextMenuController,
+    getSelectedIds: () => selectedIds,
+    hasClipboard: () => clipboardController.hasSnapshot(),
+    getViewport: () => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }),
+    actions: {
+      copy: () => copySelection(),
+      cut: () => cutSelection(),
+      paste: () => pasteClipboard(),
+      group: () => groupSelection(),
+      ungroup: () => ungroupSelection(),
+      "toggle-lock": () => toggleSelectionLock(),
+      "bring-front": () => bringSelectionToFront(),
+      "bring-forward": () => bringSelectionForward(),
+      "send-backward": () => sendSelectionBackward(),
+      "send-back": () => sendSelectionToBack(),
+      delete: () => deleteSelection(),
+    },
+  });
+  const {
+    copySelection,
+    cutSelection,
+    deleteSelection,
+    pasteClipboard,
+  } = createSelectionClipboardController({
+    clipboardController,
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    getLastPointerWorldPoint: () => lastPointerWorldPoint,
+    isElementLocked,
+    removeElementsById,
+    reorderElements,
+    clearArrayAlgorithmSessionForRemovedIds,
+    clearSelection,
+    renderBoard,
+    updateContextMenuActions,
+    pushHistory,
+    setStatus,
+    setTool,
+    selectIds,
+  });
+  const {
+    handleImageDragOver,
+    handleImageDrop,
+    handlePaste,
+    importSelectedImage,
+    insertImageFile,
+  } = createImportWorkflowController({
+    imageInput,
+    stage,
+    clipboardController,
+    getLastPointerWorldPoint: () => lastPointerWorldPoint,
+    setLastPointerWorldPoint: (point) => { lastPointerWorldPoint = point; },
+    getBoardElementCount: () => board.elements.length,
+    measureTextElementValue,
+    isTypingInEditableControl,
+    addElement,
+    selectIds,
+    setTool,
+    pasteClipboard,
+    setStatus,
+    createImageElement: buildImageElement,
+    createTextElement: buildTextElement,
+    getImageFileFromPasteEvent,
+    getImageFileFromDropEvent,
+    getImageInsertPoint,
+    getTextFromPasteEvent,
+    getTextFromDropEvent,
+    getWorldPointer,
+    readFileAsDataUrl,
+    readImageSize,
+  });
+  const { exportPng } = createExportPngController({
+    stage,
+    contentLayer,
+    overlayLayer,
+    selectionRect,
+    transformer,
+    getBackgroundMode: () => board.canvas.backgroundMode,
+    getActiveFileName: () => boardSession.getActiveFileName(),
+    syncSelectionNodes,
+    setStatus,
+  });
+  const {
+    bringSelectionForward,
+    bringSelectionToFront,
+    clearBoard,
+    groupSelection,
+    sendSelectionBackward,
+    sendSelectionToBack,
+    toggleSelectionLock,
+    ungroupSelection,
+  } = createSelectionActionController({
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    createId,
+    moveElementsByLayer,
+    reorderElements,
+    clearSelection,
+    renderBoard,
+    pushHistory,
+  });
+  const {
+    getInspectorContext,
+    syncGraphStructurePanelState,
+    syncTreeStructurePanelState,
+  } = createStructureInspectorSyncController({
+    root,
+    graphStructureInput,
+    treeStructureInput,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    structureInspectorController,
+    exportGraph,
+    exportTree,
+    isLinearStructureElement,
+  });
+  const {
+    applyInspectorSectionState,
+    applyPanelState,
+    syncInspectorPanelState,
+    togglePanel,
+  } = createPanelDomController({
+    root,
+    stylePanel,
+    layerPanel,
+    panelBody,
+    panelStateController,
+    getInspectorContext,
+    getStylePanelAvailable: () => inspectorPanelController.getStylePanelAvailable(),
+    getLayerPanelAvailable: () => layerPanelController.getLayerPanelAvailable(),
+    shouldShowPanelEdgeToggle,
+  });
+  const inspectorPanelController = createInspectorPanelDomController({
+    root,
+    stylePanel,
+    stylePanelTitle,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getCurrentTool: () => currentTool,
+    getActiveShapeTool: () => activeShapeTool,
+    hydrateControlsFromElement,
+    applyPanelState,
+  });
+  const {
+    updateContextPanel,
+  } = inspectorPanelController;
+  const layerPanelController = createLayerPanelController({
+    layerPanel,
+    layerList,
+    closestElement,
+    renderLayerItemsMarkup,
+    isLayerPanelAvailable,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    selectTool: TOOLS.SELECT,
+    setTool,
+    selectElementById,
+    ensureSelectionVisible,
+    applyPanelState,
+  });
+  const {
+    bindLayerPanelEvents,
+    renderLayerPanel,
+    updateLayerPanelAvailability,
+  } = layerPanelController;
+  const { updateChrome } = createAppChromeController({
+    root,
+    activeFileLabel,
+    zoomLabel,
+    panelStateController,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getActiveFileName: () => boardSession.getActiveFileName(),
+    isDirty: () => boardSession.isDirty(),
+    getScale: () => stage.scaleX(),
+    getBackgroundMode: () => board.canvas.backgroundMode,
+    getActiveShapeTool: () => activeShapeTool,
+    getActiveStructureType: () => structurePanelController.getActiveStructureType(),
+    syncLinearPanelState,
+    syncArrayAlgorithmPanelState,
+    syncGraphStructurePanelState,
+    syncTreeStructurePanelState,
+    syncInspectorPanelState,
+    syncBrushPresetButtons,
+    updateLayerPanelAvailability,
+    renderLayerPanel,
+    updateContextPanel,
+  });
+  const {
+    closeMainMenu,
+    hydrateStructurePanel,
+    setActiveStructureType,
+    setMainMenuOpen,
+    setShapePopoverOpen,
+    setStructurePanelOpen,
+    setZoomMenuOpen,
+    toggleMainMenu,
+    toggleZoomMenu,
+  } = createAppPanelController({
+    root,
+    refs: {
+      mainMenu,
+      menuButton,
+      shapePopover,
+      structurePanel,
+      structureInput,
+      linearInitPanel,
+      structureInputLabel,
+      arrayRandomFields,
+      zoomMenu,
+      zoomButton,
+    },
+    menuStateController,
+    structurePanelController,
+    requestAnimationFrame,
+  });
+  viewportActions = createViewportActionController({
+    getElementCount: () => board.elements.length,
+    getContentBounds,
+    getSelectedContentBounds,
+    getViewport: () => ({
+      x: stage.x(),
+      y: stage.y(),
+      scale: stage.scaleX(),
+    }),
+    getStageSize: () => ({
+      width: stage.width(),
+      height: stage.height(),
+    }),
+    applyViewport,
+    serializeCurrentBoard,
+    setBoard: (nextBoard) => {
+      board = nextBoard;
+      boardSession.setBoard(board);
+    },
+    pushBoardHistory: (nextBoard) => boardSession.getHistory().push(nextBoard),
+    setDirty: (dirty) => boardSession.setDirty(dirty),
+    persistCurrentDraft,
+    updateChrome,
+    setStatus,
+    getBackgroundMode: () => board.canvas.backgroundMode,
+    setBackgroundModeValue: (backgroundMode) => {
+      board.canvas.backgroundMode = backgroundMode;
+    },
+    applyBackground,
+    pushHistory,
+    closeMainMenu,
+  });
+  const {
+    copySelectedGraphExport,
+    copySelectedTreeSubtree,
+  } = createStructureExportController({
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    structureInput,
+    setStatus,
+    exportGraph,
+    exportTree,
+  });
+  const {
+    beginGraphConnectMode,
+    beginTreeConnectMode,
+    connectGraphStructureNodes,
+    connectTreeStructureNodes,
+    editGraphEdgeData,
+    editGraphStructureEdge,
+    editGraphStructureNode,
+    handleGraphNodeClick,
+    handleTreeNodeClick,
+    moveGraphStructureNode,
+    moveTreeStructureNode,
+  } = createStructureEditActionController({
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    structureInteraction,
+    promptValue,
+    promptBoolean,
+    isTemporaryPanActive,
+    isBinaryTreeElement,
+    consumeSuppressedBinaryTreeNodeClick,
+    syncBinaryTreeActiveVisual,
+    syncGeneralTreeActiveVisual,
+    renderTreeNodeControls,
+    renderBoard,
+    selectIds,
+    setStatus,
+    pushHistory,
+    syncTreeStructurePanelState,
+  });
+  const {
+    editArrayStructureItem,
+    editTreeStructureNode,
+    syncActiveCellEditor,
+  } = createStructureCellEditorController({
+    container,
+    contentLayer,
+    stage,
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getCurrentTool: () => currentTool,
+    selectTool: TOOLS.SELECT,
+    isTemporaryPanActive,
+    isLinearStructureElement,
+    findLinearItemNode,
+    findTreeNodeGroup,
+    structureInteraction,
+    renderBoard,
+    selectIds,
+    setActiveLinearItem,
+    syncTreeStructurePanelState,
+    pushHistory,
+    setSuppressNextCanvasSelection: (value) => { suppressNextCanvasSelection = value; },
+  });
+  const { runAction, runToolAction } = createAppActionController({
+    beginGraphConnectMode,
+    beginTreeConnectMode,
+    bringSelectionForward,
+    bringSelectionToFront,
+    clearBoard,
+    closeMainMenu,
+    copySelectedGraphExport,
+    copySelectedTreeSubtree,
+    deleteSelection,
+    editGraphEdgeData,
+    editSelectedArrayStructure,
+    editSelectedStructure,
+    exportPng,
+    fitContent,
+    getActiveLinearIndex,
+    getActiveTreeNodeId,
+    getGraphStructureDraft: () => structureInspectorController.getGraphStructureDraft(),
+    getLinearValuesDraft: () => structureInspectorController.getLinearValuesDraft(),
+    getStructureInputValue: () => structureInput.value,
+    getTreeStructureInputValue: () => treeStructureInput.value,
+    groupSelection,
+    newBoard,
+    openBoardFile,
+    openImagePicker: () => imageInput.click(),
+    promptMultiline,
+    promptValue,
+    readLinearDisplayIndexField,
+    redoHistory,
+    resetArrayAlgorithmSession,
+    resetView,
+    saveBoardFile,
+    saveBoardFileAs,
+    sendSelectionBackward,
+    sendSelectionToBack,
+    setBackgroundMode,
+    startSelectedArrayAlgorithm,
+    stepArrayAlgorithmNext,
+    stepArrayAlgorithmPrevious,
+    stopArrayAlgorithmSession,
+    toggleArrayAlgorithmPlayback,
+    toggleSelectionLock,
+    undoHistory,
+    ungroupSelection,
+  });
+  const {
+    runBinaryTreeNodeAction,
+    runBinaryTreeTraversalAction,
+    runLinearItemAction,
+    runTreeNodeAction,
+    runTreeTraversalAction,
+  } = createStructureNodeActionController({
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    setSelectedIds: (ids) => { selectedIds = ids; },
+    structureInteraction,
+    isLinearStructureElement,
+    isArrayAlgorithmLocked,
+    isSelectedGeneralTreeElement,
+    isSelectedBinaryTreeElement,
+    isTreeElementWithTraversal,
+    isTreeRootNode,
+    getTreeParentNodeId,
+    renderBoard,
+    selectIds,
+    setActiveLinearItem,
+    editTreeStructureNode,
+    hideTreeControls,
+    hideBinaryTreeControls,
+    updateChrome,
+    syncTreeStructurePanelState,
+    pushHistory,
+    editSelectedStructure,
+  });
+  const { bindControls } = createControlsBindingController({
+    root,
+    refs: {
+      graphStructureInput,
+      imageInput,
+      inspectorSectionButtons,
+      linearFieldInputs,
+      linearValuesInput,
+      menuButton,
+      zoomButton,
+      zoomInButton,
+      zoomOutButton,
+    },
+    closestElement,
+    runToolAction,
+    runAction,
+    runLinearItemAction,
+    runTreeNodeAction,
+    runBinaryTreeNodeAction,
+    runTreeTraversalAction,
+    setTool,
+    setShapePopoverOpen,
+    setStructurePanelOpen,
+    setBackgroundMode,
+    setZoomAtCenter,
+    setActiveShapeTool,
+    setActiveStructureType,
+    setArrayInitMode: (mode) => structurePanelController.setActiveArrayInitMode(mode),
+    hydrateStructurePanel,
+    insertStructureFromPanel,
+    bindPropertyControlEvents,
+    bindArrayAlgorithmPanelEvents,
+    bindContextMenuActions,
+    bindLayerPanelEvents,
+    toggleMainMenu,
+    toggleZoomMenu,
+    zoomBy,
+    importSelectedImage,
+    togglePanel,
+    toggleInspectorSection: (section) => panelStateController.toggleInspectorSection(section),
+    applyInspectorSectionState,
+    setLinearValuesDraft: (value) => structureInspectorController.setLinearValuesDraft(value),
+    setGraphStructureDraft: (value) => structureInspectorController.setGraphStructureDraft(value),
+    setLinearPanelField: (key, value) => structureInspectorController.setLinearPanelField(key, value),
+  });
+  const { bindKeyboard } = createKeyboardController({
+    getCurrentTool: () => currentTool,
+    getSelectedIds: () => selectedIds,
+    getIsSpaceDown: () => isSpaceDown,
+    setIsSpaceDown: (nextValue) => { isSpaceDown = nextValue; },
+    getStageContainer: () => stage.container(),
+    isTypingInEditableControl,
+    shouldSelectAll,
+    shouldUseBrowserSelectAll,
+    clearNativeSelection,
+    selectAllElements,
+    updateDraggableState,
+    hideToolCursors,
+    copySelection,
+    cutSelection,
+    saveBoardFile,
+    saveBoardFileAs,
+    openBoardFile,
+    undoHistory,
+    redoHistory,
+    deleteSelection,
+    closeMainMenu,
+    setShapePopoverOpen,
+    setStructurePanelOpen,
+    setZoomMenuOpen,
+    hideContextMenu,
+    setTool,
+    clearSelection,
+    setActiveShapeTool,
+  });
+  const { bindUiEvents } = createUiEventsController({
+    container,
+    stage,
+    closestElement,
+    isNativeTextEditingTarget,
+    shouldPreventBrowserZoom,
+    isMainMenuOpen: () => menuStateController.isMainMenuOpen(),
+    isZoomMenuOpen: () => menuStateController.isZoomMenuOpen(),
+    isShapePopoverHidden: () => shapePopover.hidden,
+    isStructurePanelHidden: () => structurePanel.hidden,
+    isContextMenuHidden: () => contextMenu.hidden,
+    updateGrid,
+    syncTextOverlays,
+    closeMainMenu,
+    setShapePopoverOpen,
+    setStructurePanelOpen,
+    setZoomMenuOpen,
+    hideContextMenu,
+    handlePaste,
+    persistCurrentDraft,
+    handleImageDragOver,
+    handleImageDrop,
+  });
   const viewportController = createViewportController({
     stage,
     container,
@@ -648,7 +1220,7 @@ export function createWhiteboardApp(root) {
   contentLayer.add(selectionRect);
 
   hydrateLocalDraft();
-  hydrateControls();
+  bindControls();
   applyViewport(board.viewport);
   applyBackground();
   renderBoard();
@@ -669,271 +1241,12 @@ export function createWhiteboardApp(root) {
     },
     destroy: () => {
       boardSession.destroy();
-      cancelArrayAlgorithmTimer();
-      arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
-      arrayAlgorithmSwapTweens = [];
-      arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
-      arrayAlgorithmAnimationNodes = [];
+      destroyArrayAlgorithmSessionController();
       textOverlayController.clear();
       shapeRenderController.clear();
       stage.destroy();
     },
   };
-
-  function hydrateControls() {
-    for (const button of root.querySelectorAll("[data-tool]")) {
-      button.addEventListener("click", () => {
-        setTool(button.dataset.tool);
-        setShapePopoverOpen(button.dataset.tool === TOOLS.SHAPE);
-        setStructurePanelOpen(button.dataset.tool === TOOLS.STRUCTURE);
-      });
-    }
-    for (const button of root.querySelectorAll("[data-tool-action]")) {
-      button.addEventListener("click", () => runToolAction(button.dataset.toolAction));
-    }
-
-    menuButton.addEventListener("click", toggleMainMenu);
-
-    for (const button of root.querySelectorAll("[data-action]")) {
-      button.addEventListener("click", () => runAction(button.dataset.action));
-    }
-    linearValuesInput?.addEventListener("input", () => {
-      structureInspectorController.setLinearValuesDraft(linearValuesInput.value);
-    });
-    arrayAlgorithmSpeed?.addEventListener("input", () => {
-      const session = getSelectedArrayAlgorithmSession();
-      const selected = getSelectedLinearStructure();
-      if (!selected) return;
-      const speed = getArrayAlgorithmSpeed();
-      setArrayAlgorithmPanelState(selected.id, { speed });
-      if (session) {
-        setArrayAlgorithmSession({
-          ...session,
-          speed,
-        });
-      }
-      syncArrayAlgorithmPanelState();
-    });
-    arrayAlgorithmSelect?.addEventListener("change", () => {
-      const selected = getSelectedLinearStructure();
-      if (!selected) return;
-      setArrayAlgorithmPanelState(selected.id, { algorithm: arrayAlgorithmSelect.value });
-      syncArrayAlgorithmPanelState();
-    });
-    graphStructureInput?.addEventListener("input", () => {
-      structureInspectorController.setGraphStructureDraft(graphStructureInput.value);
-    });
-    root.addEventListener("click", (event) => {
-      const button = closestElement(event.target, "[data-linear-item-action]");
-      if (!button) return;
-      runLinearItemAction(button.dataset.linearItemAction);
-    });
-    root.addEventListener("click", (event) => {
-      const button = closestElement(event.target, "[data-tree-node-action]");
-      if (!button) return;
-      runTreeNodeAction(button.dataset.treeNodeAction);
-    });
-    root.addEventListener("click", (event) => {
-      const button = closestElement(event.target, "[data-binary-tree-node-action]");
-      if (!button) return;
-      runBinaryTreeNodeAction(button.dataset.binaryTreeNodeAction);
-    });
-    root.addEventListener("click", (event) => {
-      const button = closestElement(event.target, "[data-binary-tree-traversal-action]");
-      if (!button) return;
-      runTreeTraversalAction(button.dataset.binaryTreeTraversalAction);
-    });
-
-    for (const button of root.querySelectorAll("[data-background-mode]")) {
-      button.addEventListener("click", () => setBackgroundMode(button.dataset.backgroundMode));
-    }
-
-    for (const button of root.querySelectorAll("[data-context-action]")) {
-      button.addEventListener("click", () => runContextAction(button.dataset.contextAction));
-    }
-
-    for (const button of root.querySelectorAll("[data-zoom-level]")) {
-      button.addEventListener("click", () => setZoomAtCenter(Number(button.dataset.zoomLevel)));
-    }
-
-    for (const button of root.querySelectorAll("[data-shape-tool]")) {
-      button.addEventListener("click", () => {
-        setActiveShapeTool(button.dataset.shapeTool);
-        setTool(TOOLS.SHAPE);
-        setShapePopoverOpen(false);
-      });
-    }
-
-    for (const button of root.querySelectorAll("[data-structure-type]")) {
-      button.addEventListener("click", () => {
-        setActiveStructureType(button.dataset.structureType);
-      });
-    }
-    for (const button of root.querySelectorAll("[data-array-init-mode]")) {
-      button.addEventListener("click", () => {
-        structurePanelController.setActiveArrayInitMode(button.dataset.arrayInitMode);
-        hydrateStructurePanel();
-      });
-    }
-    root.querySelector("[data-structure-insert]").addEventListener("click", insertStructureFromPanel);
-    root.querySelector("[data-structure-cancel]").addEventListener("click", () => {
-      setStructurePanelOpen(false);
-      setTool(TOOLS.SELECT);
-    });
-    hydrateStructurePanel();
-
-    colorInput.addEventListener("input", applyStyleToSelection);
-    colorInput.addEventListener("input", updateBrushCursorStyle);
-    colorInput.addEventListener("input", syncBrushPresetButtons);
-    fillInput.addEventListener("input", applyStyleToSelection);
-    fillTransparentInput.addEventListener("change", () => syncFillTransparentControls(fillTransparentInput.checked));
-    fillTransparentInput.addEventListener("change", applyStyleToSelection);
-    widthInput.addEventListener("input", applyStyleToSelection);
-    widthInput.addEventListener("input", updateBrushCursorStyle);
-    widthInput.addEventListener("input", syncBrushWidthControl);
-    widthInput.addEventListener("input", syncBrushPresetButtons);
-    brushOpacityInput.addEventListener("input", applyStyleToSelection);
-    brushOpacityInput.addEventListener("input", syncBrushWidthControl);
-    brushOpacityInput.addEventListener("input", syncBrushPreview);
-    brushSmoothingInput.addEventListener("input", applyStyleToSelection);
-    brushSmoothingInput.addEventListener("input", syncBrushPresetButtons);
-    brushSmoothingInput.addEventListener("input", syncBrushPreview);
-    brushCapInput.addEventListener("change", applyStyleToSelection);
-    brushCapInput.addEventListener("change", syncBrushPresetButtons);
-    brushCapInput.addEventListener("change", syncBrushPreview);
-    brushStyleInput.addEventListener("change", applyStyleToSelection);
-    brushStyleInput.addEventListener("change", syncBrushPresetButtons);
-    brushStyleInput.addEventListener("change", syncBrushPreview);
-    arrowDoubleEndedInput.addEventListener("change", applyStyleToSelection);
-    arrowDoubleEndedInput.addEventListener("change", syncShapeEndpointControls);
-    [
-      coordinateUnitSizeInput,
-      coordinateShowGridInput,
-      coordinateShowTicksInput,
-      coordinateShowLabelsInput,
-      coordinateGridColorInput,
-      coordinateAxisColorInput,
-      coordinateLabelColorInput,
-    ].forEach((input) => input.addEventListener("input", applyCoordinateStyleToSelection));
-    [
-      coordinateShowGridInput,
-      coordinateShowTicksInput,
-      coordinateShowLabelsInput,
-    ].forEach((input) => input.addEventListener("change", applyCoordinateStyleToSelection));
-    fontSizeInput.addEventListener("input", applyStyleToSelection);
-    fontFamilyInput.addEventListener("change", applyStyleToSelection);
-
-    // Sync new UI controls to master controls
-    root.querySelectorAll("[data-ui-control]").forEach((uiInput) => {
-      const controlName = uiInput.dataset.uiControl;
-      let masterInput = root.querySelector(`[data-control="${controlName}"]`);
-      
-      if (controlName === "sticky-font-size") masterInput = fontSizeInput;
-      if (controlName === "sticky-font-family") masterInput = fontFamilyInput;
-      if (controlName === "text-color") masterInput = colorInput;
-      
-      if (!masterInput) return;
-
-      uiInput.addEventListener("input", () => {
-        if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
-        if (controlName === "fill") syncFillTransparentControls(false);
-        setBrushControlValue(masterInput, uiInput.value, "input");
-        if (controlName === "color" || controlName === "width") {
-          updateBrushCursorStyle();
-        }
-      });
-      uiInput.addEventListener("change", () => {
-        if (uiInput.type === "checkbox") masterInput.checked = uiInput.checked;
-        if (controlName === "fill") syncFillTransparentControls(false);
-        setBrushControlValue(masterInput, uiInput.value, "change");
-      });
-    });
-
-    root.querySelectorAll("[data-brush-color]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const mode = root.dataset.panelMode;
-        const isSticky = mode === "sticky" || Boolean(closestElement(button, ".sticky-inspector"));
-        const targetInput = isSticky ? fillInput : colorInput;
-        setBrushControlValue(targetInput, button.dataset.brushColor, "input");
-        if (!isSticky) updateBrushCursorStyle();
-      });
-    });
-
-    root.querySelectorAll("[data-brush-text-color]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setBrushControlValue(colorInput, button.dataset.brushTextColor, "input");
-      });
-    });
-    root.querySelectorAll("[data-shape-fill-color]").forEach((button) => {
-      button.addEventListener("click", () => {
-        syncFillTransparentControls(false);
-        setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");
-      });
-    });
-    brushCustomColorInput?.addEventListener("input", () => {
-      setBrushControlValue(colorInput, brushCustomColorInput.value, "input");
-      updateBrushCursorStyle();
-    });
-    brushWidthSlider?.addEventListener("input", () => {
-      setBrushControlValue(widthInput, brushWidthSlider.value, "input");
-      updateBrushCursorStyle();
-    });
-    root.querySelectorAll("[data-brush-width-step]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const step = Number(button.dataset.brushWidthStep) || 0;
-        const current = Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width));
-        const min = Number(brushWidthSlider?.min ?? widthInput.min ?? 1);
-        const max = Number(brushWidthSlider?.max ?? widthInput.max ?? 28);
-        const next = Math.max(min, Math.min(max, current + step));
-        setBrushControlValue(widthInput, String(next), "input");
-        updateBrushCursorStyle();
-      });
-    });
-    root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setBrushControlValue(brushStyleInput, button.dataset.brushStyleOption, "change");
-      });
-    });
-    root.querySelectorAll("[data-brush-cap-option]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setBrushControlValue(brushCapInput, button.dataset.brushCapOption, "change");
-      });
-    });
-    root.querySelectorAll("[data-brush-smoothing]").forEach((button) => {
-      button.addEventListener("click", () => {
-        setBrushControlValue(brushSmoothingInput, button.dataset.brushSmoothing, "input");
-      });
-    });
-    root.querySelectorAll("[data-text-style]").forEach((button) => {
-      button.addEventListener("click", () => toggleTextStyle(button.dataset.textStyle));
-    });
-    zoomButton.addEventListener("click", toggleZoomMenu);
-    zoomOutButton.addEventListener("click", () => zoomBy(1 / 1.25));
-    zoomInButton.addEventListener("click", () => zoomBy(1.25));
-    imageInput.addEventListener("change", importSelectedImage);
-    for (const button of root.querySelectorAll("[data-panel-toggle]")) {
-      button.addEventListener("click", () => togglePanel(button.dataset.panelToggle));
-    }
-    inspectorSectionButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        panelStateController.toggleInspectorSection(button.dataset.sectionToggle);
-        applyInspectorSectionState();
-      });
-    });
-    Object.entries(linearFieldInputs).forEach(([key, input]) => {
-      if (!input) return;
-      input.addEventListener("input", () => {
-        structureInspectorController.setLinearPanelField(key, input.value);
-      });
-    });
-    layerList.addEventListener("click", (event) => {
-      const button = closestElement(event.target, "[data-layer-id]");
-      if (!button) return;
-      setTool(TOOLS.SELECT);
-      selectElementById(button.dataset.layerId, event.shiftKey);
-      ensureSelectionVisible();
-    });
-  }
 
   function bindStageEvents() {
     stage.on("wheel", handleWheel);
@@ -962,606 +1275,9 @@ export function createWhiteboardApp(root) {
     });
   }
 
-  function runAction(action) {
-    closeMainMenu();
-    const actions = {
-      new: newBoard,
-      open: openBoardFile,
-      save: saveBoardFile,
-      "save-as": saveBoardFileAs,
-      export: exportPng,
-      "import-image": () => imageInput.click(),
-      undo: undoHistory,
-      redo: redoHistory,
-      "fit-content": fitContent,
-      group: groupSelection,
-      ungroup: ungroupSelection,
-      "toggle-lock": toggleSelectionLock,
-      clear: clearBoard,
-      "reset-view": resetView,
-      "bring-front": bringSelectionToFront,
-      "bring-forward": bringSelectionForward,
-      "send-backward": sendSelectionBackward,
-      "send-back": sendSelectionToBack,
-      "delete-selection": deleteSelection,
-      "linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInspectorController.getLinearValuesDraft())),
-      "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
-        start: readLinearDisplayIndexField("highlightStart", element, 0),
-        end: readLinearDisplayIndexField("highlightEnd", element, Math.max(0, (element.items?.length ?? 1) - 1)),
-        pointer: readLinearDisplayIndexField("highlightPointer", element, getActiveLinearIndex(element, 0)),
-        showPointer: element.markers?.showPointer ?? true,
-      })),
-      "array-clear-highlight": () => editSelectedArrayStructure(clearArrayHighlight),
-      "linear-index-zero": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 0, showIndexes: element.settings?.showIndexes ?? true })),
-      "linear-index-one": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: 1, showIndexes: element.settings?.showIndexes ?? true })),
-      "linear-index-show": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: true })),
-      "linear-index-hide": () => editSelectedArrayStructure((element) => setLinearIndexOptions(element, { indexBase: element.settings?.indexBase ?? 0, showIndexes: false })),
-      "linear-pointer-show": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, true)),
-      "linear-pointer-hide": () => editSelectedArrayStructure((element) => setArrayPointerVisibility(element, false)),
-      "array-algorithm-start": startSelectedArrayAlgorithm,
-      "array-algorithm-prev": stepArrayAlgorithmPrevious,
-      "array-algorithm-next": stepArrayAlgorithmNext,
-      "array-algorithm-play": toggleArrayAlgorithmPlayback,
-      "array-algorithm-reset": resetArrayAlgorithmSession,
-      "array-algorithm-stop": stopArrayAlgorithmSession,
-      "graph-add-node": () => editSelectedStructure("graph-structure", (element) => addGraphNode(element), "已更新图"),
-      "graph-add-edge": () => editSelectedStructure("graph-structure", (element) => addGraphEdge(element, null, null, { directed: element.settings?.directedDefault ?? false }), "已更新图"),
-      "graph-connect-mode": beginGraphConnectMode,
-      "graph-add-edge-input": () => editSelectedStructure("graph-structure", (element) => addGraphEdgeFromText(element, promptValue("边，例如 A->B:5", structureInput.value || "A-B")), "已更新图"),
-      "graph-delete-node": () => editSelectedStructure("graph-structure", deleteGraphNode, "已更新图"),
-      "graph-delete-edge": () => editSelectedStructure("graph-structure", deleteLastGraphEdge, "已更新图"),
-      "graph-edit-edge": () => editSelectedStructure("graph-structure", (element) => editGraphEdgeData(element), "已更新图"),
-      "graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInspectorController.getGraphStructureDraft()), "已更新图"),
-      "graph-directed-on": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, true), "已更新图"),
-      "graph-directed-off": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, false), "已更新图"),
-      "graph-highlight": () => editSelectedStructure("graph-structure", (element) => setGraphHighlight(element, {
-        nodes: promptValue("高亮节点，逗号分隔", "").split(",").map((item) => item.trim()).filter(Boolean),
-        edges: promptValue("高亮边 ID，逗号分隔", "").split(",").map((item) => item.trim()).filter(Boolean),
-      }), "已更新图"),
-      "graph-clear-highlight": () => editSelectedStructure("graph-structure", clearGraphHighlight, "已更新图"),
-      "graph-layout-circle": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "circle"), "已更新图布局"),
-      "graph-layout-grid": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "grid"), "已更新图布局"),
-      "graph-layout-layered": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "layered"), "已更新图布局"),
-      "graph-layout-force": () => editSelectedStructure("graph-structure", (element) => layoutGraph(element, "force"), "已更新图布局"),
-      "graph-export-edge-list": () => copySelectedGraphExport("edge-list"),
-      "graph-export-adjacency-list": () => copySelectedGraphExport("adjacency-list"),
-      "graph-export-adjacency-matrix": () => copySelectedGraphExport("adjacency-matrix"),
-      "graph-import-adjacency-list": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接表", exportGraph(element, "adjacency-list")), "adjacency-list"), "已导入图"),
-      "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
-      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInspectorController.getGraphStructureDraft() || structureInput.value), "已更新图"),
-      "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, "0"), "已更新树"),
-      "tree-connect-mode": beginTreeConnectMode,
-      "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
-      "tree-delete-subtree": () => editSelectedStructure("tree-structure", (element) => deleteTreeSubtree(element, getActiveTreeNodeId(element)), "已更新树"),
-      "tree-highlight-level": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "level"), "已高亮遍历"),
-      "tree-highlight-preorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "preorder"), "已选择前序遍历"),
-      "tree-highlight-inorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "inorder"), "已选择中序遍历"),
-      "tree-highlight-postorder": () => editSelectedStructure("tree-structure", (element) => setTreeTraversalHighlight(element, "postorder"), "已选择后序遍历"),
-      "tree-step-next": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, 1), "已推进遍历"),
-      "tree-step-prev": () => editSelectedStructure("tree-structure", (element) => stepTreeTraversalHighlight(element, -1), "已回退遍历"),
-      "tree-clear-highlight": () => editSelectedStructure("tree-structure", clearTreeHighlight, "已清除高亮"),
-      "tree-collapse-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeNodeId(element), true), "已折叠子树"),
-      "tree-expand-subtree": () => editSelectedStructure("tree-structure", (element) => setTreeSubtreeCollapsed(element, getActiveTreeNodeId(element), false), "已展开子树"),
-      "tree-copy-subtree": copySelectedTreeSubtree,
-      "tree-move-subtree": () => editSelectedStructure("tree-structure", (element) => moveTreeSubtree(element, getActiveTreeNodeId(element), element.settings?.rootId), "已移动子树"),
-      "tree-delete-node": () => editSelectedStructure("tree-structure", deleteLastTreeNode, "已更新树"),
-      "tree-layout": () => editSelectedStructure("tree-structure", layoutTreeStructure, "已更新树布局"),
-      "tree-reload": () => editSelectedStructure("tree-structure", (element) => updateTreeFromInput(element, structureInput.value), "已更新树"),
-      "tree-apply-structure": () => editSelectedStructure("tree-structure", (element) => updateTreeFromInput(element, treeStructureInput.value), "已更新树"),
-    };
-
-    actions[action]?.();
-  }
-
-  function runToolAction(action) {
-    const actions = {
-      "import-image": () => imageInput.click(),
-    };
-
-    actions[action]?.();
-  }
-
-  function runLinearItemAction(action) {
-    const activeLinearItem = structureInteraction.getActiveLinearItem();
-    const elementId = activeLinearItem?.elementId;
-    const index = activeLinearItem?.index;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked || !Number.isInteger(index) || isArrayAlgorithmLocked(elementId)) return;
-
-    if (action === "insert-before" || action === "insert-after") {
-      const insertIndex = action === "insert-before" ? index : index + 1;
-      const nextActiveIndex = action === "insert-before" ? index + 1 : index;
-      board.elements = board.elements.map((item) => (
-        item.id === elementId ? insertArrayItem(item, insertIndex, "0") : item
-      ));
-      renderBoard();
-      selectIds([elementId]);
-      setActiveLinearItem(elementId, nextActiveIndex);
-      pushHistory("已插入数组项");
-      return;
-    }
-
-    if (action === "delete") {
-      board.elements = board.elements.map((item) => (
-        item.id === elementId ? deleteArrayItem(item, index) : item
-      ));
-      const updated = board.elements.find((item) => item.id === elementId);
-      renderBoard();
-      selectIds([elementId]);
-      if ((updated?.items?.length ?? 0) > 0) {
-        setActiveLinearItem(elementId, Math.min(index, updated.items.length - 1));
-      }
-      pushHistory("已删除数组项");
-    }
-  }
-
-  function runTreeNodeAction(action) {
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const elementId = activeTreeNode?.elementId;
-    const nodeId = activeTreeNode?.nodeId;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isSelectedGeneralTreeElement(element) || element.locked || !nodeId) return;
-
-    if (action === "add-child") {
-      const nextElement = addTreeChild(element, nodeId, "0");
-      if (nextElement === element) return;
-      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      structureInteraction.setActiveTreeNode({ elementId, nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory("已添加子节点");
-      return;
-    }
-
-    if (action === "add-left-sibling" || action === "add-right-sibling") {
-      const side = action === "add-left-sibling" ? "left" : "right";
-      const nextElement = addTreeSibling(element, nodeId, side, "0");
-      if (nextElement === element) return;
-      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      structureInteraction.setActiveTreeNode({ elementId, nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory(side === "left" ? "已添加左兄弟节点" : "已添加右兄弟节点");
-      return;
-    }
-
-    if (action === "edit") {
-      const node = element.nodes?.find((item) => item.id === nodeId);
-      editTreeStructureNode({ elementId, nodeId, label: String(node?.label ?? node?.value ?? "") });
-      return;
-    }
-
-    if (action === "delete") {
-      if (isTreeRootNode(element, nodeId)) {
-        board.elements = removeElementsById(board.elements, [elementId]);
-        structureInteraction.clearActiveTreeNode();
-        selectedIds = selectedIds.filter((id) => id !== elementId);
-        hideTreeControls();
-        renderBoard();
-        updateChrome();
-        pushHistory("已删除树");
-        return;
-      }
-      const nextElement = deleteTreeSubtree(element, nodeId);
-      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      structureInteraction.setActiveTreeNode({
-        elementId,
-        nodeId: getTreeParentNodeId(element, nodeId) ?? nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null,
-      });
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory("已删除子树");
-    }
-  }
-
-  function runBinaryTreeNodeAction(action) {
-    const activeTreeNode = structureInteraction.getActiveTreeNode();
-    const elementId = activeTreeNode?.elementId;
-    const nodeId = activeTreeNode?.nodeId;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isSelectedBinaryTreeElement(element) || element.locked || !nodeId) return;
-    if (action === "add-left" || action === "add-right") {
-      const side = action === "add-right" ? "right" : "left";
-      const nextElement = addBinaryTreeChild(element, nodeId, side, "0");
-      if (nextElement === element) return;
-      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory(side === "left" ? "已添加左子节点" : "已添加右子节点");
-      return;
-    }
-    if (action === "delete") {
-      if (nodeId === element.settings?.rootId) {
-        board.elements = removeElementsById(board.elements, [elementId]);
-        structureInteraction.clearActiveTreeNode();
-        selectedIds = selectedIds.filter((id) => id !== elementId);
-        hideBinaryTreeControls();
-        renderBoard();
-        updateChrome();
-        pushHistory("已删除二叉树");
-        return;
-      }
-      const nextElement = deleteTreeSubtree(element, nodeId);
-      board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-      structureInteraction.setActiveTreeNode({
-        elementId,
-        nodeId: nextElement.settings?.rootId ?? nextElement.nodes?.[0]?.id ?? null,
-      });
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory("已删除子树");
-    }
-  }
-
-  function runTreeTraversalAction(action) {
-    const direction = action === "prev" ? -1 : 1;
-    editSelectedStructure("tree-structure", (element) => (
-      isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element
-    ), direction > 0 ? "已推进遍历" : "已回退遍历");
-  }
-
-  function runBinaryTreeTraversalAction(action) {
-    runTreeTraversalAction(action);
-  }
-
-  function runContextAction(action) {
-    hideContextMenu();
-    const actions = {
-      copy: copySelection,
-      cut: cutSelection,
-      paste: pasteClipboard,
-      group: groupSelection,
-      ungroup: ungroupSelection,
-      "toggle-lock": toggleSelectionLock,
-      "bring-front": bringSelectionToFront,
-      "bring-forward": bringSelectionForward,
-      "send-backward": sendSelectionBackward,
-      "send-back": sendSelectionToBack,
-      delete: deleteSelection,
-    };
-
-    actions[action]?.();
-  }
-
-  function toggleMainMenu() {
-    setMainMenuOpen(menuStateController.toggleMainMenu());
-  }
-
-  function closeMainMenu() {
-    setMainMenuOpen(false);
-  }
-
-  function setMainMenuOpen(nextOpen) {
-    const isOpen = menuStateController.setMainMenuOpen(nextOpen);
-    mainMenu.hidden = !isOpen;
-    menuButton.setAttribute("aria-expanded", String(isOpen));
-    menuButton.classList.toggle("active", isOpen);
-  }
-
-  function setShapePopoverOpen(nextOpen) {
-    shapePopover.hidden = !nextOpen;
-  }
-
-  function setStructurePanelOpen(nextOpen) {
-    structurePanel.hidden = !nextOpen;
-    if (!nextOpen) return;
-    hydrateStructurePanel({ resetInput: true });
-    requestAnimationFrame(() => structureInput.focus());
-  }
-
-  function hydrateStructurePanel({ resetInput = false } = {}) {
-    const {
-      item,
-      activeStructureType,
-      activeArrayInitMode,
-      showLinearInitPanel,
-      showStructureInputLabel,
-      showArrayRandomFields,
-    } = structurePanelController.getHydrateState();
-    structureInput.placeholder = item.placeholder;
-    if (resetInput) {
-      structureInput.value = item.defaultInput;
-    }
-    linearInitPanel.hidden = !showLinearInitPanel;
-    structureInputLabel.hidden = !showStructureInputLabel;
-    arrayRandomFields.hidden = !showArrayRandomFields;
-    root.querySelectorAll("[data-structure-type]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.structureType === activeStructureType);
-    });
-    root.querySelectorAll("[data-array-init-mode]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.arrayInitMode === activeArrayInitMode);
-    });
-  }
-
-  function setActiveStructureType(type) {
-    structurePanelController.setActiveStructureType(type);
-    hydrateStructurePanel({ resetInput: true });
-    structureInput.focus();
-  }
-
-  function toggleZoomMenu() {
-    setZoomMenuOpen(menuStateController.toggleZoomMenu());
-  }
-
-  function setZoomMenuOpen(nextOpen) {
-    const isOpen = menuStateController.setZoomMenuOpen(nextOpen);
-    zoomMenu.hidden = !isOpen;
-    zoomButton.setAttribute("aria-expanded", String(isOpen));
-    zoomButton.classList.toggle("active", isOpen);
-  }
-
-  function hideContextMenu() {
-    contextMenu.hidden = true;
-  }
-
-  function togglePanel(panelName) {
-    panelStateController.togglePanel(panelName);
-    applyPanelState();
-  }
-
-  function applyPanelState() {
-    const panelCollapsedState = panelStateController.getPanelCollapsedState();
-    stylePanel.classList.toggle("is-collapsed", panelCollapsedState.style);
-    layerPanel.classList.toggle("is-collapsed", panelCollapsedState.layers);
-    root.querySelector("[data-panel-toggle='style']").textContent = panelCollapsedState.style ? "›" : "‹";
-    root.querySelector("[data-panel-toggle='layers']").textContent = panelCollapsedState.layers ? "‹" : "›";
-    root.querySelector("[data-panel-edge='style']").classList.toggle(
-      "is-visible",
-      shouldShowPanelEdgeToggle({ collapsed: panelCollapsedState.style, available: stylePanelAvailable }),
-    );
-    root.querySelector("[data-panel-edge='layers']").classList.toggle(
-      "is-visible",
-      shouldShowPanelEdgeToggle({ collapsed: panelCollapsedState.layers, available: layerPanelAvailable }),
-    );
-  }
-
-  function getInspectorContext() {
-    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
-    if (selectedElements.length > 0) {
-      if (selectedElements.every((element) => isLinearStructureElement(element))) {
-        return "linear";
-      }
-      if (selectedElements.every((element) => element.type === "graph-structure")) {
-        return "graph";
-      }
-      if (selectedElements.every((element) => element.type === "tree-structure")) {
-        return "tree";
-      }
-      return "appearance";
-    }
-    return "appearance";
-  }
-
-  function applyInspectorSectionState() {
-    const activeInspectorContext = panelStateController.getInspectorContext();
-    const visibleSections = panelStateController.getVisibleInspectorSections(activeInspectorContext);
-    const inspectorSectionsState = panelStateController.getInspectorSectionsState();
-    root.querySelectorAll("[data-inspector-section]").forEach((section) => {
-      const key = section.dataset.inspectorSection;
-      const isVisible = Boolean(visibleSections[key]);
-      const expanded = isVisible && Boolean(inspectorSectionsState[key]);
-      section.hidden = !isVisible;
-      section.dataset.collapsed = expanded ? "false" : "true";
-      const button = section.querySelector("[data-section-toggle]");
-      const content = section.querySelector("[data-section-content]");
-      button?.setAttribute("aria-expanded", String(expanded));
-      content?.setAttribute("aria-hidden", String(!expanded));
-    });
-  }
-
-  function syncInspectorPanelState({ forceReset = false } = {}) {
-    const nextContext = getInspectorContext();
-    const { shouldResetScroll } = panelStateController.syncInspectorContext(nextContext, { forceReset });
-    applyInspectorSectionState();
-    if (shouldResetScroll) {
-      panelBody?.scrollTo?.(0, 0);
-    }
-  }
-
-  function bindUiEvents() {
-    window.addEventListener("resize", () => {
-      stage.width(container.clientWidth);
-      stage.height(container.clientHeight);
-      updateGrid();
-      syncTextOverlays();
-    });
-
-    document.addEventListener("selectstart", (event) => {
-      if (isNativeTextEditingTarget(event.target)) return;
-      event.preventDefault();
-    }, { capture: true });
-
-    window.addEventListener("wheel", (event) => {
-      if (shouldPreventBrowserZoom(event)) {
-        event.preventDefault();
-      }
-    }, { capture: true, passive: false });
-
-    window.addEventListener("pointerdown", (event) => {
-      if (!menuStateController.isMainMenuOpen()) return;
-      if (closestElement(event.target, "[data-main-menu], [data-menu-trigger]")) {
-        return;
-      }
-      closeMainMenu();
-    });
-
-    window.addEventListener("pointerdown", (event) => {
-      if (shapePopover.hidden) return;
-      if (closestElement(event.target, "[data-shape-popover], [data-tool='shape']")) {
-        return;
-      }
-      setShapePopoverOpen(false);
-    });
-
-    window.addEventListener("pointerdown", (event) => {
-      if (structurePanel.hidden) return;
-      if (closestElement(event.target, "[data-structure-panel], [data-tool='structure']")) {
-        return;
-      }
-      setStructurePanelOpen(false);
-    });
-
-    window.addEventListener("pointerdown", (event) => {
-      if (!menuStateController.isZoomMenuOpen()) return;
-      if (closestElement(event.target, "[data-zoom-menu], [data-zoom-trigger]")) {
-        return;
-      }
-      setZoomMenuOpen(false);
-    });
-
-    window.addEventListener("pointerdown", (event) => {
-      if (contextMenu.hidden) return;
-      if (closestElement(event.target, "[data-context-menu]")) {
-        return;
-      }
-      hideContextMenu();
-    });
-
-    window.addEventListener("paste", handlePaste);
-    window.addEventListener("beforeunload", persistCurrentDraft);
-    container.addEventListener("dragover", handleImageDragOver);
-    container.addEventListener("drop", handleImageDrop);
-  }
-
   function hydrateLocalDraft() {
     const result = boardSession.hydrateLocalDraft();
     if (result.message) initialStatusMessage = result.message;
-  }
-
-  function bindKeyboard() {
-    window.addEventListener("keydown", (event) => {
-      if (shouldSelectAll(event)) {
-        if (shouldUseBrowserSelectAll(event)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        clearNativeSelection();
-        selectAllElements();
-        clearNativeSelection();
-        return;
-      }
-
-      if (isTypingInEditableControl(event.target)) return;
-
-      if (event.code === "Space") {
-        isSpaceDown = true;
-        stage.container().classList.add("is-pan-ready");
-        updateDraggableState();
-        hideToolCursors();
-        event.preventDefault();
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        event.stopPropagation();
-        copySelection();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
-        event.preventDefault();
-        event.stopPropagation();
-        cutSelection();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-        event.stopPropagation();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.shiftKey) {
-          saveBoardFileAs();
-        } else {
-          saveBoardFile();
-        }
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
-        event.preventDefault();
-        event.stopPropagation();
-        openBoardFile();
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.shiftKey) {
-          redoHistory();
-        } else {
-          undoHistory();
-        }
-        return;
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
-        event.preventDefault();
-        event.stopPropagation();
-        redoHistory();
-        return;
-      }
-
-      if (event.key === "Delete" || event.key === "Backspace") {
-        if (selectedIds.length > 0) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        deleteSelection();
-        return;
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMainMenu();
-        setShapePopoverOpen(false);
-        setStructurePanelOpen(false);
-        setZoomMenuOpen(false);
-        hideContextMenu();
-        if (currentTool !== TOOLS.SELECT) {
-          setTool(TOOLS.SELECT);
-        } else {
-          clearSelection();
-        }
-        return;
-      }
-
-      const shortcutMap = {
-        v: TOOLS.SELECT,
-        b: TOOLS.PEN,
-        e: TOOLS.ERASER_STROKE,
-        o: TOOLS.ERASER_OBJECT,
-        t: TOOLS.TEXT,
-        n: TOOLS.STICKY,
-        h: TOOLS.PAN,
-        s: TOOLS.STRUCTURE,
-        r: TOOLS.SHAPE,
-        l: TOOLS.SHAPE,
-        a: TOOLS.SHAPE,
-      };
-
-      if (!event.ctrlKey && !event.metaKey && shortcutMap[event.key.toLowerCase()]) {
-        if (event.key.toLowerCase() === "r") setActiveShapeTool(TOOLS.RECT);
-        if (event.key.toLowerCase() === "l") setActiveShapeTool(TOOLS.LINE);
-        if (event.key.toLowerCase() === "a") setActiveShapeTool(TOOLS.ARROW);
-        setTool(shortcutMap[event.key.toLowerCase()]);
-      }
-    }, { capture: true });
-
-    window.addEventListener("keyup", (event) => {
-      if (event.code === "Space") {
-        isSpaceDown = false;
-        stage.container().classList.remove("is-pan-ready", "is-panning");
-        updateDraggableState();
-      }
-    }, { capture: true });
   }
 
   function handleWheel(event) {
@@ -1914,32 +1630,6 @@ export function createWhiteboardApp(root) {
     }
 
     showContextMenu(event.clientX, event.clientY);
-  }
-
-  function showContextMenu(clientX, clientY) {
-    updateContextMenuActions();
-    contextMenu.hidden = false;
-    const box = contextMenu.getBoundingClientRect();
-    const { left, top } = contextMenuController.getPosition({
-      clientX,
-      clientY,
-      menuBox: box,
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-    });
-    contextMenu.style.left = `${left}px`;
-    contextMenu.style.top = `${top}px`;
-  }
-
-  function updateContextMenuActions() {
-    root.querySelectorAll("[data-context-action]").forEach((button) => {
-      button.disabled = contextMenuController.isActionDisabled(button.dataset.contextAction, {
-        selectedIds,
-        hasClipboard: clipboardController.hasSnapshot(),
-      });
-    });
   }
 
   function handleTransformerDoubleClick(event) {
@@ -2398,6 +2088,10 @@ export function createWhiteboardApp(root) {
 
   function isTemporaryPanActive() {
     return isSpaceDown || currentTool === TOOLS.PAN;
+  }
+
+  function isArrayAlgorithmLocked(elementId) {
+    return isArrayAlgorithmLockedDelegate(elementId);
   }
 
   function addElement(element, message) {
@@ -2952,41 +2646,6 @@ export function createWhiteboardApp(root) {
     setStatus(`已选择全部对象 (${selectableIds.length})`);
   }
 
-  function copySelection() {
-    if (selectedIds.length === 0) return;
-    clipboardController.copy(board.elements, selectedIds);
-    updateContextMenuActions();
-    setStatus("已复制对象");
-  }
-
-  function cutSelection() {
-    if (selectedIds.length === 0) return;
-    const editableIds = selectedIds.filter((id) => !isElementLocked(id));
-    if (editableIds.length === 0) return;
-    clearArrayAlgorithmSessionForRemovedIds(editableIds);
-    clipboardController.copy(board.elements, editableIds);
-    board.elements = removeElementsById(board.elements, editableIds);
-    clearSelection();
-    renderBoard();
-    updateContextMenuActions();
-    pushHistory("已剪切对象");
-  }
-
-  function pasteClipboard() {
-    if (!clipboardController.hasSnapshot()) return;
-    const pasted = clipboardController.createPastedElements({
-      offset: 24,
-      targetPoint: lastPointerWorldPoint,
-      zIndexStart: board.elements.length,
-    });
-    board.elements = reorderElements([...board.elements, ...pasted]);
-    clipboardController.replaceWithElements(pasted);
-    renderBoard();
-    setTool(TOOLS.SELECT);
-    selectIds(pasted.map((element) => element.id));
-    pushHistory("已粘贴对象");
-  }
-
   function insertStructureFromPanel() {
     const activeStructureType = structurePanelController.getActiveStructureType();
     const activeArrayInitMode = structurePanelController.getActiveArrayInitMode();
@@ -3018,17 +2677,6 @@ export function createWhiteboardApp(root) {
       x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
       y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
     };
-  }
-
-  function deleteSelection() {
-    if (selectedIds.length === 0) return;
-    const editableIds = selectedIds.filter((id) => !isElementLocked(id));
-    if (editableIds.length === 0) return;
-    clearArrayAlgorithmSessionForRemovedIds(editableIds);
-    board.elements = removeElementsById(board.elements, editableIds);
-    clearSelection();
-    renderBoard();
-    pushHistory("已删除对象");
   }
 
   function editSelectedArrayStructure(edit) {
@@ -3163,816 +2811,6 @@ export function createWhiteboardApp(root) {
         input.value = value;
       }
     });
-  }
-
-  function getArrayAlgorithmPanelState(elementId) {
-    return structureInteraction.getArrayAlgorithmPanelState(elementId, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);
-  }
-
-  function setArrayAlgorithmPanelState(elementId, patch) {
-    structureInteraction.setArrayAlgorithmPanelState(elementId, patch, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);
-  }
-
-  function getSelectedArrayAlgorithmSession() {
-    const element = getSelectedLinearStructure();
-    return element ? structureInteraction.getArrayAlgorithmSession(element.id) : null;
-  }
-
-  function getArrayAlgorithmSession(elementId) {
-    return structureInteraction.getArrayAlgorithmSession(elementId);
-  }
-
-  function setArrayAlgorithmSession(session) {
-    structureInteraction.setArrayAlgorithmSession(session);
-  }
-
-  function deleteArrayAlgorithmSession(elementId) {
-    structureInteraction.deleteArrayAlgorithmSession(elementId);
-  }
-
-  function deleteArrayAlgorithmState(elementId) {
-    structureInteraction.deleteArrayAlgorithmState(elementId);
-  }
-
-  function clearArrayAlgorithmSessions() {
-    structureInteraction.clearArrayAlgorithmSessions();
-  }
-
-  function pauseUnselectedArrayAlgorithmSessions() {
-    structureInteraction.pauseUnselectedArrayAlgorithmSessions(selectedIds);
-    cancelArrayAlgorithmTimer();
-  }
-
-  function startSelectedArrayAlgorithm() {
-    const element = getSelectedLinearStructure();
-    if (!element || element.type !== "array-structure" || element.locked) return;
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    clearActiveLinearItemForAlgorithmStart(element.id);
-    const values = (element.items ?? []).map((item) => item.value ?? "");
-    const panelState = getArrayAlgorithmPanelState(element.id);
-    const result = createArrayAlgorithmSteps(panelState.algorithm, values);
-    if (!result.ok) {
-      setArrayAlgorithmSession({
-        elementId: element.id,
-        error: result.message,
-        speed: panelState.speed,
-        isPlaying: false,
-        isAnimating: false,
-      });
-      syncArrayAlgorithmPanelState();
-      setStatus(result.message);
-      return;
-    }
-
-    setArrayAlgorithmSession({
-      elementId: element.id,
-      algorithm: result.algorithm,
-      algorithmLabel: getArrayAlgorithmLabel(result.algorithm),
-      initialValues: result.initialValues,
-      steps: result.steps,
-      stepIndex: 0,
-      speed: panelState.speed,
-      isPlaying: false,
-      isAnimating: false,
-      committed: false,
-      error: "",
-      stableStepIndex: 0,
-    });
-    applyArrayAlgorithmStep(0, { render: true });
-    selectIds([element.id]);
-    syncArrayAlgorithmPanelState();
-  }
-
-  function clearActiveLinearItemForAlgorithmStart(elementId) {
-    const activeLinearItem = structureInteraction.getActiveLinearItem();
-    if (activeLinearItem?.elementId !== elementId) return;
-    const { previousActiveLinearItem } = structureInteraction.clearActiveLinearItem();
-    hideLinearItemControls();
-    syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
-  }
-
-  function stepArrayAlgorithmPrevious() {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session || session.error || session.isAnimating) return;
-    cancelArrayAlgorithmPlayback();
-    runArrayAlgorithmReverseStep(session.stepIndex);
-  }
-
-  function stepArrayAlgorithmNext() {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session || session.error || session.isAnimating) return;
-    const nextIndex = Math.min(getArrayAlgorithmLastStepIndex(session), session.stepIndex + 1);
-    runArrayAlgorithmStep(nextIndex);
-  }
-
-  function toggleArrayAlgorithmPlayback() {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session || session.error || session.isAnimating) return;
-    if (session.isPlaying) {
-      cancelArrayAlgorithmPlayback();
-      syncArrayAlgorithmPanelState();
-      return;
-    }
-    if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) return;
-    setArrayAlgorithmSession({ ...session, isPlaying: true });
-    syncArrayAlgorithmPanelState();
-    scheduleArrayAlgorithmPlayback();
-  }
-
-  function resetArrayAlgorithmSession() {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session) return;
-    const elementId = session.elementId;
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    if (session.error || !session.steps) {
-      deleteArrayAlgorithmSession(elementId);
-      syncArrayAlgorithmPanelState();
-      return;
-    }
-    const initialValues = session.initialValues ?? [];
-    board.elements = board.elements.map((element) => (
-      element.id === elementId
-        ? applyArrayAlgorithmValues(clearArrayAlgorithmRuntimeMarkers(element), initialValues)
-        : element
-    ));
-    setArrayAlgorithmSession({
-      ...session,
-      stepIndex: 0,
-      stableStepIndex: 0,
-      isPlaying: false,
-      isAnimating: false,
-      committed: false,
-      error: "",
-    });
-    applyArrayAlgorithmStep(0, { render: false });
-    renderBoard();
-    selectIds([elementId]);
-    syncArrayAlgorithmPanelState();
-  }
-
-  function stopArrayAlgorithmSession() {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session) return;
-    const elementId = session.elementId;
-    const algorithmLabel = session.algorithmLabel ?? "排序";
-    const shouldCommit = Boolean(session.steps) && !session.committed;
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    board.elements = board.elements.map((element) => (
-      element.id === elementId ? clearArrayAlgorithmRuntimeMarkers(element) : element
-    ));
-    deleteArrayAlgorithmSession(elementId);
-    renderBoard();
-    selectIds(board.elements.some((element) => element.id === elementId) ? [elementId] : []);
-    if (shouldCommit) {
-      pushHistory(`已执行${algorithmLabel}`);
-    } else {
-      updateChrome();
-    }
-  }
-
-  function runArrayAlgorithmReverseStep(currentIndex) {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session?.steps) return;
-    const previousIndex = Math.max(0, currentIndex - 1);
-    const step = session.steps[currentIndex];
-    if (!step || currentIndex <= 0) {
-      applyArrayAlgorithmStep(previousIndex, { render: true });
-      return;
-    }
-    if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
-      playArrayAlgorithmSwapStep(currentIndex, { reverse: true });
-      return;
-    }
-    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || (step.type === ALGORITHM_STEP_TYPES.INSERT && step.animation)) {
-      playArrayAlgorithmMoveStep(currentIndex, { reverse: true });
-      return;
-    }
-    if (step.type === ALGORITHM_STEP_TYPES.PICK_KEY) {
-      playArrayAlgorithmPickKeyStep(currentIndex, { reverse: true });
-      return;
-    }
-    applyArrayAlgorithmStep(previousIndex, { render: true });
-  }
-
-  function runArrayAlgorithmStep(nextIndex) {
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session?.steps) return;
-    const step = session.steps[nextIndex];
-    if (!step) return;
-    if (step.type === ALGORITHM_STEP_TYPES.PICK_KEY) {
-      playArrayAlgorithmPickKeyStep(nextIndex);
-      return;
-    }
-    if (step.type === ALGORITHM_STEP_TYPES.SWAP) {
-      playArrayAlgorithmSwapStep(nextIndex);
-      return;
-    }
-    if (step.type === ALGORITHM_STEP_TYPES.SHIFT || (step.type === ALGORITHM_STEP_TYPES.INSERT && step.animation)) {
-      playArrayAlgorithmMoveStep(nextIndex);
-      return;
-    }
-    applyArrayAlgorithmStep(nextIndex, { render: true });
-    if (step.type === ALGORITHM_STEP_TYPES.COMPLETE) {
-      const appliedSession = getArrayAlgorithmSession(session.elementId);
-      if (!appliedSession) return;
-      setArrayAlgorithmSession({
-        ...appliedSession,
-        isPlaying: false,
-        committed: true,
-      });
-      pushHistory(`已执行${session.algorithmLabel ?? "排序"}`);
-      syncArrayAlgorithmPanelState();
-      return;
-    }
-    scheduleArrayAlgorithmPlayback();
-  }
-
-  function playArrayAlgorithmSwapStep(nextIndex, { reverse = false } = {}) {
-    const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
-    const moves = step?.animation?.moves ?? step?.swapIndices?.map((index, moveIndex, indices) => ({
-      from: index,
-      to: indices[moveIndex === 0 ? 1 : 0],
-    }));
-    if (!session || !step || moves?.length !== 2) return;
-    const previousStepIndex = session.stepIndex;
-    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
-    const element = board.elements.find((item) => item.id === session.elementId);
-    const group = contentLayer.findOne(`#${session.elementId}`);
-    const firstItem = findLinearItemNode(group, reverse ? moves[0].to : moves[0].from);
-    const secondItem = findLinearItemNode(group, reverse ? moves[1].to : moves[1].from);
-    const firstValue = firstItem?.findOne?.(".array-item-value-group");
-    const secondValue = secondItem?.findOne?.(".array-item-value-group");
-    if (!element || !group || !firstValue || !secondValue) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-
-    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    const duration = getArrayAlgorithmStepMs() / 1000;
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: true,
-      stableStepIndex: previousStepIndex,
-      pendingStepIndex: targetStepIndex,
-    });
-    syncArrayAlgorithmPanelState();
-
-    const firstStartX = firstItem.x() + (firstValue.x() || 0);
-    const secondStartX = secondItem.x() + (secondValue.x() || 0);
-    const firstTargetX = (reverse ? moves[0].from : moves[0].to) * style.cellWidth;
-    const secondTargetX = (reverse ? moves[1].from : moves[1].to) * style.cellWidth;
-
-    const firstGhost = firstValue.clone({
-      name: "array-swap-ghost",
-      x: firstStartX,
-      listening: false,
-      opacity: 0.95,
-    });
-    const secondGhost = secondValue.clone({
-      name: "array-swap-ghost",
-      x: secondStartX,
-      listening: false,
-      opacity: 0.95,
-    });
-    group.add(firstGhost);
-    group.add(secondGhost);
-    arrayAlgorithmAnimationNodes.push(firstGhost, secondGhost);
-    firstValue.visible(false);
-    secondValue.visible(false);
-
-    firstGhost.moveToTop();
-    secondGhost.moveToTop();
-    const firstTween = new Konva.Tween({
-      node: firstGhost,
-      x: firstTargetX,
-      duration,
-      easing: Konva.Easings.EaseInOut,
-    });
-    const secondTween = new Konva.Tween({
-      node: secondGhost,
-      x: secondTargetX,
-      duration,
-      easing: Konva.Easings.EaseInOut,
-      onFinish: () => {
-        firstTween.destroy();
-        secondTween.destroy();
-        firstGhost.destroy();
-        secondGhost.destroy();
-        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((n) => n !== firstGhost && n !== secondGhost);
-        arrayAlgorithmSwapTweens = [];
-        const nextSession = getArrayAlgorithmSession(session.elementId);
-        if (!nextSession) return;
-        applyArrayAlgorithmStep(targetStepIndex, { render: true });
-        const appliedSession = getArrayAlgorithmSession(session.elementId);
-        if (!appliedSession) return;
-        setArrayAlgorithmSession({
-          ...appliedSession,
-          isAnimating: false,
-          pendingStepIndex: null,
-          stableStepIndex: targetStepIndex,
-        });
-        syncArrayAlgorithmPanelState();
-        if (!reverse) scheduleArrayAlgorithmPlayback();
-      },
-    });
-    arrayAlgorithmSwapTweens = [firstTween, secondTween];
-    firstTween.play();
-    secondTween.play();
-  }
-
-  function playArrayAlgorithmPickKeyStep(nextIndex, { reverse = false } = {}) {
-    const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
-    const floatingKey = step?.markers?.floatingKey;
-    if (!session || !step || !floatingKey) return;
-    const previousStepIndex = session.stepIndex;
-    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
-    const element = board.elements.find((item) => item.id === session.elementId);
-    const group = contentLayer.findOne(`#${session.elementId}`);
-    const itemNode = findLinearItemNode(group, floatingKey.sourceIndex);
-    if (!element || !group || !itemNode) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-
-    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    const floatingKeyNode = findArrayAlgorithmFloatingKeyNode(group);
-    const valueNode = reverse
-      ? floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style)
-      : createArrayAlgorithmValueGhostNode(itemNode, floatingKey.value, style);
-    if (!valueNode) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-    const ghost = valueNode;
-    const startY = ghost.y();
-    const liftedY = reverse ? getArrayAlgorithmValueY(element) : getArrayAlgorithmFloatingKeyY(style, element);
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: true,
-      stableStepIndex: previousStepIndex,
-      pendingStepIndex: targetStepIndex,
-    });
-    syncArrayAlgorithmPanelState();
-    ghost.moveToTop();
-    const tween = new Konva.Tween({
-      node: ghost,
-      y: liftedY,
-      duration: getArrayAlgorithmStepMs() / 1000,
-      easing: Konva.Easings.EaseOut,
-      onFinish: () => {
-        tween.destroy();
-        ghost.destroy();
-        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
-        arrayAlgorithmSwapTweens = [];
-        if (!getArrayAlgorithmSession(session.elementId)) return;
-        applyArrayAlgorithmStep(targetStepIndex, { render: true });
-        const appliedSession = getArrayAlgorithmSession(session.elementId);
-        if (!appliedSession) return;
-        setArrayAlgorithmSession({
-          ...appliedSession,
-          isAnimating: false,
-          pendingStepIndex: null,
-          stableStepIndex: targetStepIndex,
-        });
-        syncArrayAlgorithmPanelState();
-        if (!reverse) scheduleArrayAlgorithmPlayback();
-      },
-    });
-    arrayAlgorithmSwapTweens = [tween];
-    tween.play();
-    ghost.y(startY);
-  }
-
-  function playArrayAlgorithmMoveStep(nextIndex, { reverse = false } = {}) {
-    const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
-    const move = step?.animation?.moves?.[0] ?? step?.shift ?? step?.insert;
-    if (!session || !step || !move) return;
-    const previousStepIndex = session.stepIndex;
-    const targetStepIndex = reverse ? Math.max(0, nextIndex - 1) : nextIndex;
-    const element = board.elements.find((item) => item.id === session.elementId);
-    const group = contentLayer.findOne(`#${session.elementId}`);
-    const itemNode = findLinearItemNode(group, reverse ? move.to : move.from);
-    if (!element || !group || !itemNode) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-
-    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
-    const duration = getArrayAlgorithmStepMs() / 1000;
-    if (step.type === ALGORITHM_STEP_TYPES.INSERT) {
-      playArrayAlgorithmInsertStep({
-        session,
-        step,
-        nextIndex,
-        previousStepIndex,
-        reverse,
-        targetStepIndex,
-        element,
-        itemNode,
-        move,
-        style,
-        duration,
-      });
-      return;
-    }
-    const valueGroup = itemNode.findOne?.(".array-item-value-group");
-    if (!valueGroup) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-    const startX = itemNode.x() + (valueGroup.x() || 0);
-    const targetX = (reverse ? move.from : move.to) * style.cellWidth;
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: true,
-      stableStepIndex: previousStepIndex,
-      pendingStepIndex: targetStepIndex,
-    });
-    syncArrayAlgorithmPanelState();
-
-    const ghost = valueGroup.clone({
-      name: "array-shift-ghost",
-      x: startX,
-      listening: false,
-      opacity: 0.95,
-    });
-    group.add(ghost);
-    arrayAlgorithmAnimationNodes.push(ghost);
-    valueGroup.visible(false);
-
-    ghost.moveToTop();
-    const tween = new Konva.Tween({
-      node: ghost,
-      x: targetX,
-      duration,
-      easing: Konva.Easings.EaseInOut,
-      onFinish: () => {
-        tween.destroy();
-        ghost.destroy();
-        arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
-        arrayAlgorithmSwapTweens = [];
-        const nextSession = getArrayAlgorithmSession(session.elementId);
-        if (!nextSession) return;
-        applyArrayAlgorithmStep(targetStepIndex, { render: true });
-        const appliedSession = getArrayAlgorithmSession(session.elementId);
-        if (!appliedSession) return;
-        setArrayAlgorithmSession({
-          ...appliedSession,
-          isAnimating: false,
-          pendingStepIndex: null,
-          stableStepIndex: targetStepIndex,
-        });
-        syncArrayAlgorithmPanelState();
-        if (!reverse) scheduleArrayAlgorithmPlayback();
-      },
-    });
-    arrayAlgorithmSwapTweens = [tween];
-    tween.play();
-  }
-
-  function playArrayAlgorithmInsertStep({ session, step, nextIndex, previousStepIndex, reverse = false, targetStepIndex = nextIndex, element, itemNode, move, style, duration }) {
-    const group = contentLayer.findOne(`#${session.elementId}`);
-    const floatingKeyNode = findArrayAlgorithmFloatingKeyNode(group);
-    const ghost = floatingKeyNode ?? createArrayAlgorithmValueGhostNode(itemNode, step.keyValue, style);
-    if (!ghost) {
-      applyArrayAlgorithmStep(targetStepIndex, { render: true });
-      if (!reverse) scheduleArrayAlgorithmPlayback();
-      return;
-    }
-    const startX = ghost.x();
-    const startY = ghost.y();
-    const liftedY = getArrayAlgorithmFloatingKeyY(style, element);
-    const targetX = (reverse ? move.from : move.to) * style.cellWidth;
-    const targetY = reverse ? liftedY : getArrayAlgorithmValueY(element);
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: true,
-      stableStepIndex: previousStepIndex,
-      pendingStepIndex: targetStepIndex,
-    });
-    syncArrayAlgorithmPanelState();
-    ghost.moveToTop();
-    const insertDuration = duration * 1.45;
-    const liftDuration = Math.max(0.08, insertDuration * 0.24);
-    const shouldMoveHorizontally = Math.abs(targetX - startX) > 0.5;
-    const moveDuration = shouldMoveHorizontally ? Math.max(0.12, insertDuration * 0.52) : 0;
-    const dropDuration = Math.max(0.08, insertDuration * 0.24);
-    const finishDrop = () => {
-      const dropTween = new Konva.Tween({
-        node: ghost,
-        y: targetY,
-        duration: dropDuration,
-        easing: Konva.Easings.EaseIn,
-        onFinish: () => {
-          dropTween.destroy();
-          if (ghost !== floatingKeyNode) {
-            ghost.destroy();
-            arrayAlgorithmAnimationNodes = arrayAlgorithmAnimationNodes.filter((node) => node !== ghost);
-          }
-          arrayAlgorithmSwapTweens = [];
-          if (!getArrayAlgorithmSession(session.elementId)) return;
-          applyArrayAlgorithmStep(targetStepIndex, { render: true });
-          const appliedSession = getArrayAlgorithmSession(session.elementId);
-          if (appliedSession) {
-            setArrayAlgorithmSession({
-              ...appliedSession,
-              isAnimating: false,
-              pendingStepIndex: null,
-              stableStepIndex: targetStepIndex,
-            });
-          }
-          syncArrayAlgorithmPanelState();
-          if (!reverse) scheduleArrayAlgorithmPlayback();
-        },
-      });
-      arrayAlgorithmSwapTweens = [dropTween];
-      dropTween.play();
-    };
-    const liftTween = new Konva.Tween({
-      node: ghost,
-      y: liftedY,
-      duration: liftDuration,
-      easing: Konva.Easings.EaseOut,
-      onFinish: () => {
-        liftTween.destroy();
-        if (!shouldMoveHorizontally) {
-          finishDrop();
-          return;
-        }
-        const moveTween = new Konva.Tween({
-          node: ghost,
-          x: targetX,
-          duration: moveDuration,
-          easing: Konva.Easings.EaseInOut,
-          onFinish: () => {
-            moveTween.destroy();
-            finishDrop();
-          },
-        });
-        arrayAlgorithmSwapTweens = [moveTween];
-        moveTween.play();
-      },
-    });
-    arrayAlgorithmSwapTweens = [liftTween];
-    liftTween.play();
-    ghost.x(startX);
-    ghost.y(startY);
-  }
-
-  function createArrayAlgorithmGhostNode(sourceNode, value) {
-    const ghost = sourceNode.clone({
-      listening: false,
-      opacity: 0.92,
-      y: sourceNode.y(),
-      shadowColor: "rgba(245,158,11,0.28)",
-      shadowBlur: 18,
-      shadowOpacity: 1,
-      shadowOffsetY: -8,
-    });
-    const valueText = ghost.find("Text").at(-1);
-    valueText?.text(String(value ?? ""));
-    ghost.moveTo(sourceNode.getParent());
-    arrayAlgorithmAnimationNodes.push(ghost);
-    return ghost;
-  }
-
-  function createArrayAlgorithmValueGhostNode(sourceNode, value, style = ARRAY_STRUCTURE_STYLE) {
-    if (!sourceNode) return null;
-    const cellWidth = Number(style.cellWidth) || ARRAY_STRUCTURE_STYLE.cellWidth;
-    const cellHeight = Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight;
-    const valueY = getArrayAlgorithmValueYFromNode(sourceNode, style);
-    const ghost = new Konva.Group({
-      name: "array-floating-key",
-      linearIndex: sourceNode.getAttr?.("linearIndex"),
-      x: sourceNode.x(),
-      y: valueY,
-      width: cellWidth,
-      height: cellHeight,
-      listening: false,
-      opacity: 0.92,
-      shadowColor: "rgba(245,158,11,0.28)",
-      shadowBlur: 18,
-      shadowOpacity: 1,
-      shadowOffsetY: 8,
-    });
-    ghost.add(new Konva.Rect({
-      width: cellWidth,
-      height: cellHeight,
-      stroke: style.algorithmKeyStroke,
-      strokeWidth: 3,
-      fill: style.valueFill,
-    }));
-    ghost.add(new Konva.Text({
-      y: 10,
-      width: cellWidth,
-      height: 24,
-      text: String(value ?? ""),
-      fontSize: 20,
-      fontFamily: "Inter, system-ui, sans-serif",
-      fill: style.textFill,
-      align: "center",
-      verticalAlign: "middle",
-    }));
-    ghost.moveTo(sourceNode.getParent());
-    arrayAlgorithmAnimationNodes.push(ghost);
-    return ghost;
-  }
-
-  function findArrayAlgorithmFloatingKeyNode(group) {
-    return group?.findOne?.(".array-floating-key") ?? null;
-  }
-
-  function getArrayAlgorithmFloatingKeyY(style = ARRAY_STRUCTURE_STYLE, element = null) {
-    return getArrayAlgorithmValueY(element) + (Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight) + 12;
-  }
-
-  function getArrayAlgorithmValueY(element = null) {
-    const style = { ...ARRAY_STRUCTURE_STYLE, ...(element?.style ?? {}) };
-    const showIndexes = element?.settings?.showIndexes ?? element?.type === "array-structure";
-    return showIndexes ? Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight : 0;
-  }
-
-  function getArrayAlgorithmValueYFromNode(sourceNode, style = ARRAY_STRUCTURE_STYLE) {
-    const valueRect = sourceNode?.findOne?.(".array-item-value-hit");
-    if (Number.isFinite(valueRect?.y?.())) return valueRect.y();
-    return Number(style.cellHeight) || ARRAY_STRUCTURE_STYLE.cellHeight;
-  }
-
-  function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
-    const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[stepIndex];
-    if (!session || !step) return;
-    const pointer = step.activeIndices?.[0] ?? null;
-    board.elements = board.elements.map((element) => (
-      element.id === session.elementId
-        ? setArrayAlgorithmMarkers(
-          applyArrayAlgorithmValues(element, step.values),
-          {
-            activeIndices: step.markers?.activeIndices ?? step.activeIndices,
-            sortedIndices: step.markers?.sortedIndices ?? step.sortedIndices,
-            pendingSwapIndices: step.markers?.pendingSwapIndices,
-            minIndex: step.markers?.minIndex,
-            keyIndex: step.markers?.keyIndex,
-            emptyIndex: step.markers?.emptyIndex,
-            floatingKey: step.markers?.floatingKey,
-            pointer,
-            showPointer: Number.isInteger(pointer),
-          },
-        )
-        : element
-    ));
-    setArrayAlgorithmSession({
-      ...session,
-      stepIndex,
-      stableStepIndex: stepIndex,
-      isAnimating: false,
-      pendingStepIndex: null,
-    });
-    if (render) {
-      renderBoard();
-      selectIds([session.elementId]);
-      syncArrayAlgorithmPanelState();
-    }
-  }
-
-  function scheduleArrayAlgorithmPlayback() {
-    cancelArrayAlgorithmTimer();
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session?.isPlaying || session.isAnimating) return;
-    if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) {
-      setArrayAlgorithmSession({ ...session, isPlaying: false });
-      syncArrayAlgorithmPanelState();
-      return;
-    }
-    arrayAlgorithmPlayTimer = window.setTimeout(() => {
-      arrayAlgorithmPlayTimer = null;
-      stepArrayAlgorithmNext();
-    }, getArrayAlgorithmStepMs());
-  }
-
-  function cancelArrayAlgorithmPlayback() {
-    cancelArrayAlgorithmTimer();
-    const session = getSelectedArrayAlgorithmSession();
-    if (session) setArrayAlgorithmSession({ ...session, isPlaying: false });
-  }
-
-  function cancelArrayAlgorithmTimer() {
-    if (!arrayAlgorithmPlayTimer) return;
-    window.clearTimeout(arrayAlgorithmPlayTimer);
-    arrayAlgorithmPlayTimer = null;
-  }
-
-  function cancelArrayAlgorithmSwapAnimation({ commitStableState = true } = {}) {
-    arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
-    arrayAlgorithmSwapTweens = [];
-    arrayAlgorithmAnimationNodes.forEach((node) => node.destroy());
-    arrayAlgorithmAnimationNodes = [];
-    const session = getSelectedArrayAlgorithmSession();
-    if (!session?.isAnimating) return;
-    const stableStepIndex = session.stableStepIndex ?? session.stepIndex ?? 0;
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: false,
-      pendingStepIndex: null,
-      stepIndex: stableStepIndex,
-    });
-    if (commitStableState) applyArrayAlgorithmStep(stableStepIndex, { render: true });
-  }
-
-  function getArrayAlgorithmSpeed() {
-    const value = Number(arrayAlgorithmSpeed?.value ?? 1);
-    return Number.isFinite(value) ? Math.min(3, Math.max(0.5, value)) : 1;
-  }
-
-  function getArrayAlgorithmStepMs() {
-    const speed = getSelectedArrayAlgorithmSession()?.speed ?? getArrayAlgorithmSpeed();
-    return Math.round(ARRAY_ALGORITHM_BASE_STEP_MS / Math.max(0.5, speed));
-  }
-
-  function getArrayAlgorithmLastStepIndex(session = getSelectedArrayAlgorithmSession()) {
-    return Math.max(0, (session?.steps?.length ?? 1) - 1);
-  }
-
-  function isArrayAlgorithmLocked(elementId) {
-    return structureInteraction.isArrayAlgorithmLocked(elementId);
-  }
-
-  function clearArrayAlgorithmSessionForRemovedIds(ids) {
-    const removedSet = new Set(ids);
-    const selectedSession = getSelectedArrayAlgorithmSession();
-    if (selectedSession && removedSet.has(selectedSession.elementId)) {
-      cancelArrayAlgorithmPlayback();
-      cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    }
-    ids.forEach((id) => deleteArrayAlgorithmState(id));
-  }
-
-  function syncArrayAlgorithmPanelState() {
-    if (!arrayAlgorithmStatus) return;
-    const selected = getSelectedLinearStructure();
-    const session = selected ? getArrayAlgorithmSession(selected.id) : null;
-    const panelState = selected ? getArrayAlgorithmPanelState(selected.id) : DEFAULT_ARRAY_ALGORITHM_PANEL_STATE;
-    const isBoundSelection = Boolean(session && selected?.id === session.elementId);
-    root.dataset.arrayAlgorithmActive = isBoundSelection ? "true" : "false";
-    if (arrayAlgorithmSelect) {
-      arrayAlgorithmSelect.value = session?.algorithm ?? panelState.algorithm;
-      arrayAlgorithmSelect.disabled = Boolean(session);
-    }
-    if (arrayAlgorithmSpeed) {
-      arrayAlgorithmSpeed.value = String(session?.speed ?? panelState.speed);
-    }
-    const buttons = {
-      start: root.querySelector("[data-action='array-algorithm-start']"),
-      prev: root.querySelector("[data-action='array-algorithm-prev']"),
-      next: root.querySelector("[data-action='array-algorithm-next']"),
-      play: root.querySelector("[data-action='array-algorithm-play']"),
-      reset: root.querySelector("[data-action='array-algorithm-reset']"),
-      stop: root.querySelector("[data-action='array-algorithm-stop']"),
-    };
-    if (!selected || selected.type !== "array-structure") {
-      arrayAlgorithmStatus.textContent = "选择数组后开始演示";
-      arrayAlgorithmStatus.dataset.state = "";
-      Object.values(buttons).forEach((button) => {
-        if (button) button.disabled = true;
-      });
-      return;
-    }
-    buttons.start.disabled = Boolean(session);
-    buttons.prev.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) <= 0;
-    buttons.next.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) >= getArrayAlgorithmLastStepIndex(session);
-    buttons.play.disabled = !isBoundSelection || Boolean(session?.error) || session?.isAnimating || (session?.stepIndex ?? 0) >= getArrayAlgorithmLastStepIndex(session);
-    buttons.reset.disabled = !isBoundSelection;
-    buttons.stop.disabled = !isBoundSelection;
-    if (buttons.play) buttons.play.textContent = session?.isPlaying ? "暂停" : "播放";
-    if (!session) {
-      arrayAlgorithmStatus.textContent = "选择排序算法后点击开始";
-      arrayAlgorithmStatus.dataset.state = "";
-      return;
-    }
-    if (!isBoundSelection) {
-      arrayAlgorithmStatus.textContent = "算法已暂停，重新选中原数组继续";
-      arrayAlgorithmStatus.dataset.state = "";
-      return;
-    }
-    if (session.error) {
-      arrayAlgorithmStatus.textContent = session.error;
-      arrayAlgorithmStatus.dataset.state = "error";
-      return;
-    }
-    const step = session.steps?.[session.stepIndex];
-    arrayAlgorithmStatus.textContent = `${session.stepIndex + 1} / ${session.steps.length}：${step?.message ?? ""}`;
-    arrayAlgorithmStatus.dataset.state = "";
   }
 
   function ensureLinearItemControls() {
@@ -4638,233 +3476,6 @@ export function createWhiteboardApp(root) {
     return /^(y|yes|true|1|是|有向)$/i.test(input.trim());
   }
 
-  function beginGraphConnectMode() {
-    const graphId = selectedIds.find((id) => {
-      const element = board.elements.find((item) => item.id === id);
-      return element?.type === "graph-structure" && !element.locked;
-    });
-    if (!graphId) return;
-    structureInteraction.beginStructureConnect({ kind: "graph", elementId: graphId });
-    renderBoard();
-    selectIds([graphId]);
-    setStatus("连边模式：点击源节点，再点击目标节点");
-  }
-
-  function beginTreeConnectMode() {
-    const treeId = selectedIds.find((id) => {
-      const element = board.elements.find((item) => item.id === id);
-      return element?.type === "tree-structure" && !element.locked;
-    });
-    if (!treeId) return;
-    structureInteraction.beginStructureConnect({ kind: "tree", elementId: treeId });
-    renderBoard();
-    selectIds([treeId]);
-    setStatus("连接父子：点击父节点，再点击子节点");
-  }
-
-  function handleGraphNodeClick({ elementId, nodeId }) {
-    const connectState = structureInteraction.getStructureConnectState({ kind: "graph", elementId });
-    if (!connectState) {
-      selectIds([elementId]);
-      return;
-    }
-    if (!connectState.sourceNodeId) {
-      structureInteraction.setStructureConnectSource({ kind: "graph", elementId, sourceNodeId: nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      setStatus("连边模式：点击目标节点");
-      return;
-    }
-    const { connection } = structureInteraction.finishStructureConnect({
-      kind: "graph",
-      elementId,
-      targetNodeId: nodeId,
-    });
-    if (!connection) return;
-    board.elements = board.elements.map((item) => (
-      item.id === elementId
-        ? addGraphEdge(item, connection.sourceNodeId, connection.targetNodeId, { directed: item.settings?.directedDefault ?? false })
-        : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已添加图边");
-  }
-
-  function handleTreeNodeClick({ elementId, nodeId }) {
-    if (isTemporaryPanActive()) return;
-    const clickedElement = board.elements.find((item) => item.id === elementId);
-    if (isBinaryTreeElement(clickedElement)) {
-      if (consumeSuppressedBinaryTreeNodeClick(elementId)) return;
-      structureInteraction.clearStructureConnectState();
-      const { previousActiveTreeNode } = structureInteraction.setActiveTreeNode({ elementId, nodeId });
-      selectIds([elementId]);
-      syncBinaryTreeActiveVisual(previousActiveTreeNode?.elementId);
-      syncBinaryTreeActiveVisual(elementId);
-      setStatus("已选择二叉树节点");
-      return;
-    }
-    const connectState = structureInteraction.getStructureConnectState({ kind: "tree", elementId });
-    if (!connectState) {
-      const { previousActiveTreeNode } = structureInteraction.setActiveTreeNode({ elementId, nodeId });
-      selectIds([elementId]);
-      syncGeneralTreeActiveVisual(previousActiveTreeNode?.elementId);
-      syncGeneralTreeActiveVisual(elementId);
-      renderTreeNodeControls();
-      setStatus("已选择树节点");
-      return;
-    }
-    if (!connectState.sourceNodeId) {
-      structureInteraction.setStructureConnectSource({ kind: "tree", elementId, sourceNodeId: nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      setStatus("连接父子：点击子节点");
-      return;
-    }
-    const { connection } = structureInteraction.finishStructureConnect({
-      kind: "tree",
-      elementId,
-      targetNodeId: nodeId,
-    });
-    if (!connection) return;
-    const element = board.elements.find((item) => item.id === elementId);
-    const nextElement = addTreeEdge(element, connection.sourceNodeId, connection.targetNodeId);
-    if (nextElement === element) {
-      renderBoard();
-      selectIds([elementId]);
-      setStatus(element.settings?.treeKind === "binary" ? "二叉树父节点最多 2 个孩子" : "无法连接树节点");
-      return;
-    }
-    board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-    renderBoard();
-    selectIds([elementId]);
-    syncTreeStructurePanelState();
-    pushHistory("已连接树节点");
-  }
-
-  function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "graph-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
-    structureInteraction.clearStructureConnectState();
-    board.elements = board.elements.map((item) => (
-      item.id === elementId
-        ? addGraphEdge(item, sourceNodeId, targetNodeId, { directed: item.settings?.directedDefault ?? false })
-        : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已添加图边");
-  }
-
-  function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "tree-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
-    structureInteraction.clearStructureConnectState();
-    const nextElement = addTreeEdge(element, sourceNodeId, targetNodeId);
-    if (nextElement === element) {
-      renderBoard();
-      selectIds([elementId]);
-      setStatus(element.settings?.treeKind === "binary" ? "二叉树父节点最多 2 个孩子" : "无法连接树节点");
-      return;
-    }
-    board.elements = board.elements.map((item) => (item.id === elementId ? nextElement : item));
-    renderBoard();
-    selectIds([elementId]);
-    syncTreeStructurePanelState();
-    pushHistory("已连接树节点");
-  }
-
-  function editGraphStructureEdge({ elementId, edgeId, directed, weight }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "graph-structure" || element.locked) return;
-    const nextWeight = promptValue("边权，留空表示无权", weight);
-    const nextDirected = promptBoolean("是否有向？y/n", directed);
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? updateGraphEdge(item, edgeId, { weight: nextWeight, directed: nextDirected }) : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已更新图边");
-  }
-
-  function editGraphStructureNode({ elementId, nodeId, label }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "graph-structure" || element.locked) return;
-    const nextLabel = promptValue("节点名称", label);
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? updateGraphNodeLabel(item, nodeId, nextLabel) : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已更新图节点");
-  }
-
-  function editGraphEdgeData(element) {
-    const edge = element.edges?.at(-1);
-    if (!edge) return element;
-    return updateGraphEdge(element, edge.id, {
-      weight: promptValue("边权，留空表示无权", edge.weight ?? ""),
-      directed: promptBoolean("是否有向？y/n", edge.directed),
-    });
-  }
-
-  function copySelectedGraphExport(format) {
-    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure");
-    if (!element) return;
-    const text = exportGraph(element, format);
-    navigator.clipboard?.writeText?.(text).then(
-      () => setStatus("已复制图数据"),
-      () => {
-        structureInput.value = text;
-        setStatus("无法访问剪贴板，已写入结构输入框");
-      },
-    );
-    if (!navigator.clipboard?.writeText) {
-      structureInput.value = text;
-      setStatus("已写入结构输入框");
-    }
-  }
-
-  function copySelectedTreeSubtree() {
-    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
-    if (!element) return;
-    const text = exportTree(element);
-    navigator.clipboard?.writeText?.(text).then(
-      () => setStatus("已复制树边列表"),
-      () => {
-        structureInput.value = text;
-        setStatus("无法访问剪贴板，已写入结构输入框");
-      },
-    );
-    if (!navigator.clipboard?.writeText) {
-      structureInput.value = text;
-      setStatus("已写入结构输入框");
-    }
-  }
-
-  function moveGraphStructureNode({ elementId, nodeId, x, y }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "graph-structure" || element.locked) return;
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? moveGraphNode(item, nodeId, x, y) : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已移动图节点");
-  }
-
-  function moveTreeStructureNode({ elementId, nodeId, x, y }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "tree-structure" || element.locked) return;
-    if (element.settings?.treeKind === "binary") return;
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? moveTreeNode(item, nodeId, x, y) : item
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已移动树节点");
-  }
-
   function handleTreeStructureNodePress(event, group) {
     if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
     const elementId = getElementIdFromNode(group);
@@ -5007,86 +3618,6 @@ export function createWhiteboardApp(root) {
     selectIds([elementId]);
   }
 
-  function editArrayStructureItem({ elementId, index, value }) {
-    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked) return;
-    renderBoard();
-    selectIds([elementId]);
-    requestAnimationFrame(() => editLinearStructureItemInline({ elementId, index, value }));
-  }
-
-  function editLinearStructureItemInline({ elementId, index, value }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    const node = contentLayer.findOne(`#${elementId}`);
-    if (!isLinearStructureElement(element) || !node) return;
-    const itemNode = findLinearItemNode(node, index);
-    if (!itemNode) return;
-
-    const valueRect = itemNode.findOne(".array-item-value-hit");
-    if (!valueRect) return;
-    const input = document.createElement("input");
-    input.className = "cell-editor";
-    input.value = value;
-    const syncCellEditorStyle = () => {
-      const absolute = valueRect.getAbsolutePosition();
-      const scale = stage.scaleX() * (node.scaleX() || 1);
-      const box = stage.container().getBoundingClientRect();
-      input.style.left = `${box.left + absolute.x}px`;
-      input.style.top = `${box.top + absolute.y}px`;
-      input.style.width = `${valueRect.width() * scale}px`;
-      input.style.height = `${valueRect.height() * scale}px`;
-      input.style.fontSize = `${20 * scale}px`;
-    };
-    document.body.appendChild(input);
-    activeCellEditorSync = syncCellEditorStyle;
-    syncCellEditorStyle();
-    input.focus();
-    input.select();
-
-    let closed = false;
-    const close = (commit) => {
-      if (closed) return;
-      closed = true;
-      const nextValue = input.value;
-      window.removeEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
-      activeCellEditorSync = null;
-      input.remove();
-      if (!commit) return;
-      board.elements = board.elements.map((item) => (
-        item.id === elementId ? updateArrayItemValue(item, index, nextValue) : item
-      ));
-      renderBoard();
-      selectIds([elementId]);
-      setActiveLinearItem(elementId, index, { rerender: false });
-      pushHistory("已更新线性结构元素");
-    };
-
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        close(true);
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close(false);
-      }
-    });
-    input.addEventListener("blur", () => close(true));
-
-    const handleCellEditorOutsidePointerDown = (event) => {
-      if (closed) return;
-      if (input.contains(event.target)) return;
-      suppressNextCanvasSelection = container.contains(event.target);
-      close(true);
-    };
-    window.addEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
-  }
-
-  function syncActiveCellEditor() {
-    activeCellEditorSync?.();
-  }
-
   function getTreeRootNodeId(element) {
     if (!element || element.type !== "tree-structure") return null;
     const nodeIds = (element.nodes ?? []).map((node) => node.id);
@@ -5107,169 +3638,10 @@ export function createWhiteboardApp(root) {
     return Boolean(target?.hasName?.("tree-node") || target?.findAncestor?.(".tree-node"));
   }
 
-  function editTreeStructureNode({ elementId, nodeId, label }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "tree-structure" || element.locked) return;
-    renderBoard();
-    selectIds([elementId]);
-    requestAnimationFrame(() => editTreeStructureNodeInline({ elementId, nodeId, label }));
-  }
-
-  function editTreeStructureNodeInline({ elementId, nodeId, label }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    const group = contentLayer.findOne(`#${elementId}`);
-    if (!element || element.type !== "tree-structure" || !group) return;
-    const treeNode = findTreeNodeGroup(group, nodeId);
-    if (!treeNode) return;
-
-    const style = element.style ?? {};
-    const radius = Number(style.nodeRadius) || 24;
-    const absolute = treeNode.getAbsolutePosition();
-    const scale = stage.scaleX() * (group.scaleX() || 1);
-    const box = stage.container().getBoundingClientRect();
-    const input = document.createElement("input");
-    input.className = "cell-editor";
-    input.value = label;
-    input.style.left = `${box.left + absolute.x - radius * scale}px`;
-    input.style.top = `${box.top + absolute.y - radius * scale}px`;
-    input.style.width = `${radius * 2 * scale}px`;
-    input.style.height = `${radius * 2 * scale}px`;
-    input.style.borderRadius = "999px";
-    input.style.textAlign = "center";
-    input.style.fontSize = `${19 * scale}px`;
-    document.body.appendChild(input);
-    input.focus();
-    input.select();
-
-    let closed = false;
-    const close = (commit) => {
-      if (closed) return;
-      closed = true;
-      const nextValue = input.value;
-      window.removeEventListener("pointerdown", handleTreeEditorOutsidePointerDown, { capture: true });
-      input.remove();
-      if (!commit) return;
-      board.elements = board.elements.map((item) => (
-        item.id === elementId ? updateTreeNodeValue(item, nodeId, nextValue) : item
-      ));
-      structureInteraction.setActiveTreeNode({ elementId, nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      syncTreeStructurePanelState();
-      pushHistory("已更新树节点");
-    };
-
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        close(true);
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close(false);
-      }
-    });
-    input.addEventListener("blur", () => close(true));
-
-    const handleTreeEditorOutsidePointerDown = (event) => {
-      if (closed) return;
-      if (input.contains(event.target)) return;
-      suppressNextCanvasSelection = container.contains(event.target);
-      close(true);
-    };
-    window.addEventListener("pointerdown", handleTreeEditorOutsidePointerDown, { capture: true });
-  }
-
   function getActiveTreeNodeId(element) {
     const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (activeTreeNode?.elementId === element.id) return activeTreeNode.nodeId;
     return element.settings?.rootId ?? element.nodes?.[0]?.id ?? null;
-  }
-
-  function bringSelectionToFront() {
-    if (selectedIds.length === 0) return;
-    const selected = [];
-    const rest = [];
-    for (const element of board.elements) {
-      (selectedIds.includes(element.id) ? selected : rest).push(element);
-    }
-    board.elements = reorderElements([...rest, ...selected]);
-    renderBoard();
-    pushHistory("已置顶对象");
-  }
-
-  function bringSelectionForward() {
-    moveSelectionByLayer(1, "已上移对象");
-  }
-
-  function groupSelection() {
-    if (selectedIds.length < 2) return;
-    const groupId = createId("group");
-    board.elements = board.elements.map((element) => (
-      selectedIds.includes(element.id) && !element.locked ? { ...element, groupId } : element
-    ));
-    renderBoard();
-    pushHistory("已分组对象");
-  }
-
-  function ungroupSelection() {
-    if (selectedIds.length === 0) return;
-    const groupIds = new Set(
-      board.elements
-        .filter((element) => selectedIds.includes(element.id) && element.groupId)
-        .map((element) => element.groupId),
-    );
-    if (groupIds.size === 0) return;
-    board.elements = board.elements.map((element) => (
-      groupIds.has(element.groupId) && !element.locked ? { ...element, groupId: undefined } : element
-    ));
-    renderBoard();
-    pushHistory("已取消分组");
-  }
-
-  function toggleSelectionLock() {
-    if (selectedIds.length === 0) return;
-    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
-    const shouldLock = selectedElements.some((element) => !element.locked);
-    board.elements = board.elements.map((element) => (
-      selectedIds.includes(element.id) ? { ...element, locked: shouldLock } : element
-    ));
-    renderBoard();
-    pushHistory(shouldLock ? "已锁定对象" : "已解锁对象");
-  }
-
-  function sendSelectionToBack() {
-    if (selectedIds.length === 0) return;
-    const selected = [];
-    const rest = [];
-    for (const element of board.elements) {
-      (selectedIds.includes(element.id) ? selected : rest).push(element);
-    }
-    board.elements = reorderElements([...selected, ...rest]);
-    renderBoard();
-    pushHistory("已置底对象");
-  }
-
-  function sendSelectionBackward() {
-    moveSelectionByLayer(-1, "已下移对象");
-  }
-
-  function moveSelectionByLayer(direction, historyLabel) {
-    if (selectedIds.length === 0) return;
-    const previousOrder = board.elements.map((element) => element.id).join("\n");
-    board.elements = moveElementsByLayer(board.elements, selectedIds, direction);
-    const nextOrder = board.elements.map((element) => element.id).join("\n");
-    if (previousOrder === nextOrder) return;
-    renderBoard();
-    pushHistory(historyLabel);
-  }
-
-  function clearBoard() {
-    if (board.elements.length === 0) return;
-    board.elements = [];
-    clearSelection();
-    renderBoard();
-    pushHistory("已清空白板");
   }
 
   function undoHistory() {
@@ -5281,130 +3653,26 @@ export function createWhiteboardApp(root) {
   }
 
   function fitContent() {
-    if (board.elements.length === 0) {
-      setStatus("当前白板没有可适配的内容");
-      return;
-    }
-
-    const bounds = getContentBounds();
-    if (!bounds) return;
-
-    applyViewport(computeFitViewport({
-      bounds,
-      stageSize: {
-        width: stage.width(),
-        height: stage.height(),
-      },
-      padding: 96,
-    }));
-    board = serializeCurrentBoard();
-    boardSession.setBoard(board);
-    boardSession.getHistory().push(board);
-    boardSession.setDirty(true);
-    updateChrome();
-    setStatus("已适配全部内容");
-  }
-
-  function getContentBounds() {
-    const boxes = contentLayer
-      .find(".element")
-      .map((node) => node.getClientRect({ relativeTo: contentLayer }))
-      .filter((box) => Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0);
-
-    if (boxes.length === 0) return null;
-
-    const minX = Math.min(...boxes.map((box) => box.x));
-    const minY = Math.min(...boxes.map((box) => box.y));
-    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
-    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
-
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    };
+    viewportActions.fitContent();
   }
 
   function ensureSelectionVisible() {
-    const bounds = getSelectedContentBounds();
-    if (!bounds) return;
-
-    const nextViewport = computeViewportForBoundsVisibility({
-      bounds,
-      viewport: {
-        x: stage.x(),
-        y: stage.y(),
-        scale: stage.scaleX(),
-      },
-      stageSize: {
-        width: stage.width(),
-        height: stage.height(),
-      },
-      padding: 96,
-    });
-
-    if (nextViewport.x === stage.x() && nextViewport.y === stage.y() && nextViewport.scale === stage.scaleX()) {
-      return;
-    }
-    applyViewport(nextViewport);
-    board = serializeCurrentBoard();
-    boardSession.setBoard(board);
-    boardSession.setDirty(true);
-    updateChrome();
-  }
-
-  function getSelectedContentBounds() {
-    const boxes = selectedIds
-      .map((id) => contentLayer.findOne(`#${id}`))
-      .filter(Boolean)
-      .map((node) => node.getClientRect({ relativeTo: contentLayer }))
-      .filter((box) => Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0);
-
-    if (boxes.length === 0) return null;
-
-    const minX = Math.min(...boxes.map((box) => box.x));
-    const minY = Math.min(...boxes.map((box) => box.y));
-    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
-    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
-
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    };
+    viewportActions.ensureSelectionVisible();
   }
 
   function newBoard() {
-    clearArrayAlgorithmSessions();
-    cancelArrayAlgorithmTimer();
+    cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    clearArrayAlgorithmSessions();
     boardSession.newBoard();
   }
 
   function resetView() {
-    applyViewport({ x: 0, y: 0, scale: 1 });
-    board = serializeCurrentBoard();
-    boardSession.setBoard(board);
-    boardSession.getHistory().push(board);
-    boardSession.setDirty(true);
-    const draftSaved = persistCurrentDraft();
-    updateChrome();
-    if (draftSaved) setStatus("已重置视图");
+    viewportActions.resetView();
   }
 
   function setBackgroundMode(backgroundMode) {
-    if (!["dots", "plain"].includes(backgroundMode)) return;
-    if (board.canvas.backgroundMode === backgroundMode) {
-      closeMainMenu();
-      return;
-    }
-
-    board.canvas.backgroundMode = backgroundMode;
-    applyBackground();
-    pushHistory(backgroundMode === "dots" ? "已切换为点阵背景" : "已切换为纯白背景");
-    closeMainMenu();
+    viewportActions.setBackgroundMode(backgroundMode);
   }
 
   function setTool(tool) {
@@ -5453,102 +3721,6 @@ export function createWhiteboardApp(root) {
     await boardSession.openBoardFile();
   }
 
-  async function importSelectedImage() {
-    const file = imageInput.files?.[0];
-    imageInput.value = "";
-    if (!file) return;
-    await insertImageFile(file, "已导入图片", { preferViewportCenter: true });
-  }
-
-  async function handlePaste(event) {
-    if (isTypingInEditableControl(event.target)) return;
-    const file = getImageFileFromPasteEvent(event);
-    if (!file) {
-      const text = getTextFromPasteEvent(event);
-      if (text) {
-        event.preventDefault();
-        insertTextElement(text, "已粘贴文字");
-        return;
-      }
-      if (!clipboardController.hasSnapshot()) return;
-      event.preventDefault();
-      pasteClipboard();
-      return;
-    }
-    event.preventDefault();
-    await insertImageFile(file, "已粘贴图片");
-  }
-
-  function handleImageDragOver(event) {
-    event.preventDefault();
-  }
-
-  async function handleImageDrop(event) {
-    const file = getImageFileFromDropEvent(event);
-    const text = getTextFromDropEvent(event);
-    event.preventDefault();
-    stage.setPointersPositions(event);
-    const worldPoint = getWorldPointer(stage);
-    if (worldPoint) {
-      lastPointerWorldPoint = worldPoint;
-    }
-    if (!file) {
-      if (text) {
-        insertTextElement(text, "已拖入文字");
-        return;
-      }
-      setStatus("只支持拖入图片文件");
-      return;
-    }
-    await insertImageFile(file, "已拖入图片");
-  }
-
-  function insertTextElement(text, message) {
-    const point = lastPointerWorldPoint ?? {
-      x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
-      y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
-    };
-    const { fontSize, fontFamily, fontStyle } = DEFAULT_TEXT_STYLE;
-    const measureElement = { fontSize, fontFamily, fontStyle };
-    const element = buildTextElement({
-      point,
-      zIndex: board.elements.length,
-      text,
-      measureText: (value) => measureTextElementValue(measureElement, value),
-    });
-    addElement(element, message);
-    setTool(TOOLS.SELECT);
-    selectIds([element.id]);
-  }
-
-  async function insertImageFile(file, message, { preferViewportCenter = false } = {}) {
-    try {
-      const src = await readFileAsDataUrl(file);
-      const size = await readImageSize(src);
-      const point = getImageInsertPoint(lastPointerWorldPoint, {
-        width: stage.width(),
-        height: stage.height(),
-      }, {
-        x: stage.x(),
-        y: stage.y(),
-        scale: stage.scaleX(),
-      }, { preferViewportCenter });
-      const element = buildImageElement({
-        point,
-        src,
-        width: size.width,
-        height: size.height,
-        zIndex: board.elements.length,
-        anchor: preferViewportCenter ? "center" : "top-left",
-      });
-      addElement(element, message);
-      setTool(TOOLS.SELECT);
-      selectIds([element.id]);
-    } catch (error) {
-      setStatus(`图片处理失败：${error.message}`);
-    }
-  }
-
   async function saveBoardFile() {
     await boardSession.saveBoardFile();
   }
@@ -5559,34 +3731,6 @@ export function createWhiteboardApp(root) {
 
   async function writeToHandle(handle) {
     await boardSession.writeToHandle(handle);
-  }
-
-  function exportPng() {
-    const backgroundNodes = createExportBackground({
-      stage,
-      contentLayer,
-      backgroundMode: board.canvas.backgroundMode,
-    });
-    selectionRect.visible(false);
-    transformer.visible(false);
-    contentLayer.draw();
-    overlayLayer.draw();
-
-    const dataUrl = stage.toDataURL({
-      pixelRatio: 2,
-      mimeType: "image/png",
-    });
-    backgroundNodes.forEach((node) => node.destroy());
-    syncSelectionNodes();
-    syncSelectionNodes();
-    contentLayer.draw();
-    overlayLayer.draw();
-
-    downloadDataUrl({
-      dataUrl,
-      fileName: `${boardSession.getActiveFileName().replace(/\.lofibrd$/i, "") || "lofiBoard"}.png`,
-    });
-    setStatus("已导出当前视图 PNG");
   }
 
   function serializeCurrentBoard() {
@@ -5605,9 +3749,9 @@ export function createWhiteboardApp(root) {
 
   function restoreFromHistory(nextBoard, message) {
     if (!nextBoard) return;
-    clearArrayAlgorithmSessions();
-    cancelArrayAlgorithmTimer();
+    cancelArrayAlgorithmPlayback();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
+    clearArrayAlgorithmSessions();
     boardSession.restoreFromHistory(nextBoard, message);
   }
 
@@ -5638,85 +3782,6 @@ export function createWhiteboardApp(root) {
     viewportController.updateViewportChrome();
   }
 
-  function updateChrome() {
-    panelStateController.setPanelCollapsedStateForLayerContent(board.elements.length > 0);
-    const dirtyMarker = boardSession.isDirty() ? " *" : "";
-    activeFileLabel.textContent = `${boardSession.getActiveFileName()}${dirtyMarker}`;
-    zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
-    root.dataset.hasSelection = selectedIds.length > 0 ? "true" : "false";
-    const selectedStructures = board.elements.filter((element) => selectedIds.includes(element.id) && element.type.endsWith?.("-structure"));
-    root.dataset.structureSelection = selectedStructures.length === 1 ? selectedStructures[0].type : "none";
-    root.querySelectorAll("[data-background-mode]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.backgroundMode === board.canvas.backgroundMode);
-    });
-    root.querySelectorAll("[data-shape-tool]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.shapeTool === activeShapeTool);
-    });
-    root.dataset.activeShape = selectedIds.length === 1
-      ? board.elements.find((element) => element.id === selectedIds[0])?.type ?? activeShapeTool
-      : activeShapeTool;
-    const activeStructureType = structurePanelController.getActiveStructureType();
-    root.querySelectorAll("[data-structure-type]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.structureType === activeStructureType);
-    });
-    root.querySelectorAll("[data-zoom-level]").forEach((button) => {
-      button.classList.toggle(
-        "active",
-        Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
-      );
-    });
-    syncLinearPanelState();
-    syncArrayAlgorithmPanelState();
-    syncGraphStructurePanelState();
-    syncTreeStructurePanelState();
-    syncInspectorPanelState();
-    syncBrushPresetButtons();
-    updateLayerPanelAvailability();
-    renderLayerPanel();
-    updateContextPanel();
-  }
-
-  function syncTreeStructurePanelState() {
-    if (!treeStructureInput) return;
-    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "tree-structure");
-    if (document.activeElement !== treeStructureInput) {
-      treeStructureInput.value = element ? exportTree(element) : "";
-    }
-    root.dataset.treeKind = element?.settings?.treeKind === "binary" ? "binary" : "general";
-  }
-
-  function syncGraphStructurePanelState() {
-    if (!graphStructureInput) return;
-    const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure");
-    if (document.activeElement !== graphStructureInput) {
-      graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";
-      structureInspectorController.setGraphStructureDraft(graphStructureInput.value);
-    }
-  }
-
-  function updateLayerPanelAvailability() {
-    layerPanelAvailable = isLayerPanelAvailable();
-    layerPanel.hidden = !layerPanelAvailable;
-    applyPanelState();
-  }
-
-  function renderLayerPanel() {
-    layerList.innerHTML = renderLayerItemsMarkup({
-      elements: board.elements,
-      selectedIds,
-    });
-  }
-
-  function syncPropertyPanelTitle(selectedElements = []) {
-    if (!stylePanelTitle) return;
-    stylePanelTitle.textContent = getPropertyPanelTitle(selectedElements);
-  }
-
-  function syncToolPropertyPanelTitle() {
-    if (!stylePanelTitle) return;
-    stylePanelTitle.textContent = getToolPropertyPanelTitle(currentTool, activeShapeTool);
-  }
-
   function isTypingInEditableControl(target) {
     return target instanceof HTMLInputElement
       || target instanceof HTMLTextAreaElement
@@ -5732,325 +3797,6 @@ export function createWhiteboardApp(root) {
   function closestElement(target, selector) {
     if (target instanceof Element) return target.closest(selector);
     return target?.parentElement?.closest?.(selector) ?? null;
-  }
-
-  function updateContextPanel() {
-    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
-    const first = selectedElements[0];
-
-    if (first) {
-      const hydrateSource = getSelectionHydrateSource(selectedElements) ?? first;
-      hydrateControlsFromElement(hydrateSource);
-      const capabilities = getSelectionInspectorCapabilities(selectedElements);
-      syncSelectionInspectorDataset(capabilities);
-      stylePanel.hidden = false;
-      stylePanelAvailable = true;
-      root.dataset.panelMode = getSelectionPanelMode(selectedElements);
-      syncPropertyPanelTitle(selectedElements);
-      applyPanelState();
-      return;
-    }
-
-    if (isToolPropertyPanelAvailable(currentTool)) {
-      stylePanel.hidden = false;
-      stylePanelAvailable = true;
-      const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
-      syncSelectionInspectorDataset(getToolInspectorCapabilities(drawingTool, currentTool));
-      root.dataset.panelMode = getToolPanelMode(currentTool, drawingTool);
-      syncToolPropertyPanelTitle();
-      applyPanelState();
-      return;
-    }
-
-    stylePanel.hidden = true;
-    stylePanelAvailable = false;
-    root.dataset.panelMode = "hidden";
-    root.dataset.structureSelection = "none";
-    syncPropertyPanelTitle([]);
-    syncSelectionInspectorDataset(getSelectionInspectorCapabilities([]));
-    applyPanelState();
-  }
-
-  function syncSelectionInspectorDataset(capabilities) {
-    root.dataset.selectionHasText = String(capabilities.text);
-    root.dataset.selectionHasSticky = String(capabilities.sticky);
-    root.dataset.selectionHasStroke = String(capabilities.stroke);
-    root.dataset.selectionHasDrawing = String(capabilities.drawing);
-    root.dataset.selectionHasFillShape = String(capabilities.fillShape);
-    root.dataset.selectionHasArrow = String(capabilities.arrow);
-    root.dataset.selectionHasCoordinate = String(capabilities.coordinate);
-  }
-
-  function hydrateControlsFromElement(element) {
-    if (element.stroke) colorInput.value = element.stroke;
-    if (element.textFill) colorInput.value = element.textFill;
-    if (element.fill && element.fill !== "transparent") fillInput.value = element.fill;
-    fillTransparentInput.checked = !element.fill || element.fill === "transparent";
-    if (element.fill && element.type === "text") colorInput.value = element.fill;
-    if (element.strokeWidth) widthInput.value = String(element.strokeWidth);
-    if (["stroke", "line", "arrow"].includes(element.type)) hydrateBrushControlsFromElement(element);
-    if (element.type === "coordinate-plane") hydrateCoordinateControlsFromElement(element);
-    arrowDoubleEndedInput.checked = element.type === "arrow" && Boolean(element.pointerAtBeginning);
-    if (element.fontSize) fontSizeInput.value = String(element.fontSize);
-    if (element.fontFamily) fontFamilyInput.value = element.fontFamily;
-    updateTextStyleButtons(element);
-    syncTextInspectorControls(element);
-    syncShapeEndpointControls();
-  }
-
-  function hydrateCoordinateControlsFromElement(element) {
-    coordinateUnitSizeInput.value = String(Math.max(8, Number(element.unitSize) || 40));
-    coordinateShowGridInput.checked = element.settings?.showGrid ?? true;
-    coordinateShowTicksInput.checked = element.settings?.showTicks ?? true;
-    coordinateShowLabelsInput.checked = element.settings?.showLabels ?? true;
-    coordinateGridColorInput.value = element.style?.gridStroke ?? "#e5e7eb";
-    coordinateAxisColorInput.value = element.style?.axisStroke ?? "#111827";
-    coordinateLabelColorInput.value = element.style?.labelFill ?? "#64748b";
-    syncCoordinateControls();
-  }
-
-  function capturePropertyControls() {
-    return {
-      color: colorInput.value,
-      fill: fillInput.value,
-      fillTransparent: fillTransparentInput.checked,
-      width: widthInput.value,
-      brushOpacity: brushOpacityInput.value,
-      brushSmoothing: brushSmoothingInput.value,
-      brushCap: brushCapInput.value,
-      brushStyle: brushStyleInput.value,
-      arrowDoubleEnded: arrowDoubleEndedInput.checked,
-      coordinateUnitSize: coordinateUnitSizeInput.value,
-      coordinateShowGrid: coordinateShowGridInput.checked,
-      coordinateShowTicks: coordinateShowTicksInput.checked,
-      coordinateShowLabels: coordinateShowLabelsInput.checked,
-      coordinateGridColor: coordinateGridColorInput.value,
-      coordinateAxisColor: coordinateAxisColorInput.value,
-      coordinateLabelColor: coordinateLabelColorInput.value,
-      fontSize: fontSizeInput.value,
-      fontFamily: fontFamilyInput.value,
-      fontStyle: "normal",
-      textDecoration: "",
-    };
-  }
-
-  function applyPropertyControlsSnapshot(snapshot) {
-    colorInput.value = snapshot.color;
-    fillInput.value = snapshot.fill;
-    fillTransparentInput.checked = snapshot.fillTransparent;
-    widthInput.value = snapshot.width;
-    brushOpacityInput.value = snapshot.brushOpacity;
-    brushSmoothingInput.value = snapshot.brushSmoothing;
-    brushCapInput.value = snapshot.brushCap;
-    brushStyleInput.value = snapshot.brushStyle;
-    arrowDoubleEndedInput.checked = snapshot.arrowDoubleEnded;
-    coordinateUnitSizeInput.value = snapshot.coordinateUnitSize;
-    coordinateShowGridInput.checked = snapshot.coordinateShowGrid;
-    coordinateShowTicksInput.checked = snapshot.coordinateShowTicks;
-    coordinateShowLabelsInput.checked = snapshot.coordinateShowLabels;
-    coordinateGridColorInput.value = snapshot.coordinateGridColor;
-    coordinateAxisColorInput.value = snapshot.coordinateAxisColor;
-    coordinateLabelColorInput.value = snapshot.coordinateLabelColor;
-    fontSizeInput.value = snapshot.fontSize;
-    fontFamilyInput.value = snapshot.fontFamily;
-    updateTextStyleButtons({
-      fontStyle: snapshot.fontStyle,
-      textDecoration: snapshot.textDecoration,
-    });
-    syncBrushWidthControl();
-    syncBrushPresetButtons();
-    syncTextInspectorControls();
-    syncShapeEndpointControls();
-    syncCoordinateControls();
-    updateBrushCursorStyle();
-  }
-
-  function saveToolPropertyControlsForCurrentTool() {
-    if (selectedIds.length > 0) return;
-    if (!isToolPropertyPanelAvailable(currentTool)) return;
-    propertyControlsController.saveToolControls(currentTool, capturePropertyControls());
-  }
-
-  function restorePropertyControlsForTool(tool) {
-    const snapshot = propertyControlsController.getToolControls(tool);
-    if (snapshot) {
-      applyPropertyControlsSnapshot(snapshot);
-      return;
-    }
-    resetPropertyControlsForTool(tool);
-  }
-
-  function resetPropertyControlsForTool(tool) {
-    applyPropertyControlsSnapshot(propertyControlsController.getDefaultControlsForTool(tool));
-  }
-
-  function hydrateBrushControlsFromElement(element) {
-    brushOpacityInput.value = String(Math.round((element.opacity ?? 1) * 100));
-    brushSmoothingInput.value = String(Math.round((element.smoothing ?? 0.45) * 100));
-    brushCapInput.value = element.lineCap ?? "round";
-    brushStyleInput.value = element.brushStyle ?? "solid";
-    syncBrushWidthControl();
-    syncBrushPresetButtons();
-    syncShapeEndpointControls();
-  }
-
-  function setBrushControlValue(input, value, eventName) {
-    if (!input || value === undefined) return;
-    input.value = value;
-    input.dispatchEvent(new Event(eventName, { bubbles: true }));
-    syncBrushWidthControl();
-    syncBrushPresetButtons();
-    syncTextInspectorControls();
-    syncBrushPreview();
-  }
-
-  function syncBrushWidthControl() {
-    const value = String(Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width)));
-    if (brushWidthSlider && brushWidthSlider.value !== value) brushWidthSlider.value = value;
-    if (brushWidthValue) brushWidthValue.textContent = value;
-    if (brushOpacityValue) brushOpacityValue.textContent = String(Math.round(Number(brushOpacityInput.value) || 100));
-    syncBrushPreview();
-  }
-
-  function syncBrushPresetButtons() {
-    if (brushCustomColorInput && normalizeHexColor(brushCustomColorInput.value) !== normalizeHexColor(colorInput.value)) {
-      brushCustomColorInput.value = colorInput.value;
-    }
-    const presetColors = Array.from(root.querySelectorAll("[data-brush-color]"))
-      .map((button) => normalizeHexColor(button.dataset.brushColor));
-    const customColorActive = !presetColors.includes(normalizeHexColor(colorInput.value));
-    root.querySelectorAll("[data-brush-color]").forEach((button) => {
-      setBrushPresetActive(button, normalizeHexColor(button.dataset.brushColor) === normalizeHexColor(colorInput.value));
-    });
-    root.querySelectorAll(".brush-custom-color").forEach((control) => {
-      setBrushPresetActive(control, customColorActive);
-    });
-    root.querySelectorAll("[data-brush-style-option]").forEach((button) => {
-      setBrushPresetActive(button, button.dataset.brushStyleOption === brushStyleInput.value);
-    });
-    root.querySelectorAll("[data-brush-cap-option]").forEach((button) => {
-      setBrushPresetActive(button, button.dataset.brushCapOption === brushCapInput.value);
-    });
-    syncBrushPreview();
-  }
-
-  function syncShapeEndpointControls() {
-    root.querySelectorAll("[data-ui-control='arrow-double-ended']").forEach((input) => {
-      input.checked = arrowDoubleEndedInput.checked;
-    });
-  }
-
-  function syncFillTransparentControls(checked) {
-    fillTransparentInput.checked = checked;
-    root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
-      input.checked = checked;
-    });
-  }
-
-  function syncTextInspectorControls(element = null) {
-    const fontSizeValue = String(Math.round(Number(fontSizeInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.fontSize)));
-    root.querySelectorAll("[data-ui-control='font-size'], [data-ui-control='sticky-font-size']").forEach((input) => {
-      input.value = fontSizeValue;
-    });
-    root.querySelectorAll("[data-ui-control='font-family'], [data-ui-control='sticky-font-family']").forEach((input) => {
-      input.value = fontFamilyInput.value;
-    });
-    root.querySelectorAll("[data-ui-control='text-color']").forEach((input) => {
-      input.value = colorInput.value;
-    });
-    root.querySelectorAll("[data-ui-control='fill']").forEach((input) => {
-      input.value = element?.type === "sticky" && element.fill && element.fill !== "transparent"
-        ? element.fill
-        : fillInput.value;
-    });
-  }
-
-  function syncCoordinateControls() {
-    root.querySelectorAll("[data-ui-control^='coordinate-']").forEach((input) => {
-      const masterInput = root.querySelector(`[data-control="${input.dataset.uiControl}"]`);
-      if (!masterInput) return;
-      if (input.type === "checkbox") {
-        input.checked = masterInput.checked;
-      } else {
-        input.value = masterInput.value;
-      }
-    });
-  }
-
-  function syncBrushPreview() {
-    if (!brushPreviewPath) return;
-    const width = Math.max(1, Math.round(Number(widthInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.width)));
-    const smoothing = Number(brushSmoothingInput.value) || Number(DEFAULT_PROPERTY_CONTROLS.brushSmoothing);
-    brushPreviewPath.setAttribute("stroke", colorInput.value);
-    brushPreviewPath.setAttribute("stroke-width", String(width));
-    brushPreviewPath.setAttribute("stroke-opacity", String(getBrushOpacityValue()));
-    brushPreviewPath.setAttribute("stroke-linecap", brushStyleInput.value === "dot" ? "round" : brushCapInput.value);
-    if (brushStyleInput.value === "dash") {
-      brushPreviewPath.setAttribute("stroke-dasharray", `${Math.max(8, width * 3)},${Math.max(6, width * 2)}`);
-    } else if (brushStyleInput.value === "dot") {
-      brushPreviewPath.setAttribute("stroke-dasharray", `0.1,${Math.max(8, width * 1.8)}`);
-    } else {
-      brushPreviewPath.removeAttribute("stroke-dasharray");
-    }
-    if (smoothing < 30) {
-      brushPreviewPath.setAttribute("d", "M 14,24 L 72,10 L 132,38 L 266,24");
-    } else if (smoothing < 60) {
-      brushPreviewPath.setAttribute("d", "M 14,24 Q 72,10 132,24 T 266,24");
-    } else {
-      brushPreviewPath.setAttribute("d", "M 14,24 C 72,10 132,38 266,24");
-    }
-  }
-
-  function setBrushPresetActive(button, active) {
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-  }
-
-  function normalizeHexColor(value) {
-    return String(value ?? "").trim().toLowerCase();
-  }
-
-  function getStrokeStyleFromControls() {
-    return {
-      stroke: colorInput.value,
-      strokeWidth: Number(widthInput.value),
-      opacity: getBrushOpacityValue(),
-      lineCap: brushCapInput.value,
-      brushStyle: brushStyleInput.value,
-      smoothing: getBrushSmoothingValue(),
-    };
-  }
-
-  function getBrushOpacityValue() {
-    return Math.max(0.1, Math.min(1, Number(brushOpacityInput.value) / 100 || 1));
-  }
-
-  function getBrushSmoothingValue() {
-    return Math.max(0, Math.min(1, Number(brushSmoothingInput.value) / 100 || 0));
-  }
-
-  function getBrushInputSmoothingValue() {
-    return Math.min(0.9, getBrushSmoothingValue());
-  }
-
-  function updateTextStyleButtons(element) {
-    root.querySelectorAll("[data-text-style]").forEach((button) => {
-      const style = button.dataset.textStyle;
-      const active = style === "bold" || style === "italic"
-        ? hasFontStyle(element.fontStyle, style)
-        : hasTextDecoration(element.textDecoration, style === "underline" ? "underline" : "line-through");
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-  }
-
-  function setStatus(message) {
-    window.clearTimeout(statusTimer);
-    status.textContent = message;
-    status.classList.add("is-visible");
-    statusTimer = window.setTimeout(() => {
-      status.classList.remove("is-visible");
-    }, 3000);
   }
 
 }
