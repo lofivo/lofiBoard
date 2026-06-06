@@ -232,16 +232,21 @@ describe("app shell", () => {
     expect(reverseSource).toContain("applyArrayAlgorithmStep(previousIndex, { render: true });");
   });
 
-  it("does not clear live array algorithm markers when pushing movement history", () => {
+  it("keeps history pushes behind the board session without replacing live board markers", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pushHistorySource = appSource.slice(
       appSource.indexOf("function pushHistory(message)"),
       appSource.indexOf("function restoreFromHistory"),
     );
+    const boardSessionSource = appSource.slice(
+      appSource.indexOf("const boardSession = createBoardSessionController"),
+      appSource.indexOf("const selectionRect = new Konva.Rect"),
+    );
 
-    expect(pushHistorySource).toContain("const historySnapshot = serializeCurrentBoard();");
-    expect(pushHistorySource).toContain("history.push(historySnapshot);");
+    expect(pushHistorySource).toContain("boardSession.pushHistory(message);");
     expect(pushHistorySource).not.toContain("board = serializeCurrentBoard();");
+    expect(boardSessionSource).toContain("sanitizeElementsForPersistence");
+    expect(boardSessionSource).toContain("clearArrayAlgorithmRuntimeMarkers(element)");
   });
 
   it("hides the native algorithm select arrow while an array algorithm is active", () => {
@@ -254,18 +259,15 @@ describe("app shell", () => {
 
   it("allows random initialization for both general and binary tree structures", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const supportSource = appSource.slice(
-      appSource.indexOf("function isRandomStructureInitSupported"),
-      appSource.indexOf("function getViewportCenterPoint"),
-    );
+    const structurePanelSource = readFileSync(new URL("../../src/app/structure-panel-controller.js", import.meta.url), "utf8");
     const hydrateSource = appSource.slice(
       appSource.indexOf("function hydrateStructurePanel"),
       appSource.indexOf("function setActiveStructureType"),
     );
 
-    expect(supportSource).toContain("STRUCTURE_TYPES.TREE");
-    expect(supportSource).toContain("STRUCTURE_TYPES.BINARY_TREE");
-    expect(hydrateSource).toContain("isRandomStructureInitSupported(activeStructureType)");
+    expect(structurePanelSource).toContain("STRUCTURE_TYPES.TREE");
+    expect(structurePanelSource).toContain("STRUCTURE_TYPES.BINARY_TREE");
+    expect(hydrateSource).toContain("structurePanelController.getHydrateState()");
   });
 
   it("reuses ordinary Konva nodes across board renders", () => {
@@ -642,13 +644,14 @@ describe("app shell", () => {
   it("syncs and applies the linear structure values input from the property panel", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const refsSource = readFileSync(new URL("../../src/app/dom-refs.js", import.meta.url), "utf8");
+    const structureInspectorSource = readFileSync(new URL("../../src/app/structure-inspector-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('linearValuesInput: query("[data-linear-values-input]")');
-    expect(appSource).toContain("let linearValuesDraft = \"\";");
+    expect(structureInspectorSource).toContain('let linearValuesDraft = initialLinearValuesDraft;');
     expect(appSource).toContain('linearValuesInput?.addEventListener("input", () => {');
-    expect(appSource).toContain("linearValuesDraft = linearValuesInput.value;");
+    expect(appSource).toContain("structureInspectorController.setLinearValuesDraft(linearValuesInput.value);");
     expect(appSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/structures\/structure-templates\.js";/);
-    expect(appSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, linearValuesDraft))');
+    expect(appSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInspectorController.getLinearValuesDraft()))');
     expect(appSource).not.toContain('runAction("linear-apply-values")');
     expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
     expect(appSource).toContain('linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",")');
@@ -662,8 +665,8 @@ describe("app shell", () => {
 
     expect(refsSource).toContain('graphStructureInput: query("[data-graph-structure-input]")');
     expect(appSource).toContain('graphStructureInput?.addEventListener("input", () => {');
-    expect(appSource).toContain("graphStructureDraft = graphStructureInput.value;");
-    expect(appSource).toContain('"graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft), "已更新图")');
+    expect(appSource).toContain("structureInspectorController.setGraphStructureDraft(graphStructureInput.value);");
+    expect(appSource).toContain('"graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInspectorController.getGraphStructureDraft()), "已更新图")');
     expect(appSource).toContain('graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";');
   });
 
@@ -687,6 +690,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const panelStateSource = readFileSync(new URL("../../src/app/panel-state-controller.js", import.meta.url), "utf8");
 
     expect(markup).not.toContain("linear-panel-fields-edit");
     expect(markup).toContain("linear-panel-fields-highlight");
@@ -697,7 +701,7 @@ describe("app shell", () => {
     expect(styles).toContain('[data-panel-mode="structure"] .style-panel');
     expect(styles).not.toContain('.linear-panel-group[data-collapsed="true"]');
     expect(styles).toContain(".quick-actions-linear");
-    expect(appSource).toContain('appearance: context === "appearance"');
+    expect(panelStateSource).toContain("INSPECTOR_SECTIONS.map((section) => [section, section === context])");
     expect(appSource).not.toContain("function applyLinearGroupState()");
     expect(appSource).not.toContain("linearGroupState");
   });
@@ -956,28 +960,33 @@ describe("app shell", () => {
 
   it("restores saved tool property controls and section state when switching tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const propertyControlsSource = readFileSync(new URL("../../src/app/property-controls-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("saveToolPropertyControlsForCurrentTool()");
     expect(appSource).toContain("restorePropertyControlsForTool(tool)");
     expect(appSource).toContain("syncInspectorPanelState({ forceReset: true })");
-    expect(appSource).toContain("colorInput.value = DEFAULT_PROPERTY_CONTROLS.color");
-    expect(appSource).toContain("brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle");
-    expect(appSource).toContain("fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize");
+    expect(appSource).toContain("applyPropertyControlsSnapshot(propertyControlsController.getDefaultControlsForTool(tool))");
+    expect(propertyControlsSource).toContain('color: "#111827"');
+    expect(propertyControlsSource).toContain('brushStyle: "solid"');
+    expect(propertyControlsSource).toContain('fontSize: "28"');
   });
 
   it("keeps selected stroke controls separate from saved brush tool controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const propertyControlsSource = readFileSync(new URL("../../src/app/property-controls-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const toolPropertyControlSnapshots = new Map()");
-    expect(appSource).toMatch(/function saveToolPropertyControlsForCurrentTool\(\) \{[\s\S]*?if \(selectedIds\.length > 0\) return;[\s\S]*?toolPropertyControlSnapshots\.set\(currentTool, capturePropertyControls\(\)\);/);
-    expect(appSource).toMatch(/function restorePropertyControlsForTool\(tool\) \{[\s\S]*?toolPropertyControlSnapshots\.get\(tool\)[\s\S]*?resetPropertyControlsForTool\(tool\);/);
+    expect(propertyControlsSource).toContain("const toolPropertyControlSnapshots = new Map()");
+    expect(appSource).toMatch(/function saveToolPropertyControlsForCurrentTool\(\) \{[\s\S]*?if \(selectedIds\.length > 0\) return;[\s\S]*?propertyControlsController\.saveToolControls\(currentTool, capturePropertyControls\(\)\);/);
+    expect(appSource).toMatch(/function restorePropertyControlsForTool\(tool\) \{[\s\S]*?propertyControlsController\.getToolControls\(tool\)[\s\S]*?resetPropertyControlsForTool\(tool\);/);
     expect(appSource).toMatch(/if \(selectedIds\.length === 0\) \{[\s\S]*?saveToolPropertyControlsForCurrentTool\(\);[\s\S]*?updateContextPanel\(\);[\s\S]*?return;/);
   });
 
   it("preserves property panel scroll when syncing without a context reset", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const panelStateSource = readFileSync(new URL("../../src/app/panel-state-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/const shouldResetScroll = forceReset \|\| nextContext !== activeInspectorContext;/);
+    expect(appSource).toContain("panelStateController.syncInspectorContext(nextContext, { forceReset })");
+    expect(panelStateSource).toMatch(/const shouldResetScroll = forceReset \|\| nextContext !== activeInspectorContext;/);
     expect(appSource).toMatch(/if \(shouldResetScroll\) \{[\s\S]*?panelBody\?\.scrollTo\?\.\(0, 0\);[\s\S]*?\}/);
     expect(appSource).not.toMatch(/applyInspectorSectionState\(\);\s*panelBody\?\.scrollTo\?\.\(0, 0\);/);
   });
@@ -1655,18 +1664,24 @@ describe("app shell", () => {
 
   it("keeps the array cell editor synced when the viewport or structure scale changes", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../src/app/viewport-controller.js", import.meta.url), "utf8");
     const editSource = appSource.slice(
       appSource.indexOf("function editLinearStructureItemInline"),
       appSource.indexOf("function getLinearItemNodeIndex"),
     );
+    const viewportControllerSource = appSource.slice(
+      appSource.indexOf("const viewportController = createViewportController"),
+      appSource.indexOf("const selectionRect = new Konva.Rect"),
+    );
 
     expect(appSource).toContain("let activeCellEditorSync = null;");
     expect(appSource).toContain("function syncActiveCellEditor()");
+    expect(viewportControllerSource).toContain("syncActiveCellEditor,");
     expect(editSource).toContain("activeCellEditorSync = syncCellEditorStyle;");
     expect(editSource).toContain("const scale = stage.scaleX() * (node.scaleX() || 1)");
     expect(editSource).toContain("syncCellEditorStyle();");
     expect(editSource).toContain("activeCellEditorSync = null;");
-    expect(appSource).toMatch(/function updateGrid\(\) \{[\s\S]*?syncActiveCellEditor\(\);/);
+    expect(viewportSource).toMatch(/function updateGrid\(\) \{[\s\S]*?syncActiveCellEditor\(\);/);
   });
 
   it("keeps long-press linear item reordering separate from whole-array dragging", () => {
@@ -1694,7 +1709,7 @@ describe("app shell", () => {
     expect(appSource).toContain("function updateLinearPointerDrag");
     expect(appSource).toContain("setArrayPointer(item, nextIndex)");
     expect(appSource).toContain("animateLinearPointerDragVisual");
-    expect(appSource).toContain("linearPanelState = {");
+    expect(appSource).toContain("structureInspectorController.setLinearPanelState({");
     expect(appSource).toContain("highlightPointer: String(nextIndex)");
   });
 
@@ -1760,11 +1775,13 @@ describe("app shell", () => {
 
   it("uses lightweight chrome updates while panning and zooming the viewport", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../src/app/viewport-controller.js", import.meta.url), "utf8");
     const panMoveBlock = appSource.match(/if \(isPanning && panStart\) \{[\s\S]*?return;\n    \}/)?.[0] ?? "";
-    const wheelBlock = appSource.match(/function handleWheel\(event\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
-    const centerZoomBlock = appSource.match(/function setZoomAtCenter\(requestedScale\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
+    const wheelBlock = viewportSource.match(/function handleWheel\(event\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
+    const centerZoomBlock = viewportSource.match(/function setZoomAtCenter\(requestedScale\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
 
     expect(appSource).toContain("function updateViewportChrome()");
+    expect(appSource).toContain("viewportController.updateViewportChrome();");
     expect(panMoveBlock).toContain("updateGrid();");
     expect(panMoveBlock).not.toContain("updateChrome();");
     expect(wheelBlock).toContain("updateViewportChrome();");

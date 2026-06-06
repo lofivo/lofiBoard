@@ -8,6 +8,10 @@
 整个白板的数据模型，包含画布设置、视口状态和所有元素。
 _Avoid_: document, file, canvas(数据语境)
 
+**画板会话 (Board Session)**:
+用户当前正在编辑的画板状态，包含当前画板、活动文件名、未保存状态、历史恢复点和本地草稿。
+_Avoid_: app state, document session, file state
+
 **元素 (Element)**:
 画板上的可操作实体。类型包括笔触、文字、便签、图片、矩形、椭圆、线段、箭头、坐标系，以及数组/栈/队列/双端队列/图/树等结构。
 _Avoid_: item, node(数据语境), shape

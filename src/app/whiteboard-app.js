@@ -1,6 +1,23 @@
 import Konva from "konva";
 import { renderShell } from "./app-shell.js";
+import { createBoardSessionController } from "./board-session-controller.js";
+import { createClipboardController } from "./clipboard-controller.js";
+import { createContextMenuController } from "./context-menu-controller.js";
 import { createEditController } from "./edit-controller.js";
+import { createMenuStateController } from "./menu-state-controller.js";
+import { createPanelStateController } from "./panel-state-controller.js";
+import {
+  DEFAULT_PROPERTY_CONTROLS,
+  createPropertyControlsController,
+} from "./property-controls-controller.js";
+import {
+  createSelectionController,
+  expandGroupedIds as expandSelectionGroupIds,
+} from "./selection-controller.js";
+import { createStructureInspectorController } from "./structure-inspector-controller.js";
+import { createStructurePanelController } from "./structure-panel-controller.js";
+import { createToolController, getToolStatus as getToolStatusText } from "./tool-controller.js";
+import { createViewportController } from "./viewport-controller.js";
 import { createInteractionStateMachine, SM, getTransformerOverdrawForState } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./dom-refs.js";
 import {
@@ -27,11 +44,7 @@ import {
   createInsertionSortSteps,
   createSelectionSortSteps,
 } from "../algorithms/array-algorithms.js";
-import {
-  createClipboardSnapshot,
-  createPastedElements,
-  removeElementsById,
-} from "../services/clipboard-service.js";
+import { removeElementsById } from "../services/clipboard-service.js";
 import {
   createEmptyBoard,
   moveElementsByLayer,
@@ -145,12 +158,9 @@ import {
 import {
   ARRAY_STRUCTURE_STYLE,
   TREE_STRUCTURE_STYLE,
-  STRUCTURE_TYPES,
   LINEAR_STRUCTURE_TYPES,
   createStructureElements,
-  getStructureItem,
   isLinearStructureElement,
-  isLinearStructureType,
   insertArrayItem,
   deleteArrayItem,
   updateArrayItemValue,
@@ -208,8 +218,6 @@ import {
 } from "../structures/structure-event-adapter.js";
 import { createStructureInteraction } from "../structures/structure-interaction.js";
 import {
-  getNextPanelCollapsedState,
-  getPanelStateForLayerContent,
   isLayerPanelAvailable,
   shouldShowPanelEdgeToggle,
 } from "../ui/panel-state.js";
@@ -288,14 +296,9 @@ export function createWhiteboardApp(root) {
   } = queryWhiteboardRefs(root);
 
   let board = createEmptyBoard();
-  let history = createHistory(board);
   let currentTool = TOOLS.PEN;
   let activeShapeTool = DEFAULT_SHAPE_TOOL;
-  let activeStructureType = STRUCTURE_TYPES.ARRAY;
-  let activeArrayInitMode = "manual";
   let selectedIds = [];
-  let fileHandle = null;
-  let activeFileName = "未命名白板";
   let isSpaceDown = false;
   let isPanning = false;
   let panStart = null;
@@ -309,19 +312,12 @@ export function createWhiteboardApp(root) {
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
   let eraserPreviewPoint = null;
-  let isMainMenuOpen = false;
-  let isZoomMenuOpen = false;
   let isEditingText = false;
-  let clipboardSnapshot = [];
   let lastPointerWorldPoint = null;
-  let panelCollapsedState = { style: false, layers: true };
   let stylePanelAvailable = true;
   let layerPanelAvailable = false;
   let statusTimer = null;
-  let dirty = false;
-  let suppressNextTextHistory = false;
   let initialStatusMessage = null;
-  let draftSaveTimer = null;
   let lastTransformAnchor = null;
   let handledNodeDragEnd = false;
   let linearItemPressState = null;
@@ -341,38 +337,25 @@ export function createWhiteboardApp(root) {
   let suppressNextSelectionClick = false;
   let suppressedNodeDragElementId = null;
   let activeCellEditorSync = null;
-  let inspectorSectionsState = {
-    appearance: true,
-    linear: false,
-    graph: false,
-    tree: false,
-  };
-  let activeInspectorContext = "appearance";
-  let linearPanelState = {
-    highlightStart: "0",
-    highlightEnd: "0",
-    highlightPointer: "0",
-  };
-  let linearValuesDraft = "";
-  let graphStructureDraft = "";
   const nodeRegistry = new Map();
   const nodeRenderSnapshots = new Map();
   const elementRenderSnapshotValues = new WeakMap();
   const structureInteraction = createStructureInteraction();
   const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);
-  const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
-    color: "#111827",
-    fill: "#ffffff",
-    fillTransparent: true,
-    width: "6",
-    brushOpacity: "100",
-    brushSmoothing: "45",
-    brushCap: "round",
-    brushStyle: "solid",
-    fontSize: "28",
-    fontFamily: "Inter, system-ui, sans-serif",
+  const toolController = createToolController({
+    initialTool: currentTool,
+    initialShapeTool: activeShapeTool,
   });
-  const toolPropertyControlSnapshots = new Map();
+  const selectionController = createSelectionController({
+    initialSelectedIds: selectedIds,
+  });
+  const clipboardController = createClipboardController();
+  const contextMenuController = createContextMenuController();
+  const menuStateController = createMenuStateController();
+  const panelStateController = createPanelStateController();
+  const propertyControlsController = createPropertyControlsController();
+  const structureInspectorController = createStructureInspectorController();
+  const structurePanelController = createStructurePanelController();
 
   const MIN_TRANSFORM_SIZE = 12;
 
@@ -482,6 +465,64 @@ export function createWhiteboardApp(root) {
   });
 
   const interactionSM = createInteractionStateMachine();
+  const boardSession = createBoardSessionController({
+    createInitialBoard: createEmptyBoard,
+    createHistory,
+    normalizeBoard,
+    serializeBoard,
+    getViewport: () => ({
+      x: stage.x(),
+      y: stage.y(),
+      scale: stage.scaleX(),
+    }),
+    sanitizeElementsForPersistence: (elements) => elements.map((element) => (
+      isLinearStructureElement(element) && getArrayAlgorithmSession(element.id)
+        ? clearArrayAlgorithmRuntimeMarkers(element)
+        : element
+    )),
+    saveLocalDraft,
+    loadLocalDraft,
+    clearLocalDraft,
+    supportsFileSystemAccess,
+    openWhiteboardFile,
+    chooseWhiteboardSaveFile,
+    writeWhiteboardFile,
+    localDraftFileName: LOCAL_DRAFT_FILE_NAME,
+    commitActiveEdit: () => {
+      if (!editController.commit) return false;
+      editController.commit();
+      return true;
+    },
+    onBoardReplaced: (nextBoard) => {
+      board = nextBoard;
+      applyViewport(board.viewport);
+      applyBackground();
+      renderBoard();
+      updateChrome();
+    },
+    onSelectionCleared: () => {
+      selectedIds = [];
+    },
+    onSessionChanged: () => {
+      updateChrome();
+    },
+    onStatus: (message) => setStatus(message),
+  });
+  board = boardSession.getBoard();
+  const viewportController = createViewportController({
+    stage,
+    container,
+    zoomLabel,
+    getZoomLevelButtons: () => root.querySelectorAll("[data-zoom-level]"),
+    updateBrushCursorStyle,
+    updateEraserCursorStyle,
+    updateLinearItemControlsPosition,
+    syncActiveCellEditor,
+    syncTextOverlays,
+    updateContextPanel,
+    schedulePersistCurrentDraft,
+    closeZoomMenu: () => setZoomMenuOpen(false),
+  });
 
   const selectionRect = new Konva.Rect({
     fill: "rgba(37, 99, 235, 0.08)",
@@ -566,7 +607,7 @@ export function createWhiteboardApp(root) {
       getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
     },
     destroy: () => {
-      if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+      boardSession.destroy();
       cancelArrayAlgorithmTimer();
       arrayAlgorithmSwapTweens.forEach((tween) => tween.destroy());
       arrayAlgorithmSwapTweens = [];
@@ -597,7 +638,7 @@ export function createWhiteboardApp(root) {
       button.addEventListener("click", () => runAction(button.dataset.action));
     }
     linearValuesInput?.addEventListener("input", () => {
-      linearValuesDraft = linearValuesInput.value;
+      structureInspectorController.setLinearValuesDraft(linearValuesInput.value);
     });
     arrayAlgorithmSpeed?.addEventListener("input", () => {
       const session = getSelectedArrayAlgorithmSession();
@@ -620,7 +661,7 @@ export function createWhiteboardApp(root) {
       syncArrayAlgorithmPanelState();
     });
     graphStructureInput?.addEventListener("input", () => {
-      graphStructureDraft = graphStructureInput.value;
+      structureInspectorController.setGraphStructureDraft(graphStructureInput.value);
     });
     root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-linear-item-action]");
@@ -657,7 +698,7 @@ export function createWhiteboardApp(root) {
 
     for (const button of root.querySelectorAll("[data-shape-tool]")) {
       button.addEventListener("click", () => {
-        activeShapeTool = button.dataset.shapeTool;
+        setActiveShapeTool(button.dataset.shapeTool);
         setTool(TOOLS.SHAPE);
         setShapePopoverOpen(false);
       });
@@ -670,7 +711,7 @@ export function createWhiteboardApp(root) {
     }
     for (const button of root.querySelectorAll("[data-array-init-mode]")) {
       button.addEventListener("click", () => {
-        activeArrayInitMode = button.dataset.arrayInitMode === "random" ? "random" : "manual";
+        structurePanelController.setActiveArrayInitMode(button.dataset.arrayInitMode);
         hydrateStructurePanel();
       });
     }
@@ -815,21 +856,14 @@ export function createWhiteboardApp(root) {
     }
     inspectorSectionButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        const key = button.dataset.sectionToggle;
-        inspectorSectionsState = {
-          ...inspectorSectionsState,
-          [key]: !inspectorSectionsState[key],
-        };
+        panelStateController.toggleInspectorSection(button.dataset.sectionToggle);
         applyInspectorSectionState();
       });
     });
     Object.entries(linearFieldInputs).forEach(([key, input]) => {
       if (!input) return;
       input.addEventListener("input", () => {
-        linearPanelState = {
-          ...linearPanelState,
-          [key]: input.value,
-        };
+        structureInspectorController.setLinearPanelField(key, input.value);
       });
     });
     layerList.addEventListener("click", (event) => {
@@ -890,7 +924,7 @@ export function createWhiteboardApp(root) {
       "send-backward": sendSelectionBackward,
       "send-back": sendSelectionToBack,
       "delete-selection": deleteSelection,
-      "linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, linearValuesDraft)),
+      "linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, structureInspectorController.getLinearValuesDraft())),
       "array-highlight": () => editSelectedArrayStructure((element) => setArrayHighlight(element, {
         start: readLinearDisplayIndexField("highlightStart", element, 0),
         end: readLinearDisplayIndexField("highlightEnd", element, Math.max(0, (element.items?.length ?? 1) - 1)),
@@ -917,7 +951,7 @@ export function createWhiteboardApp(root) {
       "graph-delete-node": () => editSelectedStructure("graph-structure", deleteGraphNode, "已更新图"),
       "graph-delete-edge": () => editSelectedStructure("graph-structure", deleteLastGraphEdge, "已更新图"),
       "graph-edit-edge": () => editSelectedStructure("graph-structure", (element) => editGraphEdgeData(element), "已更新图"),
-      "graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft), "已更新图"),
+      "graph-apply-structure": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInspectorController.getGraphStructureDraft()), "已更新图"),
       "graph-directed-on": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, true), "已更新图"),
       "graph-directed-off": () => editSelectedStructure("graph-structure", (element) => setGraphDirectedDefault(element, false), "已更新图"),
       "graph-highlight": () => editSelectedStructure("graph-structure", (element) => setGraphHighlight(element, {
@@ -934,7 +968,7 @@ export function createWhiteboardApp(root) {
       "graph-export-adjacency-matrix": () => copySelectedGraphExport("adjacency-matrix"),
       "graph-import-adjacency-list": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接表", exportGraph(element, "adjacency-list")), "adjacency-list"), "已导入图"),
       "graph-import-adjacency-matrix": () => editSelectedStructure("graph-structure", (element) => importGraphFromText(element, promptMultiline("邻接矩阵 CSV", exportGraph(element, "adjacency-matrix")), "adjacency-matrix"), "已导入图"),
-      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, graphStructureDraft || structureInput.value), "已更新图"),
+      "graph-reload": () => editSelectedStructure("graph-structure", (element) => updateGraphFromInput(element, structureInspectorController.getGraphStructureDraft() || structureInput.value), "已更新图"),
       "tree-add-node": () => editSelectedStructure("tree-structure", (element) => addTreeNode(element, "0"), "已更新树"),
       "tree-connect-mode": beginTreeConnectMode,
       "tree-set-value": () => editSelectedStructure("tree-structure", (element) => updateTreeNodeValue(element, getActiveTreeNodeId(element), promptValue("节点值", element.nodes?.[0]?.label ?? "")), "已更新树"),
@@ -1135,7 +1169,7 @@ export function createWhiteboardApp(root) {
   }
 
   function toggleMainMenu() {
-    setMainMenuOpen(!isMainMenuOpen);
+    setMainMenuOpen(menuStateController.toggleMainMenu());
   }
 
   function closeMainMenu() {
@@ -1143,10 +1177,10 @@ export function createWhiteboardApp(root) {
   }
 
   function setMainMenuOpen(nextOpen) {
-    isMainMenuOpen = nextOpen;
-    mainMenu.hidden = !nextOpen;
-    menuButton.setAttribute("aria-expanded", String(nextOpen));
-    menuButton.classList.toggle("active", nextOpen);
+    const isOpen = menuStateController.setMainMenuOpen(nextOpen);
+    mainMenu.hidden = !isOpen;
+    menuButton.setAttribute("aria-expanded", String(isOpen));
+    menuButton.classList.toggle("active", isOpen);
   }
 
   function setShapePopoverOpen(nextOpen) {
@@ -1161,15 +1195,21 @@ export function createWhiteboardApp(root) {
   }
 
   function hydrateStructurePanel({ resetInput = false } = {}) {
-    const item = getStructureItem(activeStructureType);
+    const {
+      item,
+      activeStructureType,
+      activeArrayInitMode,
+      showLinearInitPanel,
+      showStructureInputLabel,
+      showArrayRandomFields,
+    } = structurePanelController.getHydrateState();
     structureInput.placeholder = item.placeholder;
     if (resetInput) {
       structureInput.value = item.defaultInput;
     }
-    const activeTypeSupportsRandom = isRandomStructureInitSupported(activeStructureType);
-    linearInitPanel.hidden = !activeTypeSupportsRandom;
-    structureInputLabel.hidden = activeTypeSupportsRandom && activeArrayInitMode === "random";
-    arrayRandomFields.hidden = !activeTypeSupportsRandom || activeArrayInitMode !== "random";
+    linearInitPanel.hidden = !showLinearInitPanel;
+    structureInputLabel.hidden = !showStructureInputLabel;
+    arrayRandomFields.hidden = !showArrayRandomFields;
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });
@@ -1179,20 +1219,20 @@ export function createWhiteboardApp(root) {
   }
 
   function setActiveStructureType(type) {
-    activeStructureType = getStructureItem(type).id;
+    structurePanelController.setActiveStructureType(type);
     hydrateStructurePanel({ resetInput: true });
     structureInput.focus();
   }
 
   function toggleZoomMenu() {
-    setZoomMenuOpen(!isZoomMenuOpen);
+    setZoomMenuOpen(menuStateController.toggleZoomMenu());
   }
 
   function setZoomMenuOpen(nextOpen) {
-    isZoomMenuOpen = nextOpen;
-    zoomMenu.hidden = !nextOpen;
-    zoomButton.setAttribute("aria-expanded", String(nextOpen));
-    zoomButton.classList.toggle("active", nextOpen);
+    const isOpen = menuStateController.setZoomMenuOpen(nextOpen);
+    zoomMenu.hidden = !isOpen;
+    zoomButton.setAttribute("aria-expanded", String(isOpen));
+    zoomButton.classList.toggle("active", isOpen);
   }
 
   function hideContextMenu() {
@@ -1200,11 +1240,12 @@ export function createWhiteboardApp(root) {
   }
 
   function togglePanel(panelName) {
-    panelCollapsedState = getNextPanelCollapsedState(panelCollapsedState, panelName);
+    panelStateController.togglePanel(panelName);
     applyPanelState();
   }
 
   function applyPanelState() {
+    const panelCollapsedState = panelStateController.getPanelCollapsedState();
     stylePanel.classList.toggle("is-collapsed", panelCollapsedState.style);
     layerPanel.classList.toggle("is-collapsed", panelCollapsedState.layers);
     root.querySelector("[data-panel-toggle='style']").textContent = panelCollapsedState.style ? "›" : "‹";
@@ -1236,26 +1277,10 @@ export function createWhiteboardApp(root) {
     return "appearance";
   }
 
-  function getDefaultInspectorSections(context) {
-    return {
-      appearance: context === "appearance",
-      linear: context === "linear",
-      graph: context === "graph",
-      tree: context === "tree",
-    };
-  }
-
-  function getVisibleInspectorSections(context) {
-    return {
-      appearance: context === "appearance",
-      linear: context === "linear",
-      graph: context === "graph",
-      tree: context === "tree",
-    };
-  }
-
   function applyInspectorSectionState() {
-    const visibleSections = getVisibleInspectorSections(activeInspectorContext);
+    const activeInspectorContext = panelStateController.getInspectorContext();
+    const visibleSections = panelStateController.getVisibleInspectorSections(activeInspectorContext);
+    const inspectorSectionsState = panelStateController.getInspectorSectionsState();
     root.querySelectorAll("[data-inspector-section]").forEach((section) => {
       const key = section.dataset.inspectorSection;
       const isVisible = Boolean(visibleSections[key]);
@@ -1271,11 +1296,7 @@ export function createWhiteboardApp(root) {
 
   function syncInspectorPanelState({ forceReset = false } = {}) {
     const nextContext = getInspectorContext();
-    const shouldResetScroll = forceReset || nextContext !== activeInspectorContext;
-    if (shouldResetScroll) {
-      activeInspectorContext = nextContext;
-      inspectorSectionsState = getDefaultInspectorSections(nextContext);
-    }
+    const { shouldResetScroll } = panelStateController.syncInspectorContext(nextContext, { forceReset });
     applyInspectorSectionState();
     if (shouldResetScroll) {
       panelBody?.scrollTo?.(0, 0);
@@ -1302,7 +1323,7 @@ export function createWhiteboardApp(root) {
     }, { capture: true, passive: false });
 
     window.addEventListener("pointerdown", (event) => {
-      if (!isMainMenuOpen) return;
+      if (!menuStateController.isMainMenuOpen()) return;
       if (closestElement(event.target, "[data-main-menu], [data-menu-trigger]")) {
         return;
       }
@@ -1326,7 +1347,7 @@ export function createWhiteboardApp(root) {
     });
 
     window.addEventListener("pointerdown", (event) => {
-      if (!isZoomMenuOpen) return;
+      if (!menuStateController.isZoomMenuOpen()) return;
       if (closestElement(event.target, "[data-zoom-menu], [data-zoom-trigger]")) {
         return;
       }
@@ -1348,20 +1369,8 @@ export function createWhiteboardApp(root) {
   }
 
   function hydrateLocalDraft() {
-    const result = loadLocalDraft();
-    if (!result.ok) {
-      initialStatusMessage = "自动草稿恢复失败";
-      return;
-    }
-    if (!result.board) return;
-
-    board = result.board;
-    history = createHistory(board);
-    selectedIds = [];
-    fileHandle = null;
-    activeFileName = LOCAL_DRAFT_FILE_NAME;
-    dirty = true;
-    initialStatusMessage = "已恢复自动草稿";
+    const result = boardSession.hydrateLocalDraft();
+    if (result.message) initialStatusMessage = result.message;
   }
 
   function bindKeyboard() {
@@ -1479,9 +1488,9 @@ export function createWhiteboardApp(root) {
       };
 
       if (!event.ctrlKey && !event.metaKey && shortcutMap[event.key.toLowerCase()]) {
-        if (event.key.toLowerCase() === "r") activeShapeTool = TOOLS.RECT;
-        if (event.key.toLowerCase() === "l") activeShapeTool = TOOLS.LINE;
-        if (event.key.toLowerCase() === "a") activeShapeTool = TOOLS.ARROW;
+        if (event.key.toLowerCase() === "r") setActiveShapeTool(TOOLS.RECT);
+        if (event.key.toLowerCase() === "l") setActiveShapeTool(TOOLS.LINE);
+        if (event.key.toLowerCase() === "a") setActiveShapeTool(TOOLS.ARROW);
         setTool(shortcutMap[event.key.toLowerCase()]);
       }
     }, { capture: true });
@@ -1496,64 +1505,15 @@ export function createWhiteboardApp(root) {
   }
 
   function handleWheel(event) {
-    event.evt.preventDefault();
-    const oldScale = stage.scaleX();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
-    const scaleBy = 1.05;
-    const direction = event.evt.deltaY > 0 ? -1 : 1;
-    const newScale = clamp(
-      direction > 0 ? oldScale * scaleBy : oldScale / scaleBy,
-      0.12,
-      4,
-    );
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
-
-    stage.scale({ x: newScale, y: newScale });
-    stage.position({
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    });
-    updateGrid();
-    updateBrushCursorStyle();
-    updateEraserCursorStyle();
-    updateViewportChrome();
-    syncTextOverlays();
-    schedulePersistCurrentDraft();
+    viewportController.handleWheel(event);
   }
 
   function zoomBy(multiplier) {
-    setZoomAtCenter(stage.scaleX() * multiplier);
+    viewportController.zoomBy(multiplier);
   }
 
   function setZoomAtCenter(requestedScale) {
-    const oldScale = stage.scaleX();
-    const newScale = clamp(requestedScale, 0.12, 4);
-    const center = {
-      x: stage.width() / 2,
-      y: stage.height() / 2,
-    };
-    const worldCenter = {
-      x: (center.x - stage.x()) / oldScale,
-      y: (center.y - stage.y()) / oldScale,
-    };
-
-    stage.scale({ x: newScale, y: newScale });
-    stage.position({
-      x: center.x - worldCenter.x * newScale,
-      y: center.y - worldCenter.y * newScale,
-    });
-    setZoomMenuOpen(false);
-    updateGrid();
-    updateBrushCursorStyle();
-    updateEraserCursorStyle();
-    updateViewportChrome();
-    syncTextOverlays();
-    schedulePersistCurrentDraft();
+    viewportController.setZoomAtCenter(requestedScale);
   }
 
   function beginDrawingPointerSession(event) {
@@ -1885,7 +1845,11 @@ export function createWhiteboardApp(root) {
       selectIds([targetId]);
     }
 
-    if (!targetId && selectedIds.length === 0 && clipboardSnapshot.length === 0) {
+    if (!contextMenuController.shouldShow({
+      targetId,
+      selectedIds,
+      hasClipboard: clipboardController.hasSnapshot(),
+    })) {
       return;
     }
 
@@ -1896,31 +1860,25 @@ export function createWhiteboardApp(root) {
     updateContextMenuActions();
     contextMenu.hidden = false;
     const box = contextMenu.getBoundingClientRect();
-    const left = clamp(clientX, 8, window.innerWidth - box.width - 8);
-    const top = clamp(clientY, 8, window.innerHeight - box.height - 8);
+    const { left, top } = contextMenuController.getPosition({
+      clientX,
+      clientY,
+      menuBox: box,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    });
     contextMenu.style.left = `${left}px`;
     contextMenu.style.top = `${top}px`;
   }
 
   function updateContextMenuActions() {
     root.querySelectorAll("[data-context-action]").forEach((button) => {
-      const needsSelection = [
-        "copy",
-        "cut",
-        "delete",
-        "group",
-        "ungroup",
-        "toggle-lock",
-        "bring-front",
-        "bring-forward",
-        "send-backward",
-        "send-back",
-      ].includes(button.dataset.contextAction);
-      const needsClipboard = button.dataset.contextAction === "paste";
-      const needsMultiple = button.dataset.contextAction === "group";
-      button.disabled = (needsSelection && selectedIds.length === 0)
-        || (needsMultiple && selectedIds.length < 2)
-        || (needsClipboard && clipboardSnapshot.length === 0);
+      button.disabled = contextMenuController.isActionDisabled(button.dataset.contextAction, {
+        selectedIds,
+        hasClipboard: clipboardController.hasSnapshot(),
+      });
     });
   }
 
@@ -2644,7 +2602,7 @@ export function createWhiteboardApp(root) {
   }
 
   function selectIds(ids) {
-    selectedIds = [...new Set(ids)];
+    selectedIds = selectionController.setSelectedIds(ids);
     pauseUnselectedArrayAlgorithmSessions();
     const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({
       elements: board.elements,
@@ -2660,23 +2618,12 @@ export function createWhiteboardApp(root) {
   }
 
   function selectElementById(id, additive = false) {
-    const ids = expandGroupedIds([id]);
-    if (additive) {
-      const next = selectedIds.some((selectedId) => ids.includes(selectedId))
-        ? selectedIds.filter((selectedId) => !ids.includes(selectedId))
-        : [...selectedIds, ...ids];
-      selectIds(next);
-      return;
-    }
+    const ids = selectionController.selectElementById(id, { additive, elements: board.elements });
     selectIds(ids);
   }
 
   function toggleSelection(id) {
-    if (selectedIds.includes(id)) {
-      selectIds(selectedIds.filter((selectedId) => selectedId !== id));
-    } else {
-      selectIds([...selectedIds, id]);
-    }
+    selectIds(selectionController.toggleSelection(id));
   }
 
   function clearSelection() {
@@ -3027,16 +2974,7 @@ export function createWhiteboardApp(root) {
   }
 
   function expandGroupedIds(ids) {
-    const requested = new Set(ids.filter(Boolean));
-    const groupIds = new Set(
-      board.elements
-        .filter((element) => requested.has(element.id) && element.groupId)
-        .map((element) => element.groupId),
-    );
-    if (groupIds.size === 0) return [...requested];
-    return board.elements
-      .filter((element) => requested.has(element.id) || groupIds.has(element.groupId))
-      .map((element) => element.id);
+    return expandSelectionGroupIds(ids, board.elements);
   }
 
   function isElementLocked(id) {
@@ -3227,7 +3165,7 @@ export function createWhiteboardApp(root) {
 
   function copySelection() {
     if (selectedIds.length === 0) return;
-    clipboardSnapshot = createClipboardSnapshot(board.elements, selectedIds);
+    clipboardController.copy(board.elements, selectedIds);
     updateContextMenuActions();
     setStatus("已复制对象");
   }
@@ -3237,7 +3175,7 @@ export function createWhiteboardApp(root) {
     const editableIds = selectedIds.filter((id) => !isElementLocked(id));
     if (editableIds.length === 0) return;
     clearArrayAlgorithmSessionForRemovedIds(editableIds);
-    clipboardSnapshot = createClipboardSnapshot(board.elements, editableIds);
+    clipboardController.copy(board.elements, editableIds);
     board.elements = removeElementsById(board.elements, editableIds);
     clearSelection();
     renderBoard();
@@ -3246,14 +3184,14 @@ export function createWhiteboardApp(root) {
   }
 
   function pasteClipboard() {
-    if (clipboardSnapshot.length === 0) return;
-    const pasted = createPastedElements(clipboardSnapshot, {
+    if (!clipboardController.hasSnapshot()) return;
+    const pasted = clipboardController.createPastedElements({
       offset: 24,
       targetPoint: lastPointerWorldPoint,
       zIndexStart: board.elements.length,
     });
     board.elements = reorderElements([...board.elements, ...pasted]);
-    clipboardSnapshot = createClipboardSnapshot(pasted, pasted.map((element) => element.id));
+    clipboardController.replaceWithElements(pasted);
     renderBoard();
     setTool(TOOLS.SELECT);
     selectIds(pasted.map((element) => element.id));
@@ -3261,6 +3199,9 @@ export function createWhiteboardApp(root) {
   }
 
   function insertStructureFromPanel() {
+    const activeStructureType = structurePanelController.getActiveStructureType();
+    const activeArrayInitMode = structurePanelController.getActiveArrayInitMode();
+    const activeStructureItem = structurePanelController.getActiveStructureItem();
     const elements = createStructureElements({
       type: activeStructureType,
       input: structureInput.value,
@@ -3276,11 +3217,11 @@ export function createWhiteboardApp(root) {
     setTool(TOOLS.SELECT);
     renderBoard();
     selectIds(elements.map((element) => element.id));
-    pushHistory(`已添加${getStructureItem(activeStructureType).label}`);
+    pushHistory(`已添加${activeStructureItem.label}`);
   }
 
   function isRandomStructureInitSupported(type) {
-    return isLinearStructureType(type) || type === STRUCTURE_TYPES.TREE || type === STRUCTURE_TYPES.BINARY_TREE;
+    return structurePanelController.isRandomStructureInitSupported(type);
   }
 
   function getViewportCenterPoint() {
@@ -3332,7 +3273,7 @@ export function createWhiteboardApp(root) {
   }
 
   function readLinearFieldNumber(fieldName, fallback = 0) {
-    const raw = linearPanelState[fieldName];
+    const raw = structureInspectorController.getLinearPanelState()[fieldName];
     const parsed = Number.parseInt(String(raw ?? ""), 10);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : Math.max(0, fallback);
   }
@@ -3396,9 +3337,9 @@ export function createWhiteboardApp(root) {
       }
       if (linearValuesInput && document.activeElement !== linearValuesInput) {
         linearValuesInput.value = "";
-        linearValuesDraft = "";
+        structureInspectorController.setLinearValuesDraft("");
       }
-      applyLinearPanelState(linearPanelState);
+      applyLinearPanelState(structureInspectorController.getLinearPanelState());
       return;
     }
     if (linearValuesTitle) {
@@ -3406,7 +3347,7 @@ export function createWhiteboardApp(root) {
     }
     if (linearValuesInput && document.activeElement !== linearValuesInput) {
       linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",");
-      linearValuesDraft = linearValuesInput.value;
+      structureInspectorController.setLinearValuesDraft(linearValuesInput.value);
     }
     const itemCount = element.items?.length ?? 0;
     const currentIndex = getActiveLinearIndex(element, 0);
@@ -3417,12 +3358,11 @@ export function createWhiteboardApp(root) {
     const pointer = Number.isInteger(markers.pointer)
       ? Math.min(Math.max(0, itemCount - 1), Math.max(0, markers.pointer))
       : currentIndex;
-    linearPanelState = {
-      ...linearPanelState,
+    const linearPanelState = structureInspectorController.setLinearPanelState({
       highlightStart: String(toLinearDisplayIndex(element, Math.min(Math.max(0, itemCount - 1), Math.max(0, firstHighlight)))),
       highlightEnd: String(toLinearDisplayIndex(element, Math.min(Math.max(0, itemCount - 1), Math.max(0, lastHighlight)))),
       highlightPointer: String(toLinearDisplayIndex(element, pointer)),
-    };
+    });
     applyLinearPanelState(linearPanelState);
   }
 
@@ -5042,10 +4982,9 @@ export function createWhiteboardApp(root) {
       board.elements = board.elements.map((item) => (
         item.id === elementId ? setArrayPointer(item, nextIndex) : item
       ));
-      linearPanelState = {
-        ...linearPanelState,
+      const linearPanelState = structureInspectorController.setLinearPanelState({
         highlightPointer: String(nextIndex),
-      };
+      });
       applyLinearPanelState(linearPanelState);
       animateLinearPointerDragVisual(elementId, nextIndex);
     }
@@ -5066,10 +5005,9 @@ export function createWhiteboardApp(root) {
     board.elements = board.elements.map((item) => (
       item.id === dragState.elementId ? setArrayPointer(item, nextIndex) : item
     ));
-    linearPanelState = {
-      ...linearPanelState,
+    const linearPanelState = structureInspectorController.setLinearPanelState({
       highlightPointer: String(nextIndex),
-    };
+    });
     applyLinearPanelState(linearPanelState);
     animateLinearPointerDragVisual(dragState.elementId, nextIndex);
     return true;
@@ -5792,11 +5730,11 @@ export function createWhiteboardApp(root) {
   }
 
   function undoHistory() {
-    restoreFromHistory(history.undo(), "已撤销");
+    restoreFromHistory(boardSession.getHistory().undo(), "已撤销");
   }
 
   function redoHistory() {
-    restoreFromHistory(history.redo(), "已重做");
+    restoreFromHistory(boardSession.getHistory().redo(), "已重做");
   }
 
   function fitContent() {
@@ -5817,8 +5755,9 @@ export function createWhiteboardApp(root) {
       padding: 96,
     }));
     board = serializeCurrentBoard();
-    history.push(board);
-    dirty = true;
+    boardSession.setBoard(board);
+    boardSession.getHistory().push(board);
+    boardSession.setDirty(true);
     updateChrome();
     setStatus("已适配全部内容");
   }
@@ -5867,7 +5806,8 @@ export function createWhiteboardApp(root) {
     }
     applyViewport(nextViewport);
     board = serializeCurrentBoard();
-    dirty = true;
+    boardSession.setBoard(board);
+    boardSession.setDirty(true);
     updateChrome();
   }
 
@@ -5897,25 +5837,15 @@ export function createWhiteboardApp(root) {
     clearArrayAlgorithmSessions();
     cancelArrayAlgorithmTimer();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    board = createEmptyBoard();
-    history = createHistory(board);
-    selectedIds = [];
-    fileHandle = null;
-    activeFileName = "未命名白板";
-    dirty = false;
-    applyViewport(board.viewport);
-    applyBackground();
-    renderBoard();
-    updateChrome();
-    clearLocalDraft();
-    setStatus("已新建白板");
+    boardSession.newBoard();
   }
 
   function resetView() {
     applyViewport({ x: 0, y: 0, scale: 1 });
     board = serializeCurrentBoard();
-    history.push(board);
-    dirty = true;
+    boardSession.setBoard(board);
+    boardSession.getHistory().push(board);
+    boardSession.setDirty(true);
     const draftSaved = persistCurrentDraft();
     updateChrome();
     if (draftSaved) setStatus("已重置视图");
@@ -5935,10 +5865,9 @@ export function createWhiteboardApp(root) {
   }
 
   function setTool(tool) {
-    const toolChanged = currentTool !== tool;
-    const previousTool = currentTool;
+    const { previousTool, toolChanged } = toolController.setTool(tool);
     if (toolChanged) saveToolPropertyControlsForCurrentTool();
-    currentTool = tool;
+    currentTool = toolController.currentTool;
     if (tool !== TOOLS.SELECT) {
       resetLinearItemPressState();
       resetLinearPointerPressState();
@@ -5969,49 +5898,16 @@ export function createWhiteboardApp(root) {
     }
   }
 
+  function setActiveShapeTool(shapeTool) {
+    activeShapeTool = toolController.setActiveShapeTool(shapeTool);
+  }
+
   function getToolStatus(tool) {
-    return {
-      [TOOLS.SELECT]: "选择：拖动框选，Shift 多选，Delete 删除",
-      [TOOLS.PAN]: "平移：拖动画布",
-      [TOOLS.PEN]: "画笔：拖动画出可编辑笔触",
-      [TOOLS.ERASER_STROKE]: "片段橡皮：擦除笔触的一部分",
-      [TOOLS.ERASER_OBJECT]: "对象橡皮：碰到对象即删除",
-      [TOOLS.TEXT]: "文字：点击画布添加文字",
-      [TOOLS.STICKY]: "便签：点击画布添加便签",
-      [TOOLS.STRUCTURE]: "结构：选择数组、图或树并填写初始内容",
-      [TOOLS.SHAPE]: "图形：从弹出框选择矩形、椭圆、直线或箭头",
-      [TOOLS.RECT]: "矩形：拖动创建",
-      [TOOLS.ELLIPSE]: "椭圆：拖动创建",
-      [TOOLS.LINE]: "直线：拖动创建",
-      [TOOLS.ARROW]: "箭头：拖动创建",
-    }[tool];
+    return getToolStatusText(tool);
   }
 
   async function openBoardFile() {
-    if (!supportsFileSystemAccess()) {
-      setStatus("当前浏览器不支持原地打开保存，请使用 Chrome 或 Edge");
-      return;
-    }
-
-    try {
-      const { handle, name, contents } = await openWhiteboardFile();
-      board = normalizeBoard(contents);
-      fileHandle = handle;
-      activeFileName = name;
-      history = createHistory(board);
-      selectedIds = [];
-      applyViewport(board.viewport);
-      applyBackground();
-      renderBoard();
-      dirty = false;
-      const draftSaved = persistCurrentDraft();
-      updateChrome();
-      if (draftSaved) setStatus("已打开白板文件");
-    } catch (error) {
-      if (error?.name !== "AbortError") {
-        setStatus(`打开失败：${error.message}`);
-      }
-    }
+    await boardSession.openBoardFile();
   }
 
   async function importSelectedImage() {
@@ -6031,7 +5927,7 @@ export function createWhiteboardApp(root) {
         insertTextElement(text, "已粘贴文字");
         return;
       }
-      if (clipboardSnapshot.length === 0) return;
+      if (!clipboardController.hasSnapshot()) return;
       event.preventDefault();
       pasteClipboard();
       return;
@@ -6111,49 +6007,15 @@ export function createWhiteboardApp(root) {
   }
 
   async function saveBoardFile() {
-    if (!supportsFileSystemAccess()) {
-      setStatus("当前浏览器不支持原地保存，请使用 Chrome 或 Edge");
-      return;
-    }
-
-    if (!fileHandle) {
-      await saveBoardFileAs();
-      return;
-    }
-
-    try {
-      await writeToHandle(fileHandle);
-      dirty = false;
-      updateChrome();
-      setStatus("已保存到当前白板文件");
-    } catch (error) {
-      setStatus(`保存失败：${error.message}`);
-    }
+    await boardSession.saveBoardFile();
   }
 
   async function saveBoardFileAs() {
-    if (!supportsFileSystemAccess()) {
-      setStatus("当前浏览器不支持另存为，请使用 Chrome 或 Edge");
-      return;
-    }
-
-    try {
-      const handle = await chooseWhiteboardSaveFile(activeFileName);
-      fileHandle = handle;
-      activeFileName = handle.name;
-      await writeToHandle(handle);
-      dirty = false;
-      updateChrome();
-      setStatus("已另存为白板文件");
-    } catch (error) {
-      if (error?.name !== "AbortError") {
-        setStatus(`另存为失败：${error.message}`);
-      }
-    }
+    await boardSession.saveBoardFileAs();
   }
 
   async function writeToHandle(handle) {
-    await writeWhiteboardFile(handle, serializeCurrentBoard());
+    await boardSession.writeToHandle(handle);
   }
 
   function exportPng() {
@@ -6179,25 +6041,14 @@ export function createWhiteboardApp(root) {
 
     downloadDataUrl({
       dataUrl,
-      fileName: `${activeFileName.replace(/\.lofibrd$/i, "") || "lofiBoard"}.png`,
+      fileName: `${boardSession.getActiveFileName().replace(/\.lofibrd$/i, "") || "lofiBoard"}.png`,
     });
     setStatus("已导出当前视图 PNG");
   }
 
   function serializeCurrentBoard() {
-    const elements = board.elements.map((element) => (
-      isLinearStructureElement(element) && getArrayAlgorithmSession(element.id)
-        ? clearArrayAlgorithmRuntimeMarkers(element)
-        : element
-    ));
-    return serializeBoard({
-      ...board,
-      elements,
-    }, {
-      x: stage.x(),
-      y: stage.y(),
-      scale: stage.scaleX(),
-    });
+    boardSession.setBoard(board);
+    return boardSession.serializeCurrentBoard();
   }
 
   function snapshotBoard() {
@@ -6205,16 +6056,8 @@ export function createWhiteboardApp(root) {
   }
 
   function pushHistory(message) {
-    const historySnapshot = serializeCurrentBoard();
-    history.push(historySnapshot);
-    dirty = true;
-    const draftSaved = persistCurrentDraft();
-    updateChrome();
-    if (suppressNextTextHistory) {
-      suppressNextTextHistory = false;
-      return;
-    }
-    if (draftSaved) setStatus(message);
+    boardSession.setBoard(board);
+    boardSession.pushHistory(message);
   }
 
   function restoreFromHistory(nextBoard, message) {
@@ -6222,49 +6065,21 @@ export function createWhiteboardApp(root) {
     clearArrayAlgorithmSessions();
     cancelArrayAlgorithmTimer();
     cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    board = normalizeBoard(nextBoard);
-    selectedIds = [];
-    applyViewport(board.viewport);
-    applyBackground();
-    renderBoard();
-    dirty = true;
-    const draftSaved = persistCurrentDraft();
-    updateChrome();
-    if (draftSaved) setStatus(message);
+    boardSession.restoreFromHistory(nextBoard, message);
   }
 
   function persistCurrentDraft() {
-    if (draftSaveTimer) {
-      window.clearTimeout(draftSaveTimer);
-      draftSaveTimer = null;
-    }
-    if (editController.commit) {
-      suppressNextTextHistory = true;
-      editController.commit();
-    }
-    const result = saveLocalDraft(serializeCurrentBoard());
-    if (!result.ok) {
-      setStatus("自动草稿保存失败");
-      return false;
-    }
-    return true;
+    boardSession.setBoard(board);
+    return boardSession.persistCurrentDraft();
   }
 
   function schedulePersistCurrentDraft() {
-    if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
-    draftSaveTimer = window.setTimeout(() => {
-      draftSaveTimer = null;
-      persistCurrentDraft();
-    }, 150);
+    boardSession.setBoard(board);
+    boardSession.schedulePersistCurrentDraft();
   }
 
   function applyViewport(viewport) {
-    stage.position({ x: viewport.x, y: viewport.y });
-    stage.scale({ x: viewport.scale, y: viewport.scale });
-    updateGrid();
-    updateBrushCursorStyle();
-    updateEraserCursorStyle();
-    syncTextOverlays();
+    viewportController.applyViewport(viewport);
   }
 
   function applyBackground() {
@@ -6273,31 +6088,17 @@ export function createWhiteboardApp(root) {
   }
 
   function updateGrid() {
-    const scale = stage.scaleX();
-    const size = Math.max(12, 32 * scale);
-    container.style.setProperty("--grid-size", `${size}px`);
-    container.style.setProperty("--grid-x", `${stage.x()}px`);
-    container.style.setProperty("--grid-y", `${stage.y()}px`);
-    updateLinearItemControlsPosition();
-    syncActiveCellEditor();
-    syncTextOverlays();
+    viewportController.updateGrid();
   }
 
   function updateViewportChrome() {
-    zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
-    root.querySelectorAll("[data-zoom-level]").forEach((button) => {
-      button.classList.toggle(
-        "active",
-        Math.abs(Number(button.dataset.zoomLevel) - stage.scaleX()) < 0.02,
-      );
-    });
-    updateContextPanel();
+    viewportController.updateViewportChrome();
   }
 
   function updateChrome() {
-    panelCollapsedState = getPanelStateForLayerContent(panelCollapsedState, board.elements.length > 0);
-    const dirtyMarker = dirty ? " *" : "";
-    activeFileLabel.textContent = `${activeFileName}${dirtyMarker}`;
+    panelStateController.setPanelCollapsedStateForLayerContent(board.elements.length > 0);
+    const dirtyMarker = boardSession.isDirty() ? " *" : "";
+    activeFileLabel.textContent = `${boardSession.getActiveFileName()}${dirtyMarker}`;
     zoomLabel.textContent = `${Math.round(stage.scaleX() * 100)}%`;
     root.dataset.hasSelection = selectedIds.length > 0 ? "true" : "false";
     const selectedStructures = board.elements.filter((element) => selectedIds.includes(element.id) && element.type.endsWith?.("-structure"));
@@ -6311,6 +6112,7 @@ export function createWhiteboardApp(root) {
     root.dataset.activeShape = selectedIds.length === 1
       ? board.elements.find((element) => element.id === selectedIds[0])?.type ?? activeShapeTool
       : activeShapeTool;
+    const activeStructureType = structurePanelController.getActiveStructureType();
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });
@@ -6345,7 +6147,7 @@ export function createWhiteboardApp(root) {
     const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure");
     if (document.activeElement !== graphStructureInput) {
       graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";
-      graphStructureDraft = graphStructureInput.value;
+      structureInspectorController.setGraphStructureDraft(graphStructureInput.value);
     }
   }
 
@@ -6523,11 +6325,11 @@ export function createWhiteboardApp(root) {
   function saveToolPropertyControlsForCurrentTool() {
     if (selectedIds.length > 0) return;
     if (!isToolPropertyPanelAvailable(currentTool)) return;
-    toolPropertyControlSnapshots.set(currentTool, capturePropertyControls());
+    propertyControlsController.saveToolControls(currentTool, capturePropertyControls());
   }
 
   function restorePropertyControlsForTool(tool) {
-    const snapshot = toolPropertyControlSnapshots.get(tool);
+    const snapshot = propertyControlsController.getToolControls(tool);
     if (snapshot) {
       applyPropertyControlsSnapshot(snapshot);
       return;
@@ -6536,38 +6338,7 @@ export function createWhiteboardApp(root) {
   }
 
   function resetPropertyControlsForTool(tool) {
-    colorInput.value = DEFAULT_PROPERTY_CONTROLS.color;
-    fillInput.value = DEFAULT_PROPERTY_CONTROLS.fill;
-    fillTransparentInput.checked = DEFAULT_PROPERTY_CONTROLS.fillTransparent;
-    widthInput.value = DEFAULT_PROPERTY_CONTROLS.width;
-    brushOpacityInput.value = DEFAULT_PROPERTY_CONTROLS.brushOpacity;
-    brushSmoothingInput.value = DEFAULT_PROPERTY_CONTROLS.brushSmoothing;
-    brushCapInput.value = DEFAULT_PROPERTY_CONTROLS.brushCap;
-    brushStyleInput.value = DEFAULT_PROPERTY_CONTROLS.brushStyle;
-    arrowDoubleEndedInput.checked = false;
-    coordinateUnitSizeInput.value = "40";
-    coordinateShowGridInput.checked = true;
-    coordinateShowTicksInput.checked = true;
-    coordinateShowLabelsInput.checked = true;
-    coordinateGridColorInput.value = "#e5e7eb";
-    coordinateAxisColorInput.value = "#111827";
-    coordinateLabelColorInput.value = "#64748b";
-    fontSizeInput.value = DEFAULT_PROPERTY_CONTROLS.fontSize;
-    fontFamilyInput.value = DEFAULT_PROPERTY_CONTROLS.fontFamily;
-    updateTextStyleButtons({
-      fontStyle: "normal",
-      textDecoration: "",
-    });
-    if (tool === TOOLS.STICKY) {
-      fillInput.value = "#fef08a";
-      fillTransparentInput.checked = false;
-    }
-    syncBrushWidthControl();
-    syncBrushPresetButtons();
-    syncTextInspectorControls();
-    syncShapeEndpointControls();
-    syncCoordinateControls();
-    updateBrushCursorStyle();
+    applyPropertyControlsSnapshot(propertyControlsController.getDefaultControlsForTool(tool));
   }
 
   function hydrateBrushControlsFromElement(element) {
@@ -6739,8 +6510,4 @@ export function createWhiteboardApp(root) {
     }, 3000);
   }
 
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
 }
