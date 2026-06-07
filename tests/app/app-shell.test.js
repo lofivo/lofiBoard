@@ -105,19 +105,20 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("targetIds.some((id) => selectedIds.includes(id))");
-    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+    expect(appSource).toContain("selectionDragController.beginSelectionDrag(worldPoint)");
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
   });
 
   it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(interactionSM.state, selectedElements))");
-    expect(appSource).toContain("transformer.forceUpdate()");
+    expect(transformerSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(getInteractionState(), selectedElements))");
+    expect(transformerSource).toContain("transformer.forceUpdate()");
     expect(appSource).toContain("isTransformerAnchorTarget");
-    expect(appSource).toContain("function disableTransformerHitAreaDrag()");
-    expect(appSource).toContain('transformer.findOne?.(".back")?.draggable(false)');
-    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?preferUnselected: true[\s\S]*?selectElementById\(passThroughId, event\.evt\.shiftKey\);[\s\S]*?if \(!event\.evt\.shiftKey\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?\}[\s\S]*?return;/);
+    expect(transformerSource).toContain("function disableHitAreaDrag()");
+    expect(transformerSource).toContain('transformer.findOne?.(".back")?.draggable(false)');
+    expect(appSource).toMatch(/if \(isTransformerTarget\(event\.target\) && !isTransformerAnchorTarget\(event\.target\)\) \{[\s\S]*?preferUnselected: true[\s\S]*?selectElementById\(passThroughId, event\.evt\.shiftKey\);[\s\S]*?if \(!event\.evt\.shiftKey\) \{[\s\S]*?selectionDragController\.beginSelectionDrag\(worldPoint\);[\s\S]*?\}[\s\S]*?return;/);
   });
 
   it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {
@@ -125,7 +126,7 @@ describe("app shell", () => {
     const selectionHitSource = readFileSync(new URL("../../src/app/selection/selection-hit-query.js", import.meta.url), "utf8");
     const selectSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
 
     expect(appSource).toContain("createSelectionHitQuery");
@@ -138,14 +139,15 @@ describe("app shell", () => {
 
   it("keeps transformer hit area from covering selected structure internals", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const syncSelectionSource = appSource.slice(
-      appSource.indexOf("function syncSelectionNodes()"),
-      appSource.indexOf("function disableTransformerHitAreaDrag()"),
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const syncSelectionSource = transformerSource.slice(
+      transformerSource.indexOf("function syncSelectionNodes()"),
+      transformerSource.indexOf("function disableHitAreaDrag()"),
     );
 
-    expect(appSource).toContain("getTransformerOverdrawForState");
-    expect(appSource).toContain("import { createInteractionStateMachine, SM, getTransformerOverdrawForState }");
-    expect(syncSelectionSource).toContain("interactionSM.state");
+    expect(transformerSource).toContain("getTransformerOverdrawForState");
+    expect(appSource).toContain("import { createInteractionStateMachine, SM }");
+    expect(syncSelectionSource).toContain("getInteractionState()");
     expect(syncSelectionSource).toContain("transformer.shouldOverdrawWholeArea");
   });
 
@@ -253,9 +255,12 @@ describe("app shell", () => {
 
   it("initializes the selection rectangle before export PNG wiring uses it", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const draftSource = readFileSync(new URL("../../src/app/tools/draft-interaction-controller.js", import.meta.url), "utf8");
 
-    expect(appSource.indexOf("const selectionRect = new Konva.Rect"))
+    expect(draftSource).toContain("const selectionRect = new Konva.Rect");
+    expect(appSource.indexOf("draftInteractionController = createDraftInteractionController"))
       .toBeLessThan(appSource.indexOf("const { exportPng } = createExportPngController"));
+    expect(appSource).toContain("selectionRect: draftInteractionController.getSelectionRect()");
   });
 
   it("hides the native algorithm select arrow while an array algorithm is active", () => {
@@ -467,7 +472,7 @@ describe("app shell", () => {
     );
     const pointerDownSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
     const generalTreeNodeBranch = pointerDownSource.match(/if \(isGeneralTreeElement\(element\) && isTreeNodeHitTarget\(event\.target\)\) \{[\s\S]*?return;\n      \}/)?.[0] ?? "";
 
@@ -480,10 +485,10 @@ describe("app shell", () => {
     expect(controlSource).toContain('data-tree-node-action="add-right-sibling"');
     expect(controlSource).toContain('data-tree-node-action="edit"');
     expect(controlSource).toContain('data-tree-node-action="delete"');
-    expect(appSource).toContain("function renderTreeNodeControls()");
-    expect(appSource).toContain("function renderTreeControls()");
-    expect(appSource).toContain("function updateTreeControlsPosition()");
-    expect(appSource).toContain("function hideTreeControls()");
+    expect(controlsSource).toContain("function renderTreeNodeControls()");
+    expect(controlsSource).toContain("function renderTreeControls()");
+    expect(controlsPositionSource).toContain("function updateTreeControlsPosition()");
+    expect(controlsSource).toContain("function hideTreeControls()");
     expect(appSource).toContain("function getTreeParentNodeId(element, nodeId)");
     expect(appSource).toContain("function isTreeRootNode(element, nodeId)");
     expect(controlsSource).toContain("controls.querySelector(\"[data-tree-node-action='add-left-sibling']\").hidden = isRoot;");
@@ -500,26 +505,28 @@ describe("app shell", () => {
     expect(generalTreeNodeBranch).toContain("return;");
     expect(generalTreeNodeBranch).not.toContain("beginSelectionDrag");
     expect(pointerDownSource).toContain("isGeneralTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement");
-    expect(pointerDownSource).toContain("hideTreeControls();");
+    expect(pointerDownSource).toContain("structureControlsController.hideTreeControls();");
     expect(pointerDownSource).toContain("syncGeneralTreeActiveVisual(previousActiveTreeElementId);");
     expect(appSource).toContain("if (!element || element.type !== \"tree-structure\" || element.settings?.treeKind !== \"binary\" || element.locked) return;");
-    expect(appSource).toContain("renderTreeControls();");
-    expect(appSource).toContain("hideTreeControls();");
+    expect(appSource).toContain("structureControlsController.renderTreeControls();");
+    expect(appSource).toContain("structureControlsController.hideTreeControls();");
   });
 
   it("updates floating tree controls while the whole tree selection is dragged", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const selectionDragSource = appSource.slice(
-      appSource.indexOf("function updateSelectionDrag(worldPoint)"),
-      appSource.indexOf("function finishSelectionDrag"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragBindingSource = appSource.slice(
+      appSource.indexOf("selectionDragController = createSelectionDragController({"),
+      appSource.indexOf("draftInteractionController = createDraftInteractionController"),
     );
-    const nodeDragSource = appSource.slice(
-      appSource.indexOf("function updateNodeDragSelection(node)"),
-      appSource.indexOf("function finishNodeDragSelection"),
+    const nodeDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
+      selectionDragSource.indexOf("function finishNodeDragSelection"),
     );
 
     expect(selectionDragSource).toContain("updateTreeControlsPosition();");
     expect(nodeDragSource).toContain("updateTreeControlsPosition();");
+    expect(selectionDragBindingSource).toContain("updateTreeControlsPosition: () => structureControlsPositionController.updateTreeControlsPosition()");
   });
 
   it("rerenders binary tree node selection immediately and clears it from blank tree clicks", () => {
@@ -531,28 +538,28 @@ describe("app shell", () => {
     );
     const pointerDownSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
 
     expect(appSource).toContain("function isTreeNodeHitTarget(target)");
     expect(appSource).toContain("function syncBinaryTreeActiveVisual(elementId)");
     expect(clickSource).toMatch(/if \(isBinaryTreeElement\(clickedElement\)\) \{[\s\S]*?const \{ previousActiveTreeNode \} = structureInteraction\.setActiveTreeNode\(\{ elementId, nodeId \}\);[\s\S]*?selectIds\(\[elementId\]\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeNode\?\.elementId\);[\s\S]*?syncBinaryTreeActiveVisual\(elementId\);/);
     expect(pointerDownSource).toContain("isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target)");
-    expect(pointerDownSource).toMatch(/const previousActiveTreeElementId = activeTreeNode\.elementId;[\s\S]*?structureInteraction\.clearActiveTreeNode\(\);[\s\S]*?hideBinaryTreeControls\(\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeElementId\);/);
-    expect(pointerDownSource).toMatch(/const shouldDragBinaryTreeBlank = !event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\);[\s\S]*?if \(shouldDragBinaryTreeBlank\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);/);
-    expect(pointerDownSource).toMatch(/if \(!event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\)\) \{[\s\S]*?beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
+    expect(pointerDownSource).toMatch(/const previousActiveTreeElementId = activeTreeNode\.elementId;[\s\S]*?structureInteraction\.clearActiveTreeNode\(\);[\s\S]*?structureControlsController\.hideBinaryTreeControls\(\);[\s\S]*?syncBinaryTreeActiveVisual\(previousActiveTreeElementId\);/);
+    expect(pointerDownSource).toMatch(/const shouldDragBinaryTreeBlank = !event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\);[\s\S]*?if \(shouldDragBinaryTreeBlank\) \{[\s\S]*?selectionDragController\.beginSelectionDrag\(worldPoint\);/);
+    expect(pointerDownSource).toMatch(/if \(!event\.evt\.shiftKey && targetIds\.some\(\(id\) => selectedIds\.includes\(id\)\)\) \{[\s\S]*?selectionDragController\.beginSelectionDrag\(worldPoint\);[\s\S]*?return;/);
   });
 
   it("does not rebuild binary tree nodes during pointer down before dragging can start", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pointerDownSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
     const binaryBlankBranch = pointerDownSource.match(/if \(isBinaryTreeElement\(element\) && !isTreeNodeHitTarget\(event\.target\) && activeTreeNode\?\.elementId === targetElement\) \{[\s\S]*?return;\n      \}/)?.[0] ?? "";
 
     expect(binaryBlankBranch).toContain("syncBinaryTreeActiveVisual(previousActiveTreeElementId)");
-    expect(binaryBlankBranch).toContain("beginSelectionDrag(worldPoint)");
+    expect(binaryBlankBranch).toContain("selectionDragController.beginSelectionDrag(worldPoint)");
     expect(binaryBlankBranch).not.toContain("renderBoard()");
   });
 
@@ -565,7 +572,7 @@ describe("app shell", () => {
 
     expect(nodePressSource).toContain("if (!selectedIds.includes(elementId)) selectIds([elementId]);");
     expect(nodePressSource).toContain("const worldPoint = getWorldPointer(stage);");
-    expect(nodePressSource).toContain("if (!event.evt?.shiftKey && worldPoint) beginSelectionDrag(worldPoint);");
+    expect(nodePressSource).toContain("if (!event.evt?.shiftKey && worldPoint) selectionDragController.beginSelectionDrag(worldPoint);");
     expect(nodePressSource).not.toContain("activeTreeNode = { elementId, nodeId };");
     expect(nodePressSource).not.toContain("activeTreeNode = null;");
     expect(nodePressSource).not.toContain("syncBinaryTreeActiveVisual");
@@ -575,16 +582,17 @@ describe("app shell", () => {
 
   it("disables native node dragging while selected elements use selection drag", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const beginDragSource = appSource.slice(
-      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
-      appSource.indexOf("function updateSelectionDrag(worldPoint)"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const beginDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function beginSelectionDrag(worldPoint)"),
+      selectionDragSource.indexOf("function updateSelectionDrag(worldPoint)"),
     );
-    const finishDragSource = appSource.slice(
-      appSource.indexOf("function finishSelectionDrag()"),
-      appSource.indexOf("function beginNodeDragSelection(node)"),
+    const finishDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function finishSelectionDrag()"),
+      selectionDragSource.indexOf("function cancelSelectionDrag()"),
     );
 
-    expect(appSource).toContain("function setSelectionDragNodeDraggable(enabled)");
+    expect(selectionDragSource).toContain("function setSelectionDragNodeDraggable(enabled)");
     expect(appSource).toContain("function isSelectionDragElement(elementId)");
     expect(appSource).toContain("&& !isSelectionDragElement(element.id)");
     expect(appSource).toContain("&& !isSelectionDragElement(id)");
@@ -594,9 +602,10 @@ describe("app shell", () => {
 
   it("locks selection identity until an active selection drag finishes", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const finishDragSource = appSource.slice(
-      appSource.indexOf("function finishSelectionDrag()"),
-      appSource.indexOf("function setSelectionDragNodeDraggable(enabled)"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const finishDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function finishSelectionDrag()"),
+      selectionDragSource.indexOf("function cancelSelectionDrag()"),
     );
     const onSelectSource = appSource.slice(
       appSource.indexOf("onSelect: (event, node) => {"),
@@ -604,7 +613,7 @@ describe("app shell", () => {
     );
 
     expect(appSource).toContain("let suppressNextSelectionClick = false;");
-    expect(finishDragSource).toContain("suppressNextSelectionClick = true;");
+    expect(finishDragSource).toContain("setSuppressNextSelectionClick(true);");
     expect(onSelectSource).toContain("if (suppressNextSelectionClick) {");
     expect(onSelectSource).toContain("suppressNextSelectionClick = false;");
     expect(onSelectSource.indexOf("if (suppressNextSelectionClick)")).toBeLessThan(onSelectSource.indexOf("selectElementById(id, event.evt.shiftKey);"));
@@ -631,9 +640,10 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editActionSource = readFileSync(new URL("../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const finishDragSource = appSource.slice(
-      appSource.indexOf("function finishSelectionDrag()"),
-      appSource.indexOf("function setSelectionDragNodeDraggable(enabled)"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const finishDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function finishSelectionDrag()"),
+      selectionDragSource.indexOf("function cancelSelectionDrag()"),
     );
     const clickSource = editActionSource.slice(
       editActionSource.indexOf("function handleTreeNodeClick({ elementId, nodeId })"),
@@ -642,7 +652,7 @@ describe("app shell", () => {
 
     expect(appSource).not.toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
     expect(structureSource).toContain("let suppressedBinaryTreeNodeClickElementIds = new Set();");
-    expect(appSource).toContain("structureInteraction.suppressBinaryTreeNodeClicks(");
+    expect(selectionDragSource).toContain("structureInteraction.suppressBinaryTreeNodeClicks(");
     expect(finishDragSource).toContain("suppressBinaryTreeNodeClickAfterDrag();");
     expect(clickSource).toContain("consumeSuppressedBinaryTreeNodeClick(elementId)");
     expect(clickSource.indexOf("consumeSuppressedBinaryTreeNodeClick(elementId)")).toBeLessThan(clickSource.indexOf("structureInteraction.setActiveTreeNode({ elementId, nodeId });"));
@@ -668,6 +678,7 @@ describe("app shell", () => {
     const controlsBindingSource = readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
     const refsSource = readFileSync(new URL("../../src/app/shell/dom-refs.js", import.meta.url), "utf8");
     const structureInspectorSource = readFileSync(new URL("../../src/app/structures/structure-inspector-controller.js", import.meta.url), "utf8");
+    const linearPanelSyncSource = readFileSync(new URL("../../src/app/structures/linear-structure-panel-sync-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('linearValuesInput: query("[data-linear-values-input]")');
     expect(structureInspectorSource).toContain('let linearValuesDraft = initialLinearValuesDraft;');
@@ -678,8 +689,8 @@ describe("app shell", () => {
     expect(appActionSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, getLinearValuesDraft()))');
     expect(appSource).not.toContain('runAction("linear-apply-values")');
     expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
-    expect(appSource).toContain('linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",")');
-    expect(appSource).toContain('linearValuesTitle.textContent = `当前${getLinearStructureDisplayName(element.type)}结构`;');
+    expect(linearPanelSyncSource).toContain('linearValuesInput.value = (element.items ?? []).map((item) => item.value ?? "").join(",")');
+    expect(linearPanelSyncSource).toContain('linearValuesTitle.textContent = `当前${getLinearStructureDisplayName(element.type)}结构`;');
     expect(appSource).not.toContain('[data-structure-selection]:not([data-structure-selection="array-structure"]) [data-linear-values-field]');
   });
 
@@ -755,13 +766,13 @@ describe("app shell", () => {
   });
 
   it("keeps linear panel indexes in sync with zero-based and one-based settings", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const linearPanelSyncSource = readFileSync(new URL("../../src/app/structures/linear-structure-panel-sync-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("function getLinearIndexBase(element)");
-    expect(appSource).toContain("function toLinearDisplayIndex(element, index)");
-    expect(appSource).toContain("function readLinearDisplayIndexField(fieldName, element, fallback = 0)");
-    expect(appSource).toContain('highlightPointer: String(toLinearDisplayIndex(element, pointer))');
+    expect(linearPanelSyncSource).toContain("function getLinearIndexBase(element)");
+    expect(linearPanelSyncSource).toContain("function toLinearDisplayIndex(element, index)");
+    expect(linearPanelSyncSource).toContain("function readLinearDisplayIndexField(fieldName, element, fallback = 0)");
+    expect(linearPanelSyncSource).toContain('highlightPointer: String(toLinearDisplayIndex(element, pointer))');
     expect(appActionSource).toContain('pointer: readLinearDisplayIndexField("highlightPointer", element, getActiveLinearIndex(element, 0))');
   });
 
@@ -900,23 +911,24 @@ describe("app shell", () => {
   it("keeps selected brush strokes in the brush-style inspector instead of shape controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
 
     expect(inspectorPanelSource).toContain("getSelectionPanelMode(selectedElements)");
     expect(appSource).not.toContain('"stroke";');
-    expect(appSource).toContain("if (!selectedIds.includes(id)) {");
-    expect(appSource).toContain("selectElementById(id);");
-    expect(appSource).toContain("beginNodeDragSelection(node);");
+    expect(selectionDragSource).toContain("if (!getSelectedIds().includes(id)) {");
+    expect(selectionDragSource).toContain("selectElementById(id);");
+    expect(selectionDragSource).toContain("return beginNodeDragSelection(node);");
   });
 
   it("drags grouped elements with one stable native anchor node", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const beginDragSource = appSource.slice(
-      appSource.indexOf("function beginNodeDragSelection(node)"),
-      appSource.indexOf("function updateNodeDragSelection(node)"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const beginDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function beginNodeDragSelection(node)"),
+      selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
     );
-    const updateDragSource = appSource.slice(
-      appSource.indexOf("function updateNodeDragSelection(node)"),
-      appSource.indexOf("function finishNodeDragSelection(node)"),
+    const updateDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
+      selectionDragSource.indexOf("function finishNodeDragSelection(node)"),
     );
 
     expect(beginDragSource).toContain("selectElementById(id);");
@@ -925,20 +937,20 @@ describe("app shell", () => {
   });
 
   it("keeps grouped drag transformer bounds synced during the live drag", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const updateDragSource = appSource.slice(
-      appSource.indexOf("function updateNodeDragSelection(node)"),
-      appSource.indexOf("function finishNodeDragSelection(node)"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const updateDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
+      selectionDragSource.indexOf("function finishNodeDragSelection(node)"),
     );
 
-    expect(updateDragSource).toMatch(/board\.elements = board\.elements\.map[\s\S]*?transformer\.forceUpdate\(\);[\s\S]*?contentLayer\.batchDraw\(\);/);
+    expect(updateDragSource).toMatch(/setElements\(getElements\(\)\.map[\s\S]*?transformer\.forceUpdate\(\);[\s\S]*?contentLayer\.batchDraw\(\);/);
   });
 
   it("does not recompute grouped drag positions again on drag end", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const finishDragSource = appSource.slice(
-      appSource.indexOf("function finishNodeDragSelection(node)"),
-      appSource.indexOf("function startStroke(worldPoint"),
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const finishDragSource = selectionDragSource.slice(
+      selectionDragSource.indexOf("function finishNodeDragSelection(node)"),
+      selectionDragSource.indexOf("function clearRootDragState(elementId)"),
     );
     const multiDragFinishSource = finishDragSource.slice(
       finishDragSource.indexOf("if (dragSelection.originals.length <= 1)"),
@@ -1083,19 +1095,19 @@ describe("app shell", () => {
 
     expect(appSource).toContain('["text", "sticky"].includes(element.type)');
     expect(appSource).toContain("selectElementById(targetElement, event.evt.shiftKey)");
-    expect(appSource).toContain("beginSelectionDrag(worldPoint)");
+    expect(appSource).toContain("selectionDragController.beginSelectionDrag(worldPoint)");
   });
 
   it("starts app-level drag when padded hit testing selects a nested element behind another hit target", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const selectSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
 
     expect(selectSource).toContain("const rawTargetElement = getElementIdFromNode(event.target);");
     expect(selectSource).toContain("targetElement !== rawTargetElement");
-    expect(selectSource).toMatch(/selectElementById\(targetElement, event\.evt\.shiftKey\);[\s\S]*?targetElement !== rawTargetElement[\s\S]*?beginSelectionDrag\(worldPoint\);/);
+    expect(selectSource).toMatch(/selectElementById\(targetElement, event\.evt\.shiftKey\);[\s\S]*?targetElement !== rawTargetElement[\s\S]*?selectionDragController\.beginSelectionDrag\(worldPoint\);/);
   });
 
   it("keeps live text editor height aligned with committed text box normalization", () => {
@@ -1152,6 +1164,7 @@ describe("app shell", () => {
 
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("getStickyScaleCommitBox");
     expect(appSource).toContain("getStickyEditorCommitBox");
@@ -1159,7 +1172,7 @@ describe("app shell", () => {
     expect(appSource).toContain("nodeScaleX: node.scaleX()");
     expect(appSource).toContain("nodeScaleY: node.scaleY()");
     expect(appSource).toContain("fontSize: stickyCommit.fontSize");
-    expect(appSource).toContain("stageScale");
+    expect(transformerSource).toContain("stageScale: getStageScale()");
   });
 
   it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
@@ -1192,11 +1205,11 @@ describe("app shell", () => {
   });
 
   it("hides transformer handles while linear item drag preview is active", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (structureInteraction.hasLinearItemDragState())");
-    expect(appSource).toContain("transformer.enabledAnchors([])");
-    expect(appSource).toContain("transformer.visible(false)");
+    expect(transformerSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState())");
+    expect(transformerSource).toContain("transformer.enabledAnchors([])");
+    expect(transformerSource).toContain("transformer.visible(false)");
   });
 
   it("keeps layer ordering available through context menu commands", () => {
@@ -1226,8 +1239,8 @@ describe("app shell", () => {
     expect(appSource).toContain('anchor.hasName("middle-left") || anchor.hasName("middle-right")');
     expect(appSource).toContain('anchor.fill("rgba(0,0,0,0)")');
     expect(appSource).toContain("getUniformScaledBoxForResize");
-    expect(appSource).toContain("elements: getActiveTransformerElements()");
-    expect(appSource).toContain("function getActiveTransformerElements()");
+    expect(appSource).toContain("elements: selectionTransformerController.getActiveElements()");
+    expect(appSource).toContain("createSelectionTransformerController");
   });
 
   it("rerenders coordinate plane internals during creation and resizing instead of stretching the group", () => {
@@ -1254,18 +1267,19 @@ describe("app shell", () => {
 
   it("previews latex text resize through the vector overlay instead of hiding it", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
     const resizePreviewSource = appSource.slice(
       appSource.indexOf("function syncTextWidthResize()"),
       appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
     );
-    const minWidthSource = appSource.slice(
-      appSource.indexOf("function getActiveTransformerMinWidth()"),
-      appSource.indexOf("function getActiveTransformerMinHeight()"),
+    const minWidthSource = transformerSource.slice(
+      transformerSource.indexOf("function getActiveMinWidth()"),
+      transformerSource.indexOf("function getActiveMinHeight()"),
     );
 
     expect(resizePreviewSource).toContain("syncTextOverlays({ elements: getTextOverlayPreviewElements() })");
     expect(resizePreviewSource).toContain("getMinimumTextElementWidth(element)");
-    expect(appSource).toContain("getTextTransformMinimumSize({");
+    expect(minWidthSource).toContain("getTextTransformMinimumSize({");
     expect(resizePreviewSource).not.toContain("textOverlayController.setHiddenIds([id])");
     expect(appSource).toContain("transformer.on(\"transform\", syncTextTransformPreview)");
     expect(appSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
@@ -1280,10 +1294,12 @@ describe("app shell", () => {
 
   it("samples fast eraser movement instead of erasing only the latest pointer position", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const drawingSource = readFileSync(new URL("../../src/app/tools/drawing-interaction-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("getEraserPathSamples");
-    expect(appSource).toContain("function eraseStrokeAlongPath");
-    expect(appSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
+    expect(appSource).toContain("createDrawingInteractionController");
+    expect(drawingSource).toContain("getEraserPathSamples");
+    expect(drawingSource).toContain("function eraseStrokeAlongPath");
+    expect(drawingSource).toContain("eraseStrokeAlongPath(previousPoint, worldPoint, radius)");
   });
 
   it("captures the active drawing pointer so pen and touch strokes do not drop events", () => {
@@ -1298,20 +1314,20 @@ describe("app shell", () => {
     expect(appSource).toContain("function beginDrawingPointerSession(event)");
     expect(appSource).toContain("function endDrawingPointerSession()");
     expect(appSource).toMatch(/if \(!shouldHandlePointerEvent\(event\?\.evt, activeDrawingPointerCapture\?\.pointerId\)\) return;/);
-    expect(appSource).toMatch(/if \(currentTool === TOOLS\.PEN\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?startStroke/);
-    expect(appSource).toMatch(/if \(currentTool === TOOLS\.ERASER_STROKE\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?beginEraser/);
-    expect(appSource).toMatch(/if \(isShapeTool\(drawingTool\)\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?startShape/);
+    expect(appSource).toMatch(/if \(currentTool === TOOLS\.PEN\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?drawingInteractionController\.startStroke/);
+    expect(appSource).toMatch(/if \(currentTool === TOOLS\.ERASER_STROKE\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?drawingInteractionController\.beginEraser/);
+    expect(appSource).toMatch(/if \(isShapeTool\(drawingTool\)\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?draftInteractionController\.startShapeDraft/);
     expect(styles).toMatch(/\.stage-container \{[\s\S]*?touch-action: none;/);
   });
 
   it("treats endpoint-clipped eraser fragments as changed strokes", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const eraseSource = appSource.slice(
-      appSource.indexOf("function eraseStrokeAt(worldPoint, radius)"),
-      appSource.indexOf("function eraseStrokeAlongPath"),
+    const drawingSource = readFileSync(new URL("../../src/app/tools/drawing-interaction-controller.js", import.meta.url), "utf8");
+    const eraseSource = drawingSource.slice(
+      drawingSource.indexOf("function eraseStrokeAt(worldPoint, radius)"),
+      drawingSource.indexOf("function eraseStrokeAlongPath"),
     );
 
-    expect(appSource).toContain("areStrokeFragmentsEquivalent");
+    expect(drawingSource).toContain("areStrokeFragmentsEquivalent");
     expect(eraseSource).toContain("!areStrokeFragmentsEquivalent(element, fragments)");
     expect(eraseSource).not.toContain("fragments.length !== 1 || fragments[0].points.length !== element.points.length");
   });
@@ -1353,13 +1369,14 @@ describe("app shell", () => {
 
   it("keeps array cell pointer down on the cell event route instead of the canvas drag route", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
     const selectPointerDownSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
-      appSource.indexOf("function beginSelectionDrag(worldPoint)"),
+      appSource.indexOf("function isTemporaryPanActive()"),
     );
-    const itemPressSource = appSource.slice(
-      appSource.indexOf("function handleArrayStructureItemPress"),
-      appSource.indexOf("function handleArrayStructureItemRelease"),
+    const itemPressSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayStructureItemPress"),
+      gestureSource.indexOf("function handleArrayStructureItemRelease"),
     );
 
     expect(appSource).not.toContain("const arrayValueHitNode");
@@ -1371,27 +1388,29 @@ describe("app shell", () => {
 
   it("moves the whole array from a linear item press movement before long press reordering starts", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
     const pointerMoveSource = appSource.slice(
       appSource.indexOf("function handlePointerMove(event)"),
       appSource.indexOf("function handlePointerUp()"),
     );
-    const itemPressMoveSource = pointerMoveSource.slice(
-      pointerMoveSource.indexOf("if (linearItemPressState?.phase === \"start\""),
-      pointerMoveSource.indexOf("if (isPanning && panStart)"),
+    const itemPressMoveSource = gestureSource.slice(
+      gestureSource.indexOf("if (linearItemPressState?.phase === \"start\""),
+      gestureSource.indexOf("return false;"),
     );
-    const itemPressHandlerSource = appSource.slice(
-      appSource.indexOf("function handleArrayStructureItemPress"),
-      appSource.indexOf("function handleArrayStructureItemRelease"),
+    const itemPressHandlerSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayStructureItemPress"),
+      gestureSource.indexOf("function handleArrayStructureItemRelease"),
     );
 
+    expect(pointerMoveSource).toContain("linearGestureController.handlePointerMove(worldPoint)");
     expect(itemPressMoveSource).not.toContain("activeLinearItem?.elementId");
     expect(itemPressMoveSource).not.toContain("beginLinearItemDrag({");
     expect(itemPressMoveSource).toContain("const pressedElementId = linearItemPressState.elementId");
     expect(itemPressMoveSource).toContain("selectIds([pressedElementId]);");
     expect(itemPressMoveSource).toContain("beginSelectionDrag(pressStart);");
     expect(itemPressMoveSource).toContain("updateSelectionDrag(worldPoint);");
-    expect(itemPressMoveSource).toContain("return;");
-    expect(itemPressHandlerSource).toContain("window.setTimeout(() =>");
+    expect(itemPressMoveSource).toContain("return true;");
+    expect(itemPressHandlerSource).toContain("setTimeoutFn(() =>");
     expect(itemPressHandlerSource).toContain("phase: \"hold\"");
     expect(itemPressHandlerSource).toContain("beginLinearItemDrag({");
   });
@@ -1445,36 +1464,46 @@ describe("app shell", () => {
 
   it("cancels root-node drag state when committing a linear item reorder", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("suppressSelectionDragOnce = true");
-    expect(appSource).toContain("suppressedNodeDragElementId = dragState.elementId");
-    expect(appSource).toContain("contentLayer.findOne(`#${dragState.elementId}`)?.stopDrag()");
-    expect(appSource).toContain("nodeDragSelection = null");
-    expect(appSource).toContain("selectionDrag = null");
+    expect(appSource).toContain("setSuppressSelectionDragOnce: (value) => { suppressSelectionDragOnce = value; }");
+    expect(gestureSource).toContain("setSuppressSelectionDragOnce(true)");
+    expect(selectionDragSource).toContain("function clearRootDragState(elementId)");
+    expect(selectionDragSource).toContain("suppressedNodeDragElementId = elementId");
+    expect(selectionDragSource).toContain("contentLayer.findOne(`#${elementId}`)?.stopDrag()");
+    expect(selectionDragSource).toContain("nodeDragSelection = null");
+    expect(selectionDragSource).toContain("selectionDrag = null");
+    expect(itemDragSource).toContain("clearRootDragState(dragState.elementId)");
   });
 
   it("keeps array item selection suppressed until the post-drag click is consumed", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const commitSource = appSource.slice(
-      appSource.indexOf("function commitLinearItemDrag()"),
-      appSource.indexOf("function beginLinearPointerDrag"),
+    const itemDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const commitSource = itemDragSource.slice(
+      itemDragSource.indexOf("function commitLinearItemDrag()"),
     );
-    const selectSource = appSource.slice(
-      appSource.indexOf("function handleArrayStructureItemSelect"),
-      appSource.indexOf("function handleArrayStructureItemPress"),
+    const selectSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayStructureItemSelect"),
+      gestureSource.indexOf("function handleArrayStructureItemPress"),
     );
 
     expect(appSource).not.toContain("let suppressLinearItemSelect = null;");
     expect(structureSource).toContain("let suppressLinearItemSelect = null;");
-    expect(appSource).toContain("let suppressLinearItemSelectTimer = null;");
-    expect(appSource).toContain("function suppressNextLinearItemSelect(elementId)");
-    expect(appSource).toContain("function clearLinearItemSelectSuppression()");
-    expect(appSource).toContain("structureInteraction.suppressNextLinearItemSelect(elementId);");
-    expect(appSource).toContain("structureInteraction.clearLinearItemSelectSuppression();");
+    expect(appSource).not.toContain("let suppressLinearItemSelectTimer = null;");
+    expect(gestureSource).toContain("let suppressLinearItemSelectTimer = null;");
+    expect(gestureSource).toContain("function suppressNextLinearItemSelect(elementId)");
+    expect(gestureSource).toContain("function clearLinearItemSelectSuppression()");
+    expect(gestureSource).toContain("structureInteraction.suppressNextLinearItemSelect(elementId);");
+    expect(gestureSource).toContain("structureInteraction.clearLinearItemSelectSuppression();");
     expect(commitSource).toContain("suppressNextLinearItemSelect(dragState.elementId)");
-    expect(appSource).toContain("function suppressLinearItemSelectAfterSelectionDrag()");
-    expect(appSource).toContain("if (didMove) suppressLinearItemSelectAfterSelectionDrag();");
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    expect(selectionDragSource).toContain("function suppressLinearItemSelectAfterSelectionDrag()");
+    expect(selectionDragSource).toContain("if (didMove) suppressLinearItemSelectAfterSelectionDrag();");
+    expect(selectionDragSource).toContain("suppressNextLinearItemSelect(draggedLinearElement.id)");
     expect(commitSource).not.toContain("requestAnimationFrame(() =>");
     expect(selectSource).not.toContain("isLinearItemSelectSuppressed: suppressLinearItemSelect?.elementId === elementId");
     expect(selectSource).toContain("structureInteraction.handleEvent({");
@@ -1484,17 +1513,19 @@ describe("app shell", () => {
   it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const activeVisualSource = readFileSync(new URL("../../src/app/structures/structure-active-visual-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);");
+    expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter((event) => {");
+    expect(appSource).toContain("linearGestureController?.dispatchLinearStructureEvent(event);");
     expect(appSource).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
-    expect(appSource).toContain("function dispatchLinearStructureEvent(event)");
-    expect(appSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
-    expect(appSource).toContain("structureInteraction.handleEvent({");
-    expect(appSource).toContain("type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT");
-    expect(appSource).toContain("selectIds(result.selectedIds)");
+    expect(gestureSource).toContain("function dispatchLinearStructureEvent(event)");
+    expect(gestureSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
+    expect(gestureSource).toContain("structureInteraction.handleEvent({");
+    expect(gestureSource).toContain("type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_SELECT");
+    expect(gestureSource).toContain("selectIds(result.selectedIds)");
     expect(appSource).toMatch(/import \{[\s\S]*syncLinearStructureNodeContent,[\s\S]*\} from "\.\.\/canvas\/konva-elements\.js";/);
-    expect(appSource).toContain("syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId)");
-    expect(appSource).toContain("syncLinearItemActiveVisual(result.activeLinearItem?.elementId)");
+    expect(gestureSource).toContain("syncLinearItemActiveVisual(result.previousActiveLinearItem?.elementId)");
+    expect(gestureSource).toContain("syncLinearItemActiveVisual(result.activeLinearItem?.elementId)");
     expect(activeVisualSource).toContain("syncLinearStructureNodeContent(group, runtimeElement, getElementNodeHandlers(runtimeElement));");
     expect(activeVisualSource).not.toContain("node.stroke(isActive ? \"#2563eb\" : style.stroke)");
   });
@@ -1508,30 +1539,30 @@ describe("app shell", () => {
   });
 
   it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("itemNode.setAttrs({");
-    expect(appSource).not.toContain("itemNode.shadowBlur(");
-    expect(appSource).toContain("indicator.visible(false)");
+    expect(itemDragSource).toContain("itemNode.setAttrs({");
+    expect(itemDragSource).not.toContain("itemNode.shadowBlur(");
+    expect(itemDragSource).toContain("indicator.visible(false)");
   });
 
   it("animates the long-press array item lift and drop states", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("animateLinearItemLift");
-    expect(appSource).toContain("animateLinearItemDrop");
-    expect(appSource).toContain("structureInteraction.markLinearItemDragLifted()");
-    expect(appSource).toContain("onFinish: finishLinearItemDrop");
+    expect(itemDragSource).toContain("animateLinearItemLift");
+    expect(itemDragSource).toContain("animateLinearItemDrop");
+    expect(itemDragSource).toContain("structureInteraction.markLinearItemDragLifted()");
+    expect(itemDragSource).toContain("onFinish: finishLinearItemDrop");
   });
 
   it("keeps the dragged array item under direct pointer control during gap animations", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (index === linearItemDragState.fromIndex) {");
-    expect(appSource).toContain("updateLinearDragVisualPosition();");
-    expect(appSource).toContain("return;");
-    expect(appSource).toContain("linearItemLiftTween?.destroy()");
-    expect(appSource).not.toContain("itemNode.stop()");
+    expect(itemDragSource).toContain("if (index === linearItemDragState.fromIndex) {");
+    expect(itemDragSource).toContain("updateLinearDragVisualPosition();");
+    expect(itemDragSource).toContain("return;");
+    expect(itemDragSource).toContain("linearItemLiftTween?.destroy()");
+    expect(itemDragSource).not.toContain("itemNode.stop()");
   });
 
   it("renders direct array item controls around the selected item", () => {
@@ -1570,17 +1601,18 @@ describe("app shell", () => {
   it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const selectHandlerSource = appSource.slice(
-      appSource.indexOf("function handleArrayStructureItemSelect"),
-      appSource.indexOf("function handleArrayStructureItemPress"),
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const selectHandlerSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayStructureItemSelect"),
+      gestureSource.indexOf("function handleArrayStructureItemPress"),
     );
-    const pressHandlerSource = appSource.slice(
-      appSource.indexOf("function handleArrayStructureItemPress"),
-      appSource.indexOf("function handleArrayStructureItemRelease"),
+    const pressHandlerSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayStructureItemPress"),
+      gestureSource.indexOf("function handleArrayStructureItemRelease"),
     );
-    const pointerHandlerSource = appSource.slice(
-      appSource.indexOf("function handleArrayPointerPress"),
-      appSource.indexOf("function getTreeRootNodeId"),
+    const pointerHandlerSource = gestureSource.slice(
+      gestureSource.indexOf("function handleArrayPointerPress"),
+      gestureSource.indexOf("function resetLinearItemPressState"),
     );
     const setToolSource = appSource.slice(
       appSource.indexOf("function setTool(tool)"),
@@ -1588,17 +1620,18 @@ describe("app shell", () => {
     );
 
     expect(selectHandlerSource).toContain("structureInteraction.handleEvent");
-    expect(selectHandlerSource).toContain("currentTool,");
-    expect(selectHandlerSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
+    expect(gestureSource).toContain("currentTool: getCurrentTool()");
+    expect(gestureSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
     expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
     expect(pressHandlerSource).toContain("structureInteraction.handleEvent({");
     expect(pressHandlerSource).toContain("type: LINEAR_STRUCTURE_EVENT_TYPES.ITEM_PRESS");
-    expect(pressHandlerSource).toContain("currentTool,");
-    expect(pressHandlerSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
-    expect(pointerHandlerSource).toContain("currentTool !== TOOLS.SELECT");
-    expect(setToolSource).toContain("resetLinearItemPressState()");
-    expect(setToolSource).toContain("resetLinearPointerPressState()");
-    expect(setToolSource).toContain("cancelSelectionDrag()");
+    expect(pressHandlerSource).toContain("getInteractionContext()");
+    expect(gestureSource).toContain("currentTool: getCurrentTool()");
+    expect(gestureSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
+    expect(pointerHandlerSource).toContain("getCurrentTool() !== selectTool");
+    expect(setToolSource).toContain("linearGestureController.resetLinearItemPressState()");
+    expect(setToolSource).toContain("linearGestureController.resetLinearPointerPressState()");
+    expect(setToolSource).toContain("selectionDragController.cancelSelectionDrag()");
     expect(setToolSource).toContain("if (toolChanged && (tool === TOOLS.SELECT || previousTool === TOOLS.SELECT))");
     expect(setToolSource).toContain("renderBoard();");
   });
@@ -1690,9 +1723,11 @@ describe("app shell", () => {
 
   it("returns to the select tool after adding non-pen, non-eraser elements", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const drawingSource = readFileSync(new URL("../../src/app/tools/drawing-interaction-controller.js", import.meta.url), "utf8");
+    const draftSource = readFileSync(new URL("../../src/app/tools/draft-interaction-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/function finishShape\(\) \{[\s\S]*?addElement\(element, "已添加形状"\);[\s\S]*?selectIds\(\[element\.id\]\);[\s\S]*?setTool\(TOOLS\.SELECT\);/);
-    expect(appSource).toMatch(/function finishStroke\(\) \{[\s\S]*?addElement\(element, "已添加笔触"\);[\s\S]*?\}/);
+    expect(draftSource).toMatch(/function finishShapeDraft\(\) \{[\s\S]*?addElement\(element, "已添加形状"\);[\s\S]*?selectIds\(\[element\.id\]\);[\s\S]*?setTool\(TOOLS\.SELECT\);/);
+    expect(drawingSource).toMatch(/function finishStroke\(\) \{[\s\S]*?addElement\(element, "已添加笔触"\);[\s\S]*?\}/);
     expect(appSource).toContain("setTool(nextToolAfterTextPlacement(currentTool))");
     expect(appSource).toContain("setTool(TOOLS.SELECT)");
   });
@@ -1766,14 +1801,10 @@ describe("app shell", () => {
   });
 
   it("keeps long-press linear item reordering separate from whole-array dragging", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const pointerMoveSource = appSource.slice(
-      appSource.indexOf("function handlePointerMove(event)"),
-      appSource.indexOf("if (isPanning && panStart)"),
-    );
-    const itemPressMoveSource = pointerMoveSource.slice(
-      pointerMoveSource.indexOf("if (linearItemPressState?.phase === \"start\""),
-      pointerMoveSource.indexOf("if (isPanning && panStart)"),
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const itemPressMoveSource = gestureSource.slice(
+      gestureSource.indexOf("if (linearItemPressState?.phase === \"start\""),
+      gestureSource.indexOf("return false;"),
     );
 
     expect(itemPressMoveSource).toContain("linearItemPressState?.phase === \"start\"");
@@ -1784,48 +1815,57 @@ describe("app shell", () => {
 
   it("supports dragging the linear pointer and syncing the pointer field", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("onArrayPointerPress: handleArrayPointerPress");
-    expect(appSource).toContain("function beginLinearPointerDrag");
-    expect(appSource).toContain("function updateLinearPointerDrag");
-    expect(appSource).toContain("setArrayPointer(item, nextIndex)");
-    expect(appSource).toContain("animateLinearPointerDragVisual");
-    expect(appSource).toContain("structureInspectorController.setLinearPanelState({");
-    expect(appSource).toContain("highlightPointer: String(nextIndex)");
+    expect(appSource).toContain("onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event)");
+    expect(gestureSource).toContain("function handleArrayPointerPress({ elementId, index })");
+    expect(appSource).toContain("createLinearStructurePointerDragController");
+    expect(pointerDragSource).toContain("function beginLinearPointerDrag");
+    expect(pointerDragSource).toContain("function updateLinearPointerDrag");
+    expect(pointerDragSource).toContain("setArrayPointer(item, nextIndex)");
+    expect(pointerDragSource).toContain("animateLinearPointerDragVisual");
+    expect(appSource).toContain("setLinearPanelState: (patch) => structureInspectorController.setLinearPanelState(patch)");
+    expect(pointerDragSource).toContain("highlightPointer: String(nextIndex)");
   });
 
   it("cleans root drag state when committing a linear pointer drag", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?suppressedNodeDragElementId = dragState\.elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{dragState\.elementId\}`\)\?\.stopDrag\(\);[\s\S]*?nodeDragSelection = null;[\s\S]*?cancelSelectionDrag\(\);/);
-    expect(appSource).toMatch(/function handleArrayPointerPress\(\{ elementId, index \}\) \{[\s\S]*?suppressedNodeDragElementId = elementId;[\s\S]*?contentLayer\.findOne\(`#\$\{elementId\}`\)\?\.stopDrag\(\);/);
+    expect(selectionDragSource).toContain("function clearRootDragState(elementId)");
+    expect(pointerDragSource).toContain("clearRootDragState(dragState.elementId)");
+    expect(gestureSource).toMatch(/function handleArrayPointerPress\(\{ elementId, index \}\) \{[\s\S]*?clearRootDragState\(elementId\);/);
   });
 
   it("animates linear pointer movement without rerendering the full array on every index change", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("let linearPointerTween = null");
-    expect(appSource).toContain("function animateLinearPointerDragVisual");
-    expect(appSource).toContain("new Konva.Tween({");
-    expect(appSource).toMatch(/function updateLinearPointerDrag\(worldPoint\) \{[\s\S]*?structureInteraction\.getLinearPointerDragState\(\);[\s\S]*?structureInteraction\.updateLinearPointerDrag\(\{[\s\S]*?nextIndex,[\s\S]*?\}\);[\s\S]*?animateLinearPointerDragVisual\(dragState\.elementId, nextIndex\);[\s\S]*?return true;[\s\S]*?\}/);
+    expect(pointerDragSource).toContain("let linearPointerTween = null");
+    expect(pointerDragSource).toContain("function animateLinearPointerDragVisual");
+    expect(pointerDragSource).toContain("createTween = (config) => new Konva.Tween(config)");
+    expect(pointerDragSource).toMatch(/function updateLinearPointerDrag\(worldPoint\) \{[\s\S]*?structureInteraction\.getLinearPointerDragState\(\);[\s\S]*?structureInteraction\.updateLinearPointerDrag\(\{[\s\S]*?nextIndex,[\s\S]*?\}\);[\s\S]*?animateLinearPointerDragVisual\(dragState\.elementId, nextIndex\);[\s\S]*?return true;[\s\S]*?\}/);
   });
 
   it("lifts the linear pointer when dragging starts and drops it before rerendering on release", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
+    const linearRuntimeSource = readFileSync(new URL("../../src/app/structures/linear-structure-runtime.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("const LINEAR_POINTER_BASE_Y = -30");
-    expect(appSource).toContain("const LINEAR_POINTER_DRAG_Y = -40");
-    expect(appSource).toContain("function animateLinearPointerLift");
-    expect(appSource).toContain("function animateLinearPointerDrop");
-    expect(appSource).toMatch(/function beginLinearPointerDrag\(\{ elementId, index, worldPoint \}\) \{[\s\S]*?animateLinearPointerLift\(elementId\);[\s\S]*?updateLinearPointerDrag\(worldPoint\);/);
-    expect(appSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?const finishLinearPointerDrop = \(\) => \{[\s\S]*?renderBoard\(\);[\s\S]*?selectIds\(\[dragState\.elementId\]\);[\s\S]*?\};[\s\S]*?animateLinearPointerDrop\(dragState, finishLinearPointerDrop\);/);
+    expect(linearRuntimeSource).toContain("export const LINEAR_POINTER_BASE_Y = -30");
+    expect(linearRuntimeSource).toContain("export const LINEAR_POINTER_DRAG_Y = -40");
+    expect(pointerDragSource).toContain("function animateLinearPointerLift");
+    expect(pointerDragSource).toContain("function animateLinearPointerDrop");
+    expect(pointerDragSource).toMatch(/function beginLinearPointerDrag\(\{ elementId, index, worldPoint \}\) \{[\s\S]*?animateLinearPointerLift\(elementId\);[\s\S]*?updateLinearPointerDrag\(worldPoint\);/);
+    expect(pointerDragSource).toMatch(/function commitLinearPointerDrag\(\) \{[\s\S]*?const finishLinearPointerDrop = \(\) => \{[\s\S]*?renderBoard\(\);[\s\S]*?selectIds\(\[dragState\.elementId\]\);[\s\S]*?\};[\s\S]*?animateLinearPointerDrop\(dragState, finishLinearPointerDrop\);/);
   });
 
   it("hides transformer bounds while the linear pointer is being dragged", () => {
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {");
-    expect(appSource).toMatch(/if \(structureInteraction\.hasLinearItemDragState\(\) \|\| structureInteraction\.hasLinearPointerDragState\(\)\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
+    expect(transformerSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {");
+    expect(transformerSource).toMatch(/if \(structureInteraction\.hasLinearItemDragState\(\) \|\| structureInteraction\.hasLinearPointerDragState\(\)\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
   });
 
   it("suppresses custom tool cursors while spacebar panning is active", () => {
@@ -1850,13 +1890,16 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
     expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
-    expect(appSource).toContain("createLinearStructureEventAdapter(dispatchLinearStructureEvent)");
+    expect(appSource).toContain("createLinearStructureEventAdapter((event) => {");
     expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
-    expect(appSource).toMatch(/function handleArrayStructureItemPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
+    expect(gestureSource).toContain("currentTool: getCurrentTool()");
+    expect(gestureSource).toContain("isTemporaryPanActive: isTemporaryPanActive()");
+    expect(gestureSource).toMatch(/function handleArrayPointerPress\(\{ elementId, index \}\) \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| getCurrentTool\(\) !== selectTool\) return;/);
   });
 
   it("uses lightweight chrome updates while panning and zooming the viewport", () => {
@@ -1902,9 +1945,8 @@ describe("app shell", () => {
     expect(nodeActionSource).toContain("addBinaryTreeChild(element, nodeId, side, \"0\")");
     expect(appSource).not.toContain("activeTreeNode = { elementId, nodeId: nextNode?.id ?? nodeId };");
     expect(nodeActionSource).toContain("function runBinaryTreeTraversalAction(action)");
-    expect(appSource).toContain("function renderBinaryTreeTraversalControls()");
+    expect(controlsSource).toContain("function renderTreeTraversalControls()");
     expect(nodeActionSource).toContain("function runTreeTraversalAction(action)");
-    expect(appSource).toContain("function renderTreeTraversalControls()");
     expect(controlsSource).toContain("isSelectedTreeElementWithTraversal(item)");
     expect(structureNodeQuerySource).toContain("function findTreeNodeGroup(group, nodeId)");
     expect(controlsPositionSource).toContain("const treeNode = findTreeNodeGroup(contentLayer.findOne(`#${element.id}`), activeTreeNode.nodeId);");
@@ -1974,11 +2016,11 @@ describe("app shell", () => {
 
   it("imports and uses clampTransformerAnchorDragBySize for anchor drag bounds", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("clampTransformerAnchorDragBySize");
-    expect(appSource).toContain("clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
-    expect(appSource).toContain("anchorDragBoundFunc: (oldAbsPos, newAbsPos) => clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
-    expect(appSource).toContain("function clampTransformerAnchorDrag(oldAbsPos, newAbsPos)");
-    expect(appSource).toContain("return clampTransformerAnchorDragBySize({");
+    expect(transformerSource).toContain("clampTransformerAnchorDragBySize");
+    expect(appSource).toContain("anchorDragBoundFunc: (oldAbsPos, newAbsPos) => selectionTransformerController.clampAnchorDrag(oldAbsPos, newAbsPos)");
+    expect(transformerSource).toContain("function clampAnchorDrag(oldAbsPos, newAbsPos)");
+    expect(transformerSource).toContain("return clampTransformerAnchorDragBySize({");
   });
 });
