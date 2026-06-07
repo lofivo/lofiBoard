@@ -125,10 +125,17 @@ export function createEditController({
     const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
     const maxAutoEditorWidth = editorWidth;
 
-    const getEditorWidth = () => Math.max(minEditorWidth, editorFrame.offsetWidth || editorWidth);
+    const getEditorWidth = () => Math.max(
+      minEditorWidth,
+      editorFrame.offsetWidth || Number.parseFloat(editorFrame.style.width) || editorWidth,
+    );
+    const getEditorHeight = () => Math.max(
+      minEditorHeight,
+      editorFrame.offsetHeight || Number.parseFloat(editorFrame.style.height) || editorHeight,
+    );
     const applyNodeSizeFromEditor = () => {
-      const nextWidth = editorFrame.offsetWidth / scale;
-      const nextHeight = editorFrame.offsetHeight / scale;
+      const nextWidth = getEditorWidth() / scale;
+      const nextHeight = getEditorHeight() / scale;
       if (element.type === "text") {
         syncTextNodeSize(node, {
           width: nextWidth,
@@ -172,7 +179,6 @@ export function createEditController({
         baseWidth: maxAutoEditorWidth,
         contentWidth,
         padding: horizontalPadding,
-        latexDefaultWidth: 520 * scale,
         maxWidth: 960 * scale,
       });
       const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
@@ -184,8 +190,8 @@ export function createEditController({
         syncTextNodeContent(node, {
           ...element,
           text: textarea.value,
-          width: editorFrame.offsetWidth / scale,
-          height: editorFrame.offsetHeight / scale,
+          width: getEditorWidth() / scale,
+          height: getEditorHeight() / scale,
         }, { renderLatex: false });
       }
       transformer.forceUpdate();
@@ -209,8 +215,8 @@ export function createEditController({
     applyNodeSizeFromEditor();
     syncTextNodeContent(node, {
       ...element,
-      width: editorFrame.offsetWidth / scale,
-      height: editorFrame.offsetHeight / scale,
+      width: getEditorWidth() / scale,
+      height: getEditorHeight() / scale,
     }, { renderLatex: false });
     transformer.nodes([node]);
     transformer.visible(true);
@@ -255,14 +261,31 @@ export function createEditController({
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
     let editorClosed = false;
+    const isTransformerPointerEvent = (event) => {
+      if (isTransformerTarget(event.target)) return true;
+      if (
+        typeof stage?.setPointersPositions !== "function"
+        || typeof stage?.getPointerPosition !== "function"
+        || typeof stage?.getIntersection !== "function"
+      ) return false;
+      try {
+        stage.setPointersPositions(event);
+        const pointer = stage.getPointerPosition();
+        return Boolean(pointer && isTransformerTarget(stage.getIntersection(pointer)));
+      } catch {
+        return false;
+      }
+    };
+
     const handleEditorOutsidePointerDown = (event) => {
       if (editorClosed) return;
+      const isTransformerPointer = isTransformerPointerEvent(event);
       const shouldPreserveEditor = shouldPreserveTextEditorOnPointerDown({
         target: event.target,
         editorFrame,
-        isTransformer: isTransformerTarget(event.target),
+        isTransformer: isTransformerPointer,
       });
-      if (editorFrame.contains(event.target) || isTransformerTarget(event.target)) return;
+      if (editorFrame.contains(event.target) || isTransformerPointer) return;
       if (shouldPreserveEditor) {
         doCommit({ preserveEmptyText: true });
         return;
@@ -291,8 +314,8 @@ export function createEditController({
       editorCommitRef = null;
       textOverlayController.setHiddenIds([]);
       const nextText = textarea.value.trim();
-      const committedWidth = editorFrame.offsetWidth;
-      const committedHeight = editorFrame.offsetHeight;
+      const committedWidth = getEditorWidth();
+      const committedHeight = getEditorHeight();
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();
@@ -365,7 +388,7 @@ export function createEditController({
     window.addEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
 
     const exitEditorForTransform = () => {
-      doCommit({ keepNode: true });
+      doCommit({ keepNode: true, preserveEmptyText: true });
     };
 
     transformer.on("transformstart.editor dragstart.editor", exitEditorForTransform);

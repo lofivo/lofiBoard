@@ -1172,12 +1172,12 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.text-latex-overlay[\s\S]*?\.katex \.base \{[\s\S]*?white-space: nowrap;/);
   });
 
-  it("widens new latex text while editing and preserves that width on commit", () => {
+  it("keeps short latex text at the current editor width while preserving content-driven growth", () => {
     const textMeasureSource = readFileSync(new URL("../../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(textMeasureSource).toContain("getPreferredTextBoxWidth({");
-    expect(editSource).toContain("latexDefaultWidth: 520 * scale");
+    expect(editSource).not.toContain("latexDefaultWidth: 520 * scale");
     expect(editSource).toContain("preferredTextWidth > maxAutoEditorWidth");
     expect(editSource).toContain("getPreferredTextElementWidth(nextElement, nextWidth)");
   });

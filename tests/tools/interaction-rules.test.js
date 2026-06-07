@@ -601,13 +601,13 @@ describe("interaction rules", () => {
     }).height).toBeGreaterThan(25);
   });
 
-  it("uses a wider default text box for renderable latex", () => {
+  it("keeps short latex at the requested text box width", () => {
     expect(getPreferredTextBoxWidth({
       text: "$$x^2 + y^2 = z^2$$",
       baseWidth: 220,
       contentWidth: 120,
       padding: 6,
-    })).toBe(520);
+    })).toBe(220);
 
     expect(getPreferredTextBoxWidth({
       text: "plain text",
@@ -626,6 +626,20 @@ describe("interaction rules", () => {
 
   it("does not allow a latex text box to resize narrower than the formula can render", () => {
     const measureText = (value) => String(value).length * 12;
+
+    expect(getMinimumLatexTextBoxWidth({
+      text: "$$\\frac{x}{y}$$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBeLessThan(120);
+
+    expect(getMinimumLatexTextBoxWidth({
+      text: "$$\\frac{a+b+c+d+e}{x+y}$$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    })).toBeLessThan(measureText("\\frac{a+b+c+d+e}{x+y}"));
 
     expect(getMinimumLatexTextBoxWidth({
       text: "$a+b=c$",

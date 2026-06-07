@@ -24,17 +24,19 @@ function kEvent(key) {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
 }
 
-function makeStage() {
+function makeStage(overrides = {}) {
   return {
     scaleX: vi.fn(() => 1),
     scaleY: vi.fn(() => 1),
     container: vi.fn(() => ({
       getBoundingClientRect: () => ({ left: 0, top: 0 }),
     })),
+    ...overrides,
   };
 }
 
 function makeTransformer() {
+  const handlers = {};
   return {
     nodes: vi.fn(() => []),
     show: vi.fn(),
@@ -48,8 +50,13 @@ function makeTransformer() {
     anchorDragBoundFunc: vi.fn(() => vi.fn()),
     getActiveAnchor: vi.fn(() => null),
     isTransforming: vi.fn(() => false),
-    on: vi.fn(),
+    on: vi.fn((events, handler) => {
+      String(events).split(/\s+/).filter(Boolean).forEach((eventName) => {
+        handlers[eventName] = handler;
+      });
+    }),
     off: vi.fn(),
+    trigger: (eventName) => handlers[eventName]?.(),
   };
 }
 
@@ -231,6 +238,74 @@ describe("edit-controller", () => {
     expect(deps.onRender).toHaveBeenCalled();
   });
 
+  it("preserves a newly placed empty text element when resizing its editor frame", () => {
+    const deps = createDeps();
+    const element = textElement({ text: "" });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.getSelectedIds.mockReturnValue([element.id]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    deps.transformer.trigger("transformstart.editor");
+
+    expect(controller.isEditing).toBe(false);
+    expect(deps.setBoardElements).toHaveBeenCalled();
+    const updatedElements = deps.setBoardElements.mock.calls[0][0];
+    expect(updatedElements).toHaveLength(1);
+    expect(updatedElements[0]).toMatchObject({
+      id: element.id,
+      type: "text",
+      text: "",
+      scaleX: 1,
+      scaleY: 1,
+    });
+    expect(node.show).toHaveBeenCalled();
+    expect(deps.transformer.nodes).toHaveBeenCalledWith([node]);
+    expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
+    expect(deps.onHistory).not.toHaveBeenCalledWith("已删除空文字");
+  });
+
+  it("keeps an empty text editor open when the DOM pointerdown lands on the canvas over a transformer", () => {
+    const transformerTarget = { getClassName: vi.fn(() => "Transformer") };
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const deps = createDeps({
+      stage: makeStage({
+        setPointersPositions: vi.fn(),
+        getPointerPosition: vi.fn(() => ({ x: 100, y: 80 })),
+        getIntersection: vi.fn(() => transformerTarget),
+      }),
+    });
+    const element = textElement({ text: "" });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.getSelectedIds.mockReturnValue([element.id]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+
+    expect(controller.isEditing).toBe(true);
+    expect(deps.stage.setPointersPositions).toHaveBeenCalled();
+    expect(deps.stage.getIntersection).toHaveBeenCalledWith({ x: 100, y: 80 });
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+    expect(deps.onHistory).not.toHaveBeenCalledWith("已删除空文字");
+
+    deps.transformer.trigger("transformstart.editor");
+
+    expect(controller.isEditing).toBe(false);
+    const updatedElements = deps.setBoardElements.mock.calls[0][0];
+    expect(updatedElements).toHaveLength(1);
+    expect(updatedElements[0]).toMatchObject({ id: element.id, text: "" });
+  });
+
   it("preserves sticky on commit even when empty", () => {
     const deps = createDeps();
     const element = stickyElement({ text: "" });
@@ -318,6 +393,33 @@ describe("edit-controller", () => {
     expect(updated.scaleX).toBe(1);
     expect(updated.scaleY).toBe(1);
     expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
+  });
+
+  it("does not widen short latex text to the latex default width on commit", () => {
+    const deps = createDeps();
+    const element = textElement({ text: "", width: 220, height: 35 });
+    const node = makeNode({
+      width: vi.fn(() => 220),
+      height: vi.fn(() => 35),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.getSelectedIds.mockReturnValue([element.id]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.measureTextValue = vi.fn((_, value) => String(value).length * 4);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
+    textarea.value = "$x$";
+    textarea.dispatchEvent(kEvent("Enter"));
+
+    const updatedElements = deps.setBoardElements.mock.calls[0][0];
+    const updated = updatedElements.find((el) => el.id === element.id);
+    expect(updated.text).toBe("$x$");
+    expect(updated.width).toBe(220);
+    expect(updated.width).toBeLessThan(520);
   });
 
   it("commits sticky element with correct size calculation", () => {

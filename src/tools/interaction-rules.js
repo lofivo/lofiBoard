@@ -322,33 +322,128 @@ export function getMinimumLatexTextBoxWidth({
   const mathValues = tokens.some((token) => token.type === "math")
     ? tokens.filter((token) => token.type === "math").map((token) => token.value)
     : [parseLatexText(text).expression || text];
-  const widestMath = Math.max(...mathValues.map((value) => {
-    const expression = String(value || " ");
-    if (/[\\{}]/.test(expression)) return Math.max(measure(expression) * 2.15, measure(expression) + size * 2.5);
-    const baseLikeParts = expression
-      .split(/(?<=[+\-=<>*/])|(?=[+\-=<>*/])/)
-      .reduce((parts, part) => {
-        if (!part) return parts;
-        const previous = parts.at(-1);
-        if (/^[+\-=<>*/]$/.test(part) && previous && !/[+\-=<>*/]$/.test(previous)) {
-          parts[parts.length - 1] = `${previous}${part}`;
-        } else if (/^[+\-=<>*/]$/.test(part) && previous && /[+\-=<>*/]$/.test(previous)) {
-          parts[parts.length - 1] = `${previous}${part}`;
-        } else {
-          parts.push(part);
-        }
-        return parts;
-      }, []);
-    return Math.max(
-      ...(baseLikeParts.length ? baseLikeParts : [expression])
-        .map((part) => measure(part || " ") + size * 0.35),
-      0,
-    );
-  }), 0);
+  const widestMath = Math.max(...mathValues.map((value) => getMinimumLatexExpressionWidth(value, {
+    measure,
+    fontSize: size,
+  })), 0);
   const plainWidth = Math.max(0, ...tokens
     .filter((token) => token.type === "text")
     .map((token) => measure(token.value || " ")));
   return Math.ceil(Math.max(widestMath, plainWidth) + horizontalPadding * 2 + 1);
+}
+
+function getMinimumLatexExpressionWidth(value, { measure, fontSize }) {
+  const expression = String(value || " ");
+  const parts = getLatexBaseLikeParts(expression);
+  const baseWidth = Math.max(
+    ...(parts.length ? parts : [" "]).map((part) => measure(part || " ") + fontSize * 0.35),
+    0,
+  );
+  return Math.max(baseWidth, ...getLatexCommandWidthCandidates(expression, { measure, fontSize }));
+}
+
+function getLatexBaseLikeParts(expression) {
+  return String(expression || " ")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/\\(.)/g, "$1")
+    .replace(/[{}_^]/g, " ")
+    .split(/\s+/)
+    .flatMap((part) => part.split(/(?<=[+\-=<>*/])|(?=[+\-=<>*/])/))
+    .reduce((parts, part) => {
+      if (!part) return parts;
+      const previous = parts.at(-1);
+      if (/^[+\-=<>*/]$/.test(part) && previous) {
+        parts[parts.length - 1] = `${previous}${part}`;
+      } else {
+        parts.push(part);
+      }
+      return parts;
+    }, []);
+}
+
+function getLatexCommandWidthCandidates(expression, { measure, fontSize }) {
+  const source = String(expression || "");
+  const candidates = [];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] !== "\\") continue;
+    const commandMatch = /^\\([a-zA-Z]+)/.exec(source.slice(index));
+    if (!commandMatch) continue;
+    const command = commandMatch[1];
+    let cursor = skipLatexWhitespace(source, index + commandMatch[0].length);
+    if (["frac", "dfrac", "tfrac", "binom"].includes(command)) {
+      const numerator = readLatexGroup(source, cursor);
+      const denominator = numerator ? readLatexGroup(source, skipLatexWhitespace(source, numerator.end)) : null;
+      if (numerator && denominator) {
+        candidates.push(
+          Math.max(
+            getLatexGroupRenderedWidth(numerator.value, { measure, fontSize }),
+            getLatexGroupRenderedWidth(denominator.value, { measure, fontSize }),
+          ) + fontSize * 1.2,
+        );
+        index = denominator.end - 1;
+      }
+      continue;
+    }
+    if (command === "sqrt") {
+      if (source[cursor] === "[") {
+        const optionalEnd = source.indexOf("]", cursor + 1);
+        if (optionalEnd !== -1) cursor = skipLatexWhitespace(source, optionalEnd + 1);
+      }
+      const group = readLatexGroup(source, cursor);
+      if (group) {
+        candidates.push(getLatexGroupRenderedWidth(group.value, { measure, fontSize }) + fontSize * 0.8);
+        index = group.end - 1;
+      }
+      continue;
+    }
+    const group = readLatexGroup(source, cursor);
+    if (group) {
+      candidates.push(getLatexGroupRenderedWidth(group.value, { measure, fontSize }) + fontSize * 0.35);
+      index = group.end - 1;
+    }
+  }
+  return candidates;
+}
+
+function getLatexGroupRenderedWidth(value, { measure, fontSize }) {
+  const visible = String(value || " ")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/\\(.)/g, "$1")
+    .replace(/[{}_^]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || " ";
+  return Math.max(
+    measure(visible),
+    ...getLatexCommandWidthCandidates(value, { measure, fontSize }),
+  );
+}
+
+function skipLatexWhitespace(source, index) {
+  let cursor = index;
+  while (/\s/.test(source[cursor] ?? "")) cursor += 1;
+  return cursor;
+}
+
+function readLatexGroup(source, start) {
+  if (source[start] !== "{") return null;
+  let depth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    if (source[index] === "\\" && index + 1 < source.length) {
+      index += 1;
+      continue;
+    }
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          value: source.slice(start + 1, index),
+          end: index + 1,
+        };
+      }
+    }
+  }
+  return null;
 }
 
 export function getPreferredTextBoxWidth({
@@ -356,16 +451,17 @@ export function getPreferredTextBoxWidth({
   baseWidth = 220,
   contentWidth = 0,
   padding = 0,
-  latexDefaultWidth = 520,
+  latexDefaultWidth = 0,
   maxWidth = 960,
 } = {}) {
   const fallbackWidth = Math.max(1, Number(baseWidth) || 1);
   if (!containsRenderableLatex(text)) return fallbackWidth;
   const horizontalPadding = Math.max(0, Number(padding) || 0);
   const measuredWidth = Math.ceil(Math.max(0, Number(contentWidth) || 0) + horizontalPadding * 2 + 1);
+  const defaultWidth = Math.max(fallbackWidth, Number(latexDefaultWidth) || fallbackWidth);
   return Math.min(
     Math.max(1, Number(maxWidth) || 1),
-    Math.max(fallbackWidth, Number(latexDefaultWidth) || fallbackWidth, measuredWidth),
+    Math.max(defaultWidth, measuredWidth),
   );
 }
 
