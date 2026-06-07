@@ -95,6 +95,7 @@ import {
   reorderElements,
   serializeBoard,
 } from "../board/board-model.js";
+import { createId } from "../board/ids.js";
 import {
   createImageElement as buildImageElement,
   createTextElement as buildTextElement,
@@ -422,13 +423,13 @@ export function createWhiteboardApp(root) {
     structurePanelController,
     batchDraw: () => contentLayer.batchDraw(),
     beginSelectionDrag: (worldPoint) => selectionDragController.beginSelectionDrag(worldPoint),
-    pushHistory,
+    pushHistory: (message) => pushHistory(message),
     renderBinaryTreeControls: () => structureControlsController.renderBinaryTreeControls(),
     renderBoard,
     renderLinearItemControls: () => structureControlsController.renderLinearItemControls(),
     selectIds,
     setStructurePanelOpen: (open) => setStructurePanelOpen(open),
-    setTool,
+    setTool: (tool) => setTool(tool),
     syncLinearItemActiveVisual,
     syncLinearPanelState,
     syncTreeStructurePanelState: () => syncTreeStructurePanelState(),
@@ -466,7 +467,7 @@ export function createWhiteboardApp(root) {
     isElementDraggable: shouldElementBeDraggable,
     selectIds,
     renderBoard,
-    pushHistory,
+    pushHistory: (message) => pushHistory(message),
     setLinearPanelState: (patch) => structureInspectorController.setLinearPanelState(patch),
     applyLinearPanelState,
     clearRootDragState: (elementId) => selectionDragController.clearRootDragState(elementId),
@@ -589,7 +590,7 @@ export function createWhiteboardApp(root) {
     isElementLocked,
     isLinearGestureElement: isLinearPointerGestureElement,
     isLinearStructureElement,
-    pushHistory,
+    pushHistory: (message) => pushHistory(message),
     renderBoard,
     selectElementById,
     setElements: (elements) => { board.elements = elements; },
@@ -674,7 +675,7 @@ export function createWhiteboardApp(root) {
     getSelectedIds: () => selectedIds,
     getStrokeStyleFromControls: () => getStrokeStyleFromControls(),
     selectionStyleController,
-    pushHistory,
+    pushHistory: (message) => pushHistory(message),
     renderBoard,
     saveToolPropertyControlsForCurrentTool: () => saveToolPropertyControlsForCurrentTool(),
     selectIds,
@@ -775,9 +776,9 @@ export function createWhiteboardApp(root) {
   } = createBoardSessionActionController({
     boardSession,
     getBoard: () => board,
-    cancelArrayAlgorithmPlayback,
-    cancelArrayAlgorithmSwapAnimation,
-    clearArrayAlgorithmSessions,
+    cancelArrayAlgorithmPlayback: () => cancelArrayAlgorithmPlayback(),
+    cancelArrayAlgorithmSwapAnimation: (options) => cancelArrayAlgorithmSwapAnimation(options),
+    clearArrayAlgorithmSessions: () => clearArrayAlgorithmSessions(),
     setInitialStatusMessage: (message) => { initialStatusMessage = message; },
   });
   const {
