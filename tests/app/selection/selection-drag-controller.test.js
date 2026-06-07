@@ -1,0 +1,148 @@
+import { describe, expect, it, vi } from "vitest";
+import { createSelectionDragController } from "../../../src/app/selection/selection-drag-controller.js";
+import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
+
+function createNode({ id, x = 0, y = 0 } = {}) {
+  let position = { x, y };
+  return {
+    draggable: vi.fn(),
+    getId: () => id,
+    position: vi.fn((nextPosition) => {
+      position = nextPosition;
+    }),
+    stopDrag: vi.fn(),
+    x: vi.fn(() => position.x),
+    y: vi.fn(() => position.y),
+  };
+}
+
+function createHarness(overrides = {}) {
+  const state = {
+    elements: [
+      { id: "shape_1", type: "rectangle", x: 0, y: 0 },
+      { id: "tree_1", type: "tree-structure", settings: { treeKind: "binary" }, x: 10, y: 10 },
+      { id: "array_1", type: "array-structure", x: 20, y: 20 },
+      { id: "locked_1", type: "rectangle", locked: true, x: 30, y: 30 },
+    ],
+    selectedIds: ["shape_1", "tree_1", "array_1", "locked_1"],
+    suppressSelectionDragOnce: false,
+    ...overrides.state,
+  };
+  const nodes = {
+    "#shape_1": createNode({ id: "shape_1" }),
+    "#tree_1": createNode({ id: "tree_1" }),
+    "#array_1": createNode({ id: "array_1" }),
+    ...overrides.nodes,
+  };
+  const structureInteraction = overrides.structureInteraction ?? createStructureInteraction();
+  const callbacks = {
+    enterDragging: vi.fn(),
+    pushHistory: vi.fn(),
+    renderBoard: vi.fn(),
+    selectElementById: vi.fn((id) => { state.selectedIds = [id]; }),
+    setHandledNodeDragEnd: vi.fn(),
+    setSuppressNextSelectionClick: vi.fn(),
+    snapNodeToAlignment: vi.fn(),
+    suppressNextLinearItemSelect: vi.fn(),
+    syncNodeToElement: vi.fn(),
+    syncTextOverlays: vi.fn(),
+    updateTreeControlsPosition: vi.fn(),
+    ...overrides.callbacks,
+  };
+  const contentLayer = {
+    batchDraw: vi.fn(),
+    findOne: vi.fn((selector) => nodes[selector] ?? null),
+  };
+  const transformer = {
+    forceUpdate: vi.fn(),
+  };
+  const controller = createSelectionDragController({
+    contentLayer,
+    enterDragging: callbacks.enterDragging,
+    getElementIdFromNode: (node) => node?.getId?.() ?? null,
+    getElements: () => state.elements,
+    getSelectedIds: () => state.selectedIds,
+    getSuppressSelectionDragOnce: () => state.suppressSelectionDragOnce,
+    isBinaryTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind === "binary",
+    isElementDraggable: (element) => Boolean(element && !element.locked),
+    isElementLocked: (id) => Boolean(state.elements.find((element) => element.id === id)?.locked),
+    isLinearGestureElement: vi.fn(() => false),
+    isLinearStructureElement: (element) => element?.type === "array-structure",
+    pushHistory: callbacks.pushHistory,
+    renderBoard: callbacks.renderBoard,
+    selectElementById: callbacks.selectElementById,
+    setElements: (elements) => { state.elements = elements; },
+    setHandledNodeDragEnd: callbacks.setHandledNodeDragEnd,
+    setSuppressNextSelectionClick: callbacks.setSuppressNextSelectionClick,
+    snapNodeToAlignment: callbacks.snapNodeToAlignment,
+    structureInteraction,
+    suppressNextLinearItemSelect: callbacks.suppressNextLinearItemSelect,
+    syncNodeToElement: callbacks.syncNodeToElement,
+    syncTextOverlays: callbacks.syncTextOverlays,
+    transformer,
+    updateTreeControlsPosition: callbacks.updateTreeControlsPosition,
+    ...overrides.controller,
+  });
+  return { callbacks, contentLayer, controller, nodes, state, structureInteraction, transformer };
+}
+
+describe("selection-drag-controller", () => {
+  it("moves unlocked selected elements and suppresses structure clicks after a drag", () => {
+    const { callbacks, controller, nodes, state, structureInteraction } = createHarness();
+
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    controller.updateSelectionDrag({ x: 5, y: 7 });
+    controller.finishSelectionDrag();
+
+    expect(callbacks.enterDragging).toHaveBeenCalled();
+    expect(nodes["#shape_1"].draggable).toHaveBeenCalledWith(false);
+    expect(nodes["#locked_1"]?.draggable).toBeUndefined();
+    expect(state.elements).toMatchObject([
+      { id: "shape_1", x: 5, y: 7 },
+      { id: "tree_1", x: 15, y: 17 },
+      { id: "array_1", x: 25, y: 27 },
+      { id: "locked_1", x: 30, y: 30 },
+    ]);
+    expect(callbacks.renderBoard).toHaveBeenCalled();
+    expect(callbacks.updateTreeControlsPosition).toHaveBeenCalled();
+    expect(callbacks.setSuppressNextSelectionClick).toHaveBeenCalledWith(true);
+    expect(callbacks.suppressNextLinearItemSelect).toHaveBeenCalledWith("array_1");
+    expect(structureInteraction.consumeSuppressedBinaryTreeNodeClick("tree_1")).toBe(true);
+    expect(callbacks.pushHistory).toHaveBeenCalledWith("已移动对象");
+  });
+
+  it("updates sibling node positions during native node drag", () => {
+    const { callbacks, contentLayer, controller, nodes, state, transformer } = createHarness({
+      state: {
+        selectedIds: ["shape_1", "array_1"],
+      },
+    });
+    controller.beginNodeDragSelection(nodes["#shape_1"]);
+    nodes["#shape_1"].x = vi.fn(() => 6);
+    nodes["#shape_1"].y = vi.fn(() => 8);
+    controller.updateNodeDragSelection(nodes["#shape_1"]);
+    controller.finishNodeDragSelection(nodes["#shape_1"]);
+
+    expect(nodes["#array_1"].position).toHaveBeenCalledWith({ x: 26, y: 28 });
+    expect(state.elements.find((element) => element.id === "shape_1")).toMatchObject({ x: 6, y: 8 });
+    expect(state.elements.find((element) => element.id === "array_1")).toMatchObject({ x: 26, y: 28 });
+    expect(transformer.forceUpdate).toHaveBeenCalled();
+    expect(contentLayer.batchDraw).toHaveBeenCalled();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalled();
+    expect(callbacks.renderBoard).toHaveBeenCalled();
+    expect(callbacks.setHandledNodeDragEnd).toHaveBeenCalledWith(true);
+    expect(callbacks.pushHistory).toHaveBeenCalledWith("已移动对象");
+  });
+
+  it("clears root drag state and cancels active selection drag", () => {
+    const { controller, nodes } = createHarness();
+
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    controller.clearRootDragState("shape_1");
+    controller.finishNodeDragSelection(nodes["#shape_1"]);
+
+    expect(nodes["#shape_1"].stopDrag).toHaveBeenCalled();
+    expect(controller.hasSelectionDrag()).toBe(false);
+    expect(nodes["#shape_1"].draggable).toHaveBeenLastCalledWith(true);
+  });
+});

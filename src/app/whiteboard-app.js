@@ -1,5 +1,6 @@
 import Konva from "konva";
 import { renderShell } from "./shell/app-shell.js";
+import { createBoardSessionActionController } from "./shell/board-session-action-controller.js";
 import { createBoardSessionController } from "./shell/board-session-controller.js";
 import { createClipboardController } from "./clipboard/clipboard-controller.js";
 import { createContextMenuDomController } from "./context-menu/context-menu-dom-controller.js";
@@ -26,8 +27,17 @@ import {
   findLinearItemNode,
   findLinearItemValueGroup,
   findTreeNodeGroup,
+  getTreeParentNodeId,
+  getTreeRootNodeId,
+  isBinaryTreeElement,
+  isGeneralTreeElement,
+  isInteractiveStructureElement,
+  isTreeElementWithTraversal,
+  isTreeNodeHitTarget,
+  isTreeRootNode,
 } from "./structures/structure-node-query.js";
 import { createStructurePanelController } from "./structures/structure-panel-controller.js";
+import { createToolActivationController } from "./tools/tool-activation-controller.js";
 import { createToolController, getToolStatus as getToolStatusText } from "./tools/tool-controller.js";
 import { createViewportActionController } from "./viewport/viewport-action-controller.js";
 import { createViewportController } from "./viewport/viewport-controller.js";
@@ -47,8 +57,10 @@ import { createArrayAlgorithmSessionController } from "./algorithms/array-algori
 import { createExportPngController } from "./import-export/export-png-controller.js";
 import { createImportWorkflowController } from "./import-export/import-workflow-controller.js";
 import { createInspectorPanelDomController } from "./inspector/inspector-panel-dom-controller.js";
+import { createSelectionStyleActionController } from "./inspector/selection-style-action-controller.js";
 import { createSelectionStyleController } from "./inspector/selection-style-controller.js";
 import { createKeyboardController } from "./shell/keyboard-controller.js";
+import { createPromptController } from "./shell/prompt-controller.js";
 import { createLayerPanelController } from "./panels/layer-panel-controller.js";
 import { createPanelDomController } from "./panels/panel-dom-controller.js";
 import { createAlignmentSnapController } from "./selection/alignment-snap-controller.js";
@@ -58,6 +70,7 @@ import { createSelectionDragController } from "./selection/selection-drag-contro
 import { createSelectionTransformCommitController } from "./selection/selection-transform-commit-controller.js";
 import { createSelectionTransformPreviewController } from "./selection/selection-transform-preview-controller.js";
 import { createSelectionTransformerController } from "./selection/selection-transformer-controller.js";
+import { createStructureBoardActionController } from "./structures/structure-board-action-controller.js";
 import { createStructureCellEditorController } from "./structures/structure-cell-editor-controller.js";
 import { createStructureEditActionController } from "./structures/structure-edit-action-controller.js";
 import { createStructureExportController } from "./structures/structure-export-controller.js";
@@ -67,6 +80,7 @@ import { createLinearStructureItemDragController } from "./structures/linear-str
 import { createLinearStructurePanelSyncController } from "./structures/linear-structure-panel-sync-controller.js";
 import { createLinearStructurePointerDragController } from "./structures/linear-structure-pointer-drag-controller.js";
 import { createStructureNodeActionController } from "./structures/structure-node-action-controller.js";
+import { createStagePointerController } from "./shell/stage-pointer-controller.js";
 import { createStatusController } from "./shell/status-controller.js";
 import { createTextElementMeasurer } from "./editing/text-element-measure.js";
 import { createDrawingInteractionController } from "./tools/drawing-interaction-controller.js";
@@ -83,7 +97,6 @@ import {
 } from "../board/board-model.js";
 import {
   createImageElement as buildImageElement,
-  createStickyElement as buildStickyElement,
   createTextElement as buildTextElement,
 } from "../board/element-factory.js";
 import {
@@ -129,29 +142,14 @@ import {
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
   isNativeTextEditingTarget,
-  isTransformerAnchorTarget,
-  isTransformerTarget,
   measureTextareaContentHeight,
-  nextToolAfterTextPlacement,
   pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
-  shouldEditTextOnTransformerDoubleClick,
-  shouldIgnoreCanvasPointerDown,
   shouldPreserveTextEditorOnPointerDown,
   shouldSelectAll,
   shouldUseBrowserSelectAll,
 } from "../tools/interaction-rules.js";
-import {
-  isShapeTool,
-  resolveActiveDrawingTool,
-} from "../tools/tool-behavior.js";
-import {
-  captureDrawingPointer,
-  preventDrawingPointerDefault,
-  releaseDrawingPointer,
-  shouldHandlePointerEvent,
-} from "../tools/stroke-engine.js";
 import {
   DEFAULT_SHAPE_TOOL,
   TOOLS,
@@ -159,9 +157,7 @@ import {
 import {
   TREE_STRUCTURE_STYLE,
   LINEAR_STRUCTURE_TYPES,
-  createStructureElements,
   isLinearStructureElement,
-  moveArrayItem,
   exportGraph,
   exportTree,
   getBinaryTreeChildSides,
@@ -242,9 +238,6 @@ export function createWhiteboardApp(root) {
   let activeShapeTool = DEFAULT_SHAPE_TOOL;
   let selectedIds = [];
   let isSpaceDown = false;
-  let isPanning = false;
-  let panStart = null;
-  let activeDrawingPointerCapture = null;
   let isEditingText = false;
   let lastPointerWorldPoint = null;
   let initialStatusMessage = null;
@@ -253,6 +246,7 @@ export function createWhiteboardApp(root) {
   let drawingInteractionController = null;
   let draftInteractionController = null;
   let selectionDragController = null;
+  let stagePointerController = null;
   let selectionTransformCommitController = null;
   let selectionTransformPreviewController = null;
   let selectionTransformerController = null;
@@ -400,6 +394,44 @@ export function createWhiteboardApp(root) {
     linearValuesTitle,
     structureInspectorController,
     structureInteraction,
+  });
+  const {
+    editSelectedArrayStructure,
+    editSelectedStructure,
+    getSelectedLinearStructure,
+    handleTreeStructureNodePress,
+    insertStructureFromPanel,
+    moveArrayStructureItem,
+    setActiveLinearItem,
+  } = createStructureBoardActionController({
+    getArrayRandomCountValue: () => arrayRandomCountInput.value,
+    getCurrentTool: () => currentTool,
+    getElementIdFromNode,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getStructureInputValue: () => structureInput.value,
+    getTreeNodePressWorldPoint: () => getWorldPointer(stage),
+    getViewportCenterPoint,
+    isArrayAlgorithmLocked,
+    isBinaryTreeElement,
+    isLinearStructureElement,
+    isTemporaryPanActive,
+    selectTool: TOOLS.SELECT,
+    setElements: (elements) => { board.elements = elements; },
+    structureInteraction,
+    structurePanelController,
+    batchDraw: () => contentLayer.batchDraw(),
+    beginSelectionDrag: (worldPoint) => selectionDragController.beginSelectionDrag(worldPoint),
+    pushHistory,
+    renderBinaryTreeControls: () => structureControlsController.renderBinaryTreeControls(),
+    renderBoard,
+    renderLinearItemControls: () => structureControlsController.renderLinearItemControls(),
+    selectIds,
+    setStructurePanelOpen: (open) => setStructurePanelOpen(open),
+    setTool,
+    syncLinearItemActiveVisual,
+    syncLinearPanelState,
+    syncTreeStructurePanelState: () => syncTreeStructurePanelState(),
   });
 
   const {
@@ -616,6 +648,39 @@ export function createWhiteboardApp(root) {
     getSelectedIds: () => selectedIds,
     normalizeTextElementBox,
   });
+  const {
+    applyCoordinateStyleToSelection,
+    applyStyleToSelection,
+    selectAllElements,
+    toggleTextStyle,
+  } = createSelectionStyleActionController({
+    controls: {
+      arrowDoubleEndedInput,
+      colorInput,
+      coordinateAxisColorInput,
+      coordinateGridColorInput,
+      coordinateLabelColorInput,
+      coordinateShowGridInput,
+      coordinateShowLabelsInput,
+      coordinateShowTicksInput,
+      coordinateUnitSizeInput,
+      fillInput,
+      fillTransparentInput,
+      fontFamilyInput,
+      fontSizeInput,
+      widthInput,
+    },
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getStrokeStyleFromControls: () => getStrokeStyleFromControls(),
+    selectionStyleController,
+    pushHistory,
+    renderBoard,
+    saveToolPropertyControlsForCurrentTool: () => saveToolPropertyControlsForCurrentTool(),
+    selectIds,
+    setStatus: (message) => setStatus(message),
+    updateContextPanel: () => updateContextPanel(),
+  });
 
   const editController = createEditController({
     findElement: (id) => board.elements.find((item) => item.id === id),
@@ -643,6 +708,13 @@ export function createWhiteboardApp(root) {
 
   const interactionSM = createInteractionStateMachine();
   const { setStatus } = createStatusController({ status });
+  const {
+    promptBoolean,
+    promptMultiline,
+    promptValue,
+  } = createPromptController({
+    prompt: (label, fallback) => window.prompt(label, fallback),
+  });
   const boardSession = createBoardSessionController({
     createInitialBoard: createEmptyBoard,
     createHistory,
@@ -687,6 +759,27 @@ export function createWhiteboardApp(root) {
     onStatus: (message) => setStatus(message),
   });
   board = boardSession.getBoard();
+  const {
+    hydrateLocalDraft,
+    newBoard,
+    openBoardFile,
+    persistCurrentDraft,
+    pushHistory,
+    redoHistory,
+    saveBoardFile,
+    saveBoardFileAs,
+    schedulePersistCurrentDraft,
+    serializeCurrentBoard,
+    snapshotBoard,
+    undoHistory,
+  } = createBoardSessionActionController({
+    boardSession,
+    getBoard: () => board,
+    cancelArrayAlgorithmPlayback,
+    cancelArrayAlgorithmSwapAnimation,
+    clearArrayAlgorithmSessions,
+    setInitialStatusMessage: (message) => { initialStatusMessage = message; },
+  });
   const {
     getBaseEraserRadius,
     getVisibleEraserRadius,
@@ -757,6 +850,33 @@ export function createWhiteboardApp(root) {
     onApplyStyleToSelection: applyStyleToSelection,
     onBrushCursorStyleChange: updateBrushCursorStyle,
     onToggleTextStyle: toggleTextStyle,
+  });
+  const {
+    setActiveShapeTool,
+    setTool,
+  } = createToolActivationController({
+    root,
+    toolController,
+    tools: TOOLS,
+    getStageContainer: () => stage.container(),
+    getToolStatus: getToolStatusText,
+    setActiveShapeToolState: (shapeTool) => { activeShapeTool = shapeTool; },
+    setCurrentTool: (tool) => { currentTool = tool; },
+    cancelSelectionDrag: () => selectionDragController.cancelSelectionDrag(),
+    clearSelection,
+    hideToolCursors,
+    renderBoard,
+    resetLinearItemPressState: () => linearGestureController.resetLinearItemPressState(),
+    resetLinearPointerPressState: () => linearGestureController.resetLinearPointerPressState(),
+    restorePropertyControlsForTool,
+    saveToolPropertyControlsForCurrentTool,
+    setShapePopoverOpen: (open) => setShapePopoverOpen(open),
+    setStatus,
+    setStructurePanelOpen: (open) => setStructurePanelOpen(open),
+    syncInspectorPanelState: (options) => syncInspectorPanelState(options),
+    syncSelectionNodes,
+    updateChrome: () => updateChrome(),
+    updateDraggableState,
   });
   draftInteractionController = createDraftInteractionController({
     Konva,
@@ -1032,7 +1152,7 @@ export function createWhiteboardApp(root) {
     selectTool: TOOLS.SELECT,
     setTool,
     selectElementById,
-    ensureSelectionVisible,
+    ensureSelectionVisible: () => viewportActions.ensureSelectionVisible(),
     applyPanelState,
   });
   const {
@@ -1203,7 +1323,7 @@ export function createWhiteboardApp(root) {
     editSelectedArrayStructure,
     editSelectedStructure,
     exportPng,
-    fitContent,
+    fitContent: () => viewportActions.fitContent(),
     getActiveLinearIndex,
     getActiveTreeNodeId,
     getGraphStructureDraft: () => structureInspectorController.getGraphStructureDraft(),
@@ -1219,12 +1339,12 @@ export function createWhiteboardApp(root) {
     readLinearDisplayIndexField,
     redoHistory,
     resetArrayAlgorithmSession,
-    resetView,
+    resetView: () => viewportActions.resetView(),
     saveBoardFile,
     saveBoardFileAs,
     sendSelectionBackward,
     sendSelectionToBack,
-    setBackgroundMode,
+    setBackgroundMode: (backgroundMode) => viewportActions.setBackgroundMode(backgroundMode),
     startSelectedArrayAlgorithm,
     stepArrayAlgorithmNext,
     stepArrayAlgorithmPrevious,
@@ -1287,8 +1407,8 @@ export function createWhiteboardApp(root) {
     setTool,
     setShapePopoverOpen,
     setStructurePanelOpen,
-    setBackgroundMode,
-    setZoomAtCenter,
+    setBackgroundMode: (backgroundMode) => viewportActions.setBackgroundMode(backgroundMode),
+    setZoomAtCenter: (requestedScale) => viewportController.setZoomAtCenter(requestedScale),
     setActiveShapeTool,
     setActiveStructureType,
     setArrayInitMode: (mode) => structurePanelController.setActiveArrayInitMode(mode),
@@ -1300,7 +1420,7 @@ export function createWhiteboardApp(root) {
     bindLayerPanelEvents,
     toggleMainMenu,
     toggleZoomMenu,
-    zoomBy,
+    zoomBy: (multiplier) => viewportController.zoomBy(multiplier),
     importSelectedImage,
     togglePanel,
     toggleInspectorSection: (section) => panelStateController.toggleInspectorSection(section),
@@ -1376,6 +1496,72 @@ export function createWhiteboardApp(root) {
     schedulePersistCurrentDraft,
     closeZoomMenu: () => setZoomMenuOpen(false),
   });
+  stagePointerController = createStagePointerController({
+    stage,
+    drawingInteractionController,
+    draftInteractionController,
+    selectionDragController,
+    structureInteraction,
+    addElement,
+    clearSelection,
+    editElement: (id) => editController.editElement(id),
+    enterInteraction: (state) => interactionSM.enter(state),
+    exitInteractionToIdle: () => interactionSM.exitToIdle(),
+    expandGroupedIds,
+    getActiveShapeTool: () => activeShapeTool,
+    getBaseEraserRadius,
+    getBoardElementCount: () => board.elements.length,
+    getCurrentTool: () => currentTool,
+    getElementIdFromNode,
+    getElements: () => board.elements,
+    getIsSpaceDown: () => isSpaceDown,
+    getNearbySelectedElementId,
+    getSelectableElementIdAtWorldPoint,
+    getSelectedIds: () => selectedIds,
+    handleLinearPointerMove: (worldPoint) => linearGestureController.handlePointerMove(worldPoint),
+    handleLinearPointerUp: () => linearGestureController.handlePointerUp(),
+    hideBinaryTreeControls: () => structureControlsController.hideBinaryTreeControls(),
+    hideContextMenu,
+    hideEraser,
+    hideToolCursors,
+    hideTreeControls: () => structureControlsController.hideTreeControls(),
+    isBinaryTreeElement,
+    isElementLocked,
+    isEditingText: () => editController.isEditing,
+    isGeneralTreeElement,
+    isTemporaryPanActive,
+    isTreeNodeHitTarget,
+    persistCurrentDraft,
+    selectElementById,
+    selectIds,
+    setLastPointerWorldPoint: (worldPoint) => { lastPointerWorldPoint = worldPoint; },
+    setStructurePanelOpen,
+    setTool,
+    setZoomMenuOpen,
+    shouldShowContextMenu: ({ targetId, selectedIds: nextSelectedIds }) => contextMenuController.shouldShow({
+      targetId,
+      selectedIds: nextSelectedIds,
+      hasClipboard: clipboardController.hasSnapshot(),
+    }),
+    showBrushCursor,
+    showContextMenu,
+    showObjectEraser,
+    showStrokeEraser,
+    syncBinaryTreeActiveVisual,
+    syncGeneralTreeActiveVisual,
+    updateGrid,
+    updateViewportChrome,
+    consumeSuppressNextCanvasSelection: () => {
+      if (!suppressNextCanvasSelection) return false;
+      suppressNextCanvasSelection = false;
+      return true;
+    },
+    consumeSuppressSelectionDragOnce: () => {
+      if (!suppressSelectionDragOnce) return false;
+      suppressSelectionDragOnce = false;
+      return true;
+    },
+  });
 
   hydrateLocalDraft();
   bindControls();
@@ -1407,12 +1593,12 @@ export function createWhiteboardApp(root) {
   };
 
   function bindStageEvents() {
-    stage.on("wheel", handleWheel);
-    stage.on("pointerdown", handlePointerDown);
-    stage.on("pointermove", handlePointerMove);
-    stage.on("pointerup pointercancel", handlePointerUp);
+    stage.on("wheel", (event) => viewportController.handleWheel(event));
+    stage.on("pointerdown", stagePointerController.handlePointerDown);
+    stage.on("pointermove", stagePointerController.handlePointerMove);
+    stage.on("pointerup pointercancel", stagePointerController.handlePointerUp);
     stage.container().addEventListener("pointerleave", hideToolCursors);
-    stage.container().addEventListener("contextmenu", handleContextMenu);
+    stage.container().addEventListener("contextmenu", stagePointerController.handleContextMenu);
 
     transformer.on("transform", selectionTransformPreviewController.syncTextWidthResize);
     transformer.on("transform", selectionTransformPreviewController.syncTextTransformPreview);
@@ -1420,7 +1606,7 @@ export function createWhiteboardApp(root) {
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
     });
-    transformer.on("dblclick dbltap", handleTransformerDoubleClick);
+    transformer.on("dblclick dbltap", stagePointerController.handleTransformerDoubleClick);
     transformer.on("dragend transformend", () => {
       if (editController.isEditing) return;
       if (handledNodeDragEnd) {
@@ -1431,375 +1617,6 @@ export function createWhiteboardApp(root) {
       pushHistory("已更新选择对象");
       lastTransformAnchor = null;
     });
-  }
-
-  function hydrateLocalDraft() {
-    const result = boardSession.hydrateLocalDraft();
-    if (result.message) initialStatusMessage = result.message;
-  }
-
-  function handleWheel(event) {
-    viewportController.handleWheel(event);
-  }
-
-  function zoomBy(multiplier) {
-    viewportController.zoomBy(multiplier);
-  }
-
-  function setZoomAtCenter(requestedScale) {
-    viewportController.setZoomAtCenter(requestedScale);
-  }
-
-  function beginDrawingPointerSession(event) {
-    const nativeEvent = event?.evt;
-    preventDrawingPointerDefault(nativeEvent);
-    activeDrawingPointerCapture = captureDrawingPointer(nativeEvent);
-  }
-
-  function endDrawingPointerSession() {
-    releaseDrawingPointer(activeDrawingPointerCapture);
-    activeDrawingPointerCapture = null;
-  }
-
-  function handlePointerDown(event) {
-    hideContextMenu();
-    setZoomMenuOpen(false);
-
-    if (shouldIgnoreCanvasPointerDown({ target: event.target, isEditingText: editController.isEditing })) {
-      return;
-    }
-
-    const worldPoint = getWorldPointer(stage);
-    if (!worldPoint) return;
-    lastPointerWorldPoint = worldPoint;
-
-    if (isSpaceDown || currentTool === TOOLS.PAN || event.evt.button === 1) {
-      isPanning = true;
-      interactionSM.enter(SM.PANNING);
-      stage.container().classList.add("is-panning");
-      panStart = {
-        pointer: stage.getPointerPosition(),
-        stage: stage.position(),
-      };
-      return;
-    }
-
-    if (currentTool === TOOLS.SELECT) {
-      if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
-        const passThroughId = getSelectableElementIdAtWorldPoint(worldPoint, {
-          preferUnselected: true,
-        });
-        if (passThroughId) {
-          selectElementById(passThroughId, event.evt.shiftKey);
-          if (!event.evt.shiftKey) {
-            selectionDragController.beginSelectionDrag(worldPoint);
-          }
-          return;
-        }
-        selectionDragController.beginSelectionDrag(worldPoint);
-        return;
-      }
-      handleSelectPointerDown(event, worldPoint);
-      return;
-    }
-
-    clearSelection();
-
-    if (currentTool === TOOLS.PEN) {
-      showBrushCursor(worldPoint);
-      beginDrawingPointerSession(event);
-      drawingInteractionController.startStroke(worldPoint, event.evt.pressure);
-      interactionSM.enter(SM.DRAWING);
-      return;
-    }
-
-    if (currentTool === TOOLS.ERASER_STROKE) {
-      beginDrawingPointerSession(event);
-      const radius = drawingInteractionController.beginEraser(worldPoint);
-      interactionSM.enter(SM.ERASING);
-      stage.container().classList.add("is-erasing");
-      drawingInteractionController.eraseStrokeAt(worldPoint, radius);
-      showStrokeEraser(worldPoint, radius);
-      return;
-    }
-
-    if (currentTool === TOOLS.ERASER_OBJECT) {
-      beginDrawingPointerSession(event);
-      drawingInteractionController.beginEraser(worldPoint);
-      interactionSM.enter(SM.ERASING);
-      stage.container().classList.add("is-erasing");
-      drawingInteractionController.eraseObjectAt(event.target);
-      showObjectEraser(worldPoint);
-      return;
-    }
-
-    if (currentTool === TOOLS.TEXT) {
-      const element = buildTextElement({
-        point: worldPoint,
-        zIndex: board.elements.length,
-      });
-      addElement(element, "已添加文字");
-      selectIds([element.id]);
-      setTool(nextToolAfterTextPlacement(currentTool));
-      requestAnimationFrame(() => editController.editElement(element.id));
-      return;
-    }
-
-    if (currentTool === TOOLS.STICKY) {
-      const element = buildStickyElement({
-        point: worldPoint,
-        zIndex: board.elements.length,
-      });
-      addElement(element, "已添加便签");
-      selectIds([element.id]);
-      setTool(TOOLS.SELECT);
-      requestAnimationFrame(() => editController.editElement(element.id));
-      return;
-    }
-
-    if (currentTool === TOOLS.STRUCTURE) {
-      setStructurePanelOpen(true);
-      return;
-    }
-
-    const drawingTool = resolveActiveDrawingTool(currentTool, activeShapeTool);
-    if (isShapeTool(drawingTool)) {
-      beginDrawingPointerSession(event);
-      draftInteractionController.startShapeDraft(worldPoint);
-      interactionSM.enter(SM.DRAWING);
-    }
-  }
-
-  function handlePointerMove(event) {
-    if (!shouldHandlePointerEvent(event?.evt, activeDrawingPointerCapture?.pointerId)) return;
-    if (activeDrawingPointerCapture) preventDrawingPointerDefault(event?.evt);
-
-    const worldPoint = getWorldPointer(stage);
-    if (!worldPoint) return;
-    lastPointerWorldPoint = worldPoint;
-
-    if (isTemporaryPanActive() && !isPanning) {
-      hideToolCursors();
-      return;
-    }
-
-    if (linearGestureController.handlePointerMove(worldPoint)) return;
-
-    if (isPanning && panStart) {
-      hideToolCursors();
-      const pointer = stage.getPointerPosition();
-      stage.position({
-        x: panStart.stage.x + pointer.x - panStart.pointer.x,
-        y: panStart.stage.y + pointer.y - panStart.pointer.y,
-      });
-      updateGrid();
-      updateViewportChrome();
-      return;
-    }
-
-    if (drawingInteractionController.hasStrokeDraft()) {
-      drawingInteractionController.appendStroke(worldPoint, event.evt.pressure);
-      showBrushCursor(worldPoint);
-      return;
-    }
-
-    if (draftInteractionController.hasShapeDraft()) {
-      draftInteractionController.updateShapeDraft(worldPoint);
-      return;
-    }
-
-    if (draftInteractionController.hasSelectionDraft()) {
-      draftInteractionController.updateSelectionDraft(worldPoint);
-      return;
-    }
-
-    if (selectionDragController.hasSelectionDrag()) {
-      selectionDragController.updateSelectionDrag(worldPoint);
-      return;
-    }
-
-    if (currentTool === TOOLS.PEN) {
-      showBrushCursor(worldPoint);
-      return;
-    }
-
-    if ((currentTool === TOOLS.ERASER_STROKE || currentTool === TOOLS.ERASER_OBJECT) && !drawingInteractionController.hasActiveEraserSnapshot()) {
-      if (currentTool === TOOLS.ERASER_OBJECT) {
-        showObjectEraser(worldPoint);
-      } else {
-        showStrokeEraser(worldPoint, getBaseEraserRadius());
-      }
-      return;
-    }
-
-    if (currentTool === TOOLS.ERASER_STROKE && drawingInteractionController.hasActiveEraserSnapshot()) {
-      const radius = drawingInteractionController.updateStrokeEraser(worldPoint);
-      showStrokeEraser(worldPoint, radius);
-      return;
-    }
-
-    if (currentTool === TOOLS.ERASER_OBJECT && drawingInteractionController.hasActiveEraserSnapshot()) {
-      drawingInteractionController.updateObjectEraser(worldPoint, event.target);
-      showObjectEraser(worldPoint);
-    }
-  }
-
-  function handlePointerUp(event) {
-    if (!shouldHandlePointerEvent(event?.evt, activeDrawingPointerCapture?.pointerId)) return;
-    if (activeDrawingPointerCapture) preventDrawingPointerDefault(event?.evt);
-
-    if (linearGestureController.handlePointerUp()) return;
-
-    if (isPanning) {
-      isPanning = false;
-      panStart = null;
-      interactionSM.exitToIdle();
-      stage.container().classList.remove("is-panning");
-      persistCurrentDraft();
-      return;
-    }
-
-    if (drawingInteractionController.hasStrokeDraft()) {
-      endDrawingPointerSession();
-      drawingInteractionController.finishStroke();
-      interactionSM.exitToIdle();
-      return;
-    }
-
-    if (draftInteractionController.hasShapeDraft()) {
-      endDrawingPointerSession();
-      draftInteractionController.finishShapeDraft();
-      interactionSM.exitToIdle();
-      return;
-    }
-
-    if (draftInteractionController.hasSelectionDraft()) {
-      draftInteractionController.finishSelectionDraft();
-      interactionSM.exitToIdle();
-      return;
-    }
-
-    if (selectionDragController.hasSelectionDrag()) {
-      selectionDragController.finishSelectionDrag();
-      interactionSM.exitToIdle();
-      return;
-    }
-
-
-    if (drawingInteractionController.hasActiveEraserSnapshot()) {
-      endDrawingPointerSession();
-      hideEraser();
-      stage.container().classList.remove("is-erasing");
-      drawingInteractionController.finishEraser();
-      interactionSM.exitToIdle();
-    }
-  }
-
-  function handleContextMenu(event) {
-    event.preventDefault();
-    stage.setPointersPositions(event);
-    const pointer = stage.getPointerPosition();
-    const worldPoint = getWorldPointer(stage);
-    if (worldPoint) {
-      lastPointerWorldPoint = worldPoint;
-    }
-    const targetId = pointer ? getElementIdFromNode(stage.getIntersection(pointer)) : null;
-
-    if (targetId && !selectedIds.includes(targetId)) {
-      selectIds([targetId]);
-    }
-
-    if (!contextMenuController.shouldShow({
-      targetId,
-      selectedIds,
-      hasClipboard: clipboardController.hasSnapshot(),
-    })) {
-      return;
-    }
-
-    showContextMenu(event.clientX, event.clientY);
-  }
-
-  function handleTransformerDoubleClick(event) {
-    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT || isTransformerAnchorTarget(event.target)) return;
-    const worldPoint = getWorldPointer(stage);
-    if (!worldPoint) return;
-    const id = getSelectableElementIdAtWorldPoint(worldPoint);
-    const editable = board.elements.find((item) => item.id === id);
-    if (!shouldEditTextOnTransformerDoubleClick({
-      target: event.target,
-      currentTool,
-      isTemporaryPanActive: isTemporaryPanActive(),
-      element: editable,
-      selectedIds,
-    })) return;
-    event.cancelBubble = true;
-    selectIds([id]);
-    requestAnimationFrame(() => editController.editElement(id));
-  }
-
-  function handleSelectPointerDown(event, worldPoint) {
-    if (suppressNextCanvasSelection) {
-      suppressNextCanvasSelection = false;
-      return;
-    }
-    if (suppressSelectionDragOnce) {
-      suppressSelectionDragOnce = false;
-      return;
-    }
-    const rawTargetElement = getElementIdFromNode(event.target);
-    const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
-      fallbackNode: event.target,
-    });
-    if (targetElement) {
-      const element = board.elements.find((item) => item.id === targetElement);
-      const targetIds = expandGroupedIds([targetElement]);
-      const activeTreeNode = structureInteraction.getActiveTreeNode();
-      if (isBinaryTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
-        const shouldDragBinaryTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
-        const previousActiveTreeElementId = activeTreeNode.elementId;
-        structureInteraction.clearActiveTreeNode();
-        structureControlsController.hideBinaryTreeControls();
-        syncBinaryTreeActiveVisual(previousActiveTreeElementId);
-        if (shouldDragBinaryTreeBlank) {
-          selectionDragController.beginSelectionDrag(worldPoint);
-        }
-        return;
-      }
-      if (isGeneralTreeElement(element) && !isTreeNodeHitTarget(event.target) && activeTreeNode?.elementId === targetElement) {
-        const shouldDragTreeBlank = !event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id));
-        const previousActiveTreeElementId = activeTreeNode.elementId;
-        structureInteraction.clearActiveTreeNode();
-        structureControlsController.hideTreeControls();
-        syncGeneralTreeActiveVisual(previousActiveTreeElementId);
-        if (shouldDragTreeBlank) {
-          selectionDragController.beginSelectionDrag(worldPoint);
-        }
-        return;
-      }
-      if (isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)) {
-        return;
-      }
-      if (!event.evt.shiftKey && targetIds.some((id) => selectedIds.includes(id))) {
-        selectionDragController.beginSelectionDrag(worldPoint);
-        return;
-      }
-      selectElementById(targetElement, event.evt.shiftKey);
-      if (!event.evt.shiftKey && element && (["text", "sticky"].includes(element.type) || targetElement !== rawTargetElement)) {
-        selectionDragController.beginSelectionDrag(worldPoint);
-      }
-      return;
-    }
-
-    const nearbySelectedId = getNearbySelectedElementId(worldPoint);
-    if (nearbySelectedId && selectedIds.some((id) => !isElementLocked(id))) {
-      selectionDragController.beginSelectionDrag(worldPoint);
-      return;
-    }
-
-    clearSelection();
-    interactionSM.enter(SM.SELECTING);
-    draftInteractionController.startSelectionDraft(worldPoint);
   }
 
   function isTemporaryPanActive() {
@@ -1954,160 +1771,11 @@ export function createWhiteboardApp(root) {
     renderBoard();
   }
 
-  function applyStyleToSelection() {
-    if (selectedIds.length === 0) {
-      saveToolPropertyControlsForCurrentTool();
-      updateContextPanel();
-      return;
-    }
-
-    const didApply = selectionStyleController.applyStyleToSelection({
-      arrowDoubleEnded: arrowDoubleEndedInput.checked,
-      color: colorInput.value,
-      fillColor: fillInput.value,
-      fillTransparent: fillTransparentInput.checked,
-      fontFamily: fontFamilyInput.value,
-      fontSize: fontSizeInput.value,
-      strokeStyle: getStrokeStyleFromControls(),
-      width: widthInput.value,
-    });
-    if (!didApply) return;
-
-    renderBoard();
-    pushHistory("已更新样式");
-  }
-
-  function applyCoordinateStyleToSelection() {
-    const didApply = selectionStyleController.applyCoordinateStyleToSelection({
-      axisStroke: coordinateAxisColorInput.value,
-      gridStroke: coordinateGridColorInput.value,
-      labelFill: coordinateLabelColorInput.value,
-      showGrid: coordinateShowGridInput.checked,
-      showLabels: coordinateShowLabelsInput.checked,
-      showTicks: coordinateShowTicksInput.checked,
-      unitSize: coordinateUnitSizeInput.value,
-    });
-    if (!didApply) return;
-
-    renderBoard();
-    pushHistory("已更新坐标系");
-  }
-
-  function toggleTextStyle(style) {
-    const didToggle = selectionStyleController.toggleTextStyle(style);
-    if (!didToggle) return;
-
-    renderBoard();
-    pushHistory("已更新文字样式");
-  }
-
-  function selectAllElements() {
-    const selectableIds = board.elements.filter((el) => !el.locked).map((el) => el.id);
-    if (selectableIds.length === 0) return;
-
-    selectIds(selectableIds);
-    setStatus(`已选择全部对象 (${selectableIds.length})`);
-  }
-
-  function insertStructureFromPanel() {
-    const activeStructureType = structurePanelController.getActiveStructureType();
-    const activeArrayInitMode = structurePanelController.getActiveArrayInitMode();
-    const activeStructureItem = structurePanelController.getActiveStructureItem();
-    const elements = createStructureElements({
-      type: activeStructureType,
-      input: structureInput.value,
-      initMode: isRandomStructureInitSupported(activeStructureType) ? activeArrayInitMode : "manual",
-      randomCount: arrayRandomCountInput.value,
-      point: getViewportCenterPoint(),
-      zIndexStart: board.elements.length,
-    });
-    if (elements.length === 0) return;
-
-    board.elements = reorderElements([...board.elements, ...elements]);
-    setStructurePanelOpen(false);
-    setTool(TOOLS.SELECT);
-    renderBoard();
-    selectIds(elements.map((element) => element.id));
-    pushHistory(`已添加${activeStructureItem.label}`);
-  }
-
-  function isRandomStructureInitSupported(type) {
-    return structurePanelController.isRandomStructureInitSupported(type);
-  }
-
   function getViewportCenterPoint() {
     return {
       x: (stage.width() / 2 - stage.x()) / stage.scaleX(),
       y: (stage.height() / 2 - stage.y()) / stage.scaleX(),
     };
-  }
-
-  function editSelectedArrayStructure(edit) {
-    const targetId = selectedIds.find((id) => {
-      const element = board.elements.find((item) => item.id === id);
-      return isLinearStructureElement(element) && !element.locked;
-    });
-    if (!targetId) return;
-    if (isArrayAlgorithmLocked(targetId)) return;
-
-    board.elements = board.elements.map((element) => (
-      element.id === targetId ? edit(element) : element
-    ));
-    syncActiveLinearItemAfterEdit(targetId);
-    renderBoard();
-    selectIds([targetId]);
-    pushHistory("已更新线性结构");
-  }
-
-  function getSelectedLinearStructure() {
-    return board.elements.find((element) => selectedIds.includes(element.id) && isLinearStructureElement(element));
-  }
-
-  function setActiveLinearItem(elementId, index, { syncPanel = true, rerender = true } = {}) {
-    const { previousActiveLinearItem, activeLinearItem } = structureInteraction.setActiveLinearItem({
-      elements: board.elements,
-      elementId,
-      index,
-    });
-    if (!activeLinearItem) {
-      if (syncPanel) syncLinearPanelState();
-      syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
-      return;
-    }
-    if (syncPanel) syncLinearPanelState();
-    if (rerender) {
-      renderBoard();
-    } else {
-      syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
-      syncLinearItemActiveVisual(elementId);
-      structureControlsController.renderLinearItemControls();
-      structureControlsController.renderBinaryTreeControls();
-      contentLayer.batchDraw();
-    }
-  }
-
-  function syncActiveLinearItemAfterEdit(elementId, preferredIndex = null) {
-    structureInteraction.syncActiveLinearItemAfterEdit({
-      elements: board.elements,
-      elementId,
-      preferredIndex,
-    });
-  }
-
-  function isBinaryTreeElement(element) {
-    return element?.type === "tree-structure" && element.settings?.treeKind === "binary";
-  }
-
-  function isGeneralTreeElement(element) {
-    return element?.type === "tree-structure" && element.settings?.treeKind !== "binary";
-  }
-
-  function isTreeElementWithTraversal(element) {
-    return element?.type === "tree-structure";
-  }
-
-  function isInteractiveStructureElement(element) {
-    return isLinearStructureElement(element) || element?.type === "tree-structure";
   }
 
   function isSelectedBinaryTreeElement(element) {
@@ -2154,221 +1822,10 @@ export function createWhiteboardApp(root) {
     contentLayer.findOne(`#${elementId}`)?.draggable(Boolean(enabled));
   }
 
-  function editSelectedStructure(type, edit, message) {
-    const targetId = selectedIds.find((id) => {
-      const element = board.elements.find((item) => item.id === id);
-      return element?.type === type && !element.locked;
-    });
-    if (!targetId) return;
-
-    board.elements = board.elements.map((element) => (
-      element.id === targetId ? edit(element) : element
-    ));
-    const updated = board.elements.find((element) => element.id === targetId);
-    if (isLinearStructureElement(updated)) {
-      syncActiveLinearItemAfterEdit(targetId);
-    }
-    renderBoard();
-    selectIds([targetId]);
-    syncTreeStructurePanelState();
-    pushHistory(message);
-  }
-
-  function promptIndex(label, fallback = 0) {
-    const input = window.prompt(label, String(Math.max(0, Number(fallback) || 0)));
-    if (input === null) return fallback;
-    const parsed = Number.parseInt(input, 10);
-    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
-  }
-
-  function promptValue(label, fallback = "") {
-    const input = window.prompt(label, String(fallback ?? ""));
-    return input === null ? fallback : input;
-  }
-
-  function promptMultiline(label, fallback = "") {
-    return promptValue(label, fallback);
-  }
-
-  function promptBoolean(label, fallback = false) {
-    const input = window.prompt(label, fallback ? "y" : "n");
-    if (input === null) return fallback;
-    return /^(y|yes|true|1|是|有向)$/i.test(input.trim());
-  }
-
-  function handleTreeStructureNodePress(event, group) {
-    if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-    const elementId = getElementIdFromNode(group);
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!element || element.type !== "tree-structure" || element.settings?.treeKind !== "binary" || element.locked) return;
-    if (!selectedIds.includes(elementId)) selectIds([elementId]);
-    const worldPoint = getWorldPointer(stage);
-    if (!event.evt?.shiftKey && worldPoint) selectionDragController.beginSelectionDrag(worldPoint);
-  }
-
-  function moveArrayStructureItem({ elementId, fromIndex, toIndex }) {
-    const element = board.elements.find((item) => item.id === elementId);
-    if (!isLinearStructureElement(element) || element.locked) return;
-    if (fromIndex === toIndex) {
-      structureInteraction.clearActiveLinearItem();
-      renderBoard();
-      selectIds([]);
-      return;
-    }
-    board.elements = board.elements.map((item) => (
-      item.id === elementId ? moveArrayItem(item, fromIndex, toIndex) : item
-    ));
-    structureInteraction.clearActiveLinearItem();
-    renderBoard();
-    selectIds([]);
-    pushHistory("已移动数组元素");
-  }
-
-  function getTreeRootNodeId(element) {
-    if (!element || element.type !== "tree-structure") return null;
-    const nodeIds = (element.nodes ?? []).map((node) => node.id);
-    const childIds = new Set((element.edges ?? []).map((edge) => edge.to));
-    return element.settings?.rootId ?? nodeIds.find((id) => !childIds.has(id)) ?? nodeIds[0] ?? null;
-  }
-
-  function getTreeParentNodeId(element, nodeId) {
-    if (!element || element.type !== "tree-structure" || !nodeId) return null;
-    return (element.edges ?? []).find((edge) => edge.to === nodeId)?.from ?? null;
-  }
-
-  function isTreeRootNode(element, nodeId) {
-    return Boolean(nodeId && nodeId === getTreeRootNodeId(element));
-  }
-
-  function isTreeNodeHitTarget(target) {
-    return Boolean(target?.hasName?.("tree-node") || target?.findAncestor?.(".tree-node"));
-  }
-
   function getActiveTreeNodeId(element) {
     const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (activeTreeNode?.elementId === element.id) return activeTreeNode.nodeId;
     return element.settings?.rootId ?? element.nodes?.[0]?.id ?? null;
-  }
-
-  function undoHistory() {
-    restoreFromHistory(boardSession.getHistory().undo(), "已撤销");
-  }
-
-  function redoHistory() {
-    restoreFromHistory(boardSession.getHistory().redo(), "已重做");
-  }
-
-  function fitContent() {
-    viewportActions.fitContent();
-  }
-
-  function ensureSelectionVisible() {
-    viewportActions.ensureSelectionVisible();
-  }
-
-  function newBoard() {
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    clearArrayAlgorithmSessions();
-    boardSession.newBoard();
-  }
-
-  function resetView() {
-    viewportActions.resetView();
-  }
-
-  function setBackgroundMode(backgroundMode) {
-    viewportActions.setBackgroundMode(backgroundMode);
-  }
-
-  function setTool(tool) {
-    const { previousTool, toolChanged } = toolController.setTool(tool);
-    if (toolChanged) saveToolPropertyControlsForCurrentTool();
-    currentTool = toolController.currentTool;
-    if (tool !== TOOLS.SELECT) {
-      linearGestureController.resetLinearItemPressState();
-      linearGestureController.resetLinearPointerPressState();
-      selectionDragController.cancelSelectionDrag();
-    }
-    root.querySelectorAll("[data-tool]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.tool === tool);
-    });
-    if (tool !== TOOLS.SHAPE) setShapePopoverOpen(false);
-    if (tool !== TOOLS.STRUCTURE) setStructurePanelOpen(false);
-    if (tool === TOOLS.STRUCTURE) setStructurePanelOpen(true);
-    hideToolCursors();
-    stage.container().classList.remove("is-erasing");
-    if (![TOOLS.SELECT, TOOLS.PAN].includes(tool)) {
-      clearSelection();
-    }
-    updateDraggableState();
-    syncSelectionNodes();
-    stage.container().dataset.tool = tool;
-    if (toolChanged) {
-      restorePropertyControlsForTool(tool);
-      syncInspectorPanelState({ forceReset: true });
-    }
-    updateChrome();
-    setStatus(getToolStatus(tool));
-    if (toolChanged && (tool === TOOLS.SELECT || previousTool === TOOLS.SELECT)) {
-      renderBoard();
-    }
-  }
-
-  function setActiveShapeTool(shapeTool) {
-    activeShapeTool = toolController.setActiveShapeTool(shapeTool);
-  }
-
-  function getToolStatus(tool) {
-    return getToolStatusText(tool);
-  }
-
-  async function openBoardFile() {
-    await boardSession.openBoardFile();
-  }
-
-  async function saveBoardFile() {
-    await boardSession.saveBoardFile();
-  }
-
-  async function saveBoardFileAs() {
-    await boardSession.saveBoardFileAs();
-  }
-
-  async function writeToHandle(handle) {
-    await boardSession.writeToHandle(handle);
-  }
-
-  function serializeCurrentBoard() {
-    boardSession.setBoard(board);
-    return boardSession.serializeCurrentBoard();
-  }
-
-  function snapshotBoard() {
-    return serializeCurrentBoard();
-  }
-
-  function pushHistory(message) {
-    boardSession.setBoard(board);
-    boardSession.pushHistory(message);
-  }
-
-  function restoreFromHistory(nextBoard, message) {
-    if (!nextBoard) return;
-    cancelArrayAlgorithmPlayback();
-    cancelArrayAlgorithmSwapAnimation({ commitStableState: false });
-    clearArrayAlgorithmSessions();
-    boardSession.restoreFromHistory(nextBoard, message);
-  }
-
-  function persistCurrentDraft() {
-    boardSession.setBoard(board);
-    return boardSession.persistCurrentDraft();
-  }
-
-  function schedulePersistCurrentDraft() {
-    boardSession.setBoard(board);
-    boardSession.schedulePersistCurrentDraft();
   }
 
   function applyViewport(viewport) {
