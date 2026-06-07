@@ -36,10 +36,6 @@ import { queryWhiteboardRefs } from "./shell/dom-refs.js";
 import { isToolPropertyPanelAvailable } from "./inspector/inspector-model.js";
 import { renderLayerItemsMarkup } from "./panels/layer-panel.js";
 import {
-  toggleFontStyleToken,
-  toggleTextDecorationToken,
-} from "./inspector/text-style-tokens.js";
-import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   clearArrayAlgorithmRuntimeMarkers,
 } from "./algorithms/array-algorithm-model.js";
@@ -51,12 +47,16 @@ import { createArrayAlgorithmSessionController } from "./algorithms/array-algori
 import { createExportPngController } from "./import-export/export-png-controller.js";
 import { createImportWorkflowController } from "./import-export/import-workflow-controller.js";
 import { createInspectorPanelDomController } from "./inspector/inspector-panel-dom-controller.js";
+import { createSelectionStyleController } from "./inspector/selection-style-controller.js";
 import { createKeyboardController } from "./shell/keyboard-controller.js";
 import { createLayerPanelController } from "./panels/layer-panel-controller.js";
 import { createPanelDomController } from "./panels/panel-dom-controller.js";
+import { createAlignmentSnapController } from "./selection/alignment-snap-controller.js";
 import { createSelectionActionController } from "./selection/selection-action-controller.js";
 import { createSelectionClipboardController } from "./selection/selection-clipboard-controller.js";
 import { createSelectionDragController } from "./selection/selection-drag-controller.js";
+import { createSelectionTransformCommitController } from "./selection/selection-transform-commit-controller.js";
+import { createSelectionTransformPreviewController } from "./selection/selection-transform-preview-controller.js";
 import { createSelectionTransformerController } from "./selection/selection-transformer-controller.js";
 import { createStructureCellEditorController } from "./structures/structure-cell-editor-controller.js";
 import { createStructureEditActionController } from "./structures/structure-edit-action-controller.js";
@@ -109,8 +109,6 @@ import {
   syncElementNode,
   syncLinearStructureNodeContent,
   syncTextNodeContent,
-  syncTextNodeScalePreview,
-  syncTextNodeSize,
 } from "../canvas/konva-elements.js";
 import {
   getImageFileFromDropEvent,
@@ -123,10 +121,8 @@ import {
 } from "../services/image-import-service.js";
 import {
   clampResizeAnchorPosition,
-  getTextScaleCommitBox,
   getTextEditorStyle,
   getStickyEditorCommitBox,
-  getStickyScaleCommitBox,
   getStickyTextInsets,
   getUniformScaledBoxForResize,
   getSelectionHitRadius,
@@ -136,7 +132,6 @@ import {
   isTransformerAnchorTarget,
   isTransformerTarget,
   measureTextareaContentHeight,
-  isTextWidthResizeAnchor,
   nextToolAfterTextPlacement,
   pickElementIdAtPoint,
   pointHitsSelectionBounds,
@@ -148,7 +143,6 @@ import {
   shouldUseBrowserSelectAll,
 } from "../tools/interaction-rules.js";
 import {
-  getFillValue,
   isShapeTool,
   resolveActiveDrawingTool,
 } from "../tools/tool-behavior.js";
@@ -259,6 +253,8 @@ export function createWhiteboardApp(root) {
   let drawingInteractionController = null;
   let draftInteractionController = null;
   let selectionDragController = null;
+  let selectionTransformCommitController = null;
+  let selectionTransformPreviewController = null;
   let selectionTransformerController = null;
   let linearGestureController = null;
   let suppressSelectionDragOnce = false;
@@ -545,6 +541,10 @@ export function createWhiteboardApp(root) {
   });
   overlayLayer.add(transformer);
 
+  const alignmentSnapController = createAlignmentSnapController({
+    contentLayer,
+    getStageScale: () => stage.scaleX(),
+  });
   selectionDragController = createSelectionDragController({
     contentLayer,
     enterDragging: () => interactionSM.enter(SM.DRAGGING),
@@ -563,10 +563,10 @@ export function createWhiteboardApp(root) {
     setElements: (elements) => { board.elements = elements; },
     setHandledNodeDragEnd: (value) => { handledNodeDragEnd = value; },
     setSuppressNextSelectionClick: (value) => { suppressNextSelectionClick = value; },
-    snapNodeToAlignment,
+    snapNodeToAlignment: alignmentSnapController.snapNodeToAlignment,
     structureInteraction,
     suppressNextLinearItemSelect: (elementId) => linearGestureController.suppressNextLinearItemSelect(elementId),
-    syncNodeToElement,
+    syncNodeToElement: (node) => selectionTransformCommitController.syncNodeToElement(node),
     syncTextOverlays,
     transformer,
     updateTreeControlsPosition: () => structureControlsPositionController.updateTreeControlsPosition(),
@@ -580,6 +580,13 @@ export function createWhiteboardApp(root) {
     getNormalizedTextElementBox,
     normalizeTextElementBox,
   } = createTextElementMeasurer();
+  selectionTransformCommitController = createSelectionTransformCommitController({
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getElementIdFromNode,
+    getLastTransformAnchor: () => lastTransformAnchor,
+    normalizeTextElementBox,
+  });
   selectionTransformerController = createSelectionTransformerController({
     contentLayer,
     transformer,
@@ -591,6 +598,23 @@ export function createWhiteboardApp(root) {
     getElementIdFromNode,
     measureTextValue: (element, value) => measureTextElementValue(element, value),
     structureInteraction,
+  });
+  selectionTransformPreviewController = createSelectionTransformPreviewController({
+    contentLayer,
+    overlayLayer,
+    transformer,
+    getElements: () => board.elements,
+    getElementIdFromNode,
+    getMinimumTextElementWidth,
+    getTextElementWrappedHeight,
+    rerenderCoordinatePlaneNode,
+    syncTextOverlays,
+  });
+  const selectionStyleController = createSelectionStyleController({
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    normalizeTextElementBox,
   });
 
   const editController = createEditController({
@@ -1390,9 +1414,9 @@ export function createWhiteboardApp(root) {
     stage.container().addEventListener("pointerleave", hideToolCursors);
     stage.container().addEventListener("contextmenu", handleContextMenu);
 
-    transformer.on("transform", syncTextWidthResize);
-    transformer.on("transform", syncTextTransformPreview);
-    transformer.on("transform", syncCoordinatePlaneTransformPreview);
+    transformer.on("transform", selectionTransformPreviewController.syncTextWidthResize);
+    transformer.on("transform", selectionTransformPreviewController.syncTextTransformPreview);
+    transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview);
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
     });
@@ -1860,32 +1884,6 @@ export function createWhiteboardApp(root) {
     syncCoordinatePlaneNodeContent(node, element);
   }
 
-  function getTextOverlayPreviewElements() {
-    const nodes = transformer.nodes();
-    if (nodes.length !== 1) return board.elements;
-    const node = nodes[0];
-    const id = getElementIdFromNode(node);
-    if (!id) return board.elements;
-    const anchor = transformer.getActiveAnchor?.();
-    return board.elements.map((element) => (
-      element.id === id && element.type === "text"
-        ? {
-          ...element,
-          x: node.x(),
-          y: node.y(),
-          width: node.width() * (node.scaleX() || 1),
-          height: node.height() * (node.scaleY() || 1),
-          fontSize: isTextWidthResizeAnchor(anchor)
-            ? element.fontSize
-            : Math.max(8, element.fontSize * Math.max(Math.abs(node.scaleX() || 1), Math.abs(node.scaleY() || 1))),
-          rotation: node.rotation(),
-          scaleX: 1,
-          scaleY: 1,
-        }
-        : element
-    ));
-  }
-
   function syncTextOverlays({ hiddenIds = editController.isEditing ? selectedIds : [], elements = board.elements } = {}) {
     textOverlayController.setHiddenIds(hiddenIds);
     textOverlayController.sync(elements);
@@ -1952,191 +1950,8 @@ export function createWhiteboardApp(root) {
   }
 
   function syncSelectedNodes() {
-    transformer.nodes().forEach(syncNodeToElement);
+    selectionTransformCommitController.syncSelectedNodes(transformer.nodes());
     renderBoard();
-  }
-
-  function syncTextWidthResize() {
-    if (!isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) return;
-    const nodes = transformer.nodes();
-    if (nodes.length !== 1) return;
-    const node = nodes[0];
-    const id = getElementIdFromNode(node);
-    const element = board.elements.find((item) => item.id === id);
-    if (element?.type !== "text") return;
-
-    const proposedWidth = node.width() * (node.scaleX() || 1);
-    const nextWidth = Math.max(getMinimumTextElementWidth(element), proposedWidth);
-    const nextHeight = getTextElementWrappedHeight(element, nextWidth);
-    syncTextNodeSize(node, {
-      width: nextWidth,
-      height: nextHeight,
-      padding: element.padding ?? 0,
-    });
-    node.scaleX(1);
-    node.scaleY(1);
-    transformer.forceUpdate();
-    contentLayer.batchDraw();
-    overlayLayer.batchDraw();
-    syncTextOverlays({ elements: getTextOverlayPreviewElements() });
-  }
-
-  function syncTextTransformPreview() {
-    if (isTextWidthResizeAnchor(transformer.getActiveAnchor?.())) return;
-    const nodes = transformer.nodes();
-    if (nodes.length !== 1) return;
-    const node = nodes[0];
-    const id = getElementIdFromNode(node);
-    const element = board.elements.find((item) => item.id === id);
-    if (element?.type !== "text") return;
-    const previewElements = getTextOverlayPreviewElements();
-    const previewElement = previewElements.find((item) => item.id === id);
-    if (previewElement) {
-      syncTextNodeScalePreview(node, previewElement, {
-        scaleX: node.scaleX(),
-        scaleY: node.scaleY(),
-      });
-      contentLayer.batchDraw();
-    }
-    syncTextOverlays({ elements: previewElements });
-  }
-
-  function syncCoordinatePlaneTransformPreview() {
-    const nodes = transformer.nodes();
-    if (nodes.length !== 1) return;
-    const node = nodes[0];
-    const id = getElementIdFromNode(node);
-    const element = board.elements.find((item) => item.id === id);
-    if (element?.type !== "coordinate-plane") return;
-
-    const nextWidth = Math.max(24, node.width() * (node.scaleX() || 1));
-    const nextHeight = Math.max(24, node.height() * (node.scaleY() || 1));
-    const previewElement = {
-      ...element,
-      width: nextWidth,
-      height: nextHeight,
-      origin: { x: nextWidth / 2, y: nextHeight / 2 },
-    };
-    node.scaleX(1);
-    node.scaleY(1);
-    rerenderCoordinatePlaneNode(previewElement, node);
-    transformer.forceUpdate();
-    contentLayer.batchDraw();
-    overlayLayer.batchDraw();
-  }
-
-  function syncNodeToElement(node) {
-    const id = getElementIdFromNode(node);
-    const index = board.elements.findIndex((element) => element.id === id);
-    if (index === -1) return;
-
-    const element = board.elements[index];
-    board.elements[index] = {
-      ...element,
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
-    };
-
-    if (element.type === "text") {
-      const textCommit = getTextScaleCommitBox({
-        element,
-        nodeWidth: node.width(),
-        nodeHeight: node.height(),
-        nodeScaleX: node.scaleX(),
-        nodeScaleY: node.scaleY(),
-        anchor: lastTransformAnchor,
-      });
-      board.elements[index] = normalizeTextElementBox({
-        ...board.elements[index],
-        fontSize: textCommit.fontSize,
-        width: textCommit.width,
-        height: textCommit.height,
-      }, { preserveHeight: Number.isFinite(textCommit.height) });
-    }
-    if (element.type === "sticky") {
-      const stickyCommit = getStickyScaleCommitBox({
-        element,
-        nodeScaleX: node.scaleX(),
-        nodeScaleY: node.scaleY(),
-      });
-      board.elements[index] = {
-        ...board.elements[index],
-        width: stickyCommit.width,
-        height: stickyCommit.height,
-        fontSize: stickyCommit.fontSize,
-        scaleX: 1,
-        scaleY: 1,
-      };
-    }
-    if (element.type === "coordinate-plane") {
-      const nextWidth = Math.max(24, node.width() * (node.scaleX() || 1));
-      const nextHeight = Math.max(24, node.height() * (node.scaleY() || 1));
-      board.elements[index] = {
-        ...board.elements[index],
-        width: nextWidth,
-        height: nextHeight,
-        origin: { x: nextWidth / 2, y: nextHeight / 2 },
-        scaleX: 1,
-        scaleY: 1,
-      };
-    }
-  }
-
-  function snapNodeToAlignment(node) {
-    const threshold = 8 / stage.scaleX();
-    const movingBox = node.getClientRect({ relativeTo: contentLayer });
-    const movingGuides = {
-      left: movingBox.x,
-      centerX: movingBox.x + movingBox.width / 2,
-      right: movingBox.x + movingBox.width,
-      top: movingBox.y,
-      centerY: movingBox.y + movingBox.height / 2,
-      bottom: movingBox.y + movingBox.height,
-    };
-    let dx = 0;
-    let dy = 0;
-    let bestX = threshold;
-    let bestY = threshold;
-
-    contentLayer.find(".element").forEach((other) => {
-      if (other === node) return;
-      const otherBox = other.getClientRect({ relativeTo: contentLayer });
-      const otherGuides = {
-        left: otherBox.x,
-        centerX: otherBox.x + otherBox.width / 2,
-        right: otherBox.x + otherBox.width,
-        top: otherBox.y,
-        centerY: otherBox.y + otherBox.height / 2,
-        bottom: otherBox.y + otherBox.height,
-      };
-
-      for (const movingKey of ["left", "centerX", "right"]) {
-        for (const otherKey of ["left", "centerX", "right"]) {
-          const delta = otherGuides[otherKey] - movingGuides[movingKey];
-          if (Math.abs(delta) < bestX) {
-            bestX = Math.abs(delta);
-            dx = delta;
-          }
-        }
-      }
-
-      for (const movingKey of ["top", "centerY", "bottom"]) {
-        for (const otherKey of ["top", "centerY", "bottom"]) {
-          const delta = otherGuides[otherKey] - movingGuides[movingKey];
-          if (Math.abs(delta) < bestY) {
-            bestY = Math.abs(delta);
-            dy = delta;
-          }
-        }
-      }
-    });
-
-    if (dx || dy) {
-      node.position({ x: node.x() + dx, y: node.y() + dy });
-    }
   }
 
   function applyStyleToSelection() {
@@ -2146,114 +1961,41 @@ export function createWhiteboardApp(root) {
       return;
     }
 
-    const nextFontSize = Number(fontSizeInput.value);
-    const strokeStyle = getStrokeStyleFromControls();
-    const selectedElements = board.elements.filter((element) => selectedIds.includes(element.id));
-    const isStrokeOnlySelection = selectedElements.every((element) => element.type === "stroke");
-    board.elements = board.elements.map((element) => {
-      if (!selectedIds.includes(element.id)) return element;
-      if (element.locked) return element;
-      if (element.type === "text") {
-        return normalizeTextElementBox({
-          ...element,
-          fill: colorInput.value,
-          fontSize: nextFontSize,
-          fontFamily: fontFamilyInput.value,
-        });
-      }
-      if (element.type === "sticky") {
-        return {
-          ...element,
-          textFill: colorInput.value,
-          fill: getFillValue({ transparent: false, color: fillInput.value }),
-          fontSize: nextFontSize,
-          fontFamily: fontFamilyInput.value,
-        };
-      }
-      if (element.type === "arrow") {
-        return {
-          ...element,
-          ...strokeStyle,
-          fill: colorInput.value,
-          pointerAtBeginning: arrowDoubleEndedInput.checked,
-          pointerAtEnding: true,
-        };
-      }
-      if (element.type === "stroke") {
-        return isStrokeOnlySelection
-          ? { ...element, ...strokeStyle }
-          : { ...element, stroke: colorInput.value, strokeWidth: Number(widthInput.value) };
-      }
-      if (element.type === "line") {
-        return { ...element, ...strokeStyle };
-      }
-      if (element.type === "coordinate-plane" || element.type.endsWith?.("-structure")) return element;
-      return {
-        ...element,
-        stroke: colorInput.value,
-        fill: getFillValue({ transparent: fillTransparentInput.checked, color: fillInput.value }),
-        strokeWidth: Number(widthInput.value),
-      };
+    const didApply = selectionStyleController.applyStyleToSelection({
+      arrowDoubleEnded: arrowDoubleEndedInput.checked,
+      color: colorInput.value,
+      fillColor: fillInput.value,
+      fillTransparent: fillTransparentInput.checked,
+      fontFamily: fontFamilyInput.value,
+      fontSize: fontSizeInput.value,
+      strokeStyle: getStrokeStyleFromControls(),
+      width: widthInput.value,
     });
+    if (!didApply) return;
 
     renderBoard();
     pushHistory("已更新样式");
   }
 
   function applyCoordinateStyleToSelection() {
-    const selectedCoordinateIds = selectedIds.filter((id) => {
-      const element = board.elements.find((item) => item.id === id);
-      return element?.type === "coordinate-plane" && !element.locked;
+    const didApply = selectionStyleController.applyCoordinateStyleToSelection({
+      axisStroke: coordinateAxisColorInput.value,
+      gridStroke: coordinateGridColorInput.value,
+      labelFill: coordinateLabelColorInput.value,
+      showGrid: coordinateShowGridInput.checked,
+      showLabels: coordinateShowLabelsInput.checked,
+      showTicks: coordinateShowTicksInput.checked,
+      unitSize: coordinateUnitSizeInput.value,
     });
-    if (selectedCoordinateIds.length === 0) return;
-
-    const unitSize = Math.max(8, Number(coordinateUnitSizeInput.value) || 40);
-    board.elements = board.elements.map((element) => {
-      if (!selectedCoordinateIds.includes(element.id)) return element;
-      return {
-        ...element,
-        unitSize,
-        settings: {
-          ...(element.settings ?? {}),
-          showGrid: coordinateShowGridInput.checked,
-          showTicks: coordinateShowTicksInput.checked,
-          showLabels: coordinateShowLabelsInput.checked,
-        },
-        style: {
-          ...(element.style ?? {}),
-          gridStroke: coordinateGridColorInput.value,
-          axisStroke: coordinateAxisColorInput.value,
-          labelFill: coordinateLabelColorInput.value,
-        },
-      };
-    });
+    if (!didApply) return;
 
     renderBoard();
     pushHistory("已更新坐标系");
   }
 
   function toggleTextStyle(style) {
-    if (!["bold", "italic", "underline", "strike"].includes(style)) return;
-    if (selectedIds.length === 0) return;
-
-    board.elements = board.elements.map((element) => {
-      if (!selectedIds.includes(element.id) || element.locked || !["text", "sticky"].includes(element.type)) {
-        return element;
-      }
-
-      if (style === "bold" || style === "italic") {
-        return normalizeTextElementBox({
-          ...element,
-          fontStyle: toggleFontStyleToken(element.fontStyle, style),
-        });
-      }
-
-      const decoration = style === "underline" ? "underline" : "line-through";
-      return normalizeTextElementBox({
-        ...element,
-        textDecoration: toggleTextDecorationToken(element.textDecoration, decoration),
-      });
-    });
+    const didToggle = selectionStyleController.toggleTextStyle(style);
+    if (!didToggle) return;
 
     renderBoard();
     pushHistory("已更新文字样式");

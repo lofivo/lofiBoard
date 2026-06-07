@@ -730,6 +730,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styleSource = readFileSync(new URL("../../src/app/inspector/selection-style-controller.js", import.meta.url), "utf8");
     const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
     const panelStateSource = readFileSync(new URL("../../src/app/panels/panel-state-controller.js", import.meta.url), "utf8");
 
@@ -780,6 +781,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styleSource = readFileSync(new URL("../../src/app/inspector/selection-style-controller.js", import.meta.url), "utf8");
     const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain("brush-inspector");
@@ -860,6 +862,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styleSource = readFileSync(new URL("../../src/app/inspector/selection-style-controller.js", import.meta.url), "utf8");
     const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain("shape-endpoint-inspector");
@@ -894,8 +897,8 @@ describe("app shell", () => {
     expect(propertyDomSource).toContain("hydrateCoordinateControlsFromElement");
     expect(propertyDomSource).toContain("syncShapeEndpointControls()");
     expect(propertyDomSource).toContain("masterInput.checked = uiInput.checked");
-    expect(appSource).toContain("pointerAtBeginning");
-    expect(appSource).toContain("pointerAtEnding");
+    expect(styleSource).toContain("pointerAtBeginning");
+    expect(styleSource).toContain("pointerAtEnding");
   });
 
   it("does not leak shape-only fill controls into the brush inspector", () => {
@@ -1164,25 +1167,26 @@ describe("app shell", () => {
 
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const commitSource = readFileSync(new URL("../../src/app/selection/selection-transform-commit-controller.js", import.meta.url), "utf8");
     const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("getStickyScaleCommitBox");
+    expect(commitSource).toContain("getStickyScaleCommitBox");
     expect(appSource).toContain("getStickyEditorCommitBox");
-    expect(appSource).toContain('if (element.type === "sticky")');
-    expect(appSource).toContain("nodeScaleX: node.scaleX()");
-    expect(appSource).toContain("nodeScaleY: node.scaleY()");
-    expect(appSource).toContain("fontSize: stickyCommit.fontSize");
+    expect(commitSource).toContain('if (element.type === "sticky")');
+    expect(commitSource).toContain("nodeScaleX: node.scaleX()");
+    expect(commitSource).toContain("nodeScaleY: node.scaleY()");
+    expect(commitSource).toContain("fontSize: stickyCommit.fontSize");
     expect(transformerSource).toContain("stageScale: getStageScale()");
   });
 
   it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
-    const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const styleSource = readFileSync(new URL("../../src/app/inspector/selection-style-controller.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
     expect(styles).toMatch(/\.text-editor-frame\.is-sticky-editor \{[\s\S]*?box-shadow: none;/);
-    expect(appSource).toContain('if (element.type === "sticky")');
+    expect(styleSource).toContain('if (element.type === "sticky")');
     expect(editSource).toContain('editorFrame.classList.add("is-sticky-editor")');
     expect(editSource).toContain('const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;');
     expect(editSource).toContain('const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;');
@@ -1245,32 +1249,35 @@ describe("app shell", () => {
 
   it("rerenders coordinate plane internals during creation and resizing instead of stretching the group", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const previewSource = readFileSync(new URL("../../src/app/selection/selection-transform-preview-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("function rerenderCoordinatePlaneNode");
     expect(appSource).toContain('if (element.type === "coordinate-plane") {');
     expect(appSource).toContain("rerenderCoordinatePlaneNode(element, node)");
-    expect(appSource).toContain("syncCoordinatePlaneTransformPreview");
-    expect(appSource).toContain('transformer.on("transform", syncCoordinatePlaneTransformPreview)');
-    expect(appSource).toContain("node.scaleX(1)");
-    expect(appSource).toContain("node.scaleY(1)");
+    expect(previewSource).toContain("syncCoordinatePlaneTransformPreview");
+    expect(appSource).toContain('transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview)');
+    expect(previewSource).toContain("node.scaleX(1)");
+    expect(previewSource).toContain("node.scaleY(1)");
   });
 
   it("commits text corner scaling without changing the text wrapping ratio", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const commitSource = readFileSync(new URL("../../src/app/selection/selection-transform-commit-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("getTextScaleCommitBox");
-    expect(appSource).toContain("fontSize: textCommit.fontSize");
-    expect(appSource).toContain("width: textCommit.width");
-    expect(appSource).toContain("height: textCommit.height");
+    expect(commitSource).toContain("getTextScaleCommitBox");
+    expect(commitSource).toContain("fontSize: textCommit.fontSize");
+    expect(commitSource).toContain("width: textCommit.width");
+    expect(commitSource).toContain("height: textCommit.height");
     expect(appSource).not.toContain("width: node.width() * Math.abs(node.scaleX() || 1)");
   });
 
   it("previews latex text resize through the vector overlay instead of hiding it", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const previewSource = readFileSync(new URL("../../src/app/selection/selection-transform-preview-controller.js", import.meta.url), "utf8");
     const transformerSource = readFileSync(new URL("../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
-    const resizePreviewSource = appSource.slice(
-      appSource.indexOf("function syncTextWidthResize()"),
-      appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
+    const resizePreviewSource = previewSource.slice(
+      previewSource.indexOf("function syncTextWidthResize()"),
+      previewSource.indexOf("function syncTextTransformPreview()"),
     );
     const minWidthSource = transformerSource.slice(
       transformerSource.indexOf("function getActiveMinWidth()"),
@@ -1281,11 +1288,11 @@ describe("app shell", () => {
     expect(resizePreviewSource).toContain("getMinimumTextElementWidth(element)");
     expect(minWidthSource).toContain("getTextTransformMinimumSize({");
     expect(resizePreviewSource).not.toContain("textOverlayController.setHiddenIds([id])");
-    expect(appSource).toContain("transformer.on(\"transform\", syncTextTransformPreview)");
-    expect(appSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
-    const transformPreviewSource = appSource.slice(
-      appSource.indexOf("function syncTextTransformPreview()"),
-      appSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
+    expect(appSource).toContain("transformer.on(\"transform\", selectionTransformPreviewController.syncTextTransformPreview)");
+    expect(previewSource).toContain("fontSize: isTextWidthResizeAnchor(anchor)");
+    const transformPreviewSource = previewSource.slice(
+      previewSource.indexOf("function syncTextTransformPreview()"),
+      previewSource.indexOf("function syncCoordinatePlaneTransformPreview()"),
     );
     expect(transformPreviewSource).not.toContain("node.scaleX(1)");
     expect(transformPreviewSource).not.toContain("node.scaleY(1)");
