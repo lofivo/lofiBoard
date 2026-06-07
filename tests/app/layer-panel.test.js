@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getElementLabel, renderLayerItemsMarkup } from "../../src/app/layer-panel.js";
+import { getElementLabel, renderLayerItemsMarkup } from "../../src/app/panels/layer-panel.js";
 
 describe("layer panel model", () => {
   it("builds readable labels for common element types", () => {

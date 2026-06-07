@@ -13,13 +13,13 @@ import {
   getPreferredTextBoxWidth,
   getMinimumTextBoxWidth,
   getNormalizedTextBox,
-} from "../tools/interaction-rules.js";
+} from "../../tools/interaction-rules.js";
 import {
   syncTextNodeSize,
   syncTextNodeContent,
   getStickyBorderColor,
-} from "../canvas/konva-elements.js";
-import { removeElementsById } from "../services/clipboard-service.js";
+} from "../../canvas/konva-elements.js";
+import { removeElementsById } from "../../services/clipboard-service.js";
 
 export function createEditController({
   findElement,

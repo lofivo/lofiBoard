@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureActiveVisualController } from "../../src/app/structure-active-visual-controller.js";
+import { createStructureActiveVisualController } from "../../src/app/structures/structure-active-visual-controller.js";
 
 function createTreeNode({ id, hasEllipse = true } = {}) {
   const ellipse = hasEllipse

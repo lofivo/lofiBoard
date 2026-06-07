@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSelectionClipboardController } from "../../src/app/selection-clipboard-controller.js";
+import { createSelectionClipboardController } from "../../src/app/selection/selection-clipboard-controller.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 function createClipboardController({ pasted = [] } = {}) {

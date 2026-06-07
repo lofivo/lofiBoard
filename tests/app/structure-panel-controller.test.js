@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStructurePanelController } from "../../src/app/structure-panel-controller.js";
+import { createStructurePanelController } from "../../src/app/structures/structure-panel-controller.js";
 import { STRUCTURE_TYPES } from "../../src/structures/structure-templates.js";
 
 describe("structure-panel-controller", () => {

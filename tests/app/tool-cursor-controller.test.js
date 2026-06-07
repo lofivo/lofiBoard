@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createToolCursorController } from "../../src/app/tool-cursor-controller.js";
+import { createToolCursorController } from "../../src/app/tools/tool-cursor-controller.js";
 import {
   getBrushPreviewAttrs,
   getObjectEraserIconAttrs,

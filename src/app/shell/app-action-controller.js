@@ -27,7 +27,7 @@ import {
   updateGraphFromInput,
   updateTreeFromInput,
   updateTreeNodeValue,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 export function createAppActionController({
   beginGraphConnectMode,

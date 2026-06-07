@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTextElementMeasurer } from "../../src/app/text-element-measure.js";
+import { createTextElementMeasurer } from "../../src/app/editing/text-element-measure.js";
 
 function createMeasurer() {
   const context = {

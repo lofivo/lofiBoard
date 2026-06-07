@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureInspectorSyncController } from "../../src/app/structure-inspector-sync-controller.js";
+import { createStructureInspectorSyncController } from "../../src/app/structures/structure-inspector-sync-controller.js";
 
 function createController(overrides = {}) {
   const state = {

@@ -4,7 +4,7 @@ import {
   findLinearItemValueGroup,
   findTreeNodeGroup,
   getLinearItemNodeIndex,
-} from "../../src/app/structure-node-query.js";
+} from "../../src/app/structures/structure-node-query.js";
 
 function createNode(attrs = {}) {
   return {

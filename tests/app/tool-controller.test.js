@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createToolController, getToolStatus } from "../../src/app/tool-controller.js";
+import { createToolController, getToolStatus } from "../../src/app/tools/tool-controller.js";
 import { DEFAULT_SHAPE_TOOL, TOOLS } from "../../src/ui/ui-config.js";
 
 describe("tool-controller", () => {

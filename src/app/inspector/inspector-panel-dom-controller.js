@@ -8,7 +8,7 @@ import {
   getToolPropertyPanelTitle,
   isToolPropertyPanelAvailable,
 } from "./inspector-model.js";
-import { resolveActiveDrawingTool } from "../tools/tool-behavior.js";
+import { resolveActiveDrawingTool } from "../../tools/tool-behavior.js";
 
 export function createInspectorPanelDomController({
   root,

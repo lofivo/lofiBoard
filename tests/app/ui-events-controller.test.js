@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createUiEventsController } from "../../src/app/ui-events-controller.js";
+import { createUiEventsController } from "../../src/app/shell/ui-events-controller.js";
 
 function createEventTarget() {
   const listeners = {};

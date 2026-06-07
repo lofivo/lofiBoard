@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createContextMenuDomController } from "../../src/app/context-menu-dom-controller.js";
+import { createContextMenuDomController } from "../../src/app/context-menu/context-menu-dom-controller.js";
 
 function createButton(action) {
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureControlsPositionController } from "../../src/app/structure-controls-position-controller.js";
+import { createStructureControlsPositionController } from "../../src/app/structures/structure-controls-position-controller.js";
 
 function createControl({ hidden = false, offsetWidth = 0 } = {}) {
   return {

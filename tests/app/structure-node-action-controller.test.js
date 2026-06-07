@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureNodeActionController } from "../../src/app/structure-node-action-controller.js";
+import { createStructureNodeActionController } from "../../src/app/structures/structure-node-action-controller.js";
 
 function createLinearElement() {
   return {

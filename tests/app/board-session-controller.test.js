@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBoardSessionController } from "../../src/app/board-session-controller.js";
+import { createBoardSessionController } from "../../src/app/shell/board-session-controller.js";
 
 function createTestBoard(overrides = {}) {
   return {

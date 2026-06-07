@@ -1,4 +1,4 @@
-import { getNextPanelCollapsedState, getPanelStateForLayerContent } from "../ui/panel-state.js";
+import { getNextPanelCollapsedState, getPanelStateForLayerContent } from "../../ui/panel-state.js";
 
 const DEFAULT_INSPECTOR_CONTEXT = "appearance";
 const INSPECTOR_SECTIONS = Object.freeze(["appearance", "linear", "graph", "tree"]);

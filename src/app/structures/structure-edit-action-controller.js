@@ -5,7 +5,7 @@ import {
   moveTreeNode,
   updateGraphEdge,
   updateGraphNodeLabel,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 export function createStructureEditActionController({
   getElements,

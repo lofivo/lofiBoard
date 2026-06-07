@@ -1,7 +1,7 @@
 import {
   STRUCTURE_TYPES,
   getStructureItem,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 const RANDOM_INIT_STRUCTURE_TYPES = new Set([
   STRUCTURE_TYPES.ARRAY,

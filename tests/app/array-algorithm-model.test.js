@@ -5,7 +5,7 @@ import {
   clearArrayAlgorithmRuntimeMarkers,
   createArrayAlgorithmSteps,
   getArrayAlgorithmLabel,
-} from "../../src/app/array-algorithm-model.js";
+} from "../../src/app/algorithms/array-algorithm-model.js";
 import { ARRAY_ALGORITHMS } from "../../src/algorithms/array-algorithms.js";
 
 describe("array-algorithm-model", () => {

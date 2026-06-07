@@ -7,7 +7,7 @@ import {
   getShapeToolTitle,
   getToolInspectorCapabilities,
   getToolPanelMode,
-} from "../../src/app/inspector-model.js";
+} from "../../src/app/inspector/inspector-model.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 describe("inspector model", () => {

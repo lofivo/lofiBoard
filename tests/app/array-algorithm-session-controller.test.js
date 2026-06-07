@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createArrayAlgorithmSessionController } from "../../src/app/array-algorithm-session-controller.js";
-import { DEFAULT_ARRAY_ALGORITHM_PANEL_STATE } from "../../src/app/array-algorithm-model.js";
+import { createArrayAlgorithmSessionController } from "../../src/app/algorithms/array-algorithm-session-controller.js";
+import { DEFAULT_ARRAY_ALGORITHM_PANEL_STATE } from "../../src/app/algorithms/array-algorithm-model.js";
 import { createStructureInteraction } from "../../src/structures/structure-interaction.js";
 
 function createController(overrides = {}) {

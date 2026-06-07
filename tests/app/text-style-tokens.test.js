@@ -4,7 +4,7 @@ import {
   hasTextDecoration,
   toggleFontStyleToken,
   toggleTextDecorationToken,
-} from "../../src/app/text-style-tokens.js";
+} from "../../src/app/inspector/text-style-tokens.js";
 
 describe("text style tokens", () => {
   it("reads font style and text decoration tokens", () => {

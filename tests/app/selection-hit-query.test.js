@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSelectionHitQuery } from "../../src/app/selection-hit-query.js";
+import { createSelectionHitQuery } from "../../src/app/selection/selection-hit-query.js";
 
 function createElementNode(id, rect = { x: 0, y: 0, width: 10, height: 10 }) {
   return {

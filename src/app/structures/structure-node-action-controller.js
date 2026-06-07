@@ -6,8 +6,8 @@ import {
   deleteTreeSubtree,
   insertArrayItem,
   stepTreeTraversalHighlight,
-} from "../structures/structure-templates.js";
-import { removeElementsById } from "../services/clipboard-service.js";
+} from "../../structures/structure-templates.js";
+import { removeElementsById } from "../../services/clipboard-service.js";
 
 export function createStructureNodeActionController({
   getElements,

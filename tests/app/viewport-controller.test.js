@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createViewportController } from "../../src/app/viewport-controller.js";
+import { createViewportController } from "../../src/app/viewport/viewport-controller.js";
 
 function createFakeStage({ width = 800, height = 600, x = 0, y = 0, scale = 1, pointer = null } = {}) {
   let stageX = x;

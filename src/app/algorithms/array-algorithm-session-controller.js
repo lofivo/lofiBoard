@@ -1,7 +1,7 @@
 import Konva from "konva";
 import {
   ALGORITHM_STEP_TYPES,
-} from "../algorithms/array-algorithms.js";
+} from "../../algorithms/array-algorithms.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   applyArrayAlgorithmValues,
@@ -12,7 +12,7 @@ import {
 import {
   ARRAY_STRUCTURE_STYLE,
   setArrayAlgorithmMarkers,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 export const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
 

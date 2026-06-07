@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createEditController } from "../../src/app/edit-controller.js";
+import { createEditController } from "../../src/app/editing/edit-controller.js";
 
 function makeNode(overrides = {}) {
   return {

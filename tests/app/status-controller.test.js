@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStatusController } from "../../src/app/status-controller.js";
+import { createStatusController } from "../../src/app/shell/status-controller.js";
 
 function createStatusNode() {
   const visibleClasses = new Set();

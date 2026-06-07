@@ -1,7 +1,7 @@
 import {
   updateArrayItemValue,
   updateTreeNodeValue,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 export function createStructureCellEditorController({
   container,

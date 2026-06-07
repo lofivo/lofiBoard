@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createArrayAlgorithmPanelController } from "../../src/app/array-algorithm-panel-controller.js";
-import { DEFAULT_ARRAY_ALGORITHM_PANEL_STATE } from "../../src/app/array-algorithm-model.js";
+import { createArrayAlgorithmPanelController } from "../../src/app/algorithms/array-algorithm-panel-controller.js";
+import { DEFAULT_ARRAY_ALGORITHM_PANEL_STATE } from "../../src/app/algorithms/array-algorithm-model.js";
 
 function createButton(action) {
   return {

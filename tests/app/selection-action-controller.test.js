@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSelectionActionController } from "../../src/app/selection-action-controller.js";
+import { createSelectionActionController } from "../../src/app/selection/selection-action-controller.js";
 
 function createController(initialElements, selectedIds = []) {
   let elements = initialElements;

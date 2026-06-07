@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createViewportActionController } from "../../src/app/viewport-action-controller.js";
+import { createViewportActionController } from "../../src/app/viewport/viewport-action-controller.js";
 
 function createController(overrides = {}) {
   let board = overrides.board ?? { id: "board_1", canvas: { backgroundMode: "dots" } };

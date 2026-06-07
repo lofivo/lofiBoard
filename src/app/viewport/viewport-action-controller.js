@@ -1,4 +1,4 @@
-import { computeFitViewport, computeViewportForBoundsVisibility } from "../canvas/viewport-service.js";
+import { computeFitViewport, computeViewportForBoundsVisibility } from "../../canvas/viewport-service.js";
 
 export function createViewportActionController({
   getElementCount,

@@ -4,8 +4,8 @@ import {
   getObjectEraserIconAttrs,
   getScaledEraserRadius,
   getSquareEraserPreviewAttrs,
-} from "../tools/tool-behavior.js";
-import { TOOLS } from "../ui/ui-config.js";
+} from "../../tools/tool-behavior.js";
+import { TOOLS } from "../../ui/ui-config.js";
 
 export function createToolCursorController({
   Konva,

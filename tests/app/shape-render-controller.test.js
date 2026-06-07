@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createShapeRenderController } from "../../src/app/shape-render-controller.js";
+import { createShapeRenderController } from "../../src/app/rendering/shape-render-controller.js";
 
 function createFakeNode(id) {
   return {

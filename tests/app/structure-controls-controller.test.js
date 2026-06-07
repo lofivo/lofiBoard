@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStructureControlsController } from "../../src/app/structure-controls-controller.js";
+import { createStructureControlsController } from "../../src/app/structures/structure-controls-controller.js";
 
 function createContentLayer(groups = {}) {
   return {

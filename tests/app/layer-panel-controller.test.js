@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLayerPanelController } from "../../src/app/layer-panel-controller.js";
+import { createLayerPanelController } from "../../src/app/panels/layer-panel-controller.js";
 
 function createController(overrides = {}) {
   const listeners = {};

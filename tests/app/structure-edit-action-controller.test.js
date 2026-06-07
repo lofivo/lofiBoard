@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureEditActionController } from "../../src/app/structure-edit-action-controller.js";
+import { createStructureEditActionController } from "../../src/app/structures/structure-edit-action-controller.js";
 
 function createGraphElement() {
   return {

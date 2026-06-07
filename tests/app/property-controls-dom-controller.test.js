@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_PROPERTY_CONTROLS,
   createPropertyControlsController,
-} from "../../src/app/property-controls-controller.js";
-import { createPropertyControlsDomController } from "../../src/app/property-controls-dom-controller.js";
+} from "../../src/app/inspector/property-controls-controller.js";
+import { createPropertyControlsDomController } from "../../src/app/inspector/property-controls-dom-controller.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 function createInput(value = "", checked = false) {

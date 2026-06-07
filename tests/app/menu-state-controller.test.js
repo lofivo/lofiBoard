@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMenuStateController } from "../../src/app/menu-state-controller.js";
+import { createMenuStateController } from "../../src/app/panels/menu-state-controller.js";
 
 describe("menu-state-controller", () => {
   it("tracks main menu open state", () => {

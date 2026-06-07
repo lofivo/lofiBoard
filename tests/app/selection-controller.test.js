@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createSelectionController,
   expandGroupedIds,
-} from "../../src/app/selection-controller.js";
+} from "../../src/app/selection/selection-controller.js";
 
 describe("selection-controller", () => {
   it("deduplicates selected ids while preserving first-seen order", () => {

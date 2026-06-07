@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStructureCellEditorController } from "../../src/app/structure-cell-editor-controller.js";
+import { createStructureCellEditorController } from "../../src/app/structures/structure-cell-editor-controller.js";
 import {
   updateArrayItemValue,
   updateTreeNodeValue,

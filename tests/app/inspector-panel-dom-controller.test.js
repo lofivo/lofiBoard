@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInspectorPanelDomController } from "../../src/app/inspector-panel-dom-controller.js";
+import { createInspectorPanelDomController } from "../../src/app/inspector/inspector-panel-dom-controller.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 function createController(overrides = {}) {

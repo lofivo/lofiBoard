@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createAppChromeController } from "../../src/app/app-chrome-controller.js";
+import { createAppChromeController } from "../../src/app/shell/app-chrome-controller.js";
 
 function createButton(dataset) {
   return {

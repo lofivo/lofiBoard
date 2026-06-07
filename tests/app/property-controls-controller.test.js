@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PROPERTY_CONTROLS,
   createPropertyControlsController,
-} from "../../src/app/property-controls-controller.js";
+} from "../../src/app/inspector/property-controls-controller.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 describe("property-controls-controller", () => {

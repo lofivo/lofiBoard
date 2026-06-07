@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPanelDomController } from "../../src/app/panel-dom-controller.js";
-import { createPanelStateController } from "../../src/app/panel-state-controller.js";
+import { createPanelDomController } from "../../src/app/panels/panel-dom-controller.js";
+import { createPanelStateController } from "../../src/app/panels/panel-state-controller.js";
 
 function createClassList() {
   return {

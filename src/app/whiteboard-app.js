@@ -1,71 +1,71 @@
 import Konva from "konva";
-import { renderShell } from "./app-shell.js";
-import { createBoardSessionController } from "./board-session-controller.js";
-import { createClipboardController } from "./clipboard-controller.js";
-import { createContextMenuDomController } from "./context-menu-dom-controller.js";
-import { createContextMenuController } from "./context-menu-controller.js";
-import { createControlsBindingController } from "./controls-binding-controller.js";
-import { createEditController } from "./edit-controller.js";
-import { createMenuStateController } from "./menu-state-controller.js";
-import { createPanelStateController } from "./panel-state-controller.js";
-import { createPropertyControlsController } from "./property-controls-controller.js";
-import { createPropertyControlsDomController } from "./property-controls-dom-controller.js";
-import { createContentBoundsQuery } from "./content-bounds-query.js";
+import { renderShell } from "./shell/app-shell.js";
+import { createBoardSessionController } from "./shell/board-session-controller.js";
+import { createClipboardController } from "./clipboard/clipboard-controller.js";
+import { createContextMenuDomController } from "./context-menu/context-menu-dom-controller.js";
+import { createContextMenuController } from "./context-menu/context-menu-controller.js";
+import { createControlsBindingController } from "./shell/controls-binding-controller.js";
+import { createEditController } from "./editing/edit-controller.js";
+import { createMenuStateController } from "./panels/menu-state-controller.js";
+import { createPanelStateController } from "./panels/panel-state-controller.js";
+import { createPropertyControlsController } from "./inspector/property-controls-controller.js";
+import { createPropertyControlsDomController } from "./inspector/property-controls-dom-controller.js";
+import { createContentBoundsQuery } from "./selection/content-bounds-query.js";
 import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
-} from "./selection-controller.js";
-import { createSelectionHitQuery } from "./selection-hit-query.js";
-import { createShapeRenderAdapter } from "./shape-render-adapter.js";
-import { createShapeRenderController } from "./shape-render-controller.js";
-import { createStructureActiveVisualController } from "./structure-active-visual-controller.js";
-import { createStructureControlsController } from "./structure-controls-controller.js";
-import { createStructureControlsPositionController } from "./structure-controls-position-controller.js";
-import { createStructureInspectorController } from "./structure-inspector-controller.js";
+} from "./selection/selection-controller.js";
+import { createSelectionHitQuery } from "./selection/selection-hit-query.js";
+import { createShapeRenderAdapter } from "./rendering/shape-render-adapter.js";
+import { createShapeRenderController } from "./rendering/shape-render-controller.js";
+import { createStructureActiveVisualController } from "./structures/structure-active-visual-controller.js";
+import { createStructureControlsController } from "./structures/structure-controls-controller.js";
+import { createStructureControlsPositionController } from "./structures/structure-controls-position-controller.js";
+import { createStructureInspectorController } from "./structures/structure-inspector-controller.js";
 import {
   findLinearItemNode,
   findLinearItemValueGroup,
   findTreeNodeGroup,
   getLinearItemNodeIndex,
-} from "./structure-node-query.js";
-import { createStructurePanelController } from "./structure-panel-controller.js";
-import { createToolController, getToolStatus as getToolStatusText } from "./tool-controller.js";
-import { createViewportActionController } from "./viewport-action-controller.js";
-import { createViewportController } from "./viewport-controller.js";
+} from "./structures/structure-node-query.js";
+import { createStructurePanelController } from "./structures/structure-panel-controller.js";
+import { createToolController, getToolStatus as getToolStatusText } from "./tools/tool-controller.js";
+import { createViewportActionController } from "./viewport/viewport-action-controller.js";
+import { createViewportController } from "./viewport/viewport-controller.js";
 import { createInteractionStateMachine, SM, getTransformerOverdrawForState } from "../tools/interaction-state-machine.js";
-import { queryWhiteboardRefs } from "./dom-refs.js";
-import { isToolPropertyPanelAvailable } from "./inspector-model.js";
-import { renderLayerItemsMarkup } from "./layer-panel.js";
+import { queryWhiteboardRefs } from "./shell/dom-refs.js";
+import { isToolPropertyPanelAvailable } from "./inspector/inspector-model.js";
+import { renderLayerItemsMarkup } from "./panels/layer-panel.js";
 import {
   toggleFontStyleToken,
   toggleTextDecorationToken,
-} from "./text-style-tokens.js";
+} from "./inspector/text-style-tokens.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   clearArrayAlgorithmRuntimeMarkers,
-} from "./array-algorithm-model.js";
-import { createAppActionController } from "./app-action-controller.js";
-import { createAppChromeController } from "./app-chrome-controller.js";
-import { createAppPanelController } from "./app-panel-controller.js";
-import { createArrayAlgorithmPanelController } from "./array-algorithm-panel-controller.js";
-import { createArrayAlgorithmSessionController } from "./array-algorithm-session-controller.js";
-import { createExportPngController } from "./export-png-controller.js";
-import { createImportWorkflowController } from "./import-workflow-controller.js";
-import { createInspectorPanelDomController } from "./inspector-panel-dom-controller.js";
-import { createKeyboardController } from "./keyboard-controller.js";
-import { createLayerPanelController } from "./layer-panel-controller.js";
-import { createPanelDomController } from "./panel-dom-controller.js";
-import { createSelectionActionController } from "./selection-action-controller.js";
-import { createSelectionClipboardController } from "./selection-clipboard-controller.js";
-import { createStructureCellEditorController } from "./structure-cell-editor-controller.js";
-import { createStructureEditActionController } from "./structure-edit-action-controller.js";
-import { createStructureExportController } from "./structure-export-controller.js";
-import { createStructureInspectorSyncController } from "./structure-inspector-sync-controller.js";
-import { createStructureNodeActionController } from "./structure-node-action-controller.js";
-import { createStatusController } from "./status-controller.js";
-import { createTextElementMeasurer } from "./text-element-measure.js";
-import { createToolCursorController } from "./tool-cursor-controller.js";
-import { createUiEventsController } from "./ui-events-controller.js";
+} from "./algorithms/array-algorithm-model.js";
+import { createAppActionController } from "./shell/app-action-controller.js";
+import { createAppChromeController } from "./shell/app-chrome-controller.js";
+import { createAppPanelController } from "./shell/app-panel-controller.js";
+import { createArrayAlgorithmPanelController } from "./algorithms/array-algorithm-panel-controller.js";
+import { createArrayAlgorithmSessionController } from "./algorithms/array-algorithm-session-controller.js";
+import { createExportPngController } from "./import-export/export-png-controller.js";
+import { createImportWorkflowController } from "./import-export/import-workflow-controller.js";
+import { createInspectorPanelDomController } from "./inspector/inspector-panel-dom-controller.js";
+import { createKeyboardController } from "./shell/keyboard-controller.js";
+import { createLayerPanelController } from "./panels/layer-panel-controller.js";
+import { createPanelDomController } from "./panels/panel-dom-controller.js";
+import { createSelectionActionController } from "./selection/selection-action-controller.js";
+import { createSelectionClipboardController } from "./selection/selection-clipboard-controller.js";
+import { createStructureCellEditorController } from "./structures/structure-cell-editor-controller.js";
+import { createStructureEditActionController } from "./structures/structure-edit-action-controller.js";
+import { createStructureExportController } from "./structures/structure-export-controller.js";
+import { createStructureInspectorSyncController } from "./structures/structure-inspector-sync-controller.js";
+import { createStructureNodeActionController } from "./structures/structure-node-action-controller.js";
+import { createStatusController } from "./shell/status-controller.js";
+import { createTextElementMeasurer } from "./editing/text-element-measure.js";
+import { createToolCursorController } from "./tools/tool-cursor-controller.js";
+import { createUiEventsController } from "./shell/ui-events-controller.js";
 import { removeElementsById } from "../services/clipboard-service.js";
 import {
   createEmptyBoard,

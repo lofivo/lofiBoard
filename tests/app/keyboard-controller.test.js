@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createKeyboardController } from "../../src/app/keyboard-controller.js";
+import { createKeyboardController } from "../../src/app/shell/keyboard-controller.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 function createEvent(overrides = {}) {

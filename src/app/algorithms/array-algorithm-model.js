@@ -3,11 +3,11 @@ import {
   createBubbleSortSteps,
   createInsertionSortSteps,
   createSelectionSortSteps,
-} from "../algorithms/array-algorithms.js";
+} from "../../algorithms/array-algorithms.js";
 import {
   clearArrayAlgorithmMarkers,
   isLinearStructureElement,
-} from "../structures/structure-templates.js";
+} from "../../structures/structure-templates.js";
 
 export const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
   algorithm: ARRAY_ALGORITHMS.BUBBLE_SORT,

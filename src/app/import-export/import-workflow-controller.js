@@ -1,5 +1,5 @@
-import { DEFAULT_TEXT_STYLE } from "../board/element-factory.js";
-import { TOOLS } from "../ui/ui-config.js";
+import { DEFAULT_TEXT_STYLE } from "../../board/element-factory.js";
+import { TOOLS } from "../../ui/ui-config.js";
 
 export function createImportWorkflowController({
   imageInput,

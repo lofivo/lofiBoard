@@ -2,8 +2,8 @@ import {
   getMinimumTextBoxWidth,
   getNormalizedTextBox,
   getPreferredTextBoxWidth,
-} from "../tools/interaction-rules.js";
-import { hasFontStyle } from "./text-style-tokens.js";
+} from "../../tools/interaction-rules.js";
+import { hasFontStyle } from "../inspector/text-style-tokens.js";
 
 export function createTextElementMeasurer({
   createCanvas = () => document.createElement("canvas"),

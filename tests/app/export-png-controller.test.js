@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createExportPngController } from "../../src/app/export-png-controller.js";
+import { createExportPngController } from "../../src/app/import-export/export-png-controller.js";
 
 function createController(overrides = {}) {
   const backgroundNodes = [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createClipboardController } from "../../src/app/clipboard-controller.js";
+import { createClipboardController } from "../../src/app/clipboard/clipboard-controller.js";
 
 describe("clipboard-controller", () => {
   it("starts empty and reports snapshot availability", () => {

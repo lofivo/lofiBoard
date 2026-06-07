@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureExportController } from "../../src/app/structure-export-controller.js";
+import { createStructureExportController } from "../../src/app/structures/structure-export-controller.js";
 
 function createController({
   clipboard = { writeText: vi.fn(() => Promise.resolve()) },

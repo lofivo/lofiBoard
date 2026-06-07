@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createContentBoundsQuery } from "../../src/app/content-bounds-query.js";
+import { createContentBoundsQuery } from "../../src/app/selection/content-bounds-query.js";
 
 function createNode(box) {
   return {

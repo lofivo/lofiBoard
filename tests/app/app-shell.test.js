@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderShell } from "../../src/app/app-shell.js";
+import { renderShell } from "../../src/app/shell/app-shell.js";
 import { readFileSync } from "node:fs";
 
 describe("app shell", () => {
@@ -122,7 +122,7 @@ describe("app shell", () => {
 
   it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const selectionHitSource = readFileSync(new URL("../../src/app/selection-hit-query.js", import.meta.url), "utf8");
+    const selectionHitSource = readFileSync(new URL("../../src/app/selection/selection-hit-query.js", import.meta.url), "utf8");
     const selectSource = appSource.slice(
       appSource.indexOf("function handleSelectPointerDown(event, worldPoint)"),
       appSource.indexOf("function beginSelectionDrag(worldPoint)"),
@@ -162,7 +162,7 @@ describe("app shell", () => {
   });
 
   it("keeps array algorithm sessions on the animated step after swap and move animations finish", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const swapSource = algorithmSource.slice(
       algorithmSource.indexOf("function playArrayAlgorithmSwapStep"),
       algorithmSource.indexOf("function playArrayAlgorithmPickKeyStep"),
@@ -187,7 +187,7 @@ describe("app shell", () => {
   });
 
   it("animates insertion sort key pickup separately from final insertion", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const runSource = algorithmSource.slice(
       algorithmSource.indexOf("function runArrayAlgorithmStep"),
       algorithmSource.indexOf("function playArrayAlgorithmSwapStep"),
@@ -216,7 +216,7 @@ describe("app shell", () => {
   });
 
   it("plays reverse transitions when stepping array algorithms backward", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const prevSource = algorithmSource.slice(
       algorithmSource.indexOf("function stepArrayAlgorithmPrevious()"),
       algorithmSource.indexOf("function stepArrayAlgorithmNext()"),
@@ -268,8 +268,8 @@ describe("app shell", () => {
 
   it("allows random initialization for both general and binary tree structures", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appPanelSource = readFileSync(new URL("../../src/app/app-panel-controller.js", import.meta.url), "utf8");
-    const structurePanelSource = readFileSync(new URL("../../src/app/structure-panel-controller.js", import.meta.url), "utf8");
+    const appPanelSource = readFileSync(new URL("../../src/app/shell/app-panel-controller.js", import.meta.url), "utf8");
+    const structurePanelSource = readFileSync(new URL("../../src/app/structures/structure-panel-controller.js", import.meta.url), "utf8");
     const hydrateSource = appPanelSource.slice(
       appPanelSource.indexOf("function hydrateStructurePanel"),
       appPanelSource.indexOf("function setActiveStructureType"),
@@ -283,7 +283,7 @@ describe("app shell", () => {
 
   it("reuses ordinary Konva nodes across board renders", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const shapeRenderSource = readFileSync(new URL("../../src/app/shape-render-controller.js", import.meta.url), "utf8");
+    const shapeRenderSource = readFileSync(new URL("../../src/app/rendering/shape-render-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const shapeRenderController = createShapeRenderController({");
     expect(appSource).toContain("shapeRenderController.syncElementNodes(reorderElements(board.elements));");
@@ -296,7 +296,7 @@ describe("app shell", () => {
 
   it("skips Konva node synchronization when an element did not change", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const shapeRenderSource = readFileSync(new URL("../../src/app/shape-render-controller.js", import.meta.url), "utf8");
+    const shapeRenderSource = readFileSync(new URL("../../src/app/rendering/shape-render-controller.js", import.meta.url), "utf8");
 
     expect(shapeRenderSource).toContain("const nodeRenderSnapshots = new Map();");
     expect(shapeRenderSource).toContain("const elementRenderSnapshotValues = new WeakMap();");
@@ -449,10 +449,10 @@ describe("app shell", () => {
 
   it("uses floating node controls for ordinary tree edits", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../src/app/structure-edit-action-controller.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../src/app/structure-node-action-controller.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
-    const controlsPositionSource = readFileSync(new URL("../../src/app/structure-controls-position-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../src/app/structures/structure-controls-position-controller.js", import.meta.url), "utf8");
     const controlSource = controlsSource.slice(
       controlsSource.indexOf("function ensureTreeNodeControls()"),
       controlsSource.indexOf("function ensureBinaryTreeNodeControls()"),
@@ -524,7 +524,7 @@ describe("app shell", () => {
 
   it("rerenders binary tree node selection immediately and clears it from blank tree clicks", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../src/app/structure-edit-action-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
     const clickSource = editActionSource.slice(
       editActionSource.indexOf("function handleTreeNodeClick({ elementId, nodeId })"),
       editActionSource.indexOf("function connectGraphStructureNodes"),
@@ -629,7 +629,7 @@ describe("app shell", () => {
 
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../src/app/structure-edit-action-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const finishDragSource = appSource.slice(
       appSource.indexOf("function finishSelectionDrag()"),
@@ -664,17 +664,17 @@ describe("app shell", () => {
 
   it("syncs and applies the linear structure values input from the property panel", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
-    const controlsBindingSource = readFileSync(new URL("../../src/app/controls-binding-controller.js", import.meta.url), "utf8");
-    const refsSource = readFileSync(new URL("../../src/app/dom-refs.js", import.meta.url), "utf8");
-    const structureInspectorSource = readFileSync(new URL("../../src/app/structure-inspector-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const controlsBindingSource = readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
+    const refsSource = readFileSync(new URL("../../src/app/shell/dom-refs.js", import.meta.url), "utf8");
+    const structureInspectorSource = readFileSync(new URL("../../src/app/structures/structure-inspector-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('linearValuesInput: query("[data-linear-values-input]")');
     expect(structureInspectorSource).toContain('let linearValuesDraft = initialLinearValuesDraft;');
     expect(appSource).toContain("createControlsBindingController");
     expect(controlsBindingSource).toContain('linearValuesInput?.addEventListener("input", () => {');
     expect(controlsBindingSource).toContain("setLinearValuesDraft(linearValuesInput.value);");
-    expect(appActionSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/structures\/structure-templates\.js";/);
+    expect(appActionSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/\.\.\/structures\/structure-templates\.js";/);
     expect(appActionSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, getLinearValuesDraft()))');
     expect(appSource).not.toContain('runAction("linear-apply-values")');
     expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
@@ -685,10 +685,10 @@ describe("app shell", () => {
 
   it("syncs and applies graph structure input from the property panel", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
-    const controlsBindingSource = readFileSync(new URL("../../src/app/controls-binding-controller.js", import.meta.url), "utf8");
-    const refsSource = readFileSync(new URL("../../src/app/dom-refs.js", import.meta.url), "utf8");
-    const structureInspectorSyncSource = readFileSync(new URL("../../src/app/structure-inspector-sync-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const controlsBindingSource = readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
+    const refsSource = readFileSync(new URL("../../src/app/shell/dom-refs.js", import.meta.url), "utf8");
+    const structureInspectorSyncSource = readFileSync(new URL("../../src/app/structures/structure-inspector-sync-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('graphStructureInput: query("[data-graph-structure-input]")');
     expect(appSource).toContain("createControlsBindingController");
@@ -719,8 +719,8 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
-    const panelStateSource = readFileSync(new URL("../../src/app/panel-state-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const panelStateSource = readFileSync(new URL("../../src/app/panels/panel-state-controller.js", import.meta.url), "utf8");
 
     expect(markup).not.toContain("linear-panel-fields-edit");
     expect(markup).toContain("linear-panel-fields-highlight");
@@ -756,7 +756,7 @@ describe("app shell", () => {
 
   it("keeps linear panel indexes in sync with zero-based and one-based settings", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("function getLinearIndexBase(element)");
     expect(appSource).toContain("function toLinearDisplayIndex(element, index)");
@@ -769,7 +769,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain("brush-inspector");
     expect(markup).toContain("brush-preset-row");
@@ -814,8 +814,8 @@ describe("app shell", () => {
   it("syncs visible text and sticky typography controls from the selected element", () => {
     const markup = renderShell();
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector-panel-dom-controller.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain('data-ui-control="font-size"');
     expect(markup).toContain('data-ui-control="sticky-font-size"');
@@ -849,7 +849,7 @@ describe("app shell", () => {
     const markup = renderShell();
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain("shape-endpoint-inspector");
     expect(markup).toContain('data-control="arrow-double-ended"');
@@ -899,7 +899,7 @@ describe("app shell", () => {
 
   it("keeps selected brush strokes in the brush-style inspector instead of shape controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
 
     expect(inspectorPanelSource).toContain("getSelectionPanelMode(selectedElements)");
     expect(appSource).not.toContain('"stroke";');
@@ -965,8 +965,8 @@ describe("app shell", () => {
   it("shows combined property controls for multi-selection and grouped selections", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector-panel-dom-controller.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createInspectorPanelDomController");
     expect(inspectorPanelSource).toContain("getSelectionInspectorCapabilities(selectedElements)");
@@ -1002,8 +1002,8 @@ describe("app shell", () => {
 
   it("restores saved tool property controls and section state when switching tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const propertyControlsSource = readFileSync(new URL("../../src/app/property-controls-controller.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const propertyControlsSource = readFileSync(new URL("../../src/app/inspector/property-controls-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("saveToolPropertyControlsForCurrentTool()");
     expect(appSource).toContain("restorePropertyControlsForTool(tool)");
@@ -1016,8 +1016,8 @@ describe("app shell", () => {
 
   it("keeps selected stroke controls separate from saved brush tool controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const propertyControlsSource = readFileSync(new URL("../../src/app/property-controls-controller.js", import.meta.url), "utf8");
-    const propertyDomSource = readFileSync(new URL("../../src/app/property-controls-dom-controller.js", import.meta.url), "utf8");
+    const propertyControlsSource = readFileSync(new URL("../../src/app/inspector/property-controls-controller.js", import.meta.url), "utf8");
+    const propertyDomSource = readFileSync(new URL("../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(propertyControlsSource).toContain("const toolPropertyControlSnapshots = new Map()");
     expect(appSource).toContain("getSelectedIds: () => selectedIds");
@@ -1028,8 +1028,8 @@ describe("app shell", () => {
 
   it("preserves property panel scroll when syncing without a context reset", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const panelDomSource = readFileSync(new URL("../../src/app/panel-dom-controller.js", import.meta.url), "utf8");
-    const panelStateSource = readFileSync(new URL("../../src/app/panel-state-controller.js", import.meta.url), "utf8");
+    const panelDomSource = readFileSync(new URL("../../src/app/panels/panel-dom-controller.js", import.meta.url), "utf8");
+    const panelStateSource = readFileSync(new URL("../../src/app/panels/panel-state-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createPanelDomController");
     expect(panelDomSource).toContain("panelStateController.syncInspectorContext(nextContext, { forceReset })");
@@ -1040,7 +1040,7 @@ describe("app shell", () => {
 
   it("keeps the style panel hidden for text and sticky tools until an element is selected", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createInspectorPanelDomController");
     expect(inspectorPanelSource).toContain("getSelectionPanelMode(selectedElements)");
@@ -1051,7 +1051,7 @@ describe("app shell", () => {
 
   it("uses concrete property panel titles for single selections and configurable tools", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("stylePanelTitle,");
     expect(inspectorPanelSource).toContain("function syncPropertyPanelTitle(selectedElements = [])");
@@ -1064,9 +1064,9 @@ describe("app shell", () => {
 
   it("uses safe closest lookups for delegated app interactions", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const controlsBindingSource = readFileSync(new URL("../../src/app/controls-binding-controller.js", import.meta.url), "utf8");
-    const layerPanelSource = readFileSync(new URL("../../src/app/layer-panel-controller.js", import.meta.url), "utf8");
-    const uiEventsSource = readFileSync(new URL("../../src/app/ui-events-controller.js", import.meta.url), "utf8");
+    const controlsBindingSource = readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
+    const layerPanelSource = readFileSync(new URL("../../src/app/panels/layer-panel-controller.js", import.meta.url), "utf8");
+    const uiEventsSource = readFileSync(new URL("../../src/app/shell/ui-events-controller.js", import.meta.url), "utf8");
     const delegatedInteractionSource = `${appSource}\n${controlsBindingSource}\n${layerPanelSource}\n${uiEventsSource}`;
 
     expect(appSource).toContain("function closestElement(target, selector)");
@@ -1100,8 +1100,8 @@ describe("app shell", () => {
 
   it("keeps live text editor height aligned with committed text box normalization", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
-    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("}) + 2 * scale");
     expect(textMeasureSource).toContain("verticalGap: 2");
@@ -1109,7 +1109,7 @@ describe("app shell", () => {
 
   it("keeps the Konva text visible while the textarea only edits input", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("getTextEditorStyle");
     expect(editSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
@@ -1121,7 +1121,7 @@ describe("app shell", () => {
   it("uses a DOM vector overlay for rendered latex text while editing keeps source input", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createTextOverlayController");
     expect(appSource).toContain("textOverlayController.sync(elements)");
@@ -1132,8 +1132,8 @@ describe("app shell", () => {
   });
 
   it("widens new latex text while editing and preserves that width on commit", () => {
-    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(textMeasureSource).toContain("getPreferredTextBoxWidth({");
     expect(editSource).toContain("latexDefaultWidth: 520 * scale");
@@ -1143,7 +1143,7 @@ describe("app shell", () => {
 
   it("keeps text measurement font setup centralized without dead editor resize state", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const textMeasureSource = readFileSync(new URL("../../src/app/text-element-measure.js", import.meta.url), "utf8");
+    const textMeasureSource = readFileSync(new URL("../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
 
     expect(textMeasureSource).toContain("function getTextMeasureContextForElement");
     expect(appSource).not.toContain("hasManualEditorResize");
@@ -1165,7 +1165,7 @@ describe("app shell", () => {
   it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(styles).toMatch(/\.text-editor \{[\s\S]*?background: transparent;/);
     expect(styles).toMatch(/\.text-editor-frame\.is-sticky-editor \{[\s\S]*?box-shadow: none;/);
@@ -1201,8 +1201,8 @@ describe("app shell", () => {
 
   it("keeps layer ordering available through context menu commands", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
-    const selectionActionSource = readFileSync(new URL("../../src/app/selection-action-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const selectionActionSource = readFileSync(new URL("../../src/app/selection/selection-action-controller.js", import.meta.url), "utf8");
     const markup = renderShell();
 
     expect(appActionSource).toContain('"bring-forward": bringSelectionForward');
@@ -1318,7 +1318,7 @@ describe("app shell", () => {
 
   it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
     const eraserSource = toolCursorSource.slice(
       toolCursorSource.indexOf("function getBaseEraserRadius()"),
       toolCursorSource.indexOf("function showObjectEraser"),
@@ -1333,7 +1333,7 @@ describe("app shell", () => {
 
   it("shows a small icon for object eraser instead of the square erase footprint", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
     const objectEraserSource = toolCursorSource.slice(
       toolCursorSource.indexOf("function showObjectEraser(worldPoint)"),
       toolCursorSource.indexOf("function hideEraser"),
@@ -1411,7 +1411,7 @@ describe("app shell", () => {
 
   it("ignores global delete shortcuts while typing in form controls", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const keyboardSource = readFileSync(new URL("../../src/app/keyboard-controller.js", import.meta.url), "utf8");
+    const keyboardSource = readFileSync(new URL("../../src/app/shell/keyboard-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("isTypingInEditableControl,");
     expect(keyboardSource).toContain("isTypingInEditableControl(event.target)");
@@ -1423,8 +1423,8 @@ describe("app shell", () => {
 
   it("keeps whiteboard select-all from selecting browser page text", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const keyboardSource = readFileSync(new URL("../../src/app/keyboard-controller.js", import.meta.url), "utf8");
-    const uiEventsSource = readFileSync(new URL("../../src/app/ui-events-controller.js", import.meta.url), "utf8");
+    const keyboardSource = readFileSync(new URL("../../src/app/shell/keyboard-controller.js", import.meta.url), "utf8");
+    const uiEventsSource = readFileSync(new URL("../../src/app/shell/ui-events-controller.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
     expect(appSource).toContain("createKeyboardController");
@@ -1483,7 +1483,7 @@ describe("app shell", () => {
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const activeVisualSource = readFileSync(new URL("../../src/app/structure-active-visual-controller.js", import.meta.url), "utf8");
+    const activeVisualSource = readFileSync(new URL("../../src/app/structures/structure-active-visual-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter(dispatchLinearStructureEvent);");
     expect(appSource).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
@@ -1536,8 +1536,8 @@ describe("app shell", () => {
 
   it("renders direct array item controls around the selected item", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../src/app/structure-node-action-controller.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
 
     expect(appSource).toContain("renderLinearItemControls");
@@ -1550,7 +1550,7 @@ describe("app shell", () => {
   });
 
   it("keeps the current array item selected after inserting adjacent items", () => {
-    const nodeActionSource = readFileSync(new URL("../../src/app/structure-node-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
     const actionSource = nodeActionSource.slice(
       nodeActionSource.indexOf("function runLinearItemAction(action)"),
       nodeActionSource.indexOf("function runTreeNodeAction(action)"),
@@ -1610,7 +1610,7 @@ describe("app shell", () => {
   });
 
   it("clears the active array item when starting an array algorithm", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const startSource = algorithmSource.slice(
       algorithmSource.indexOf("function startSelectedArrayAlgorithm()"),
       algorithmSource.indexOf("function clearActiveLinearItemForAlgorithmStart"),
@@ -1622,7 +1622,7 @@ describe("app shell", () => {
   });
 
   it("keeps the selected algorithm name when stopping an unfinished array algorithm", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const stopSource = algorithmSource.slice(
       algorithmSource.indexOf("function stopArrayAlgorithmSession()"),
       algorithmSource.indexOf("function runArrayAlgorithmReverseStep"),
@@ -1636,7 +1636,7 @@ describe("app shell", () => {
 
   it("keeps array algorithm sessions independent per array element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
     expect(appSource).not.toContain("let arrayAlgorithmSessions = new Map();");
@@ -1653,9 +1653,9 @@ describe("app shell", () => {
 
   it("keeps array algorithm panel choices independent per array element", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const panelSource = readFileSync(new URL("../../src/app/array-algorithm-panel-controller.js", import.meta.url), "utf8");
+    const panelSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-panel-controller.js", import.meta.url), "utf8");
     const startSource = algorithmSource.slice(
       algorithmSource.indexOf("function startSelectedArrayAlgorithm()"),
       algorithmSource.indexOf("function clearActiveLinearItemForAlgorithmStart"),
@@ -1672,7 +1672,7 @@ describe("app shell", () => {
     expect(algorithmSource).toContain("function setArrayAlgorithmPanelState(elementId, patch)");
     expect(algorithmSource).toContain("structureInteraction.setArrayAlgorithmPanelState(elementId, patch, DEFAULT_ARRAY_ALGORITHM_PANEL_STATE);");
     expect(appSource).toContain("createControlsBindingController");
-    expect(readFileSync(new URL("../../src/app/controls-binding-controller.js", import.meta.url), "utf8")).toContain("bindArrayAlgorithmPanelEvents();");
+    expect(readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8")).toContain("bindArrayAlgorithmPanelEvents();");
     expect(panelSource).toContain("arrayAlgorithmSelect?.addEventListener(\"change\"");
     expect(startSource).toContain("const panelState = getArrayAlgorithmPanelState(element.id);");
     expect(startSource).toContain("createArrayAlgorithmSteps(panelState.algorithm, values)");
@@ -1681,7 +1681,7 @@ describe("app shell", () => {
   });
 
   it("uses a faster base duration for array algorithm animations", () => {
-    const algorithmSource = readFileSync(new URL("../../src/app/array-algorithm-session-controller.js", import.meta.url), "utf8");
+    const algorithmSource = readFileSync(new URL("../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
 
     expect(algorithmSource).toContain("export const ARRAY_ALGORITHM_BASE_STEP_MS = 460;");
     expect(algorithmSource).toContain("ARRAY_ALGORITHM_BASE_STEP_MS / Math.max(0.5, speed)");
@@ -1700,9 +1700,9 @@ describe("app shell", () => {
   it("opens image import from the toolbar without switching drawing tools", () => {
     const markup = renderShell();
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
-    const controlsBindingSource = readFileSync(new URL("../../src/app/controls-binding-controller.js", import.meta.url), "utf8");
-    const importWorkflowSource = readFileSync(new URL("../../src/app/import-workflow-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const controlsBindingSource = readFileSync(new URL("../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
+    const importWorkflowSource = readFileSync(new URL("../../src/app/import-export/import-workflow-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain('data-tool-action="import-image"');
     expect(markup).toContain('data-image-input type="file" accept="image/*" hidden');
@@ -1717,7 +1717,7 @@ describe("app shell", () => {
 
   it("commits text and sticky editors when pointer down starts outside the editor", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("editController.editElement");
     expect(editSource).toContain("handleEditorOutsidePointerDown");
@@ -1727,7 +1727,7 @@ describe("app shell", () => {
   });
 
   it("preserves empty text boxes when the property panel receives pointer focus", () => {
-    const editSource = readFileSync(new URL("../../src/app/edit-controller.js", import.meta.url), "utf8");
+    const editSource = readFileSync(new URL("../../src/app/editing/edit-controller.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("shouldPreserveTextEditorOnPointerDown");
     expect(editSource).toContain("doCommit({ preserveEmptyText: true });");
@@ -1736,7 +1736,7 @@ describe("app shell", () => {
 
   it("prevents array cell editor outside clicks from starting a tiny selection box", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editorSource = readFileSync(new URL("../../src/app/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setSuppressNextCanvasSelection: (value) => { suppressNextCanvasSelection = value; }");
     expect(appSource).toContain("if (suppressNextCanvasSelection) {");
@@ -1747,8 +1747,8 @@ describe("app shell", () => {
 
   it("keeps the array cell editor synced when the viewport or structure scale changes", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editorSource = readFileSync(new URL("../../src/app/structure-cell-editor-controller.js", import.meta.url), "utf8");
-    const viewportSource = readFileSync(new URL("../../src/app/viewport-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../src/app/viewport/viewport-controller.js", import.meta.url), "utf8");
     const viewportControllerSource = appSource.slice(
       appSource.indexOf("const viewportController = createViewportController"),
       appSource.indexOf("hydrateLocalDraft();"),
@@ -1830,8 +1830,8 @@ describe("app shell", () => {
 
   it("suppresses custom tool cursors while spacebar panning is active", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const keyboardSource = readFileSync(new URL("../../src/app/keyboard-controller.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../src/app/tool-cursor-controller.js", import.meta.url), "utf8");
+    const keyboardSource = readFileSync(new URL("../../src/app/shell/keyboard-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setIsSpaceDown: (nextValue) => { isSpaceDown = nextValue; }");
     expect(keyboardSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?setIsSpaceDown\(true\);[\s\S]*?classList\.add\("is-pan-ready"\);[\s\S]*?updateDraggableState\(\);[\s\S]*?hideToolCursors\(\);/);
@@ -1848,7 +1848,7 @@ describe("app shell", () => {
 
   it("keeps temporary spacebar panning from selecting or dragging elements", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
@@ -1861,7 +1861,7 @@ describe("app shell", () => {
 
   it("uses lightweight chrome updates while panning and zooming the viewport", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const viewportSource = readFileSync(new URL("../../src/app/viewport-controller.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../src/app/viewport/viewport-controller.js", import.meta.url), "utf8");
     const panMoveBlock = appSource.match(/if \(isPanning && panStart\) \{[\s\S]*?return;\n    \}/)?.[0] ?? "";
     const wheelBlock = viewportSource.match(/function handleWheel\(event\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
     const centerZoomBlock = viewportSource.match(/function setZoomAtCenter\(requestedScale\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
@@ -1878,15 +1878,15 @@ describe("app shell", () => {
 
   it("uses shared graph and tree connect state for structure node editing", () => {
     const appSource = readFileSync(new URL("../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const appActionSource = readFileSync(new URL("../../src/app/app-action-controller.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../src/app/structure-edit-action-controller.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../src/app/structure-node-action-controller.js", import.meta.url), "utf8");
+    const appActionSource = readFileSync(new URL("../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const shapeRenderAdapterSource = readFileSync(new URL("../../src/app/shape-render-adapter.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../src/app/structure-controls-controller.js", import.meta.url), "utf8");
-    const controlsPositionSource = readFileSync(new URL("../../src/app/structure-controls-position-controller.js", import.meta.url), "utf8");
-    const structureNodeQuerySource = readFileSync(new URL("../../src/app/structure-node-query.js", import.meta.url), "utf8");
-    const structureInspectorSyncSource = readFileSync(new URL("../../src/app/structure-inspector-sync-controller.js", import.meta.url), "utf8");
+    const shapeRenderAdapterSource = readFileSync(new URL("../../src/app/rendering/shape-render-adapter.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../src/app/structures/structure-controls-position-controller.js", import.meta.url), "utf8");
+    const structureNodeQuerySource = readFileSync(new URL("../../src/app/structures/structure-node-query.js", import.meta.url), "utf8");
+    const structureInspectorSyncSource = readFileSync(new URL("../../src/app/structures/structure-inspector-sync-controller.js", import.meta.url), "utf8");
 
     expect(interactionSource).toContain("let structureConnectState = null;");
     expect(appSource).not.toContain("let structureConnectState = null;");
@@ -1952,7 +1952,7 @@ describe("app shell", () => {
   });
 
   it("keeps the blue selection border visible during and after array cell editing", () => {
-    const editorSource = readFileSync(new URL("../../src/app/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
 
     const editSource = editorSource.slice(
       editorSource.indexOf("function editArrayStructureItem"),

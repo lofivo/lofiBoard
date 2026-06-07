@@ -1,7 +1,7 @@
 import {
   createClipboardSnapshot,
   createPastedElements as buildPastedElements,
-} from "../services/clipboard-service.js";
+} from "../../services/clipboard-service.js";
 
 export function createClipboardController({ initialSnapshot = [] } = {}) {
   let snapshot = createClipboardSnapshot(initialSnapshot, initialSnapshot.map((element) => element.id));

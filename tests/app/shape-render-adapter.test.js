@@ -3,7 +3,7 @@ import {
   createElementRenderHandlerSnapshot,
   createShapeRenderAdapter,
   isGeneralTreeStructure,
-} from "../../src/app/shape-render-adapter.js";
+} from "../../src/app/rendering/shape-render-adapter.js";
 import { TOOLS } from "../../src/ui/ui-config.js";
 
 describe("shape-render-adapter", () => {

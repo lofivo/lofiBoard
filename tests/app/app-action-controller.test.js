@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createAppActionController } from "../../src/app/app-action-controller.js";
+import { createAppActionController } from "../../src/app/shell/app-action-controller.js";
 
 function createController() {
   const callbacks = {

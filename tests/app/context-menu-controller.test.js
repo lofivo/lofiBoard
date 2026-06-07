@@ -3,7 +3,7 @@ import {
   createContextMenuController,
   getContextMenuPosition,
   shouldShowContextMenu,
-} from "../../src/app/context-menu-controller.js";
+} from "../../src/app/context-menu/context-menu-controller.js";
 
 describe("context-menu-controller", () => {
   it("only shows the menu when a target, selection, or clipboard content exists", () => {

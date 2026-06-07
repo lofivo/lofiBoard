@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStructureInspectorController } from "../../src/app/structure-inspector-controller.js";
+import { createStructureInspectorController } from "../../src/app/structures/structure-inspector-controller.js";
 
 describe("structure-inspector-controller", () => {
   it("tracks linear inspector fields", () => {
