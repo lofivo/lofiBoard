@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureBoardActionController } from "../../../src/app/structures/structure-board-action-controller.js";
+import { createStructureBoardActionController } from "../../../src/app/structures/board-action-controller.js";
 
 function createLinearElement(overrides = {}) {
   return {
@@ -94,7 +94,7 @@ function createController({
   };
 }
 
-describe("structure-board-action-controller", () => {
+describe("board-action-controller", () => {
   it("inserts structures from the panel before selecting the new element", () => {
     const { callbacks, callOrder, controller, getElements } = createController({
       elements: [{ id: "rect_1", type: "rect", zIndex: 0 }],

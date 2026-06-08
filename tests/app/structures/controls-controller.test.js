@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStructureControlsController } from "../../../src/app/structures/structure-controls-controller.js";
+import { createStructureControlsController } from "../../../src/app/structures/controls-controller.js";
 
 function createContentLayer(groups = {}) {
   return {
@@ -39,7 +39,7 @@ function createController(overrides = {}) {
   return { root, controller };
 }
 
-describe("structure-controls-controller", () => {
+describe("controls-controller", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });

@@ -2,12 +2,18 @@ import Konva from "konva";
 import { flattenPoints } from "./geometry.js";
 import {
   ARRAY_STRUCTURE_STYLE,
-  GRAPH_STRUCTURE_STYLE,
+} from "../structures/linear-structure.js";
+import {
   LINEAR_STRUCTURE_TYPES,
   STRUCTURE_ELEMENT_TYPES,
+} from "../structures/types.js";
+import {
+  GRAPH_STRUCTURE_STYLE,
+} from "../structures/graph-structure.js";
+import {
   TREE_STRUCTURE_STYLE,
   addTreeEdge,
-} from "../structures/structure-templates.js";
+} from "../structures/tree-structure.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 import { getTextDisplayValue } from "../services/latex-service.js";
 

@@ -11,7 +11,7 @@ import {
   getLinearPreviewGap,
   getLinearPreviewXForGap,
   getLinearStructureGeometry,
-} from "../../../src/app/structures/linear-structure-runtime.js";
+} from "../../../src/app/structures/linear-runtime.js";
 
 function linearElement(overrides = {}) {
   return {
@@ -29,7 +29,7 @@ function linearElement(overrides = {}) {
   };
 }
 
-describe("linear-structure-runtime", () => {
+describe("linear-runtime", () => {
   it("describes linear structure geometry from element style and settings", () => {
     expect(getLinearStructureGeometry(linearElement())).toMatchObject({
       showIndexes: true,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureActiveVisualController } from "../../../src/app/structures/structure-active-visual-controller.js";
+import { createStructureActiveVisualController } from "../../../src/app/structures/active-visual-controller.js";
 
 function createTreeNode({ id, hasEllipse = true } = {}) {
   const ellipse = hasEllipse
@@ -41,7 +41,7 @@ function createController(overrides = {}) {
   });
 }
 
-describe("structure-active-visual-controller", () => {
+describe("active-visual-controller", () => {
   it("syncs the active linear item by projecting runtime state onto the existing group", () => {
     const dropIndicator = { moveToTop: vi.fn() };
     const group = { findOne: vi.fn(() => dropIndicator) };

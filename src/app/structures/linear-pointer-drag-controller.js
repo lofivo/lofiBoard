@@ -2,13 +2,13 @@ import Konva from "konva";
 import {
   isLinearStructureElement,
   setArrayPointer,
-} from "../../structures/structure-templates.js";
+} from "../../structures/linear-structure.js";
 import {
   LINEAR_POINTER_BASE_Y,
   LINEAR_POINTER_DRAG_Y,
   getLinearPointerIndexFromWorldPoint,
   getLinearStructureGeometry,
-} from "./linear-structure-runtime.js";
+} from "./linear-runtime.js";
 
 export function createLinearStructurePointerDragController({
   applyLinearPanelState,

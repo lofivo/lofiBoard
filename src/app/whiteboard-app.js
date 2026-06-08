@@ -19,10 +19,10 @@ import {
 import { createSelectionHitQuery } from "./selection/selection-hit-query.js";
 import { createShapeRenderAdapter } from "./rendering/shape-render-adapter.js";
 import { createShapeRenderController } from "./rendering/shape-render-controller.js";
-import { createStructureActiveVisualController } from "./structures/structure-active-visual-controller.js";
-import { createStructureControlsController } from "./structures/structure-controls-controller.js";
-import { createStructureControlsPositionController } from "./structures/structure-controls-position-controller.js";
-import { createStructureInspectorController } from "./structures/structure-inspector-controller.js";
+import { createStructureActiveVisualController } from "./structures/active-visual-controller.js";
+import { createStructureControlsController } from "./structures/controls-controller.js";
+import { createStructureControlsPositionController } from "./structures/controls-position-controller.js";
+import { createStructureInspectorController } from "./structures/inspector-controller.js";
 import {
   findLinearItemNode,
   findLinearItemValueGroup,
@@ -35,8 +35,8 @@ import {
   isTreeElementWithTraversal,
   isTreeNodeHitTarget,
   isTreeRootNode,
-} from "./structures/structure-node-query.js";
-import { createStructurePanelController } from "./structures/structure-panel-controller.js";
+} from "./structures/node-query.js";
+import { createStructurePanelController } from "./structures/panel-controller.js";
 import { createToolActivationController } from "./tools/tool-activation-controller.js";
 import { createToolController, getToolStatus as getToolStatusText } from "./tools/tool-controller.js";
 import { createViewportActionController } from "./viewport/viewport-action-controller.js";
@@ -70,16 +70,16 @@ import { createSelectionDragController } from "./selection/selection-drag-contro
 import { createSelectionTransformCommitController } from "./selection/selection-transform-commit-controller.js";
 import { createSelectionTransformPreviewController } from "./selection/selection-transform-preview-controller.js";
 import { createSelectionTransformerController } from "./selection/selection-transformer-controller.js";
-import { createStructureBoardActionController } from "./structures/structure-board-action-controller.js";
-import { createStructureCellEditorController } from "./structures/structure-cell-editor-controller.js";
-import { createStructureEditActionController } from "./structures/structure-edit-action-controller.js";
-import { createStructureExportController } from "./structures/structure-export-controller.js";
-import { createStructureInspectorSyncController } from "./structures/structure-inspector-sync-controller.js";
-import { createLinearStructureGestureController } from "./structures/linear-structure-gesture-controller.js";
-import { createLinearStructureItemDragController } from "./structures/linear-structure-item-drag-controller.js";
-import { createLinearStructurePanelSyncController } from "./structures/linear-structure-panel-sync-controller.js";
-import { createLinearStructurePointerDragController } from "./structures/linear-structure-pointer-drag-controller.js";
-import { createStructureNodeActionController } from "./structures/structure-node-action-controller.js";
+import { createStructureBoardActionController } from "./structures/board-action-controller.js";
+import { createStructureCellEditorController } from "./structures/cell-editor-controller.js";
+import { createStructureEditActionController } from "./structures/edit-action-controller.js";
+import { createStructureExportController } from "./structures/export-controller.js";
+import { createStructureInspectorSyncController } from "./structures/inspector-sync-controller.js";
+import { createLinearStructureGestureController } from "./structures/linear-gesture-controller.js";
+import { createLinearStructureItemDragController } from "./structures/linear-item-drag-controller.js";
+import { createLinearStructurePanelSyncController } from "./structures/linear-panel-sync-controller.js";
+import { createLinearStructurePointerDragController } from "./structures/linear-pointer-drag-controller.js";
+import { createStructureNodeActionController } from "./structures/node-action-controller.js";
 import { createStagePointerController } from "./shell/stage-pointer-controller.js";
 import { createStatusController } from "./shell/status-controller.js";
 import { createTextElementMeasurer } from "./editing/text-element-measure.js";
@@ -156,13 +156,17 @@ import {
   TOOLS,
 } from "../ui/ui-config.js";
 import {
-  TREE_STRUCTURE_STYLE,
-  LINEAR_STRUCTURE_TYPES,
   isLinearStructureElement,
+} from "../structures/linear-structure.js";
+import { LINEAR_STRUCTURE_TYPES } from "../structures/types.js";
+import {
   exportGraph,
+} from "../structures/graph-structure.js";
+import {
+  TREE_STRUCTURE_STYLE,
   exportTree,
   getBinaryTreeChildSides,
-} from "../structures/structure-templates.js";
+} from "../structures/tree-structure.js";
 import { createLinearStructureEventAdapter } from "../structures/structure-event-adapter.js";
 import { createStructureInteraction } from "../structures/structure-interaction.js";
 import {

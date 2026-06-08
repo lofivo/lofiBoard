@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { createLinearStructureGestureController } from "../../../src/app/structures/linear-structure-gesture-controller.js";
+import { createLinearStructureGestureController } from "../../../src/app/structures/linear-gesture-controller.js";
 import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
 import { LINEAR_STRUCTURE_EVENT_TYPES } from "../../../src/structures/structure-event-adapter.js";
 
@@ -51,7 +51,7 @@ function createHarness(overrides = {}) {
   return { callbacks, controller, state, structureInteraction };
 }
 
-describe("linear-structure-gesture-controller", () => {
+describe("linear-gesture-controller", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });

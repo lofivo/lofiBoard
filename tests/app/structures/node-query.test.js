@@ -11,7 +11,7 @@ import {
   isInteractiveStructureElement,
   isTreeNodeHitTarget,
   isTreeRootNode,
-} from "../../../src/app/structures/structure-node-query.js";
+} from "../../../src/app/structures/node-query.js";
 
 function createNode(attrs = {}) {
   return {
@@ -26,7 +26,7 @@ function createGroup(nodesBySelector = {}) {
   };
 }
 
-describe("structure-node-query", () => {
+describe("node-query", () => {
   it("reads a linear item node index with a safe fallback", () => {
     expect(getLinearItemNodeIndex(createNode({ linearIndex: 2 }))).toBe(2);
     expect(getLinearItemNodeIndex(createNode({ linearIndex: "2" }))).toBe(0);

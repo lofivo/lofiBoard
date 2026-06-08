@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createStructureInspectorController } from "../../../src/app/structures/structure-inspector-controller.js";
+import { createStructureInspectorController } from "../../../src/app/structures/inspector-controller.js";
 
-describe("structure-inspector-controller", () => {
+describe("inspector-controller", () => {
   it("tracks linear inspector fields", () => {
     const controller = createStructureInspectorController();
 

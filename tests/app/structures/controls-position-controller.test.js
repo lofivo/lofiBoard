@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureControlsPositionController } from "../../../src/app/structures/structure-controls-position-controller.js";
+import { createStructureControlsPositionController } from "../../../src/app/structures/controls-position-controller.js";
 
 function createControl({ hidden = false, offsetWidth = 0 } = {}) {
   return {
@@ -43,7 +43,7 @@ function createController(overrides = {}) {
   });
 }
 
-describe("structure-controls-position-controller", () => {
+describe("controls-position-controller", () => {
   it("positions active linear item controls under the active item", () => {
     const controls = createControl();
     const itemNode = createNode({ x: 30, y: 40, width: 60, height: 20 });

@@ -1,9 +1,7 @@
 import { TOOLS } from "../../ui/ui-config.js";
-import {
-  STRUCTURE_ELEMENT_TYPES,
-  isBinaryTreeStructure,
-  isLinearStructureElement,
-} from "../../structures/structure-templates.js";
+import { STRUCTURE_ELEMENT_TYPES } from "../../structures/types.js";
+import { isLinearStructureElement } from "../../structures/linear-structure.js";
+import { isBinaryTreeStructure } from "../../structures/tree-structure.js";
 
 export function createShapeRenderAdapter({
   getCurrentTool,

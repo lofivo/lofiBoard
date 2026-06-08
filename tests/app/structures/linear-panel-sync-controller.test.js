@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
-import { createStructureInspectorController } from "../../../src/app/structures/structure-inspector-controller.js";
-import { createLinearStructurePanelSyncController } from "../../../src/app/structures/linear-structure-panel-sync-controller.js";
+import { createStructureInspectorController } from "../../../src/app/structures/inspector-controller.js";
+import { createLinearStructurePanelSyncController } from "../../../src/app/structures/linear-panel-sync-controller.js";
 
 function linearElement(overrides = {}) {
   return {
@@ -56,7 +56,7 @@ function createController({
   };
 }
 
-describe("linear-structure-panel-sync-controller", () => {
+describe("linear-panel-sync-controller", () => {
   it("clears linear values when no linear structure is selected", () => {
     const { controller, linearFieldInputs, linearValuesInput, linearValuesTitle, structureInspectorController } = createController({
       elements: [],

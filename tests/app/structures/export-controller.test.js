@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureExportController } from "../../../src/app/structures/structure-export-controller.js";
+import { createStructureExportController } from "../../../src/app/structures/export-controller.js";
 
 function createController({
   clipboard = { writeText: vi.fn(() => Promise.resolve()) },
@@ -22,7 +22,7 @@ function createController({
   return { callbacks, clipboard, controller, structureInput };
 }
 
-describe("structure-export-controller", () => {
+describe("export-controller", () => {
   it("copies selected graph exports to the clipboard", async () => {
     const { callbacks, clipboard, controller } = createController();
 

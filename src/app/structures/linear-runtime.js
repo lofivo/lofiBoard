@@ -4,7 +4,7 @@ import {
   getLinearItemDropIndex,
   getLinearItemPreviewGap,
   getLinearStructureLocalPoint,
-} from "../../structures/structure-templates.js";
+} from "../../structures/linear-structure.js";
 
 export const LINEAR_POINTER_BASE_Y = -30;
 export const LINEAR_POINTER_DRAG_Y = -40;

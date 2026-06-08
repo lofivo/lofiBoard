@@ -1,4 +1,4 @@
-import { isLinearStructureElement as defaultIsLinearStructureElement } from "../../structures/structure-templates.js";
+import { isLinearStructureElement as defaultIsLinearStructureElement } from "../../structures/linear-structure.js";
 
 export function getLinearItemNodeIndex(node) {
   const linearIndex = node?.getAttr?.("linearIndex");

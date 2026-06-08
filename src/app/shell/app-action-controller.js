@@ -1,33 +1,37 @@
 import {
+  clearArrayHighlight,
+  setArrayHighlight,
+  setArrayPointerVisibility,
+  setLinearIndexOptions,
+  updateArrayValues,
+} from "../../structures/linear-structure.js";
+import {
   addGraphEdge,
   addGraphEdgeFromText,
   addGraphNode,
-  addTreeNode,
-  clearArrayHighlight,
   clearGraphHighlight,
-  clearTreeHighlight,
   deleteGraphNode,
   deleteLastGraphEdge,
-  deleteLastTreeNode,
-  deleteTreeSubtree,
   exportGraph,
   importGraphFromText,
   layoutGraph,
-  layoutTreeStructure,
-  moveTreeSubtree,
-  setArrayHighlight,
-  setArrayPointerVisibility,
   setGraphDirectedDefault,
   setGraphHighlight,
-  setLinearIndexOptions,
+  updateGraphFromInput,
+} from "../../structures/graph-structure.js";
+import {
+  addTreeNode,
+  clearTreeHighlight,
+  deleteLastTreeNode,
+  deleteTreeSubtree,
+  layoutTreeStructure,
+  moveTreeSubtree,
   setTreeSubtreeCollapsed,
   setTreeTraversalHighlight,
   stepTreeTraversalHighlight,
-  updateArrayValues,
-  updateGraphFromInput,
   updateTreeFromInput,
   updateTreeNodeValue,
-} from "../../structures/structure-templates.js";
+} from "../../structures/tree-structure.js";
 
 export function createAppActionController({
   beginGraphConnectMode,

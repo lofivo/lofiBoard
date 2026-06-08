@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createStructurePanelController } from "../../../src/app/structures/structure-panel-controller.js";
+import { createStructurePanelController } from "../../../src/app/structures/panel-controller.js";
 import { STRUCTURE_TYPES } from "../../../src/structures/structure-templates.js";
 
-describe("structure-panel-controller", () => {
+describe("panel-controller", () => {
   it("tracks active structure type and exposes the selected item", () => {
     const controller = createStructurePanelController();
 

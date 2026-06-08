@@ -40,7 +40,7 @@ import {
   Strikethrough,
   BringToFront,
 } from "lucide-static";
-import { STRUCTURE_ITEMS } from "../structures/structure-templates.js";
+import { STRUCTURE_ITEMS } from "../structures/types.js";
 
 export const TOOLS = {
   SELECT: "select",

@@ -1,11 +1,13 @@
 import {
   addGraphEdge,
-  addTreeEdge,
   moveGraphNode,
-  moveTreeNode,
   updateGraphEdge,
   updateGraphNodeLabel,
-} from "../../structures/structure-templates.js";
+} from "../../structures/graph-structure.js";
+import {
+  addTreeEdge,
+  moveTreeNode,
+} from "../../structures/tree-structure.js";
 
 export function createStructureEditActionController({
   getElements,

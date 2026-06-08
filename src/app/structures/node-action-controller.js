@@ -1,12 +1,14 @@
 import {
+  deleteArrayItem,
+  insertArrayItem,
+} from "../../structures/linear-structure.js";
+import {
   addBinaryTreeChild,
   addTreeChild,
   addTreeSibling,
-  deleteArrayItem,
   deleteTreeSubtree,
-  insertArrayItem,
   stepTreeTraversalHighlight,
-} from "../../structures/structure-templates.js";
+} from "../../structures/tree-structure.js";
 import { removeElementsById } from "../../services/clipboard-service.js";
 
 export function createStructureNodeActionController({

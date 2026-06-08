@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureEditActionController } from "../../../src/app/structures/structure-edit-action-controller.js";
+import { createStructureEditActionController } from "../../../src/app/structures/edit-action-controller.js";
 
 function createGraphElement() {
   return {
@@ -72,7 +72,7 @@ function createController(initialElements, {
   };
 }
 
-describe("structure-edit-action-controller", () => {
+describe("edit-action-controller", () => {
   it("starts tree connect mode for the selected editable tree", () => {
     const { callbacks, controller, structureInteraction } = createController([createTreeElement()]);
 

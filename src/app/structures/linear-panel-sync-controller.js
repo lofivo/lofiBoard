@@ -1,4 +1,4 @@
-import { isLinearStructureElement } from "../../structures/structure-templates.js";
+import { isLinearStructureElement } from "../../structures/linear-structure.js";
 
 export function createLinearStructurePanelSyncController({
   getActiveElement = () => null,

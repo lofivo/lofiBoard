@@ -28,7 +28,7 @@ describe("app shell", () => {
   }
 
   function readStructureBoardActionSource() {
-    return readFileSync(new URL("../../../src/app/structures/structure-board-action-controller.js", import.meta.url), "utf8");
+    return readFileSync(new URL("../../../src/app/structures/board-action-controller.js", import.meta.url), "utf8");
   }
 
   function readSelectionStyleActionSource() {
@@ -302,7 +302,7 @@ describe("app shell", () => {
   it("allows random initialization for both general and binary tree structures", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appPanelSource = readFileSync(new URL("../../../src/app/shell/app-panel-controller.js", import.meta.url), "utf8");
-    const structurePanelSource = readFileSync(new URL("../../../src/app/structures/structure-panel-controller.js", import.meta.url), "utf8");
+    const structurePanelSource = readFileSync(new URL("../../../src/app/structures/panel-controller.js", import.meta.url), "utf8");
     const hydrateSource = appPanelSource.slice(
       appPanelSource.indexOf("function hydrateStructurePanel"),
       appPanelSource.indexOf("function setActiveStructureType"),
@@ -484,11 +484,11 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
     const structureBoardActionSource = readStructureBoardActionSource();
-    const editActionSource = readFileSync(new URL("../../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
-    const controlsPositionSource = readFileSync(new URL("../../../src/app/structures/structure-controls-position-controller.js", import.meta.url), "utf8");
-    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/structure-node-query.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/node-action-controller.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../../src/app/structures/controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../../src/app/structures/controls-position-controller.js", import.meta.url), "utf8");
+    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/node-query.js", import.meta.url), "utf8");
     const controlSource = controlsSource.slice(
       controlsSource.indexOf("function ensureTreeNodeControls()"),
       controlsSource.indexOf("function ensureBinaryTreeNodeControls()"),
@@ -560,8 +560,8 @@ describe("app shell", () => {
   it("rerenders binary tree node selection immediately and clears it from blank tree clicks", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const editActionSource = readFileSync(new URL("../../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
-    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/structure-node-query.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
+    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/node-query.js", import.meta.url), "utf8");
     const clickSource = editActionSource.slice(
       editActionSource.indexOf("function handleTreeNodeClick({ elementId, nodeId })"),
       editActionSource.indexOf("function connectGraphStructureNodes"),
@@ -665,7 +665,7 @@ describe("app shell", () => {
 
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
     const finishDragSource = selectionDragSource.slice(
@@ -704,15 +704,15 @@ describe("app shell", () => {
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const controlsBindingSource = readFileSync(new URL("../../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
     const refsSource = readFileSync(new URL("../../../src/app/shell/dom-refs.js", import.meta.url), "utf8");
-    const structureInspectorSource = readFileSync(new URL("../../../src/app/structures/structure-inspector-controller.js", import.meta.url), "utf8");
-    const linearPanelSyncSource = readFileSync(new URL("../../../src/app/structures/linear-structure-panel-sync-controller.js", import.meta.url), "utf8");
+    const structureInspectorSource = readFileSync(new URL("../../../src/app/structures/inspector-controller.js", import.meta.url), "utf8");
+    const linearPanelSyncSource = readFileSync(new URL("../../../src/app/structures/linear-panel-sync-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('linearValuesInput: query("[data-linear-values-input]")');
     expect(structureInspectorSource).toContain('let linearValuesDraft = initialLinearValuesDraft;');
     expect(appSource).toContain("createControlsBindingController");
     expect(controlsBindingSource).toContain('linearValuesInput?.addEventListener("input", () => {');
     expect(controlsBindingSource).toContain("setLinearValuesDraft(linearValuesInput.value);");
-    expect(appActionSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/\.\.\/structures\/structure-templates\.js";/);
+    expect(appActionSource).toMatch(/import \{[\s\S]*?updateArrayValues,[\s\S]*?\} from "\.\.\/\.\.\/structures\/linear-structure\.js";/);
     expect(appActionSource).toContain('"linear-apply-values": () => editSelectedArrayStructure((element) => updateArrayValues(element, getLinearValuesDraft()))');
     expect(appSource).not.toContain('runAction("linear-apply-values")');
     expect(appSource).not.toContain("button.dataset.linearValuesAction !== undefined");
@@ -726,7 +726,7 @@ describe("app shell", () => {
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const controlsBindingSource = readFileSync(new URL("../../../src/app/shell/controls-binding-controller.js", import.meta.url), "utf8");
     const refsSource = readFileSync(new URL("../../../src/app/shell/dom-refs.js", import.meta.url), "utf8");
-    const structureInspectorSyncSource = readFileSync(new URL("../../../src/app/structures/structure-inspector-sync-controller.js", import.meta.url), "utf8");
+    const structureInspectorSyncSource = readFileSync(new URL("../../../src/app/structures/inspector-sync-controller.js", import.meta.url), "utf8");
 
     expect(refsSource).toContain('graphStructureInput: query("[data-graph-structure-input]")');
     expect(appSource).toContain("createControlsBindingController");
@@ -795,7 +795,7 @@ describe("app shell", () => {
 
   it("keeps linear panel indexes in sync with zero-based and one-based settings", () => {
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
-    const linearPanelSyncSource = readFileSync(new URL("../../../src/app/structures/linear-structure-panel-sync-controller.js", import.meta.url), "utf8");
+    const linearPanelSyncSource = readFileSync(new URL("../../../src/app/structures/linear-panel-sync-controller.js", import.meta.url), "utf8");
 
     expect(linearPanelSyncSource).toContain("function getLinearIndexBase(element)");
     expect(linearPanelSyncSource).toContain("function toLinearDisplayIndex(element, index)");
@@ -1402,7 +1402,7 @@ describe("app shell", () => {
 
   it("keeps array cell pointer down on the cell event route instead of the canvas drag route", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const selectPointerDownSource = extractStageSelectPointerDownSource();
     const itemPressSource = gestureSource.slice(
       gestureSource.indexOf("function handleArrayStructureItemPress"),
@@ -1419,7 +1419,7 @@ describe("app shell", () => {
   it("moves the whole array from a linear item press movement before long press reordering starts", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const pointerMoveSource = stagePointerSource.slice(
       stagePointerSource.indexOf("function handlePointerMove(event)"),
       stagePointerSource.indexOf("function handlePointerUp(event)"),
@@ -1496,8 +1496,8 @@ describe("app shell", () => {
 
   it("cancels root-node drag state when committing a linear item reorder", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setSuppressSelectionDragOnce: (value) => { suppressSelectionDragOnce = value; }");
@@ -1513,8 +1513,8 @@ describe("app shell", () => {
   it("keeps array item selection suppressed until the post-drag click is consumed", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const commitSource = itemDragSource.slice(
       itemDragSource.indexOf("function commitLinearItemDrag()"),
     );
@@ -1544,8 +1544,8 @@ describe("app shell", () => {
 
   it("activates an array item without rerendering the clicked node before dblclick", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const activeVisualSource = readFileSync(new URL("../../../src/app/structures/structure-active-visual-controller.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const activeVisualSource = readFileSync(new URL("../../../src/app/structures/active-visual-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter((event) => {");
     expect(appSource).toContain("linearGestureController?.dispatchLinearStructureEvent(event);");
@@ -1571,7 +1571,7 @@ describe("app shell", () => {
   });
 
   it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {
-    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
 
     expect(itemDragSource).toContain("itemNode.setAttrs({");
     expect(itemDragSource).not.toContain("itemNode.shadowBlur(");
@@ -1579,7 +1579,7 @@ describe("app shell", () => {
   });
 
   it("animates the long-press array item lift and drop states", () => {
-    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
 
     expect(itemDragSource).toContain("animateLinearItemLift");
     expect(itemDragSource).toContain("animateLinearItemDrop");
@@ -1588,7 +1588,7 @@ describe("app shell", () => {
   });
 
   it("keeps the dragged array item under direct pointer control during gap animations", () => {
-    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-item-drag-controller.js", import.meta.url), "utf8");
+    const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
 
     expect(itemDragSource).toContain("if (index === linearItemDragState.fromIndex) {");
     expect(itemDragSource).toContain("updateLinearDragVisualPosition();");
@@ -1599,8 +1599,8 @@ describe("app shell", () => {
 
   it("renders direct array item controls around the selected item", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/node-action-controller.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../../src/app/structures/controls-controller.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 
     expect(appSource).toContain("renderLinearItemControls");
@@ -1613,7 +1613,7 @@ describe("app shell", () => {
   });
 
   it("keeps the current array item selected after inserting adjacent items", () => {
-    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/node-action-controller.js", import.meta.url), "utf8");
     const actionSource = nodeActionSource.slice(
       nodeActionSource.indexOf("function runLinearItemAction(action)"),
       nodeActionSource.indexOf("function runTreeNodeAction(action)"),
@@ -1633,7 +1633,7 @@ describe("app shell", () => {
   it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const selectHandlerSource = gestureSource.slice(
       gestureSource.indexOf("function handleArrayStructureItemSelect"),
       gestureSource.indexOf("function handleArrayStructureItemPress"),
@@ -1804,7 +1804,7 @@ describe("app shell", () => {
   it("prevents array cell editor outside clicks from starting a tiny selection box", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const editorSource = readFileSync(new URL("../../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../../src/app/structures/cell-editor-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setSuppressNextCanvasSelection: (value) => { suppressNextCanvasSelection = value; }");
     expect(appSource).toContain("consumeSuppressNextCanvasSelection: () => {");
@@ -1816,7 +1816,7 @@ describe("app shell", () => {
 
   it("keeps the array cell editor synced when the viewport or structure scale changes", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const editorSource = readFileSync(new URL("../../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../../src/app/structures/cell-editor-controller.js", import.meta.url), "utf8");
     const viewportSource = readFileSync(new URL("../../../src/app/viewport/viewport-controller.js", import.meta.url), "utf8");
     const viewportControllerSource = appSource.slice(
       appSource.indexOf("const viewportController = createViewportController"),
@@ -1835,7 +1835,7 @@ describe("app shell", () => {
   });
 
   it("keeps long-press linear item reordering separate from whole-array dragging", () => {
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const itemPressMoveSource = gestureSource.slice(
       gestureSource.indexOf("if (linearItemPressState?.phase === \"start\""),
       gestureSource.indexOf("return false;"),
@@ -1849,8 +1849,8 @@ describe("app shell", () => {
 
   it("supports dragging the linear pointer and syncing the pointer field", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event)");
     expect(gestureSource).toContain("function handleArrayPointerPress({ elementId, index })");
@@ -1865,8 +1865,8 @@ describe("app shell", () => {
 
   it("cleans root drag state when committing a linear pointer drag", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
 
     expect(selectionDragSource).toContain("function clearRootDragState(elementId)");
@@ -1875,7 +1875,7 @@ describe("app shell", () => {
   });
 
   it("animates linear pointer movement without rerendering the full array on every index change", () => {
-    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
 
     expect(pointerDragSource).toContain("let linearPointerTween = null");
     expect(pointerDragSource).toContain("function animateLinearPointerDragVisual");
@@ -1884,8 +1884,8 @@ describe("app shell", () => {
   });
 
   it("lifts the linear pointer when dragging starts and drops it before rerendering on release", () => {
-    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-structure-pointer-drag-controller.js", import.meta.url), "utf8");
-    const linearRuntimeSource = readFileSync(new URL("../../../src/app/structures/linear-structure-runtime.js", import.meta.url), "utf8");
+    const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
+    const linearRuntimeSource = readFileSync(new URL("../../../src/app/structures/linear-runtime.js", import.meta.url), "utf8");
 
     expect(linearRuntimeSource).toContain("export const LINEAR_POINTER_BASE_Y = -30");
     expect(linearRuntimeSource).toContain("export const LINEAR_POINTER_DRAG_Y = -40");
@@ -1925,7 +1925,7 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-structure-gesture-controller.js", import.meta.url), "utf8");
+    const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
     expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
@@ -1958,15 +1958,15 @@ describe("app shell", () => {
   it("uses shared graph and tree connect state for structure node editing", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
-    const editActionSource = readFileSync(new URL("../../../src/app/structures/structure-edit-action-controller.js", import.meta.url), "utf8");
-    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/structure-node-action-controller.js", import.meta.url), "utf8");
+    const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
+    const nodeActionSource = readFileSync(new URL("../../../src/app/structures/node-action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
     const shapeRenderAdapterSource = readFileSync(new URL("../../../src/app/rendering/shape-render-adapter.js", import.meta.url), "utf8");
-    const controlsSource = readFileSync(new URL("../../../src/app/structures/structure-controls-controller.js", import.meta.url), "utf8");
-    const controlsPositionSource = readFileSync(new URL("../../../src/app/structures/structure-controls-position-controller.js", import.meta.url), "utf8");
-    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/structure-node-query.js", import.meta.url), "utf8");
+    const controlsSource = readFileSync(new URL("../../../src/app/structures/controls-controller.js", import.meta.url), "utf8");
+    const controlsPositionSource = readFileSync(new URL("../../../src/app/structures/controls-position-controller.js", import.meta.url), "utf8");
+    const structureNodeQuerySource = readFileSync(new URL("../../../src/app/structures/node-query.js", import.meta.url), "utf8");
     const structureBoardActionSource = readStructureBoardActionSource();
-    const structureInspectorSyncSource = readFileSync(new URL("../../../src/app/structures/structure-inspector-sync-controller.js", import.meta.url), "utf8");
+    const structureInspectorSyncSource = readFileSync(new URL("../../../src/app/structures/inspector-sync-controller.js", import.meta.url), "utf8");
 
     expect(interactionSource).toContain("let structureConnectState = null;");
     expect(appSource).not.toContain("let structureConnectState = null;");
@@ -2031,7 +2031,7 @@ describe("app shell", () => {
   });
 
   it("keeps the blue selection border visible during and after array cell editing", () => {
-    const editorSource = readFileSync(new URL("../../../src/app/structures/structure-cell-editor-controller.js", import.meta.url), "utf8");
+    const editorSource = readFileSync(new URL("../../../src/app/structures/cell-editor-controller.js", import.meta.url), "utf8");
 
     const editSource = editorSource.slice(
       editorSource.indexOf("function editArrayStructureItem"),

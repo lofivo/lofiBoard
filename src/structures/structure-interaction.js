@@ -1,5 +1,6 @@
 import { LINEAR_STRUCTURE_EVENT_TYPES } from "./structure-event-adapter.js";
-import { STRUCTURE_ELEMENT_TYPES, isLinearStructureElement } from "./structure-templates.js";
+import { STRUCTURE_ELEMENT_TYPES } from "./types.js";
+import { isLinearStructureElement } from "./linear-structure.js";
 
 const SELECT_TOOL = "select";
 

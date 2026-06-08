@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
-import { createLinearStructurePointerDragController } from "../../../src/app/structures/linear-structure-pointer-drag-controller.js";
+import { createLinearStructurePointerDragController } from "../../../src/app/structures/linear-pointer-drag-controller.js";
 
 function linearElement(overrides = {}) {
   return {
@@ -71,7 +71,7 @@ function createController({ element = linearElement(), createTween } = {}) {
   };
 }
 
-describe("linear-structure-pointer-drag-controller", () => {
+describe("linear-pointer-drag-controller", () => {
   it("starts a pointer drag and syncs the pointer field when the pointer moves immediately", () => {
     const { callbacks, controller, getElements, pointerNode, structureInteraction } = createController();
 

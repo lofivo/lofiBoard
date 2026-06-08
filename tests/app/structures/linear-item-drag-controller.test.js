@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
-import { createLinearStructureItemDragController } from "../../../src/app/structures/linear-structure-item-drag-controller.js";
+import { createLinearStructureItemDragController } from "../../../src/app/structures/linear-item-drag-controller.js";
 
 function linearElement(overrides = {}) {
   return {
@@ -79,7 +79,7 @@ function createController({ element = linearElement(), createTween } = {}) {
   };
 }
 
-describe("linear-structure-item-drag-controller", () => {
+describe("linear-item-drag-controller", () => {
   it("starts a linear item drag and keeps app-level side effects explicit", () => {
     const { callbacks, controller, itemNodes, structureInteraction, tweenFactory } = createController();
 

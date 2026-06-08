@@ -7,7 +7,7 @@ import {
 import {
   clearArrayAlgorithmMarkers,
   isLinearStructureElement,
-} from "../../structures/structure-templates.js";
+} from "../../structures/linear-structure.js";
 
 export const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
   algorithm: ARRAY_ALGORITHMS.BUBBLE_SORT,

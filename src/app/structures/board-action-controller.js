@@ -1,9 +1,9 @@
 import { reorderElements } from "../../board/board-model.js";
+import { createStructureElements } from "../../structures/structure-factory.js";
 import {
-  createStructureElements,
   isLinearStructureElement as defaultIsLinearStructureElement,
   moveArrayItem,
-} from "../../structures/structure-templates.js";
+} from "../../structures/linear-structure.js";
 
 export function createStructureBoardActionController({
   getArrayRandomCountValue,

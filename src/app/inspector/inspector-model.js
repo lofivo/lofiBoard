@@ -1,5 +1,5 @@
 import { SHAPE_TOOLS, TOOLS } from "../../ui/ui-config.js";
-import { isLinearStructureElement } from "../../structures/structure-templates.js";
+import { isLinearStructureElement } from "../../structures/linear-structure.js";
 
 const ELEMENT_SCHEMA = {
   stroke: { title: "画笔", group: "brush" },

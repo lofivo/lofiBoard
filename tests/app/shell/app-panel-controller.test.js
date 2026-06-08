@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAppPanelController } from "../../../src/app/shell/app-panel-controller.js";
 import { createMenuStateController } from "../../../src/app/panels/menu-state-controller.js";
-import { createStructurePanelController } from "../../../src/app/structures/structure-panel-controller.js";
+import { createStructurePanelController } from "../../../src/app/structures/panel-controller.js";
 
 function createClassList() {
   return { toggle: vi.fn() };

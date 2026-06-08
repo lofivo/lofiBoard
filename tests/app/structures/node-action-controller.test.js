@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureNodeActionController } from "../../../src/app/structures/structure-node-action-controller.js";
+import { createStructureNodeActionController } from "../../../src/app/structures/node-action-controller.js";
 
 function createLinearElement() {
   return {
@@ -75,7 +75,7 @@ function createController(initialElements, {
   };
 }
 
-describe("structure-node-action-controller", () => {
+describe("node-action-controller", () => {
   it("keeps the current array item selected after inserting before it", () => {
     const { callbacks, controller, getElements } = createController([createLinearElement()], {
       activeLinearItem: { elementId: "array_1", index: 1 },

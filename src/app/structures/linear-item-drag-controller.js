@@ -1,16 +1,16 @@
 import Konva from "konva";
-import { isLinearStructureElement } from "../../structures/structure-templates.js";
+import { isLinearStructureElement } from "../../structures/linear-structure.js";
 import {
   getLinearDragInsertIndex,
   getLinearItemDragStartState,
   getLinearItemDragUpdate,
   getLinearPreviewXForGap,
   getLinearStructureGeometry,
-} from "./linear-structure-runtime.js";
+} from "./linear-runtime.js";
 import {
   findLinearItemNode,
   getLinearItemNodeIndex,
-} from "./structure-node-query.js";
+} from "./node-query.js";
 
 export function createLinearStructureItemDragController({
   contentLayer,

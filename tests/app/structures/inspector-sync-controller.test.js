@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureInspectorSyncController } from "../../../src/app/structures/structure-inspector-sync-controller.js";
+import { createStructureInspectorSyncController } from "../../../src/app/structures/inspector-sync-controller.js";
 
 function createController(overrides = {}) {
   const state = {
@@ -35,7 +35,7 @@ function createController(overrides = {}) {
   };
 }
 
-describe("structure-inspector-sync-controller", () => {
+describe("inspector-sync-controller", () => {
   it("derives the inspector context from homogeneous selections", () => {
     expect(createController({
       elements: [{ id: "array_1", type: "array-structure" }],

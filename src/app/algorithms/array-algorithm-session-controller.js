@@ -12,7 +12,7 @@ import {
 import {
   ARRAY_STRUCTURE_STYLE,
   setArrayAlgorithmMarkers,
-} from "../../structures/structure-templates.js";
+} from "../../structures/linear-structure.js";
 
 export const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
 
