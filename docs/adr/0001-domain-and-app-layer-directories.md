@@ -1,0 +1,3 @@
+# Domain and App Layer Directories
+
+Domain directories under `src/<domain>/` hold pure logic, domain rules, and independently testable model functions, while matching directories under `src/app/<domain>/` hold controllers that coordinate DOM, Konva, selection, board session state, and application wiring. We keep both layers because modules such as structures, tools, and algorithms need a stable boundary between reusable behavior and app-specific orchestration; inside a domain directory, filenames should omit repeated domain prefixes when the directory already provides that context, while cross-domain or shared modules keep qualifiers that clarify ownership.
