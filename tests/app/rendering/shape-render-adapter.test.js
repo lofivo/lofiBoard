@@ -4,7 +4,7 @@ import {
   createShapeRenderAdapter,
   isGeneralTreeStructure,
 } from "../../../src/app/rendering/shape-render-adapter.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 describe("shape-render-adapter", () => {
   it("includes linear structure editability in the render handler snapshot", () => {

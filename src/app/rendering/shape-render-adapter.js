@@ -1,4 +1,4 @@
-import { TOOLS } from "../../ui/ui-config.js";
+import { TOOLS } from "../../ui/config.js";
 import { STRUCTURE_ELEMENT_TYPES } from "../../structures/types.js";
 import { isLinearStructureElement } from "../../structures/linear-structure.js";
 import { isBinaryTreeStructure } from "../../structures/tree-structure.js";

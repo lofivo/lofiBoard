@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createImageElement, createShapeElement, createTextElement } from "../../src/board/element-factory.js";
-import { TOOLS } from "../../src/ui/ui-config.js";
+import { TOOLS } from "../../src/ui/config.js";
 
 describe("element factory", () => {
   it("sizes pasted text elements to the wrapped content height", () => {

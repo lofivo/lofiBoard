@@ -1,4 +1,4 @@
-import { TOOLS } from "../../ui/ui-config.js";
+import { TOOLS } from "../../ui/config.js";
 
 export const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
   color: "#111827",

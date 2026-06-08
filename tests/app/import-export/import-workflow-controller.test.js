@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createImportWorkflowController } from "../../../src/app/import-export/import-workflow-controller.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 function createEvent(overrides = {}) {
   return {

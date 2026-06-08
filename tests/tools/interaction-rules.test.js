@@ -40,7 +40,7 @@ import {
   shouldUseUniformTransformerResize,
   truncateWithEllipsis,
 } from "../../src/tools/interaction-rules.js";
-import { TOOLS } from "../../src/ui/ui-config.js";
+import { TOOLS } from "../../src/ui/config.js";
 
 function makeNode(className, parent = null) {
   return {

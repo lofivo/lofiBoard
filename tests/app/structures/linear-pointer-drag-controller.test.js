@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
+import { createStructureInteraction } from "../../../src/structures/interaction.js";
 import { createLinearStructurePointerDragController } from "../../../src/app/structures/linear-pointer-drag-controller.js";
 
 function linearElement(overrides = {}) {

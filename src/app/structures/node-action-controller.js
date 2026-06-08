@@ -9,7 +9,7 @@ import {
   deleteTreeSubtree,
   stepTreeTraversalHighlight,
 } from "../../structures/tree-structure.js";
-import { removeElementsById } from "../../services/clipboard-service.js";
+import { removeElementsById } from "../../services/clipboard.js";
 
 export function createStructureNodeActionController({
   getElements,

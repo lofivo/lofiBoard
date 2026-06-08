@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDraftInteractionController } from "../../../src/app/tools/draft-interaction-controller.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 class FakeRect {
   constructor(attrs = {}) {

@@ -1,8 +1,8 @@
 import { normalizeRect } from "../canvas/geometry.js";
 import { createId } from "./ids.js";
-import { getFillValue } from "../tools/tool-behavior.js";
+import { getFillValue } from "../tools/behavior.js";
 import { getNormalizedTextBox, getPreferredTextBoxWidth } from "../tools/interaction-rules.js";
-import { TOOLS } from "../ui/ui-config.js";
+import { TOOLS } from "../ui/config.js";
 
 export const DEFAULT_TEXT_STYLE = Object.freeze({
   fill: "#111827",

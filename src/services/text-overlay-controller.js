@@ -1,4 +1,4 @@
-import { containsRenderableLatex, renderLatexMixedToHtml } from "./latex-service.js";
+import { containsRenderableLatex, renderLatexMixedToHtml } from "./latex.js";
 
 function hasFontStyleToken(fontStyle, token) {
   return String(fontStyle ?? "").split(/\s+/).includes(token);

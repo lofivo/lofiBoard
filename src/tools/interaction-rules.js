@@ -1,5 +1,5 @@
-import { TOOLS } from "../ui/ui-config.js";
-import { containsRenderableLatex, parseLatexText, tokenizeLatexText } from "../services/latex-service.js";
+import { TOOLS } from "../ui/config.js";
+import { containsRenderableLatex, parseLatexText, tokenizeLatexText } from "../services/latex.js";
 
 export const CORNER_TRANSFORMER_ANCHORS = [
   "top-left",

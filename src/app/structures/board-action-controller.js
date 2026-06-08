@@ -1,5 +1,5 @@
-import { reorderElements } from "../../board/board-model.js";
-import { createStructureElements } from "../../structures/structure-factory.js";
+import { reorderElements } from "../../board/model.js";
+import { createStructureElements } from "../../structures/factory.js";
 import {
   isLinearStructureElement as defaultIsLinearStructureElement,
   moveArrayItem,

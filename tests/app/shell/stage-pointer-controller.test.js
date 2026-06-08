@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createStagePointerController } from "../../../src/app/shell/stage-pointer-controller.js";
 import { SM } from "../../../src/tools/interaction-state-machine.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 function createStage({ worldPoint = { x: 10, y: 20 } } = {}) {
   let position = { x: 0, y: 0 };

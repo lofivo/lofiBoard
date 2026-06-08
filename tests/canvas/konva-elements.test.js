@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../src/services/latex-service.js", () => ({
+vi.mock("../../src/services/latex.js", () => ({
   getTextDisplayValue: (value) => String(value ?? "").replace(/\\\$/g, "$"),
 }));
 

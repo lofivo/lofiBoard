@@ -1,4 +1,4 @@
-import { reorderElements } from "../../board/board-model.js";
+import { reorderElements } from "../../board/model.js";
 import { createId } from "../../board/ids.js";
 import {
   areStrokeFragmentsEquivalent,
@@ -9,7 +9,7 @@ import {
   PRESSURE_STROKE_PREVIEW_ATTR,
   createNodeAttrs,
 } from "../../canvas/konva-elements.js";
-import { computeEraserRadius } from "../../tools/tool-behavior.js";
+import { computeEraserRadius } from "../../tools/behavior.js";
 import {
   normalizePressure,
   shouldAppendStrokePoint,

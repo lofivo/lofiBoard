@@ -19,7 +19,7 @@ import {
   syncTextNodeContent,
   getStickyBorderColor,
 } from "../../canvas/konva-elements.js";
-import { removeElementsById } from "../../services/clipboard-service.js";
+import { removeElementsById } from "../../services/clipboard.js";
 
 export function createEditController({
   findElement,

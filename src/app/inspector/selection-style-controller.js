@@ -2,7 +2,7 @@ import {
   toggleFontStyleToken,
   toggleTextDecorationToken,
 } from "./text-style-tokens.js";
-import { getFillValue } from "../../tools/tool-behavior.js";
+import { getFillValue } from "../../tools/behavior.js";
 
 const TEXT_STYLE_COMMANDS = ["bold", "italic", "underline", "strike"];
 

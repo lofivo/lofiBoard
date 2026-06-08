@@ -1,5 +1,5 @@
 import { createExportBackground as defaultCreateExportBackground } from "../../canvas/export-renderer.js";
-import { downloadDataUrl as defaultDownloadDataUrl } from "../../services/file-service.js";
+import { downloadDataUrl as defaultDownloadDataUrl } from "../../services/file.js";
 
 export function createExportPngController({
   stage,

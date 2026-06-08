@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createArrayAlgorithmSessionController } from "../../../src/app/algorithms/array-algorithm-session-controller.js";
 import { DEFAULT_ARRAY_ALGORITHM_PANEL_STATE } from "../../../src/app/algorithms/array-algorithm-model.js";
-import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
+import { createStructureInteraction } from "../../../src/structures/interaction.js";
 
 function createController(overrides = {}) {
   let elements = overrides.elements ?? [

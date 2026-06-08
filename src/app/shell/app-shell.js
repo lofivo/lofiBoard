@@ -12,7 +12,7 @@ import {
   structurePanelMarkup,
   toolButtonsMarkup,
   zoomMenuMarkup,
-} from "../../ui/ui-config.js";
+} from "../../ui/config.js";
 
 export function renderShell() {
   return `

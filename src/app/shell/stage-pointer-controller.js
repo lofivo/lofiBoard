@@ -11,14 +11,14 @@ import {
   shouldEditTextOnTransformerDoubleClick,
   shouldIgnoreCanvasPointerDown as defaultShouldIgnoreCanvasPointerDown,
 } from "../../tools/interaction-rules.js";
-import { isShapeTool, resolveActiveDrawingTool } from "../../tools/tool-behavior.js";
+import { isShapeTool, resolveActiveDrawingTool } from "../../tools/behavior.js";
 import {
   captureDrawingPointer,
   preventDrawingPointerDefault,
   releaseDrawingPointer,
   shouldHandlePointerEvent,
 } from "../../tools/stroke-engine.js";
-import { TOOLS } from "../../ui/ui-config.js";
+import { TOOLS } from "../../ui/config.js";
 
 export function createStagePointerController({
   stage,

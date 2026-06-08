@@ -3,8 +3,8 @@ import {
   isTinyElement,
 } from "../../board/element-factory.js";
 import { normalizeRect, rectsIntersect } from "../../canvas/geometry.js";
-import { resolveActiveDrawingTool } from "../../tools/tool-behavior.js";
-import { TOOLS } from "../../ui/ui-config.js";
+import { resolveActiveDrawingTool } from "../../tools/behavior.js";
+import { TOOLS } from "../../ui/config.js";
 
 export function createDraftInteractionController({
   Konva,

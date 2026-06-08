@@ -15,7 +15,7 @@ import {
   addTreeEdge,
 } from "../structures/tree-structure.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
-import { getTextDisplayValue } from "../services/latex-service.js";
+import { getTextDisplayValue } from "../services/latex.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;

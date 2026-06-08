@@ -2,9 +2,9 @@ import Konva from "konva";
 import { renderShell } from "./shell/app-shell.js";
 import { createBoardSessionActionController } from "./shell/board-session-action-controller.js";
 import { createBoardSessionController } from "./shell/board-session-controller.js";
-import { createClipboardController } from "./clipboard/clipboard-controller.js";
-import { createContextMenuDomController } from "./context-menu/context-menu-dom-controller.js";
-import { createContextMenuController } from "./context-menu/context-menu-controller.js";
+import { createClipboardController } from "./clipboard/controller.js";
+import { createContextMenuDomController } from "./context-menu/dom-controller.js";
+import { createContextMenuController } from "./context-menu/controller.js";
 import { createControlsBindingController } from "./shell/controls-binding-controller.js";
 import { createEditController } from "./editing/edit-controller.js";
 import { createMenuStateController } from "./panels/menu-state-controller.js";
@@ -15,8 +15,8 @@ import { createContentBoundsQuery } from "./selection/content-bounds-query.js";
 import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
-} from "./selection/selection-controller.js";
-import { createSelectionHitQuery } from "./selection/selection-hit-query.js";
+} from "./selection/controller.js";
+import { createSelectionHitQuery } from "./selection/hit-query.js";
 import { createShapeRenderAdapter } from "./rendering/shape-render-adapter.js";
 import { createShapeRenderController } from "./rendering/shape-render-controller.js";
 import { createStructureActiveVisualController } from "./structures/active-visual-controller.js";
@@ -37,13 +37,13 @@ import {
   isTreeRootNode,
 } from "./structures/node-query.js";
 import { createStructurePanelController } from "./structures/panel-controller.js";
-import { createToolActivationController } from "./tools/tool-activation-controller.js";
-import { createToolController, getToolStatus as getToolStatusText } from "./tools/tool-controller.js";
-import { createViewportActionController } from "./viewport/viewport-action-controller.js";
-import { createViewportController } from "./viewport/viewport-controller.js";
+import { createToolActivationController } from "./tools/activation-controller.js";
+import { createToolController, getToolStatus as getToolStatusText } from "./tools/controller.js";
+import { createViewportActionController } from "./viewport/action-controller.js";
+import { createViewportController } from "./viewport/controller.js";
 import { createInteractionStateMachine, SM } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./shell/dom-refs.js";
-import { isToolPropertyPanelAvailable } from "./inspector/inspector-model.js";
+import { isToolPropertyPanelAvailable } from "./inspector/model.js";
 import { renderLayerItemsMarkup } from "./panels/layer-panel.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
@@ -56,7 +56,7 @@ import { createArrayAlgorithmPanelController } from "./algorithms/array-algorith
 import { createArrayAlgorithmSessionController } from "./algorithms/array-algorithm-session-controller.js";
 import { createExportPngController } from "./import-export/export-png-controller.js";
 import { createImportWorkflowController } from "./import-export/import-workflow-controller.js";
-import { createInspectorPanelDomController } from "./inspector/inspector-panel-dom-controller.js";
+import { createInspectorPanelDomController } from "./inspector/panel-dom-controller.js";
 import { createSelectionStyleActionController } from "./inspector/selection-style-action-controller.js";
 import { createSelectionStyleController } from "./inspector/selection-style-controller.js";
 import { createKeyboardController } from "./shell/keyboard-controller.js";
@@ -64,12 +64,12 @@ import { createPromptController } from "./shell/prompt-controller.js";
 import { createLayerPanelController } from "./panels/layer-panel-controller.js";
 import { createPanelDomController } from "./panels/panel-dom-controller.js";
 import { createAlignmentSnapController } from "./selection/alignment-snap-controller.js";
-import { createSelectionActionController } from "./selection/selection-action-controller.js";
-import { createSelectionClipboardController } from "./selection/selection-clipboard-controller.js";
-import { createSelectionDragController } from "./selection/selection-drag-controller.js";
-import { createSelectionTransformCommitController } from "./selection/selection-transform-commit-controller.js";
-import { createSelectionTransformPreviewController } from "./selection/selection-transform-preview-controller.js";
-import { createSelectionTransformerController } from "./selection/selection-transformer-controller.js";
+import { createSelectionActionController } from "./selection/action-controller.js";
+import { createSelectionClipboardController } from "./selection/clipboard-controller.js";
+import { createSelectionDragController } from "./selection/drag-controller.js";
+import { createSelectionTransformCommitController } from "./selection/transform-commit-controller.js";
+import { createSelectionTransformPreviewController } from "./selection/transform-preview-controller.js";
+import { createSelectionTransformerController } from "./selection/transformer-controller.js";
 import { createStructureBoardActionController } from "./structures/board-action-controller.js";
 import { createStructureCellEditorController } from "./structures/cell-editor-controller.js";
 import { createStructureEditActionController } from "./structures/edit-action-controller.js";
@@ -85,16 +85,16 @@ import { createStatusController } from "./shell/status-controller.js";
 import { createTextElementMeasurer } from "./editing/text-element-measure.js";
 import { createDrawingInteractionController } from "./tools/drawing-interaction-controller.js";
 import { createDraftInteractionController } from "./tools/draft-interaction-controller.js";
-import { createToolCursorController } from "./tools/tool-cursor-controller.js";
+import { createToolCursorController } from "./tools/cursor-controller.js";
 import { createUiEventsController } from "./shell/ui-events-controller.js";
-import { removeElementsById } from "../services/clipboard-service.js";
+import { removeElementsById } from "../services/clipboard.js";
 import {
   createEmptyBoard,
   moveElementsByLayer,
   normalizeBoard,
   reorderElements,
   serializeBoard,
-} from "../board/board-model.js";
+} from "../board/model.js";
 import { createId } from "../board/ids.js";
 import {
   createImageElement as buildImageElement,
@@ -105,13 +105,13 @@ import {
   openWhiteboardFile,
   supportsFileSystemAccess,
   writeWhiteboardFile,
-} from "../services/file-service.js";
+} from "../services/file.js";
 import {
   LOCAL_DRAFT_FILE_NAME,
   clearLocalDraft,
   loadLocalDraft,
   saveLocalDraft,
-} from "../services/draft-storage-service.js";
+} from "../services/draft-storage.js";
 import { createTextOverlayController } from "../services/text-overlay-controller.js";
 import { getWorldPointer } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
@@ -132,7 +132,7 @@ import {
   getTextFromPasteEvent,
   readFileAsDataUrl,
   readImageSize,
-} from "../services/image-import-service.js";
+} from "../services/image-import.js";
 import {
   clampResizeAnchorPosition,
   getTextEditorStyle,
@@ -154,7 +154,7 @@ import {
 import {
   DEFAULT_SHAPE_TOOL,
   TOOLS,
-} from "../ui/ui-config.js";
+} from "../ui/config.js";
 import {
   isLinearStructureElement,
 } from "../structures/linear-structure.js";
@@ -167,8 +167,8 @@ import {
   exportTree,
   getBinaryTreeChildSides,
 } from "../structures/tree-structure.js";
-import { createLinearStructureEventAdapter } from "../structures/structure-event-adapter.js";
-import { createStructureInteraction } from "../structures/structure-interaction.js";
+import { createLinearStructureEventAdapter } from "../structures/event-adapter.js";
+import { createStructureInteraction } from "../structures/interaction.js";
 import {
   isLayerPanelAvailable,
   shouldShowPanelEdgeToggle,

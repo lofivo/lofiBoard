@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStructureInteraction } from "../../../src/structures/structure-interaction.js";
+import { createStructureInteraction } from "../../../src/structures/interaction.js";
 import { createStructureInspectorController } from "../../../src/app/structures/inspector-controller.js";
 import { createLinearStructurePanelSyncController } from "../../../src/app/structures/linear-panel-sync-controller.js";
 

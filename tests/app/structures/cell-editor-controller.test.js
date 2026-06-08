@@ -6,7 +6,7 @@ import { createStructureCellEditorController } from "../../../src/app/structures
 import {
   updateArrayItemValue,
   updateTreeNodeValue,
-} from "../../../src/structures/structure-templates.js";
+} from "../../../src/structures/templates.js";
 
 function makeRect({ x = 10, y = 20, width = 30, height = 18 } = {}) {
   return {

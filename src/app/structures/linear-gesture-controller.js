@@ -1,4 +1,4 @@
-import { LINEAR_STRUCTURE_EVENT_TYPES } from "../../structures/structure-event-adapter.js";
+import { LINEAR_STRUCTURE_EVENT_TYPES } from "../../structures/event-adapter.js";
 
 export function createLinearStructureGestureController({
   batchDraw = () => {},

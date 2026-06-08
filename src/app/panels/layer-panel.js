@@ -1,4 +1,4 @@
-import { reorderElements } from "../../board/board-model.js";
+import { reorderElements } from "../../board/model.js";
 import { truncateWithEllipsis } from "../../tools/interaction-rules.js";
 
 export function renderLayerItemsMarkup({ elements, selectedIds = [] }) {

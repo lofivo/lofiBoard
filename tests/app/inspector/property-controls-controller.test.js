@@ -3,7 +3,7 @@ import {
   DEFAULT_PROPERTY_CONTROLS,
   createPropertyControlsController,
 } from "../../../src/app/inspector/property-controls-controller.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 describe("property-controls-controller", () => {
   it("returns immutable default control snapshots", () => {

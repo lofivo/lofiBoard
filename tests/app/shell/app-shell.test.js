@@ -36,7 +36,7 @@ describe("app shell", () => {
   }
 
   function readToolActivationSource() {
-    return readFileSync(new URL("../../../src/app/tools/tool-activation-controller.js", import.meta.url), "utf8");
+    return readFileSync(new URL("../../../src/app/tools/activation-controller.js", import.meta.url), "utf8");
   }
 
   function extractStageSelectPointerDownSource(source = readStagePointerSource()) {
@@ -139,7 +139,7 @@ describe("app shell", () => {
   it("lets selected elements drag from the transformer hit area while preserving anchor transforms", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
 
     expect(transformerSource).toContain("transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(getInteractionState(), selectedElements))");
     expect(transformerSource).toContain("transformer.forceUpdate()");
@@ -153,7 +153,7 @@ describe("app shell", () => {
   it("uses padded z-order hit testing so nested elements inside shapes stay selectable", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const selectionHitSource = readFileSync(new URL("../../../src/app/selection/selection-hit-query.js", import.meta.url), "utf8");
+    const selectionHitSource = readFileSync(new URL("../../../src/app/selection/hit-query.js", import.meta.url), "utf8");
     const selectSource = extractStageSelectPointerDownSource(stagePointerSource);
 
     expect(appSource).toContain("createSelectionHitQuery");
@@ -166,7 +166,7 @@ describe("app shell", () => {
 
   it("keeps transformer hit area from covering selected structure internals", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
     const syncSelectionSource = transformerSource.slice(
       transformerSource.indexOf("function syncSelectionNodes()"),
       transformerSource.indexOf("function disableHitAreaDrag()"),
@@ -542,7 +542,7 @@ describe("app shell", () => {
 
   it("updates floating tree controls while the whole tree selection is dragged", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const selectionDragBindingSource = appSource.slice(
       appSource.indexOf("selectionDragController = createSelectionDragController({"),
       appSource.indexOf("draftInteractionController = createDraftInteractionController"),
@@ -608,7 +608,7 @@ describe("app shell", () => {
 
   it("disables native node dragging while selected elements use selection drag", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const beginDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function beginSelectionDrag(worldPoint)"),
       selectionDragSource.indexOf("function updateSelectionDrag(worldPoint)"),
@@ -628,7 +628,7 @@ describe("app shell", () => {
 
   it("locks selection identity until an active selection drag finishes", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const finishDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function finishSelectionDrag()"),
       selectionDragSource.indexOf("function cancelSelectionDrag()"),
@@ -666,8 +666,8 @@ describe("app shell", () => {
   it("suppresses the binary tree node click emitted after dragging the whole tree", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
-    const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const finishDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function finishSelectionDrag()"),
       selectionDragSource.indexOf("function cancelSelectionDrag()"),
@@ -854,7 +854,7 @@ describe("app shell", () => {
   it("syncs visible text and sticky typography controls from the selected element", () => {
     const markup = renderShell();
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/panel-dom-controller.js", import.meta.url), "utf8");
     const propertyDomSource = readFileSync(new URL("../../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(markup).toContain('data-ui-control="font-size"');
@@ -940,8 +940,8 @@ describe("app shell", () => {
 
   it("keeps selected brush strokes in the brush-style inspector instead of shape controls", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/panel-dom-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
 
     expect(inspectorPanelSource).toContain("getSelectionPanelMode(selectedElements)");
     expect(appSource).not.toContain('"stroke";');
@@ -951,7 +951,7 @@ describe("app shell", () => {
   });
 
   it("drags grouped elements with one stable native anchor node", () => {
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const beginDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function beginNodeDragSelection(node)"),
       selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
@@ -967,7 +967,7 @@ describe("app shell", () => {
   });
 
   it("keeps grouped drag transformer bounds synced during the live drag", () => {
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const updateDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function updateNodeDragSelection(node)"),
       selectionDragSource.indexOf("function finishNodeDragSelection(node)"),
@@ -977,7 +977,7 @@ describe("app shell", () => {
   });
 
   it("does not recompute grouped drag positions again on drag end", () => {
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const finishDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function finishNodeDragSelection(node)"),
       selectionDragSource.indexOf("function clearRootDragState(elementId)"),
@@ -1007,7 +1007,7 @@ describe("app shell", () => {
   it("shows combined property controls for multi-selection and grouped selections", () => {
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/panel-dom-controller.js", import.meta.url), "utf8");
     const propertyDomSource = readFileSync(new URL("../../../src/app/inspector/property-controls-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createInspectorPanelDomController");
@@ -1085,7 +1085,7 @@ describe("app shell", () => {
 
   it("keeps the style panel hidden for text and sticky tools until an element is selected", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/panel-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createInspectorPanelDomController");
     expect(inspectorPanelSource).toContain("getSelectionPanelMode(selectedElements)");
@@ -1096,7 +1096,7 @@ describe("app shell", () => {
 
   it("uses concrete property panel titles for single selections and configurable tools", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/inspector-panel-dom-controller.js", import.meta.url), "utf8");
+    const inspectorPanelSource = readFileSync(new URL("../../../src/app/inspector/panel-dom-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("stylePanelTitle,");
     expect(inspectorPanelSource).toContain("function syncPropertyPanelTitle(selectedElements = [])");
@@ -1193,8 +1193,8 @@ describe("app shell", () => {
 
   it("normalizes sticky note scale before editing commits clear transient scale", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const commitSource = readFileSync(new URL("../../../src/app/selection/selection-transform-commit-controller.js", import.meta.url), "utf8");
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const commitSource = readFileSync(new URL("../../../src/app/selection/transform-commit-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
 
     expect(commitSource).toContain("getStickyScaleCommitBox");
     expect(appSource).toContain("getStickyEditorCommitBox");
@@ -1235,7 +1235,7 @@ describe("app shell", () => {
   });
 
   it("hides transformer handles while linear item drag preview is active", () => {
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
 
     expect(transformerSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState())");
     expect(transformerSource).toContain("transformer.enabledAnchors([])");
@@ -1245,7 +1245,7 @@ describe("app shell", () => {
   it("keeps layer ordering available through context menu commands", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
-    const selectionActionSource = readFileSync(new URL("../../../src/app/selection/selection-action-controller.js", import.meta.url), "utf8");
+    const selectionActionSource = readFileSync(new URL("../../../src/app/selection/action-controller.js", import.meta.url), "utf8");
     const markup = renderShell();
 
     expect(appActionSource).toContain('"bring-forward": bringSelectionForward');
@@ -1275,7 +1275,7 @@ describe("app shell", () => {
 
   it("rerenders coordinate plane internals during creation and resizing instead of stretching the group", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const previewSource = readFileSync(new URL("../../../src/app/selection/selection-transform-preview-controller.js", import.meta.url), "utf8");
+    const previewSource = readFileSync(new URL("../../../src/app/selection/transform-preview-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("function rerenderCoordinatePlaneNode");
     expect(appSource).toContain('if (element.type === "coordinate-plane") {');
@@ -1288,7 +1288,7 @@ describe("app shell", () => {
 
   it("commits text corner scaling without changing the text wrapping ratio", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const commitSource = readFileSync(new URL("../../../src/app/selection/selection-transform-commit-controller.js", import.meta.url), "utf8");
+    const commitSource = readFileSync(new URL("../../../src/app/selection/transform-commit-controller.js", import.meta.url), "utf8");
 
     expect(commitSource).toContain("getTextScaleCommitBox");
     expect(commitSource).toContain("fontSize: textCommit.fontSize");
@@ -1299,8 +1299,8 @@ describe("app shell", () => {
 
   it("previews latex text resize through the vector overlay instead of hiding it", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const previewSource = readFileSync(new URL("../../../src/app/selection/selection-transform-preview-controller.js", import.meta.url), "utf8");
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const previewSource = readFileSync(new URL("../../../src/app/selection/transform-preview-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
     const resizePreviewSource = previewSource.slice(
       previewSource.indexOf("function syncTextWidthResize()"),
       previewSource.indexOf("function syncTextTransformPreview()"),
@@ -1367,7 +1367,7 @@ describe("app shell", () => {
 
   it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/cursor-controller.js", import.meta.url), "utf8");
     const eraserSource = toolCursorSource.slice(
       toolCursorSource.indexOf("function getBaseEraserRadius()"),
       toolCursorSource.indexOf("function showObjectEraser"),
@@ -1382,7 +1382,7 @@ describe("app shell", () => {
 
   it("shows a small icon for object eraser instead of the square erase footprint", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/cursor-controller.js", import.meta.url), "utf8");
     const objectEraserSource = toolCursorSource.slice(
       toolCursorSource.indexOf("function showObjectEraser(worldPoint)"),
       toolCursorSource.indexOf("function hideEraser"),
@@ -1449,7 +1449,7 @@ describe("app shell", () => {
 
   it("does not auto-activate the first linear item just because the array itself became selected", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const structureInteraction = createStructureInteraction();");
     expect(appSource).toContain("structureInteraction.syncSelection({");
@@ -1498,7 +1498,7 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setSuppressSelectionDragOnce: (value) => { suppressSelectionDragOnce = value; }");
     expect(gestureSource).toContain("setSuppressSelectionDragOnce(true)");
@@ -1512,7 +1512,7 @@ describe("app shell", () => {
 
   it("keeps array item selection suppressed until the post-drag click is consumed", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const itemDragSource = readFileSync(new URL("../../../src/app/structures/linear-item-drag-controller.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const commitSource = itemDragSource.slice(
@@ -1532,7 +1532,7 @@ describe("app shell", () => {
     expect(gestureSource).toContain("structureInteraction.suppressNextLinearItemSelect(elementId);");
     expect(gestureSource).toContain("structureInteraction.clearLinearItemSelectSuppression();");
     expect(commitSource).toContain("suppressNextLinearItemSelect(dragState.elementId)");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     expect(selectionDragSource).toContain("function suppressLinearItemSelectAfterSelectionDrag()");
     expect(selectionDragSource).toContain("if (didMove) suppressLinearItemSelectAfterSelectionDrag();");
     expect(selectionDragSource).toContain("suppressNextLinearItemSelect(draggedLinearElement.id)");
@@ -1632,7 +1632,7 @@ describe("app shell", () => {
 
   it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
     const selectHandlerSource = gestureSource.slice(
       gestureSource.indexOf("function handleArrayStructureItemSelect"),
@@ -1702,7 +1702,7 @@ describe("app shell", () => {
   it("keeps array algorithm sessions independent per array element", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const algorithmSource = readFileSync(new URL("../../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
-    const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
 
     expect(appSource).not.toContain("let arrayAlgorithmSessions = new Map();");
     expect(structureSource).toContain("let arrayAlgorithmSessions = new Map();");
@@ -1719,7 +1719,7 @@ describe("app shell", () => {
   it("keeps array algorithm panel choices independent per array element", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const algorithmSource = readFileSync(new URL("../../../src/app/algorithms/array-algorithm-session-controller.js", import.meta.url), "utf8");
-    const structureSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const structureSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const panelSource = readFileSync(new URL("../../../src/app/algorithms/array-algorithm-panel-controller.js", import.meta.url), "utf8");
     const startSource = algorithmSource.slice(
       algorithmSource.indexOf("function startSelectedArrayAlgorithm()"),
@@ -1817,7 +1817,7 @@ describe("app shell", () => {
   it("keeps the array cell editor synced when the viewport or structure scale changes", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editorSource = readFileSync(new URL("../../../src/app/structures/cell-editor-controller.js", import.meta.url), "utf8");
-    const viewportSource = readFileSync(new URL("../../../src/app/viewport/viewport-controller.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../../src/app/viewport/controller.js", import.meta.url), "utf8");
     const viewportControllerSource = appSource.slice(
       appSource.indexOf("const viewportController = createViewportController"),
       appSource.indexOf("hydrateLocalDraft();"),
@@ -1867,7 +1867,7 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
-    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/selection-drag-controller.js", import.meta.url), "utf8");
+    const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
 
     expect(selectionDragSource).toContain("function clearRootDragState(elementId)");
     expect(pointerDragSource).toContain("clearRootDragState(dragState.elementId)");
@@ -1896,7 +1896,7 @@ describe("app shell", () => {
   });
 
   it("hides transformer bounds while the linear pointer is being dragged", () => {
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
 
     expect(transformerSource).toContain("if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {");
     expect(transformerSource).toMatch(/if \(structureInteraction\.hasLinearItemDragState\(\) \|\| structureInteraction\.hasLinearPointerDragState\(\)\) \{[\s\S]*?transformer\.nodes\(\[\]\);[\s\S]*?transformer\.visible\(false\);/);
@@ -1906,7 +1906,7 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
     const keyboardSource = readFileSync(new URL("../../../src/app/shell/keyboard-controller.js", import.meta.url), "utf8");
-    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/tool-cursor-controller.js", import.meta.url), "utf8");
+    const toolCursorSource = readFileSync(new URL("../../../src/app/tools/cursor-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("setIsSpaceDown: (nextValue) => { isSpaceDown = nextValue; }");
     expect(keyboardSource).toMatch(/if \(event\.code === "Space"\) \{[\s\S]*?setIsSpaceDown\(true\);[\s\S]*?classList\.add\("is-pan-ready"\);[\s\S]*?updateDraggableState\(\);[\s\S]*?hideToolCursors\(\);/);
@@ -1924,7 +1924,7 @@ describe("app shell", () => {
   it("keeps temporary spacebar panning from selecting or dragging elements", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
-    const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
@@ -1940,7 +1940,7 @@ describe("app shell", () => {
   it("uses lightweight chrome updates while panning and zooming the viewport", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const stagePointerSource = readStagePointerSource();
-    const viewportSource = readFileSync(new URL("../../../src/app/viewport/viewport-controller.js", import.meta.url), "utf8");
+    const viewportSource = readFileSync(new URL("../../../src/app/viewport/controller.js", import.meta.url), "utf8");
     const panMoveBlock = stagePointerSource.match(/if \(isPanning && panStart\) \{[\s\S]*?return true;\n    \}/)?.[0] ?? "";
     const wheelBlock = viewportSource.match(/function handleWheel\(event\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
     const centerZoomBlock = viewportSource.match(/function setZoomAtCenter\(requestedScale\) \{[\s\S]*?schedulePersistCurrentDraft\(\);\n  \}/)?.[0] ?? "";
@@ -1960,7 +1960,7 @@ describe("app shell", () => {
     const appActionSource = readFileSync(new URL("../../../src/app/shell/app-action-controller.js", import.meta.url), "utf8");
     const editActionSource = readFileSync(new URL("../../../src/app/structures/edit-action-controller.js", import.meta.url), "utf8");
     const nodeActionSource = readFileSync(new URL("../../../src/app/structures/node-action-controller.js", import.meta.url), "utf8");
-    const interactionSource = readFileSync(new URL("../../../src/structures/structure-interaction.js", import.meta.url), "utf8");
+    const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const shapeRenderAdapterSource = readFileSync(new URL("../../../src/app/rendering/shape-render-adapter.js", import.meta.url), "utf8");
     const controlsSource = readFileSync(new URL("../../../src/app/structures/controls-controller.js", import.meta.url), "utf8");
     const controlsPositionSource = readFileSync(new URL("../../../src/app/structures/controls-position-controller.js", import.meta.url), "utf8");
@@ -2053,7 +2053,7 @@ describe("app shell", () => {
 
   it("imports and uses clampTransformerAnchorDragBySize for anchor drag bounds", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
-    const transformerSource = readFileSync(new URL("../../../src/app/selection/selection-transformer-controller.js", import.meta.url), "utf8");
+    const transformerSource = readFileSync(new URL("../../../src/app/selection/transformer-controller.js", import.meta.url), "utf8");
 
     expect(transformerSource).toContain("clampTransformerAnchorDragBySize");
     expect(appSource).toContain("anchorDragBoundFunc: (oldAbsPos, newAbsPos) => selectionTransformerController.clampAnchorDrag(oldAbsPos, newAbsPos)");

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createControlsBindingController } from "../../../src/app/shell/controls-binding-controller.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 function createClickable(dataset = {}) {
   const listeners = {};

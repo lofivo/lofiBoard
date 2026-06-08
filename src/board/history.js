@@ -1,4 +1,4 @@
-import { clone } from "./board-model.js";
+import { clone } from "./model.js";
 
 export function createHistory(initialState, limit = 80) {
   const past = [clone(initialState)];

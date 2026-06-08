@@ -4,7 +4,7 @@ import {
   createPropertyControlsController,
 } from "../../../src/app/inspector/property-controls-controller.js";
 import { createPropertyControlsDomController } from "../../../src/app/inspector/property-controls-dom-controller.js";
-import { TOOLS } from "../../../src/ui/ui-config.js";
+import { TOOLS } from "../../../src/ui/config.js";
 
 function createInput(value = "", checked = false) {
   const listeners = new Map();
