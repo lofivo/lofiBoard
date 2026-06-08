@@ -67,7 +67,7 @@ function createController({
   };
 }
 
-describe("tool-activation-controller", () => {
+describe("app tools activation-controller", () => {
   it("cancels selection gestures and refreshes app chrome when leaving select", () => {
     const { callbacks, controller, getCurrentTool, root, stageContainer } = createController({
       initialTool: TOOLS.SELECT,

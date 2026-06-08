@@ -59,7 +59,7 @@ function createController(overrides = {}) {
   return { controller, overlayLayer };
 }
 
-describe("tool-cursor-controller", () => {
+describe("app tools cursor-controller", () => {
   it("creates brush and eraser cursor nodes on the overlay layer", () => {
     const { controller, overlayLayer } = createController();
 

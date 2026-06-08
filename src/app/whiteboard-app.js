@@ -1,24 +1,24 @@
 import Konva from "konva";
-import { renderShell } from "./shell/app-shell.js";
-import { createBoardSessionActionController } from "./shell/board-session-action-controller.js";
-import { createBoardSessionController } from "./shell/board-session-controller.js";
+import { renderShell } from "./shell/shell.js";
+import { createBoardSessionActionController } from "./shell/board-session/action-controller.js";
+import { createBoardSessionController } from "./shell/board-session/controller.js";
 import { createClipboardController } from "./clipboard/controller.js";
 import { createContextMenuDomController } from "./context-menu/dom-controller.js";
 import { createContextMenuController } from "./context-menu/controller.js";
 import { createControlsBindingController } from "./shell/controls-binding-controller.js";
-import { createEditController } from "./editing/edit-controller.js";
+import { createEditController } from "./editing/controller.js";
 import { createMenuStateController } from "./panels/menu-state-controller.js";
-import { createPanelStateController } from "./panels/panel-state-controller.js";
-import { createPropertyControlsController } from "./inspector/property-controls-controller.js";
-import { createPropertyControlsDomController } from "./inspector/property-controls-dom-controller.js";
+import { createPanelStateController } from "./panels/state-controller.js";
+import { createPropertyControlsController } from "./inspector/property-controls/controller.js";
+import { createPropertyControlsDomController } from "./inspector/property-controls/dom-controller.js";
 import { createContentBoundsQuery } from "./selection/content-bounds-query.js";
 import {
   createSelectionController,
   expandGroupedIds as expandSelectionGroupIds,
 } from "./selection/controller.js";
 import { createSelectionHitQuery } from "./selection/hit-query.js";
-import { createShapeRenderAdapter } from "./rendering/shape-render-adapter.js";
-import { createShapeRenderController } from "./rendering/shape-render-controller.js";
+import { createShapeRenderAdapter } from "./rendering/adapter.js";
+import { createShapeRenderController } from "./rendering/controller.js";
 import { createStructureActiveVisualController } from "./structures/active-visual-controller.js";
 import { createStructureControlsController } from "./structures/controls-controller.js";
 import { createStructureControlsPositionController } from "./structures/controls-position-controller.js";
@@ -44,32 +44,34 @@ import { createViewportController } from "./viewport/controller.js";
 import { createInteractionStateMachine, SM } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./shell/dom-refs.js";
 import { isToolPropertyPanelAvailable } from "./inspector/model.js";
-import { renderLayerItemsMarkup } from "./panels/layer-panel.js";
+import { renderLayerItemsMarkup } from "./panels/layer/markup.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   clearArrayAlgorithmRuntimeMarkers,
-} from "./algorithms/array-algorithm-model.js";
-import { createAppActionController } from "./shell/app-action-controller.js";
-import { createAppChromeController } from "./shell/app-chrome-controller.js";
-import { createAppPanelController } from "./shell/app-panel-controller.js";
-import { createArrayAlgorithmPanelController } from "./algorithms/array-algorithm-panel-controller.js";
-import { createArrayAlgorithmSessionController } from "./algorithms/array-algorithm-session-controller.js";
+} from "./algorithms/array/model.js";
+import { createAppActionController } from "./shell/action-controller.js";
+import { createAppChromeController } from "./shell/chrome-controller.js";
+import { createAppPanelController } from "./shell/panel-controller.js";
+import { createArrayAlgorithmPanelController } from "./algorithms/array/panel-controller.js";
+import { createArrayAlgorithmSessionController } from "./algorithms/array/session-controller.js";
 import { createExportPngController } from "./import-export/export-png-controller.js";
 import { createImportWorkflowController } from "./import-export/import-workflow-controller.js";
 import { createInspectorPanelDomController } from "./inspector/panel-dom-controller.js";
-import { createSelectionStyleActionController } from "./inspector/selection-style-action-controller.js";
-import { createSelectionStyleController } from "./inspector/selection-style-controller.js";
+import { createSelectionStyleActionController } from "./inspector/selection-style/action-controller.js";
+import { createSelectionStyleController } from "./inspector/selection-style/controller.js";
 import { createKeyboardController } from "./shell/keyboard-controller.js";
 import { createPromptController } from "./shell/prompt-controller.js";
-import { createLayerPanelController } from "./panels/layer-panel-controller.js";
-import { createPanelDomController } from "./panels/panel-dom-controller.js";
+import { createLayerPanelController } from "./panels/layer/controller.js";
+import { createPanelDomController } from "./panels/dom-controller.js";
 import { createAlignmentSnapController } from "./selection/alignment-snap-controller.js";
 import { createSelectionActionController } from "./selection/action-controller.js";
 import { createSelectionClipboardController } from "./selection/clipboard-controller.js";
 import { createSelectionDragController } from "./selection/drag-controller.js";
 import { createSelectionTransformCommitController } from "./selection/transform-commit-controller.js";
+import { createSelectionTransformEventsController } from "./selection/transform-events-controller.js";
 import { createSelectionTransformPreviewController } from "./selection/transform-preview-controller.js";
 import { createSelectionTransformerController } from "./selection/transformer-controller.js";
+import { createSelectionTransformerNode } from "./selection/transformer-node.js";
 import { createStructureBoardActionController } from "./structures/board-action-controller.js";
 import { createStructureCellEditorController } from "./structures/cell-editor-controller.js";
 import { createStructureEditActionController } from "./structures/edit-action-controller.js";
@@ -138,7 +140,6 @@ import {
   getTextEditorStyle,
   getStickyEditorCommitBox,
   getStickyTextInsets,
-  getUniformScaledBoxForResize,
   getSelectionHitRadius,
   getSingleLineTextEditorHeight,
   getMinimumTextResizeWidth,
@@ -246,8 +247,6 @@ export function createWhiteboardApp(root) {
   let isEditingText = false;
   let lastPointerWorldPoint = null;
   let initialStatusMessage = null;
-  let lastTransformAnchor = null;
-  let handledNodeDragEnd = false;
   let drawingInteractionController = null;
   let draftInteractionController = null;
   let selectionDragController = null;
@@ -270,6 +269,7 @@ export function createWhiteboardApp(root) {
   const selectionController = createSelectionController({
     initialSelectedIds: selectedIds,
   });
+  const selectionTransformEventsController = createSelectionTransformEventsController();
   const clipboardController = createClipboardController();
   const contextMenuController = createContextMenuController();
   const menuStateController = createMenuStateController();
@@ -515,68 +515,11 @@ export function createWhiteboardApp(root) {
     getStageState: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
   });
 
-  const transformer = new Konva.Transformer({
-    rotateEnabled: true,
-    rotateLineVisible: false,
-    rotateAnchorOffset: 28,
-    flipEnabled: false,
-    borderStroke: "#2563eb",
-    borderStrokeWidth: 1.5,
-    anchorStroke: "#2563eb",
-    anchorFill: "#ffffff",
-    anchorSize: 10,
-    anchorCornerRadius: 3,
-    padding: 6,
-    ignoreStroke: true,
-    anchorStyleFunc: (anchor) => {
-      if (anchor.hasName("top-center") || anchor.hasName("bottom-center")) {
-        const width = Math.max(36, transformer.width() - 28);
-        anchor.width(width);
-        anchor.height(14);
-        anchor.offsetX(width / 2);
-        anchor.offsetY(anchor.hasName("top-center") ? 20 : -6);
-        anchor.fill("rgba(0,0,0,0)");
-        anchor.stroke("rgba(0,0,0,0)");
-        anchor.cornerRadius(7);
-      } else if (anchor.hasName("middle-left") || anchor.hasName("middle-right")) {
-        const height = Math.max(36, transformer.height() - 28);
-        anchor.width(28);
-        anchor.height(height);
-        anchor.offsetX(anchor.hasName("middle-left") ? 34 : -6);
-        anchor.offsetY(height / 2);
-        anchor.fill("rgba(0,0,0,0)");
-        anchor.stroke("rgba(0,0,0,0)");
-        anchor.cornerRadius(7);
-      } else if (!anchor.hasName("rotater")) {
-        anchor.cornerRadius(3);
-      }
-    },
-    anchorDragBoundFunc: (oldAbsPos, newAbsPos) => selectionTransformerController.clampAnchorDrag(oldAbsPos, newAbsPos),
-    boundBoxFunc: (oldBox, newBox) => {
-      if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
-      const anchor = transformer.getActiveAnchor?.();
-      const minWidth = selectionTransformerController.getActiveMinWidth();
-      const minHeight = selectionTransformerController.getActiveMinHeight();
-      const nextBox = getUniformScaledBoxForResize({
-        elements: selectionTransformerController.getActiveElements(),
-        anchor,
-        oldBox,
-        newBox,
-        minWidth,
-        minHeight,
-      });
-      if (nextBox.width < minWidth) {
-        if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minWidth;
-        nextBox.width = minWidth;
-      }
-      if (nextBox.height < minHeight) {
-        if (anchor?.includes("top")) nextBox.y = oldBox.y + oldBox.height - minHeight;
-        nextBox.height = minHeight;
-      }
-      return nextBox;
-    },
+  const transformer = createSelectionTransformerNode({
+    Konva,
+    overlayLayer,
+    getSelectionTransformerController: () => selectionTransformerController,
   });
-  overlayLayer.add(transformer);
 
   const alignmentSnapController = createAlignmentSnapController({
     contentLayer,
@@ -598,7 +541,7 @@ export function createWhiteboardApp(root) {
     renderBoard,
     selectElementById,
     setElements: (elements) => { board.elements = elements; },
-    setHandledNodeDragEnd: (value) => { handledNodeDragEnd = value; },
+    setHandledNodeDragEnd: selectionTransformEventsController.setHandledNodeDragEnd,
     setSuppressNextSelectionClick: (value) => { suppressNextSelectionClick = value; },
     snapNodeToAlignment: alignmentSnapController.snapNodeToAlignment,
     structureInteraction,
@@ -621,7 +564,7 @@ export function createWhiteboardApp(root) {
     getElements: () => board.elements,
     setElements: (elements) => { board.elements = elements; },
     getElementIdFromNode,
-    getLastTransformAnchor: () => lastTransformAnchor,
+    getLastTransformAnchor: selectionTransformEventsController.getLastTransformAnchor,
     normalizeTextElementBox,
   });
   selectionTransformerController = createSelectionTransformerController({
@@ -1605,22 +1548,13 @@ export function createWhiteboardApp(root) {
     stage.container().addEventListener("pointerleave", hideToolCursors);
     stage.container().addEventListener("contextmenu", stagePointerController.handleContextMenu);
 
-    transformer.on("transform", selectionTransformPreviewController.syncTextWidthResize);
-    transformer.on("transform", selectionTransformPreviewController.syncTextTransformPreview);
-    transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview);
-    transformer.on("transformstart transform", () => {
-      lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
-    });
-    transformer.on("dblclick dbltap", stagePointerController.handleTransformerDoubleClick);
-    transformer.on("dragend transformend", () => {
-      if (editController.isEditing) return;
-      if (handledNodeDragEnd) {
-        handledNodeDragEnd = false;
-        return;
-      }
-      syncSelectedNodes();
-      pushHistory("已更新选择对象");
-      lastTransformAnchor = null;
+    selectionTransformEventsController.bindTransformerEvents({
+      transformer,
+      editController,
+      selectionTransformPreviewController,
+      handleTransformerDoubleClick: stagePointerController.handleTransformerDoubleClick,
+      syncSelectedNodes,
+      pushHistory,
     });
   }
 
@@ -1771,8 +1705,8 @@ export function createWhiteboardApp(root) {
     });
   }
 
-  function syncSelectedNodes() {
-    selectionTransformCommitController.syncSelectedNodes(transformer.nodes());
+  function syncSelectedNodes(nodes = transformer.nodes()) {
+    selectionTransformCommitController.syncSelectedNodes(nodes);
     renderBoard();
   }
 

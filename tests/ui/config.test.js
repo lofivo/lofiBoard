@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderShell } from "../../src/app/shell/app-shell.js";
+import { renderShell } from "../../src/app/shell/shell.js";
 import { contextMenuMarkup, formatShortcutLabel, shapePopoverMarkup, structurePanelMarkup, toolButtonsMarkup } from "../../src/ui/config.js";
 import { getStructureItem } from "../../src/structures/templates.js";
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createToolController, getToolStatus } from "../../../src/app/tools/controller.js";
 import { DEFAULT_SHAPE_TOOL, TOOLS } from "../../../src/ui/config.js";
 
-describe("tool-controller", () => {
+describe("app tools controller", () => {
   it("tracks current tool transitions with previous tool metadata", () => {
     const controller = createToolController({
       initialTool: TOOLS.PEN,
