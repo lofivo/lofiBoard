@@ -23,6 +23,7 @@
 18. Konva Transformer 的 `shouldOverdrawWholeArea` 不能覆盖线性结构和树结构这类内部可交互元素；否则选中结构后，Transformer 背板会挡住数组元素/树节点，表现为无法继续选择内部节点或双击编辑。
 19. LaTeX 文本框不能用整段公式宽度作为最小宽度，否则短公式无法多行；DOM overlay 应允许 `.katex` 换行，但 `.katex .base` 保持 `white-space: nowrap`，让公式按 KaTeX 片段换行且单片段不被拆坏。
 20. 修改 `whiteboard-app.js` 初始化顺序、controller 接线或从中抽取 controller 后，必须运行 `tests/app/shell/whiteboard-app-startup.test.js` 或全量测试；只跑子 controller 测试和源码字符串断言无法覆盖 `createWhiteboardApp()` 启动阶段的 TDZ/漏导入错误。
+21. 用户要求“补充项目文档/实现文档/方便后续 AI agent 开发”时，不能只更新 `CONTEXT.md` 或 ADR；应维护 `docs/agents/implementation/` 下的实现导览、代码地图、交互流程和测试指南，并同步 `docs/agents/domain.md` 的读取顺序。
 
 ## Agent skills
 
@@ -37,3 +38,7 @@ needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/a
 ### Domain docs
 
 Single-context layout. See `docs/agents/domain.md`.
+
+### Implementation docs
+
+AI agent 进入项目后先读 `docs/agents/implementation/README.md`，再按任务类型读取对应专题文档。

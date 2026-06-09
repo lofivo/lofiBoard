@@ -7,6 +7,7 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`CONTEXT.md`** at the repo root, or
 - **`CONTEXT-MAP.md`** at the repo root if it exists — it points at one `CONTEXT.md` per context. Read each one relevant to the topic.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
+- **`docs/agents/implementation/README.md`** — read this after the glossary/ADRs when you need to modify code. It points to implementation-specific docs for code maps, state, interactions, structures, and tests.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
 
@@ -43,6 +44,10 @@ Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/grill-with-docs`).
+
+## Use implementation docs for code changes
+
+`CONTEXT.md` is a glossary, not an implementation guide. For implementation work, read `docs/agents/implementation/README.md` and the matching topic document before changing code. If you learn a reusable implementation fact while fixing a bug or adding a feature, update the matching implementation document instead of adding implementation detail to `CONTEXT.md`.
 
 ## Flag ADR conflicts
 
