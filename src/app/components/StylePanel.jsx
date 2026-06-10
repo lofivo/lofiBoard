@@ -74,13 +74,13 @@ function Toggle({ label, checked, onChange }) {
 
 function CapStyle({ cap, onCap, style, onStyle }) {
   return (
-    <>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
       <div style={fieldGap}>
         <div style={labelStyle}>笔头</div>
         <div style={{ display: 'flex', gap: 4 }}>
           {[{v:'round',l:'圆头'},{v:'square',l:'平头'}].map(({v,l}) => (
             <button key={v} onClick={()=>onCap(v)} title={l}
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', width:36, height:32, padding:0, cursor:'pointer',
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
                 border: cap===v ? '2px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
                 borderRadius:8, background: cap===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
               <span style={{ width:18, height:8, borderRadius: v==='round'?'8px 8px 0 0':0, border:'2px solid currentColor', borderBottom:v==='round'?0:'2px solid currentColor', color:'var(--semi-color-text-0)' }} />
@@ -93,7 +93,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
         <div style={{ display: 'flex', gap: 4 }}>
           {[{v:'solid',t:'solid'},{v:'dash',t:'dashed'},{v:'dot',t:'dotted'}].map(({v,t}) => (
             <button key={v} onClick={()=>onStyle(v)}
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', width:36, height:28, padding:0, cursor:'pointer',
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:28, padding:0, cursor:'pointer',
                 border: style===v ? '2px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
                 borderRadius:8, background: style===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
               <span style={{ width:18, height:0, borderTop:`2px ${t} currentColor`, color:'var(--semi-color-text-0)' }} />
@@ -101,7 +101,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -268,10 +268,8 @@ export default function StylePanel() {
   const shape = ctx.activeShape || 'rect';
   const panelTitle = ctx.stylePanelTitle || '属性';
 
-  // Hide panel entirely when mode is hidden/structure and no tool preset should show
-  const shouldShow = mode !== 'structure' && (
-    mode !== 'hidden' || ctx.currentTool === 'text' || ctx.currentTool === 'sticky'
-  );
+  // Hide panel entirely when mode is hidden and no tool preset should show
+  const shouldShow = mode !== 'hidden' || ctx.currentTool === 'text' || ctx.currentTool === 'sticky';
 
   if (!shouldShow) {
     return (

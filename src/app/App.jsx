@@ -102,7 +102,7 @@ export default function App() {
 
     // Hide original UI elements that React replaces
     const hideSelectors = [
-      '.topbar', '.tool-dock', '.statusbar',
+      '.topbar', '.tool-dock',
       '.style-panel', '.layer-panel',
       '.context-menu',
       '.edge-panel-toggle-left', '.edge-panel-toggle-right',
@@ -112,6 +112,12 @@ export default function App() {
         const el = legacyRoot.querySelector(sel);
         if (el) el.style.display = 'none';
       });
+      // Statusbar: hide visually but keep layout so zoom buttons/labels still work
+      const statusbar = legacyRoot.querySelector('.statusbar');
+      if (statusbar) {
+        statusbar.style.opacity = '0';
+        statusbar.style.pointerEvents = 'none';
+      }
     };
     // Apply immediately and keep applying on DOM changes
     applyHide();
@@ -146,6 +152,8 @@ export default function App() {
         if (container) {
           const bg = container.dataset.background || 'plain';
           setBackgroundModeState((prev) => (prev !== bg ? bg : prev));
+          const tool = container.dataset.tool;
+          if (tool) setCurrentTool((prev) => (prev !== tool ? tool : prev));
         }
         const shapePopover = legacyRoot.querySelector('[data-shape-popover]');
         if (shapePopover) {
