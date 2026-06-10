@@ -709,6 +709,8 @@ export function createNodeAttrs(element) {
   }
   if (element.type === "line" || element.type === "arrow") {
     return {
+      x: element.x ?? 0,
+      y: element.y ?? 0,
       points: element.points,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,

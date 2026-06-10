@@ -1039,6 +1039,54 @@ describe("konva elements", () => {
     expect(arrow.pointerAtEnding()).toBe(true);
   });
 
+  it("syncs line and arrow nodes x/y in place during drag or move", () => {
+    const line = createElementNode({
+      id: "line_1",
+      type: "line",
+      x: 0,
+      y: 0,
+      points: [0, 0, 100, 20],
+      stroke: "#111827",
+      strokeWidth: 2,
+    }, baseHandlers);
+
+    expect(syncElementNode(line, {
+      id: "line_1",
+      type: "line",
+      x: 50,
+      y: 30,
+      points: [0, 0, 100, 20],
+      stroke: "#111827",
+      strokeWidth: 2,
+    })).toBe(true);
+
+    expect(line.x()).toBe(50);
+    expect(line.y()).toBe(30);
+
+    const arrow = createElementNode({
+      id: "arrow_1",
+      type: "arrow",
+      x: 0,
+      y: 0,
+      points: [0, 0, 100, 20],
+      stroke: "#dc2626",
+      strokeWidth: 4,
+    }, baseHandlers);
+
+    expect(syncElementNode(arrow, {
+      id: "arrow_1",
+      type: "arrow",
+      x: 80,
+      y: 60,
+      points: [0, 0, 100, 20],
+      stroke: "#dc2626",
+      strokeWidth: 4,
+    })).toBe(true);
+
+    expect(arrow.x()).toBe(80);
+    expect(arrow.y()).toBe(60);
+  });
+
   it("draws dashed pressure stroke previews as separated path segments", () => {
     const node = createElementNode({
       id: "stroke_1",
