@@ -89,7 +89,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
               border: cap==='round' ? activeBorder : idleBorder,
               borderRadius:8, background: cap==='round' ? activeBg : idleBg }}>
             <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
-              <line x1="2" y1="6" x2="26" y2="6" stroke={capColor} strokeWidth="8" strokeLinecap="round" />
+              <rect x="4" y="2" width="20" height="8" rx="4" fill={capColor} />
             </svg>
           </button>
           <button onClick={() => onCap('square')} title="平头"
@@ -97,7 +97,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
               border: cap==='square' ? activeBorder : idleBorder,
               borderRadius:8, background: cap==='square' ? activeBg : idleBg }}>
             <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
-              <line x1="2" y1="6" x2="26" y2="6" stroke={capColor} strokeWidth="10" strokeLinecap="butt" />
+              <rect x="4" y="1" width="20" height="10" rx="1" fill={capColor} />
             </svg>
           </button>
         </div>
