@@ -1529,11 +1529,17 @@ export function createWhiteboardApp(root) {
 
   root._getLayersData = () => {
     const ordered = reorderElements(board.elements);
+    const layerLevels = new Map(ordered.map((element, index) => [element.id, index]));
     return ordered.slice().reverse().map((element) => ({
       id: element.id,
       name: getElementLabel(element),
+      level: layerLevels.get(element.id) ?? 0,
+      type: element.type,
+      locked: element.locked ?? false,
     }));
   };
+
+  root._getSelectedIds = () => [...selectedIds];
 
   root._showShapePopover = () => setShapePopoverOpen(true);
 

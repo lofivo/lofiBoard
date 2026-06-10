@@ -27,6 +27,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState('hidden');
   const [activeShape, setActiveShape] = useState('rect');
   const [layers, setLayers] = useState([]);
+  const [selectedLayerIds, setSelectedLayerIds] = useState([]);
   const [structureSelection, setStructureSelection] = useState('none');
   const [showShapePopover, setShowShapePopover] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
@@ -173,6 +174,16 @@ export default function App() {
             return prev;
           });
         }
+        const selectedIds = legacyRoot._getSelectedIds?.();
+        if (selectedIds) {
+          setSelectedLayerIds((prev) => {
+            if (prev.length !== selectedIds.length) return selectedIds;
+            for (let i = 0; i < selectedIds.length; i++) {
+              if (prev[i] !== selectedIds[i]) return selectedIds;
+            }
+            return prev;
+          });
+        }
         const statusEl = legacyRoot.querySelector('[data-status]');
         if (statusEl) {
           const msg = statusEl.textContent || '就绪';
@@ -297,6 +308,7 @@ export default function App() {
     stickyBgColor, stickyTextColor, stickyFontFamily, stickyFontSize,
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
+    selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
     setBackgroundMode: handleSetBackgroundMode,
@@ -329,6 +341,7 @@ export default function App() {
     stickyBgColor, stickyTextColor, stickyFontFamily, stickyFontSize,
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
+    selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
     handleSetBackgroundMode,
