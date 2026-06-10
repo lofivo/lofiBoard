@@ -77,12 +77,11 @@ export default function LayerPanel() {
       borderRight: 0,
       transform: panelTransform,
       opacity: collapsed ? 0 : 1,
-      pointerEvents: 'none',
+      pointerEvents: collapsed ? 'none' : 'auto',
     }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '0 8px', marginBottom: 10, flex: 'none',
-        pointerEvents: 'auto',
       }}>
         <span style={{
           display: 'flex', alignItems: 'center', gap: 7,
@@ -103,19 +102,19 @@ export default function LayerPanel() {
         ? <div style={{
             padding: '32px 8px', color: '#94a3b8', fontSize: 12,
             textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            pointerEvents: 'auto',
           }}>
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <span style={{ opacity: 0.4, fontSize: 24 }}>⊞</span>
               <span>暂无元素</span>
             </span>
           </div>
-        : <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, pointerEvents: 'auto' }}>
+        : <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {layers.map((item) => {
               const isSelected = selectedIds.includes(item.id);
               const dotColor = TYPE_DOT[item.type] || '#94a3b8';
               return (
                 <div key={item.id}
+                  role="button"
                   onClick={() => ctx.selectLayerItem?.(item.id)}
                   style={{
                     ...itemBase,

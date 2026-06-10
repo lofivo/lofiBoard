@@ -1541,6 +1541,35 @@ export function createWhiteboardApp(root) {
 
   root._getSelectedIds = () => [...selectedIds];
 
+  root._selectLayerItemById = (id, modifier) => {
+    setTool(TOOLS.SELECT);
+    if (modifier === 'shift') {
+      const ordered = reorderElements(board.elements);
+      const clickedIndex = ordered.findIndex((el) => el.id === id);
+      if (clickedIndex === -1) {
+        selectElementById(id, false);
+      } else {
+        const current = [...selectedIds];
+        if (current.length === 0) {
+          selectElementById(id, false);
+        } else {
+          const lastIndex = ordered.findIndex((el) => el.id === current[current.length - 1]);
+          const start = Math.min(clickedIndex, lastIndex);
+          const end = Math.max(clickedIndex, lastIndex);
+          const rangeIds = ordered.slice(start, end + 1).map((el) => el.id);
+          const merged = [...new Set([...current, ...rangeIds])];
+          selectIds(merged);
+        }
+      }
+    } else if (modifier === 'ctrl') {
+      selectIds(selectionController.toggleSelection(id));
+    } else {
+      selectElementById(id, false);
+    }
+    updateChrome();
+    viewportActions.ensureSelectionVisible();
+  };
+
   root._showShapePopover = () => setShapePopoverOpen(true);
 
   return {

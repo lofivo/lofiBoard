@@ -17,6 +17,8 @@ export default function App() {
   const contextMenuVisibleRef = useRef(false);
   const statusClearTimerRef = useRef(null);
   const lastStatusRef = useRef('就绪');
+  const shiftRef = useRef(false);
+  const ctrlRef = useRef(false);
 
   const [statusMessage, setStatusMessage] = useState('就绪');
   const [fileName, setFileName] = useState('未命名白板');
@@ -223,12 +225,19 @@ export default function App() {
     };
     document.addEventListener('click', handleClickOutside);
 
+    const handleKeyDown = (e) => { shiftRef.current = e.shiftKey; ctrlRef.current = e.ctrlKey || e.metaKey; };
+    const handleKeyUp = (e) => { shiftRef.current = e.shiftKey; ctrlRef.current = e.ctrlKey || e.metaKey; };
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
     return () => {
       clearInterval(interval);
       clearTimeout(statusClearTimerRef.current);
       observer.disconnect();
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
 
@@ -291,8 +300,8 @@ export default function App() {
   const selectLayerItem = useCallback((id) => {
     const root = getLegacyRoot();
     if (!root) return;
-    const btn = root.querySelector(`[data-layer-id="${id}"]`);
-    if (btn) btn.click();
+    const modifier = shiftRef.current ? 'shift' : (ctrlRef.current ? 'ctrl' : 'none');
+    root._selectLayerItemById?.(id, modifier);
   }, [getLegacyRoot]);
 
   const zoomPercent = Math.round(currentZoom * 100);

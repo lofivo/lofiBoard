@@ -357,8 +357,8 @@ export default function StylePanel() {
     <>
       <aside style={{ ...PANEL_STYLE, left: 0, width: 260, maxHeight: 'calc(100vh - 64px)', padding: 18,
         borderRadius: '0 24px 24px 0', borderLeft: 0, transform: panelTransform,
-        opacity: collapsed ? 0 : 1, pointerEvents: 'none' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, pointerEvents: 'auto' }}>
+        opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
           <span style={{ display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13, color:'var(--semi-color-text-0)' }}
             dangerouslySetInnerHTML={{ __html: ICON_PANEL + panelTitle }} />
           <button type="button" onClick={() => ctx.setStylePanelCollapsed?.(true)}
@@ -366,9 +366,7 @@ export default function StylePanel() {
               background:'transparent', color:'var(--semi-color-text-2)', display:'flex', alignItems:'center', justifyContent:'center' }}
             aria-label="收起属性">‹</button>
         </div>
-        <div style={{ pointerEvents: 'auto' }}>
         {inspector}
-        </div>
       </aside>
       <StylePanelToggle collapsed={collapsed} onClick={() => ctx.setStylePanelCollapsed?.(false)} />
     </>
