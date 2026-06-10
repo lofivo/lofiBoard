@@ -195,7 +195,7 @@ export default function App() {
             clearTimeout(statusClearTimerRef.current);
             if (msg !== '' && msg !== '就绪') {
               statusClearTimerRef.current = setTimeout(() => {
-                lastStatusRef.current = '就绪';
+                lastStatusRef.current = msg;
                 setStatusMessage('');
               }, 3000);
             }
