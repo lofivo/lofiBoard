@@ -1,28 +1,28 @@
 :root {
-  color: #111827;
-  background: #f8fafc;
-  --fluent-accent: #2563eb;
-  --fluent-accent-hover: #1d4ed8;
-  --fluent-accent-subtle: #eff6ff;
-  --fluent-text-primary: #1f2937;
-  --fluent-text-secondary: #64748b;
-  --fluent-text-tertiary: #94a3b8;
-  --fluent-panel-bg: #ffffff;
-  --fluent-panel-bg-solid: #ffffff;
+  color: var(--semi-color-text-0, #1f2937);
+  background: var(--semi-color-bg-0, #f8fafc);
+  --fluent-accent: var(--semi-color-primary, #2563eb);
+  --fluent-accent-hover: var(--semi-color-primary-hover, #1d4ed8);
+  --fluent-accent-subtle: var(--semi-color-primary-light-default, #eff6ff);
+  --fluent-text-primary: var(--semi-color-text-0, #1f2937);
+  --fluent-text-secondary: var(--semi-color-text-2, #64748b);
+  --fluent-text-tertiary: var(--semi-color-text-3, #94a3b8);
+  --fluent-panel-bg: var(--semi-color-bg-3, #ffffff);
+  --fluent-panel-bg-solid: var(--semi-color-bg-3, #ffffff);
   --fluent-card-bg: transparent;
-  --fluent-control-bg: #f8fafc;
-  --fluent-control-hover: #f1f5f9;
-  --fluent-control-active: #eaf3ff;
-  --fluent-stroke: #e2e8f0;
-  --fluent-stroke-strong: #cbd5e1;
-  --fluent-shadow: 0 18px 46px rgba(15, 23, 42, 0.1);
-  --fluent-shadow-subtle: 0 3px 12px rgba(15, 23, 42, 0.08);
-  --fluent-radius-sm: 6px;
-  --fluent-radius-md: 12px;
-  --fluent-radius-lg: 24px;
+  --fluent-control-bg: var(--semi-color-fill-0, #f8fafc);
+  --fluent-control-hover: var(--semi-color-fill-1, #f1f5f9);
+  --fluent-control-active: var(--semi-color-primary-light-default, #eaf3ff);
+  --fluent-stroke: var(--semi-color-border, #e2e8f0);
+  --fluent-stroke-strong: var(--semi-color-border, #cbd5e1);
+  --fluent-shadow: var(--semi-shadow-elevated, 0 18px 46px rgba(15, 23, 42, 0.1));
+  --fluent-shadow-subtle: var(--semi-shadow-elevated, 0 3px 12px rgba(15, 23, 42, 0.08));
+  --fluent-radius-sm: var(--semi-border-radius-small, 6px);
+  --fluent-radius-md: var(--semi-border-radius-medium, 12px);
+  --fluent-radius-lg: var(--semi-border-radius-large, 24px);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -57,7 +57,7 @@ button {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #f8fafc;
+  background: var(--semi-color-bg-0, #f8fafc);
   user-select: none;
   -webkit-user-select: none;
 }

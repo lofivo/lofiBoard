@@ -180,6 +180,8 @@ export function createWhiteboardApp(root) {
 
   root.innerHTML = renderShell();
 
+  const refs = queryWhiteboardRefs(root);
+
   const {
     container,
     status,
@@ -237,7 +239,7 @@ export function createWhiteboardApp(root) {
     arrayAlgorithmSelect,
     arrayAlgorithmStatus,
     arrayAlgorithmSpeed,
-  } = queryWhiteboardRefs(root);
+  } = refs;
 
   let board = createEmptyBoard();
   let currentTool = TOOLS.PEN;

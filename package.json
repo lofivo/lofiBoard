@@ -19,10 +19,15 @@
     "bench:render": "node scripts/bench-render.js"
   },
   "dependencies": {
+    "@douyinfe/semi-icons": "^2.100.0",
+    "@douyinfe/semi-illustrations": "^2.100.0",
+    "@douyinfe/semi-ui": "^2.100.0",
     "html2canvas": "^1.4.1",
     "katex": "^0.16.46",
     "konva": "^10.0.12",
-    "lucide-static": "^1.11.0"
+    "lucide-static": "^1.11.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
