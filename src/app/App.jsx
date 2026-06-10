@@ -180,11 +180,10 @@ export default function App() {
             lastStatusRef.current = msg;
             setStatusMessage(msg);
             clearTimeout(statusClearTimerRef.current);
-            // Auto-clear non-tool-description messages after 3s
-            if (msg !== '就绪' && !msg.includes('：') && !msg.includes(':')) {
+            if (msg !== '就绪') {
               statusClearTimerRef.current = setTimeout(() => {
                 lastStatusRef.current = '就绪';
-                setStatusMessage('就绪');
+                setStatusMessage('');
               }, 3000);
             }
           }

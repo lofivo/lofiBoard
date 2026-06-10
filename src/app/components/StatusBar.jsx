@@ -23,7 +23,7 @@ export default function StatusBar() {
       fontSize: 12, color: 'var(--semi-color-text-2)',
       pointerEvents: 'none',
     }}>
-      <span>{ctx.statusMessage || '就绪'}</span>
+      <span>{ctx.statusMessage}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, pointerEvents: 'auto' }}>
         <Button theme="borderless" type="tertiary" size="small" icon={<IconMinus />}
           onClick={() => ctx.zoomBy?.(-1)} aria-label="缩小"

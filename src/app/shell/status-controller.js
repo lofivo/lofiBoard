@@ -11,7 +11,6 @@ export function createStatusController({
     status.textContent = message;
     status.classList.add("is-visible");
     statusTimer = setTimeoutFn(() => {
-      status.textContent = "就绪";
       status.classList.remove("is-visible");
     }, timeoutMs);
   }
