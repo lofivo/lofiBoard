@@ -32,7 +32,7 @@ describe("status-controller", () => {
     vi.useRealTimers();
   });
 
-  it("does not reset textContent when the hide timeout fires", () => {
+  it("resets textContent to empty after the hide timeout", () => {
     vi.useFakeTimers();
     const status = createStatusNode();
     status.textContent = "就绪";
@@ -44,7 +44,7 @@ describe("status-controller", () => {
 
     vi.advanceTimersByTime(3000);
 
-    expect(status.textContent).toBe("已保存");
+    expect(status.textContent).toBe("");
     expect(status.classList.remove).toHaveBeenCalledWith("is-visible");
     vi.useRealTimers();
   });

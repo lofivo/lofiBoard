@@ -38,7 +38,7 @@ describe("app tools controller", () => {
   });
 
   it("returns user-facing status text for each tool", () => {
-    expect(getToolStatus(TOOLS.SELECT)).toBe("选择：拖动框选，Shift 多选，Delete 删除");
+    expect(getToolStatus(TOOLS.SELECT)).toBe("选择：单击单选，Shift 范围多选，Ctrl 切换多选");
     expect(getToolStatus(TOOLS.PEN)).toBe("画笔：拖动画出可编辑笔触");
     expect(getToolStatus(TOOLS.ARROW)).toBe("箭头：拖动创建");
   });

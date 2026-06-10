@@ -31,7 +31,7 @@ export function createToolController({
 
 export function getToolStatus(tool) {
   return {
-    select: "选择：拖动框选，Shift 多选，Delete 删除",
+    select: "选择：单击单选，Shift 范围多选，Ctrl 切换多选",
     pan: "平移：拖动画布",
     pen: "画笔：拖动画出可编辑笔触",
     "eraser-stroke": "片段橡皮：擦除笔触的一部分",

@@ -188,12 +188,12 @@ export default function App() {
         }
         const statusEl = legacyRoot.querySelector('[data-status]');
         if (statusEl) {
-          const msg = statusEl.textContent || '就绪';
+          const msg = statusEl.textContent || '';
           if (msg !== lastStatusRef.current) {
             lastStatusRef.current = msg;
             setStatusMessage(msg);
             clearTimeout(statusClearTimerRef.current);
-            if (msg !== '就绪') {
+            if (msg !== '' && msg !== '就绪') {
               statusClearTimerRef.current = setTimeout(() => {
                 lastStatusRef.current = '就绪';
                 setStatusMessage('');
