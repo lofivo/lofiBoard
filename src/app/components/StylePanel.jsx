@@ -73,19 +73,33 @@ function Toggle({ label, checked, onChange }) {
 }
 
 function CapStyle({ cap, onCap, style, onStyle }) {
+  const capColor = 'var(--semi-color-text-0)';
+  const activeBg = 'var(--semi-color-primary-light-default)';
+  const idleBg = 'var(--semi-color-fill-0)';
+  const activeBorder = '2px solid var(--semi-color-primary)';
+  const idleBorder = '1px solid var(--semi-color-border)';
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
       <div style={fieldGap}>
         <div style={labelStyle}>笔头</div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {[{v:'round',l:'圆头'},{v:'square',l:'平头'}].map(({v,l}) => (
-            <button key={v} onClick={()=>onCap(v)} title={l}
-              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
-                border: cap===v ? '2px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
-                borderRadius:8, background: cap===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
-              <span style={{ width:18, height:8, borderRadius: v==='round'?'8px 8px 0 0':0, border:'2px solid currentColor', borderBottom:v==='round'?0:'2px solid currentColor', color:'var(--semi-color-text-0)' }} />
-            </button>
-          ))}
+          <button onClick={() => onCap('round')} title="圆头"
+            style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
+              border: cap==='round' ? activeBorder : idleBorder,
+              borderRadius:8, background: cap==='round' ? activeBg : idleBg }}>
+            <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
+              <line x1="2" y1="6" x2="26" y2="6" stroke={capColor} strokeWidth="8" strokeLinecap="round" />
+            </svg>
+          </button>
+          <button onClick={() => onCap('square')} title="平头"
+            style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
+              border: cap==='square' ? activeBorder : idleBorder,
+              borderRadius:8, background: cap==='square' ? activeBg : idleBg }}>
+            <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
+              <line x1="2" y1="6" x2="26" y2="6" stroke={capColor} strokeWidth="10" strokeLinecap="butt" />
+            </svg>
+          </button>
         </div>
       </div>
       <div style={fieldGap}>
