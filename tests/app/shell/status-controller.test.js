@@ -32,6 +32,23 @@ describe("status-controller", () => {
     vi.useRealTimers();
   });
 
+  it("resets textContent to 就绪 after the hide timeout", () => {
+    vi.useFakeTimers();
+    const status = createStatusNode();
+    status.textContent = "就绪";
+    const controller = createStatusController({ status });
+
+    controller.setStatus("已保存");
+
+    expect(status.textContent).toBe("已保存");
+
+    vi.advanceTimersByTime(3000);
+
+    expect(status.textContent).toBe("就绪");
+    expect(status.classList.remove).toHaveBeenCalledWith("is-visible");
+    vi.useRealTimers();
+  });
+
   it("clears the previous hide timer before showing a new message", () => {
     vi.useFakeTimers();
     const clearTimeoutFn = vi.fn((timer) => clearTimeout(timer));

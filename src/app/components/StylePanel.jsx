@@ -216,6 +216,75 @@ function LabeledColor({ label, value, set }) {
 
 /* ---- mode → inspector dispatch ---- */
 
+const LINEAR_ACTIONS = [
+  { action: 'array-highlight', label: '应用高亮' },
+  { action: 'array-clear-highlight', label: '清除高亮' },
+  { action: 'linear-index-zero', label: '0 下标' },
+  { action: 'linear-index-one', label: '1 下标' },
+  { action: 'linear-index-show', label: '显示下标' },
+  { action: 'linear-index-hide', label: '隐藏下标' },
+  { action: 'linear-pointer-show', label: '显示指针' },
+  { action: 'linear-pointer-hide', label: '隐藏指针' },
+];
+
+const GRAPH_ACTIONS = [
+  { action: 'graph-add-node', label: '加点' },
+  { action: 'graph-add-edge', label: '连边' },
+  { action: 'graph-connect-mode', label: '点选连边' },
+  { action: 'graph-delete-node', label: '删点' },
+  { action: 'graph-delete-edge', label: '删边' },
+  { action: 'graph-layout-circle', label: '环形布局' },
+  { action: 'graph-layout-grid', label: '网格布局' },
+  { action: 'graph-layout-layered', label: '分层布局' },
+  { action: 'graph-layout-force', label: '力导向' },
+];
+
+const TREE_ACTIONS = [
+  { action: 'tree-highlight-level', label: '层序遍历' },
+  { action: 'tree-highlight-preorder', label: '前序遍历' },
+  { action: 'tree-highlight-postorder', label: '后序遍历' },
+  { action: 'tree-clear-highlight', label: '清除高亮' },
+];
+
+const BINARY_TREE_ACTIONS = [
+  { action: 'tree-highlight-preorder', label: '前序遍历' },
+  { action: 'tree-highlight-inorder', label: '中序遍历' },
+  { action: 'tree-highlight-postorder', label: '后序遍历' },
+  { action: 'tree-clear-highlight', label: '清除高亮' },
+];
+
+const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-structure', 'deque-structure'];
+
+function StructureCore({ ctx }) {
+  const type = ctx.structureSelection || 'none';
+
+  if (type === 'none') return <div style={{ padding: 8, color: 'var(--semi-color-text-2)', fontSize: 12 }}>选择一个结构元素</div>;
+
+  let actions = [];
+  if (LINEAR_STRUCTURE_TYPES.includes(type)) actions = LINEAR_ACTIONS;
+  else if (type === 'graph-structure') actions = GRAPH_ACTIONS;
+  else if (type === 'tree-structure') actions = TREE_ACTIONS;
+
+  const actionBtnStyle = {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    height: 28, padding: '0 10px', cursor: 'pointer', fontSize: 11,
+    border: '1px solid var(--semi-color-border)', borderRadius: 6,
+    background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-1)',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {actions.map((a) => (
+          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={actionBtnStyle}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function resolveInspector(mode, shape, ctx) {
   const isRect = shape === 'rect';
   const isEllipse = shape === 'ellipse';
@@ -243,6 +312,8 @@ function resolveInspector(mode, shape, ctx) {
       return <CoordinateCore ctx={ctx} />;
     case 'multi':
       return <BrushCore ctx={ctx} showFill={false} showArrow={false} showCapStyle={false} />;
+    case 'structure':
+      return <StructureCore ctx={ctx} />;
     default:
       // When panel is hidden but a tool that has presets is active, show its inspector
       if (ctx.currentTool === 'text') return <TextCore ctx={ctx} />;

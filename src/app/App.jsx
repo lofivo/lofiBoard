@@ -27,6 +27,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState('hidden');
   const [activeShape, setActiveShape] = useState('rect');
   const [layers, setLayers] = useState([]);
+  const [structureSelection, setStructureSelection] = useState('none');
   const [showShapePopover, setShowShapePopover] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -148,6 +149,8 @@ export default function App() {
         setPanelMode((prev) => (prev !== mode ? mode : prev));
         const shape = legacyRoot.dataset.activeShape || 'rect';
         setActiveShape((prev) => (prev !== shape ? shape : prev));
+        const structure = legacyRoot.dataset.structureSelection || 'none';
+        setStructureSelection((prev) => (prev !== structure ? structure : prev));
         const container = legacyRoot.querySelector('#stage-container');
         if (container) {
           const bg = container.dataset.background || 'plain';
@@ -159,6 +162,16 @@ export default function App() {
         if (shapePopover) {
           const visible = !shapePopover.hasAttribute('hidden');
           setShowShapePopover((prev) => (prev !== visible ? visible : prev));
+        }
+        const layersData = legacyRoot._getLayersData?.();
+        if (layersData) {
+          setLayers((prev) => {
+            if (prev.length !== layersData.length) return layersData;
+            for (let i = 0; i < layersData.length; i++) {
+              if (prev[i]?.id !== layersData[i].id || prev[i]?.name !== layersData[i].name) return layersData;
+            }
+            return prev;
+          });
         }
         const statusEl = legacyRoot.querySelector('[data-status]');
         if (statusEl) {
@@ -224,6 +237,7 @@ export default function App() {
     const btn = root.querySelector(`[data-tool="${tool}"]`);
     if (btn) {
       btn.click();
+      if (tool === 'shape') root._showShapePopover?.();
       return;
     }
     const actionBtn = root.querySelector(`[data-tool-action="${tool}"]`);
@@ -276,7 +290,7 @@ export default function App() {
   const contextValue = useMemo(() => ({
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
-    layerPanelCollapsed, layers, showShapePopover,
+    layerPanelCollapsed, layers, structureSelection, showShapePopover,
     contextMenuVisible, contextMenuPos,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
@@ -308,7 +322,7 @@ export default function App() {
   }), [
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
-    layerPanelCollapsed, layers, showShapePopover,
+    layerPanelCollapsed, layers, structureSelection, showShapePopover,
     contextMenuVisible, contextMenuPos,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,

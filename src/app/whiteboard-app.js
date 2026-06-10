@@ -44,7 +44,7 @@ import { createViewportController } from "./viewport/controller.js";
 import { createInteractionStateMachine, SM } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./shell/dom-refs.js";
 import { isToolPropertyPanelAvailable } from "./inspector/model.js";
-import { renderLayerItemsMarkup } from "./panels/layer/markup.js";
+import { renderLayerItemsMarkup, getElementLabel } from "./panels/layer/markup.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   clearArrayAlgorithmRuntimeMarkers,
@@ -1526,6 +1526,16 @@ export function createWhiteboardApp(root) {
   bindStageEvents();
   bindUiEvents();
   bindKeyboard();
+
+  root._getLayersData = () => {
+    const ordered = reorderElements(board.elements);
+    return ordered.slice().reverse().map((element) => ({
+      id: element.id,
+      name: getElementLabel(element),
+    }));
+  };
+
+  root._showShapePopover = () => setShapePopoverOpen(true);
 
   return {
     getBoard: () => serializeCurrentBoard(),

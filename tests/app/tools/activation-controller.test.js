@@ -127,4 +127,42 @@ describe("app tools activation-controller", () => {
 
     expect(getActiveShapeTool()).toBe(TOOLS.ARROW);
   });
+
+  it("does not close the shape popover when switching to the shape tool", () => {
+    const { callbacks, controller } = createController({
+      initialTool: TOOLS.PEN,
+    });
+
+    controller.setTool(TOOLS.SHAPE);
+
+    // Should NOT close the shape popover when activating shape tool
+    // (the controls-binding handler calls setShapePopoverOpen(true) right after)
+    expect(callbacks.setShapePopoverOpen).not.toHaveBeenCalledWith(false);
+  });
+
+  it("does not close the shape popover when re-activating the same shape tool", () => {
+    const { callbacks, controller } = createController({
+      initialTool: TOOLS.SHAPE,
+    });
+
+    // Simulate: user already has shape tool active, clicks shape button again
+    controller.setTool(TOOLS.SHAPE);
+
+    // Should NOT close the popover (so the controls-binding handler can re-open it)
+    expect(callbacks.setShapePopoverOpen).not.toHaveBeenCalledWith(false);
+  });
+
+  it("does not close the shape popover after shape sub-tool selection re-activates shape", () => {
+    const { callbacks, controller } = createController({
+      initialTool: TOOLS.SHAPE,
+    });
+
+    // Simulate: user selects a shape sub-tool, which calls setTool(SHAPE) again
+    // This happens in the [data-shape-tool] click handler after setActiveShapeTool
+    controller.setTool(TOOLS.SHAPE);
+
+    // The sub-tool handler explicitly closes the popover AFTER setTool,
+    // but setTool itself should not close it
+    expect(callbacks.setShapePopoverOpen).not.toHaveBeenCalledWith(false);
+  });
 });
