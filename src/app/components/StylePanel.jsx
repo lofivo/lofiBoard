@@ -1,5 +1,5 @@
 import React from 'react';
-import { Select } from '@douyinfe/semi-ui';
+import { Select, Slider } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
@@ -54,19 +54,17 @@ function RangeCtl({ label, min, max, step, value, onChange }) {
   return (
     <div style={fieldGap}>
       <div style={{ display: 'flex', justifyContent: 'space-between', ...labelStyle }}>{label}</div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: 'var(--semi-color-primary)', cursor: 'pointer', margin: 0 }} />
+      <Slider min={min} max={max} step={step} value={value} onChange={onChange} tipFormatter={null} />
     </div>
   );
 }
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 8 }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
         style={{ margin: 0, accentColor: 'var(--semi-color-primary)' }} />
-      <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12 }}>{label}</span>
+      <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{label}</span>
     </label>
   );
 }
@@ -157,10 +155,15 @@ function BrushCore({ ctx, showFill, showArrow, showCapStyle }) {
       <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} />
       <ColorField label={showFill ? '边框颜色' : '颜色'} colors={COLORS} value={ctx.brushColor} set={ctx.setBrushColor} />
       {showFill && <ColorField label="填充颜色" colors={FILLS} value={ctx.fillColor} set={ctx.setFillColor} />}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
-        <RangeCtl label="粗细" min={1} max={28} step={1} value={ctx.brushWidth||6} onChange={v => ctx.setBrushWidth?.(v)} />
-        {showFill && <Toggle label="透明填充" checked={ctx.fillTransparent??true} onChange={v => ctx.setFillTransparent?.(v)} />}
-        {showArrow && <Toggle label="双箭头" checked={ctx.arrowDoubleEnded??false} onChange={v => ctx.setArrowDoubleEnded?.(v)} />}
+      <div style={fieldGap}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ ...labelStyle, flexShrink: 0 }}>粗细</span>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <Slider min={1} max={28} step={1} value={ctx.brushWidth||6} onChange={v => ctx.setBrushWidth?.(v)} tipFormatter={null} />
+          </div>
+          {showFill && <Toggle label="透明填充" checked={ctx.fillTransparent??true} onChange={v => ctx.setFillTransparent?.(v)} />}
+          {showArrow && <Toggle label="双箭头" checked={ctx.arrowDoubleEnded??false} onChange={v => ctx.setArrowDoubleEnded?.(v)} />}
+        </div>
       </div>
       {showCapStyle && <CapStyle cap={ctx.brushCap||'round'} onCap={v=>ctx.setBrushCap?.(v)} style={ctx.brushStyle||'solid'} onStyle={v=>ctx.setBrushStyle?.(v)} />}
       {showCapStyle && <RangeCtl label="不透明度" min={10} max={100} step={1} value={ctx.brushOpacity||100} onChange={v => ctx.setBrushOpacity?.(v)} />}
