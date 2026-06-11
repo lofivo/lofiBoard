@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Select, Slider } from '@douyinfe/semi-ui';
+import { Button, ColorPicker, Select, Slider, InputNumber, TextArea, Checkbox } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
@@ -61,11 +61,9 @@ function RangeCtl({ label, min, max, step, value, onChange }) {
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
-        style={{ margin: 0, accentColor: 'var(--semi-color-primary)' }} />
+    <Checkbox checked={checked} onChange={e => onChange(e.target.checked)} style={{ flexShrink: 0 }}>
       <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{label}</span>
-    </label>
+    </Checkbox>
   );
 }
 
@@ -210,23 +208,48 @@ function CoordinateCore({ ctx }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <RangeCtl label="单位间距" min={16} max={120} step={1} value={ctx.coordinateUnitSize||40} onChange={v => ctx.setCoordinateUnitSize?.(v)} />
-      <Toggle label="显示网格" checked={ctx.coordinateShowGrid??true} onChange={v => ctx.setCoordinateShowGrid?.(v)} />
-      <Toggle label="显示刻度" checked={ctx.coordinateShowTicks??true} onChange={v => ctx.setCoordinateShowTicks?.(v)} />
-      <Toggle label="显示标签" checked={ctx.coordinateShowLabels??true} onChange={v => ctx.setCoordinateShowLabels?.(v)} />
-      <LabeledColor label="网格颜色" value={ctx.coordinateGridColor||'#e5e7eb'} set={ctx.setCoordinateGridColor} />
-      <LabeledColor label="坐标轴颜色" value={ctx.coordinateAxisColor||'#111827'} set={ctx.setCoordinateAxisColor} />
-      <LabeledColor label="标签颜色" value={ctx.coordinateLabelColor||'#64748b'} set={ctx.setCoordinateLabelColor} />
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <Toggle label="显示网格" checked={ctx.coordinateShowGrid??true} onChange={v => ctx.setCoordinateShowGrid?.(v)} />
+        <Toggle label="显示刻度" checked={ctx.coordinateShowTicks??true} onChange={v => ctx.setCoordinateShowTicks?.(v)} />
+        <Toggle label="显示标签" checked={ctx.coordinateShowLabels??true} onChange={v => ctx.setCoordinateShowLabels?.(v)} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <LabeledColor label="网格" value={ctx.coordinateGridColor||'#e5e7eb'} set={ctx.setCoordinateGridColor} />
+        <LabeledColor label="坐标轴" value={ctx.coordinateAxisColor||'#111827'} set={ctx.setCoordinateAxisColor} />
+        <LabeledColor label="标签" value={ctx.coordinateLabelColor||'#64748b'} set={ctx.setCoordinateLabelColor} />
+      </div>
     </div>
   );
 }
 
+const colorTriggerBase = {
+  width: 26, height: 26, borderRadius: 6, cursor: 'pointer',
+  border: '1px solid var(--semi-color-border)',
+  transition: 'transform 180ms cubic-bezier(0.33,0,0.2,1)',
+  transform: 'scale(1)',
+};
+
 function LabeledColor({ label, value, set }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div style={fieldGap}>
-      <div style={labelStyle}>{label}</div>
-      <input type="color" value={value} onChange={e => set?.(e.target.value)}
-        style={{ width:'100%', height:28, border:'1px solid var(--semi-color-border)', borderRadius:6, padding:2, cursor:'pointer' }} />
-    </div>
+    <ColorPicker
+      value={ColorPicker.colorStringToValue(value)}
+      onChange={(v) => { set?.(v.hex); setOpen(false); }}
+      usePopover={true}
+      popoverProps={{ trigger: 'custom', visible: open, onVisibleChange: setOpen }}
+      alpha={false}
+      eyeDropper={false}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div
+          style={{ ...colorTriggerBase, backgroundColor: value }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        />
+        <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{label}</span>
+      </div>
+    </ColorPicker>
   );
 }
 
@@ -234,18 +257,14 @@ function LabeledColor({ label, value, set }) {
 
 const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-structure', 'deque-structure'];
 
-const btnSmall = {
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  height: 28, padding: '0 10px', cursor: 'pointer', fontSize: 11,
-  border: '1px solid var(--semi-color-border)', borderRadius: 6,
-  background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-1)',
-};
-
 const textAreaStyle = {
-  width: '100%', boxSizing: 'border-box', resize: 'vertical',
-  minHeight: 52, padding: '6px 8px', fontSize: 12, lineHeight: 1.5,
+  width: '100%', boxSizing: 'border-box',
   border: '1px solid var(--semi-color-border)', borderRadius: 6,
   background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
+};
+
+const textAreaInner = {
+  minHeight: 52, padding: '6px 8px', fontSize: 12, lineHeight: 1.5,
   outline: 'none', fontFamily: 'inherit',
 };
 
@@ -314,14 +333,13 @@ function LinearStructureInspector({ ctx }) {
     writeDomValue(findLegacyRoot(), '[data-linear-values-input]', v);
   }, []);
 
-  const handleFieldChange = useCallback((selector, setter) => (e) => {
-    const v = e.target.value;
-    setter(v);
-    writeDomValue(findLegacyRoot(), selector, v);
+  const handleFieldChange = useCallback((selector, setter) => (v) => {
+    const val = typeof v === 'number' ? String(v) : (v?.target?.value ?? v);
+    setter(val);
+    writeDomValue(findLegacyRoot(), selector, val);
   }, []);
 
-  const handleAlgoChange = useCallback((e) => {
-    const v = e.target.value;
+  const handleAlgoChange = useCallback((v) => {
     setAlgo(v);
     writeDomValue(findLegacyRoot(), '[data-array-algorithm-select]', v);
   }, []);
@@ -337,26 +355,27 @@ function LinearStructureInspector({ ctx }) {
       <div style={fieldGap}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={labelStyle}>{valuesTitle}</span>
-          <button type="button" onClick={() => ctx.runAction?.('linear-apply-values')} style={btnSmall}>应用结构</button>
+          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.('linear-apply-values')}>应用结构</Button>
         </div>
-        <textarea value={values} onChange={e => handleValuesChange(e.target.value)} rows={3}
-          spellCheck={false} placeholder="1,2,3" style={textAreaStyle} />
+        <TextArea value={values} onChange={v => handleValuesChange(v)} rows={3}
+          spellCheck={false} placeholder="1,2,3" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         <div style={fieldGap}>
           <div style={labelStyle}>高亮起点</div>
-          <input type="number" min={0} step={1} value={hStart}
+          <InputNumber min={0} step={1} value={Number(hStart) || 0} size="small"
             onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={numberInputStyle} />
         </div>
         <div style={fieldGap}>
           <div style={labelStyle}>高亮终点</div>
-          <input type="number" min={0} step={1} value={hEnd}
+          <InputNumber min={0} step={1} value={Number(hEnd) || 0} size="small"
             onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={numberInputStyle} />
         </div>
         <div style={fieldGap}>
           <div style={labelStyle}>指针</div>
-          <input type="number" min={0} step={1} value={hPointer}
+          <InputNumber min={0} step={1} value={Number(hPointer) || 0} size="small"
             onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={numberInputStyle} />
         </div>
       </div>
@@ -372,18 +391,19 @@ function LinearStructureInspector({ ctx }) {
           { action: 'linear-pointer-show', label: '显示指针' },
           { action: 'linear-pointer-hide', label: '隐藏指针' },
         ].map(a => (
-          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
 
       <div style={fieldGap}>
         <div style={labelStyle}>排序算法</div>
-        <select value={algo} onChange={handleAlgoChange}
-          style={{ ...numberInputStyle, height: 30, cursor: 'pointer' }}>
-          <option value="bubble-sort">冒泡排序</option>
-          <option value="selection-sort">选择排序</option>
-          <option value="insertion-sort">插入排序</option>
-        </select>
+        <Select value={algo} onChange={handleAlgoChange} size="small" style={{ width: '100%' }}
+          optionList={[
+            { value: 'bubble-sort', label: '冒泡排序' },
+            { value: 'selection-sort', label: '选择排序' },
+            { value: 'insertion-sort', label: '插入排序' },
+          ]} />
         <div style={{ color: 'var(--semi-color-text-2)', fontSize: 11, lineHeight: 1.4 }}>{algoStatus || '选择数组后开始演示'}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {[
@@ -394,7 +414,8 @@ function LinearStructureInspector({ ctx }) {
             { action: 'array-algorithm-reset', label: '重置' },
             { action: 'array-algorithm-stop', label: '结束' },
           ].map(a => (
-            <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={{ ...btnSmall, height: 26, fontSize: 10 }}>{a.label}</button>
+            <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 26, fontSize: 10, padding: '0 8px' }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
         <div style={fieldGap}>
@@ -461,14 +482,16 @@ function GraphStructureInspector({ ctx }) {
       <div style={fieldGap}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={labelStyle}>当前图结构</span>
-          <button type="button" onClick={() => ctx.runAction?.('graph-apply-structure')} style={btnSmall}>应用结构</button>
+          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.('graph-apply-structure')}>应用结构</Button>
         </div>
-        <textarea value={input} onChange={e => handleInputChange(e.target.value)} rows={5}
-          spellCheck={false} placeholder="A->B&#10;A-C" style={textAreaStyle} />
+        <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
+          spellCheck={false} placeholder="A->B&#10;A-C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {GRAPH_ACTIONS_FULL.map(a => (
-          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
     </div>
@@ -524,14 +547,16 @@ function TreeStructureInspector({ ctx }) {
       <div style={fieldGap}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={labelStyle}>当前树结构</span>
-          <button type="button" onClick={() => ctx.runAction?.('tree-apply-structure')} style={btnSmall}>应用结构</button>
+          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.('tree-apply-structure')}>应用结构</Button>
         </div>
-        <textarea value={input} onChange={e => handleInputChange(e.target.value)} rows={5}
-          spellCheck={false} placeholder="A->B&#10;A->C" style={textAreaStyle} />
+        <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
+          spellCheck={false} placeholder="A->B&#10;A->C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {actions.map(a => (
-          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
     </div>

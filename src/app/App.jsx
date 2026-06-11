@@ -10,6 +10,7 @@ import { StylePanelToggle } from './components/StylePanel';
 import LayerPanel from './components/LayerPanel';
 import { LayerPanelToggle } from './components/LayerPanel';
 import ContextMenu from './components/ContextMenu';
+import StructurePanel from './components/StructurePanel';
 
 export default function App() {
   const legacyRootRef = useRef(null);
@@ -31,7 +32,8 @@ export default function App() {
   const [layers, setLayers] = useState([]);
   const [selectedLayerIds, setSelectedLayerIds] = useState([]);
   const [structureSelection, setStructureSelection] = useState('none');
-  const [showShapePopover, setShowShapePopover] = useState(false);
+  const [shapePopoverVisible, setShapePopoverVisible] = useState(false);
+  const [structurePanelVisible, setStructurePanelVisible] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
@@ -109,6 +111,7 @@ export default function App() {
       '.topbar', '.tool-dock',
       '.style-panel', '.layer-panel',
       '.context-menu',
+      '.shape-popover', '.structure-panel',
       '.edge-panel-toggle-left', '.edge-panel-toggle-right',
     ];
     const applyHide = () => {
@@ -160,11 +163,6 @@ export default function App() {
           setBackgroundModeState((prev) => (prev !== bg ? bg : prev));
           const tool = container.dataset.tool;
           if (tool) setCurrentTool((prev) => (prev !== tool ? tool : prev));
-        }
-        const shapePopover = legacyRoot.querySelector('[data-shape-popover]');
-        if (shapePopover) {
-          const visible = !shapePopover.hasAttribute('hidden');
-          setShowShapePopover((prev) => (prev !== visible ? visible : prev));
         }
         const layersData = legacyRoot._getLayersData?.();
         if (layersData) {
@@ -253,14 +251,23 @@ export default function App() {
     const root = getLegacyRoot();
     if (!root) return;
     setCurrentTool(tool);
+    if (tool !== 'shape') setShapePopoverVisible(false);
+    if (tool !== 'structure') setStructurePanelVisible(false);
     const btn = root.querySelector(`[data-tool="${tool}"]`);
     if (btn) {
       btn.click();
-      if (tool === 'shape') root._showShapePopover?.();
       return;
     }
     const actionBtn = root.querySelector(`[data-tool-action="${tool}"]`);
     if (actionBtn) actionBtn.click();
+  }, [getLegacyRoot]);
+
+  const selectShape = useCallback((shapeTool) => {
+    const root = getLegacyRoot();
+    if (!root) return;
+    const btn = root.querySelector(`[data-shape-tool="${shapeTool}"]`);
+    if (btn) btn.click();
+    setShapePopoverVisible(false);
   }, [getLegacyRoot]);
 
   const zoomBy = useCallback((dir) => {
@@ -309,7 +316,7 @@ export default function App() {
   const contextValue = useMemo(() => ({
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
-    layerPanelCollapsed, layers, structureSelection, showShapePopover,
+    layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     contextMenuVisible, contextMenuPos,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
@@ -320,6 +327,7 @@ export default function App() {
     selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
+    selectShape,
     setBackgroundMode: handleSetBackgroundMode,
     setStylePanelCollapsed, setLayerPanelCollapsed,
     setBrushColor: setBrushColorSynced, setBrushWidth: setBrushWidthSynced,
@@ -339,10 +347,11 @@ export default function App() {
     setCoordinateShowTicks: setCoordinateShowTicksSynced,
     setCoordinateShowLabels: setCoordinateShowLabelsSynced,
     setCoordinateGridColor, setCoordinateAxisColor, setCoordinateLabelColor,
+    setShapePopoverVisible, setStructurePanelVisible,
   }), [
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
-    layerPanelCollapsed, layers, structureSelection, showShapePopover,
+    layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     contextMenuVisible, contextMenuPos,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
@@ -353,6 +362,7 @@ export default function App() {
     selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
+    selectShape,
     handleSetBackgroundMode,
     setStylePanelCollapsed, setLayerPanelCollapsed,
     setBrushColorSynced, setBrushWidthSynced, setBrushOpacitySynced, setBrushCapSynced, setBrushStyleSynced,
@@ -371,6 +381,7 @@ export default function App() {
         <LayerPanelToggle collapsed={layerPanelCollapsed} onClick={() => setLayerPanelCollapsed(false)} />
         <div ref={legacyRootRef} style={{ position: 'fixed', inset: 0, zIndex: 'auto', overflow: 'hidden' }} />
         <ToolDock />
+        <StructurePanel />
         <StatusBar />
         <ContextMenu />
       </div>
