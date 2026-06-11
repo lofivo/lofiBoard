@@ -6,7 +6,6 @@ import Topbar from './components/Topbar';
 import ToolDock from './components/ToolDock';
 import StatusBar from './components/StatusBar';
 import StylePanel from './components/StylePanel';
-import { StylePanelToggle } from './components/StylePanel';
 import LayerPanel from './components/LayerPanel';
 import { LayerPanelToggle } from './components/LayerPanel';
 import ContextMenu from './components/ContextMenu';
@@ -36,6 +35,7 @@ export default function App() {
   const [structurePanelVisible, setStructurePanelVisible] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [selectionCaps, setSelectionCaps] = useState({});
 
   const [brushColor, setBrushColor] = useState('#111827');
   const [brushWidth, setBrushWidth] = useState(6);
@@ -155,6 +155,21 @@ export default function App() {
         setPanelMode((prev) => (prev !== mode ? mode : prev));
         const shape = legacyRoot.dataset.activeShape || 'rect';
         setActiveShape((prev) => (prev !== shape ? shape : prev));
+        const caps = {
+          text: legacyRoot.dataset.selectionHasText === 'true',
+          sticky: legacyRoot.dataset.selectionHasSticky === 'true',
+          drawing: legacyRoot.dataset.selectionHasDrawing === 'true',
+          stroke: legacyRoot.dataset.selectionHasStroke === 'true',
+          fillShape: legacyRoot.dataset.selectionHasFillShape === 'true',
+          arrow: legacyRoot.dataset.selectionHasArrow === 'true',
+          coordinate: legacyRoot.dataset.selectionHasCoordinate === 'true',
+        };
+        setSelectionCaps((prev) => {
+          const keys = Object.keys(caps);
+          for (const k of keys) { if (prev[k] !== caps[k]) return caps; }
+          for (const k of Object.keys(prev)) { if (caps[k] === undefined) return caps; }
+          return prev;
+        });
         const structure = legacyRoot.dataset.structureSelection || 'none';
         setStructureSelection((prev) => (prev !== structure ? structure : prev));
         const container = legacyRoot.querySelector('#stage-container');
@@ -317,7 +332,7 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    contextMenuVisible, contextMenuPos,
+    contextMenuVisible, contextMenuPos, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
     textBold, textItalic, textUnderline, textStrike,
@@ -352,7 +367,7 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    contextMenuVisible, contextMenuPos,
+    contextMenuVisible, contextMenuPos, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
     textBold, textItalic, textUnderline, textStrike,
@@ -376,7 +391,6 @@ export default function App() {
       <div className="app-shell">
         <Topbar />
         <StylePanel />
-        <StylePanelToggle collapsed={stylePanelCollapsed} onClick={() => setStylePanelCollapsed(false)} />
         <LayerPanel />
         <LayerPanelToggle collapsed={layerPanelCollapsed} onClick={() => setLayerPanelCollapsed(false)} />
         <div ref={legacyRootRef} style={{ position: 'fixed', inset: 0, zIndex: 'auto', overflow: 'hidden' }} />
