@@ -2315,8 +2315,8 @@ button {
 }
 
 .semi-slider-handle {
-  width: 24px;
-  height: 24px;
-  margin-top: 3px;
+  width: 20px;
+  height: 20px;
+  margin-top: 5px;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.15) !important;
 }

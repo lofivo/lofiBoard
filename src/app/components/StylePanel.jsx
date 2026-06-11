@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Select, Slider } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
@@ -232,73 +232,323 @@ function LabeledColor({ label, value, set }) {
 
 /* ---- mode → inspector dispatch ---- */
 
-const LINEAR_ACTIONS = [
-  { action: 'array-highlight', label: '应用高亮' },
-  { action: 'array-clear-highlight', label: '清除高亮' },
-  { action: 'linear-index-zero', label: '0 下标' },
-  { action: 'linear-index-one', label: '1 下标' },
-  { action: 'linear-index-show', label: '显示下标' },
-  { action: 'linear-index-hide', label: '隐藏下标' },
-  { action: 'linear-pointer-show', label: '显示指针' },
-  { action: 'linear-pointer-hide', label: '隐藏指针' },
-];
+const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-structure', 'deque-structure'];
 
-const GRAPH_ACTIONS = [
+const btnSmall = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  height: 28, padding: '0 10px', cursor: 'pointer', fontSize: 11,
+  border: '1px solid var(--semi-color-border)', borderRadius: 6,
+  background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-1)',
+};
+
+const textAreaStyle = {
+  width: '100%', boxSizing: 'border-box', resize: 'vertical',
+  minHeight: 52, padding: '6px 8px', fontSize: 12, lineHeight: 1.5,
+  border: '1px solid var(--semi-color-border)', borderRadius: 6,
+  background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
+  outline: 'none', fontFamily: 'inherit',
+};
+
+const numberInputStyle = {
+  width: '100%', boxSizing: 'border-box', height: 28, padding: '0 8px', fontSize: 12,
+  border: '1px solid var(--semi-color-border)', borderRadius: 6,
+  background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
+  outline: 'none', fontFamily: 'inherit',
+};
+
+function readDom(root, selector, prop) {
+  const el = root?.querySelector(selector);
+  return el ? (prop ? el[prop] : el.value) : '';
+}
+
+function writeDomValue(root, selector, value) {
+  const el = root?.querySelector(selector);
+  if (!el) return;
+  el.value = value;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function findLegacyRoot() {
+  const container = document.querySelector('#stage-container');
+  return container?.parentElement ?? null;
+}
+
+/* ---- Linear Structure Inspector ---- */
+
+function LinearStructureInspector({ ctx }) {
+  const [values, setValues] = useState('');
+  const [valuesTitle, setValuesTitle] = useState('当前结构');
+  const [hStart, setHStart] = useState('0');
+  const [hEnd, setHEnd] = useState('0');
+  const [hPointer, setHPointer] = useState('0');
+  const [algo, setAlgo] = useState('bubble-sort');
+  const [algoStatus, setAlgoStatus] = useState('');
+  const [algoSpeed, setAlgoSpeed] = useState('1');
+
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+
+  useEffect(() => {
+    const sync = () => {
+      const root = findLegacyRoot();
+      if (!root) return;
+      const t = ctxRef.current.structureSelection || 'none';
+      if (!LINEAR_STRUCTURE_TYPES.includes(t)) return;
+      setValues(prev => { const v = readDom(root, '[data-linear-values-input]'); return prev !== v ? v : prev; });
+      setValuesTitle(prev => { const v = readDom(root, '[data-linear-values-title]', 'textContent') || '当前结构'; return prev !== v ? v : prev; });
+      setHStart(prev => { const v = readDom(root, '[data-linear-field="highlight-start"]'); return prev !== v ? v : prev; });
+      setHEnd(prev => { const v = readDom(root, '[data-linear-field="highlight-end"]'); return prev !== v ? v : prev; });
+      setHPointer(prev => { const v = readDom(root, '[data-linear-field="highlight-pointer"]'); return prev !== v ? v : prev; });
+      setAlgo(prev => { const v = readDom(root, '[data-array-algorithm-select]'); return prev !== v ? v : prev; });
+      setAlgoStatus(prev => { const v = readDom(root, '[data-array-algorithm-status]', 'textContent'); return prev !== v ? v : prev; });
+      setAlgoSpeed(prev => { const v = readDom(root, '[data-array-algorithm-speed]'); return prev !== v ? v : prev; });
+    };
+    sync();
+    const id = setInterval(sync, 150);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleValuesChange = useCallback((v) => {
+    setValues(v);
+    writeDomValue(findLegacyRoot(), '[data-linear-values-input]', v);
+  }, []);
+
+  const handleFieldChange = useCallback((selector, setter) => (e) => {
+    const v = e.target.value;
+    setter(v);
+    writeDomValue(findLegacyRoot(), selector, v);
+  }, []);
+
+  const handleAlgoChange = useCallback((e) => {
+    const v = e.target.value;
+    setAlgo(v);
+    writeDomValue(findLegacyRoot(), '[data-array-algorithm-select]', v);
+  }, []);
+
+  const handleSpeedChange = useCallback((v) => {
+    const val = String(v);
+    setAlgoSpeed(val);
+    writeDomValue(findLegacyRoot(), '[data-array-algorithm-speed]', val);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={fieldGap}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={labelStyle}>{valuesTitle}</span>
+          <button type="button" onClick={() => ctx.runAction?.('linear-apply-values')} style={btnSmall}>应用结构</button>
+        </div>
+        <textarea value={values} onChange={e => handleValuesChange(e.target.value)} rows={3}
+          spellCheck={false} placeholder="1,2,3" style={textAreaStyle} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        <div style={fieldGap}>
+          <div style={labelStyle}>高亮起点</div>
+          <input type="number" min={0} step={1} value={hStart}
+            onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={numberInputStyle} />
+        </div>
+        <div style={fieldGap}>
+          <div style={labelStyle}>高亮终点</div>
+          <input type="number" min={0} step={1} value={hEnd}
+            onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={numberInputStyle} />
+        </div>
+        <div style={fieldGap}>
+          <div style={labelStyle}>指针</div>
+          <input type="number" min={0} step={1} value={hPointer}
+            onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={numberInputStyle} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {[
+          { action: 'array-highlight', label: '应用高亮' },
+          { action: 'array-clear-highlight', label: '清除高亮' },
+          { action: 'linear-index-zero', label: '0 下标' },
+          { action: 'linear-index-one', label: '1 下标' },
+          { action: 'linear-index-show', label: '显示下标' },
+          { action: 'linear-index-hide', label: '隐藏下标' },
+          { action: 'linear-pointer-show', label: '显示指针' },
+          { action: 'linear-pointer-hide', label: '隐藏指针' },
+        ].map(a => (
+          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+        ))}
+      </div>
+
+      <div style={fieldGap}>
+        <div style={labelStyle}>排序算法</div>
+        <select value={algo} onChange={handleAlgoChange}
+          style={{ ...numberInputStyle, height: 30, cursor: 'pointer' }}>
+          <option value="bubble-sort">冒泡排序</option>
+          <option value="selection-sort">选择排序</option>
+          <option value="insertion-sort">插入排序</option>
+        </select>
+        <div style={{ color: 'var(--semi-color-text-2)', fontSize: 11, lineHeight: 1.4 }}>{algoStatus || '选择数组后开始演示'}</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {[
+            { action: 'array-algorithm-start', label: '开始' },
+            { action: 'array-algorithm-prev', label: '上一步' },
+            { action: 'array-algorithm-next', label: '下一步' },
+            { action: 'array-algorithm-play', label: '播放' },
+            { action: 'array-algorithm-reset', label: '重置' },
+            { action: 'array-algorithm-stop', label: '结束' },
+          ].map(a => (
+            <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={{ ...btnSmall, height: 26, fontSize: 10 }}>{a.label}</button>
+          ))}
+        </div>
+        <div style={fieldGap}>
+          <div style={labelStyle}>速度</div>
+          <Slider min={0.5} max={3} step={0.5} value={Number(algoSpeed) || 1} onChange={handleSpeedChange} tipFormatter={null} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Graph Structure Inspector ---- */
+
+const GRAPH_ACTIONS_FULL = [
   { action: 'graph-add-node', label: '加点' },
   { action: 'graph-add-edge', label: '连边' },
   { action: 'graph-connect-mode', label: '点选连边' },
+  { action: 'graph-add-edge-input', label: '输入连边' },
   { action: 'graph-delete-node', label: '删点' },
   { action: 'graph-delete-edge', label: '删边' },
+  { action: 'graph-edit-edge', label: '改边' },
+  { action: 'graph-directed-on', label: '默认有向' },
+  { action: 'graph-directed-off', label: '默认无向' },
+  { action: 'graph-highlight', label: '图高亮' },
+  { action: 'graph-clear-highlight', label: '清高亮' },
   { action: 'graph-layout-circle', label: '环形布局' },
   { action: 'graph-layout-grid', label: '网格布局' },
   { action: 'graph-layout-layered', label: '分层布局' },
   { action: 'graph-layout-force', label: '力导向' },
+  { action: 'graph-export-edge-list', label: '导出边表' },
+  { action: 'graph-export-adjacency-list', label: '导出邻接表' },
+  { action: 'graph-export-adjacency-matrix', label: '导出矩阵' },
+  { action: 'graph-import-adjacency-list', label: '导入邻接表' },
+  { action: 'graph-import-adjacency-matrix', label: '导入矩阵' },
+  { action: 'graph-reload', label: '图重载' },
 ];
 
-const TREE_ACTIONS = [
+function GraphStructureInspector({ ctx }) {
+  const [input, setInput] = useState('');
+
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+
+  useEffect(() => {
+    const sync = () => {
+      const root = findLegacyRoot();
+      if (!root) return;
+      const t = ctxRef.current.structureSelection || 'none';
+      if (t !== 'graph-structure') return;
+      setInput(prev => { const v = readDom(root, '[data-graph-structure-input]'); return prev !== v ? v : prev; });
+    };
+    sync();
+    const id = setInterval(sync, 150);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleInputChange = useCallback((v) => {
+    setInput(v);
+    writeDomValue(findLegacyRoot(), '[data-graph-structure-input]', v);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={fieldGap}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={labelStyle}>当前图结构</span>
+          <button type="button" onClick={() => ctx.runAction?.('graph-apply-structure')} style={btnSmall}>应用结构</button>
+        </div>
+        <textarea value={input} onChange={e => handleInputChange(e.target.value)} rows={5}
+          spellCheck={false} placeholder="A->B&#10;A-C" style={textAreaStyle} />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {GRAPH_ACTIONS_FULL.map(a => (
+          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Tree Structure Inspector ---- */
+
+const TREE_TRAVERSAL_ACTIONS = [
   { action: 'tree-highlight-level', label: '层序遍历' },
   { action: 'tree-highlight-preorder', label: '前序遍历' },
   { action: 'tree-highlight-postorder', label: '后序遍历' },
   { action: 'tree-clear-highlight', label: '清除高亮' },
 ];
 
-const BINARY_TREE_ACTIONS = [
+const BINARY_TREE_TRAVERSAL_ACTIONS = [
   { action: 'tree-highlight-preorder', label: '前序遍历' },
   { action: 'tree-highlight-inorder', label: '中序遍历' },
   { action: 'tree-highlight-postorder', label: '后序遍历' },
   { action: 'tree-clear-highlight', label: '清除高亮' },
 ];
 
-const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-structure', 'deque-structure'];
+function TreeStructureInspector({ ctx }) {
+  const [input, setInput] = useState('');
+  const [treeKind, setTreeKind] = useState('general');
+
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+
+  useEffect(() => {
+    const sync = () => {
+      const root = findLegacyRoot();
+      if (!root) return;
+      const t = ctxRef.current.structureSelection || 'none';
+      if (t !== 'tree-structure') return;
+      setInput(prev => { const v = readDom(root, '[data-tree-structure-input]'); return prev !== v ? v : prev; });
+      setTreeKind(prev => { const v = root.dataset.treeKind || 'general'; return prev !== v ? v : prev; });
+    };
+    sync();
+    const id = setInterval(sync, 150);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleInputChange = useCallback((v) => {
+    setInput(v);
+    writeDomValue(findLegacyRoot(), '[data-tree-structure-input]', v);
+  }, []);
+
+  const actions = treeKind === 'binary' ? BINARY_TREE_TRAVERSAL_ACTIONS : TREE_TRAVERSAL_ACTIONS;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={fieldGap}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={labelStyle}>当前树结构</span>
+          <button type="button" onClick={() => ctx.runAction?.('tree-apply-structure')} style={btnSmall}>应用结构</button>
+        </div>
+        <textarea value={input} onChange={e => handleInputChange(e.target.value)} rows={5}
+          spellCheck={false} placeholder="A->B&#10;A->C" style={textAreaStyle} />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {actions.map(a => (
+          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={btnSmall}>{a.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---- StructureCore dispatcher ---- */
 
 function StructureCore({ ctx }) {
   const type = ctx.structureSelection || 'none';
 
   if (type === 'none') return <div style={{ padding: 8, color: 'var(--semi-color-text-2)', fontSize: 12 }}>选择一个结构元素</div>;
+  if (LINEAR_STRUCTURE_TYPES.includes(type)) return <LinearStructureInspector ctx={ctx} />;
+  if (type === 'graph-structure') return <GraphStructureInspector ctx={ctx} />;
+  if (type === 'tree-structure') return <TreeStructureInspector ctx={ctx} />;
 
-  let actions = [];
-  if (LINEAR_STRUCTURE_TYPES.includes(type)) actions = LINEAR_ACTIONS;
-  else if (type === 'graph-structure') actions = GRAPH_ACTIONS;
-  else if (type === 'tree-structure') actions = TREE_ACTIONS;
-
-  const actionBtnStyle = {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    height: 28, padding: '0 10px', cursor: 'pointer', fontSize: 11,
-    border: '1px solid var(--semi-color-border)', borderRadius: 6,
-    background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-1)',
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {actions.map((a) => (
-          <button key={a.action} type="button" onClick={() => ctx.runAction?.(a.action)} style={actionBtnStyle}>
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return <div style={{ padding: 8, color: 'var(--semi-color-text-2)', fontSize: 12 }}>选择一个结构元素</div>;
 }
 
 function resolveInspector(mode, shape, ctx) {

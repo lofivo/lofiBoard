@@ -369,7 +369,7 @@ export default function App() {
         <StylePanelToggle collapsed={stylePanelCollapsed} onClick={() => setStylePanelCollapsed(false)} />
         <LayerPanel />
         <LayerPanelToggle collapsed={layerPanelCollapsed} onClick={() => setLayerPanelCollapsed(false)} />
-        <div ref={legacyRootRef} style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden' }} />
+        <div ref={legacyRootRef} style={{ position: 'fixed', inset: 0, zIndex: 'auto', overflow: 'hidden' }} />
         <ToolDock />
         <StatusBar />
         <ContextMenu />
