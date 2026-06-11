@@ -205,18 +205,35 @@ function StickyCore({ ctx }) {
 }
 
 function CoordinateCore({ ctx }) {
+  const [activeColor, setActiveColor] = useState(null);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <RangeCtl label="单位间距" min={16} max={120} step={1} value={ctx.coordinateUnitSize||40} onChange={v => ctx.setCoordinateUnitSize?.(v)} />
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <Toggle label="显示网格" checked={ctx.coordinateShowGrid??true} onChange={v => ctx.setCoordinateShowGrid?.(v)} />
-        <Toggle label="显示刻度" checked={ctx.coordinateShowTicks??true} onChange={v => ctx.setCoordinateShowTicks?.(v)} />
-        <Toggle label="显示标签" checked={ctx.coordinateShowLabels??true} onChange={v => ctx.setCoordinateShowLabels?.(v)} />
+      <div style={fieldGap}>
+        <div style={labelStyle}>显示选项</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Toggle label="网格" checked={ctx.coordinateShowGrid??true} onChange={v => ctx.setCoordinateShowGrid?.(v)} />
+          <Toggle label="刻度" checked={ctx.coordinateShowTicks??true} onChange={v => ctx.setCoordinateShowTicks?.(v)} />
+          <Toggle label="标签" checked={ctx.coordinateShowLabels??true} onChange={v => ctx.setCoordinateShowLabels?.(v)} />
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <LabeledColor label="网格" value={ctx.coordinateGridColor||'#e5e7eb'} set={ctx.setCoordinateGridColor} />
-        <LabeledColor label="坐标轴" value={ctx.coordinateAxisColor||'#111827'} set={ctx.setCoordinateAxisColor} />
-        <LabeledColor label="标签" value={ctx.coordinateLabelColor||'#64748b'} set={ctx.setCoordinateLabelColor} />
+      <div style={fieldGap}>
+        <div style={labelStyle}>颜色设置</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <LabeledColor label="网格" value={ctx.coordinateGridColor||'#e5e7eb'} set={ctx.setCoordinateGridColor}
+            open={activeColor === 'grid'}
+            onToggle={() => setActiveColor(v => v === 'grid' ? null : 'grid')}
+            onClose={() => setActiveColor(v => v === 'grid' ? null : v)} />
+          <LabeledColor label="坐标轴" value={ctx.coordinateAxisColor||'#111827'} set={ctx.setCoordinateAxisColor}
+            open={activeColor === 'axis'}
+            onToggle={() => setActiveColor(v => v === 'axis' ? null : 'axis')}
+            onClose={() => setActiveColor(v => v === 'axis' ? null : v)} />
+          <LabeledColor label="标签" value={ctx.coordinateLabelColor||'#64748b'} set={ctx.setCoordinateLabelColor}
+            open={activeColor === 'label'}
+            onToggle={() => setActiveColor(v => v === 'label' ? null : 'label')}
+            onClose={() => setActiveColor(v => v === 'label' ? null : v)} />
+        </div>
       </div>
     </div>
   );
@@ -229,14 +246,13 @@ const colorTriggerBase = {
   transform: 'scale(1)',
 };
 
-function LabeledColor({ label, value, set }) {
-  const [open, setOpen] = useState(false);
+function LabeledColor({ label, value, set, open, onToggle, onClose }) {
   return (
     <ColorPicker
       value={ColorPicker.colorStringToValue(value)}
-      onChange={(v) => { set?.(v.hex); setOpen(false); }}
+      onChange={(v) => { set?.(v.hex); }}
       usePopover={true}
-      popoverProps={{ trigger: 'custom', visible: open, onVisibleChange: setOpen }}
+      popoverProps={{ trigger: 'custom', visible: open, onVisibleChange: (v) => { if (!v) onClose?.(); } }}
       alpha={false}
       eyeDropper={false}
     >
@@ -245,11 +261,28 @@ function LabeledColor({ label, value, set }) {
           style={{ ...colorTriggerBase, backgroundColor: value }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+          onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
         />
         <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{label}</span>
       </div>
     </ColorPicker>
+  );
+}
+
+/* ---- Multi Inspector ---- */
+
+function MultiInspector({ ctx }) {
+  const caps = ctx.selectionCaps || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {(caps.drawing || caps.stroke) && (
+        <BrushCore ctx={ctx} showFill={caps.fillShape} showArrow={caps.arrow} showCapStyle={caps.stroke} />
+      )}
+      {caps.text && <TextCore ctx={ctx} />}
+      {caps.sticky && <StickyCore ctx={ctx} />}
+      {caps.coordinate && <CoordinateCore ctx={ctx} />}
+    </div>
   );
 }
 
@@ -602,7 +635,7 @@ function resolveInspector(mode, shape, ctx) {
     case 'coordinate':
       return <CoordinateCore ctx={ctx} />;
     case 'multi':
-      return <BrushCore ctx={ctx} showFill={false} showArrow={false} showCapStyle={false} />;
+      return <MultiInspector ctx={ctx} />;
     case 'structure':
       return <StructureCore ctx={ctx} />;
     default:
@@ -633,16 +666,12 @@ export default function StylePanel() {
   // Hide panel entirely when mode is hidden and no tool preset should show
   const shouldShow = mode !== 'hidden' || ctx.currentTool === 'text' || ctx.currentTool === 'sticky';
 
-  if (!shouldShow) {
-    return (
-      <StylePanelToggle collapsed={collapsed} onClick={() => ctx.setStylePanelCollapsed?.(false)} />
-    );
-  }
+  if (!shouldShow) return null;
 
   const panelTransform = collapsed ? 'translate(calc(-100% - 20px), -50%)' : 'translate(0, -50%)';
   const inspector = resolveInspector(mode, shape, ctx);
 
-  if (!inspector) return <StylePanelToggle collapsed={collapsed} onClick={() => ctx.setStylePanelCollapsed?.(false)} />;
+  if (!inspector) return null;
 
   return (
     <>

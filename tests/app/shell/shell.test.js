@@ -2128,4 +2128,18 @@ describe("app shell", () => {
     expect(transformerSource).toContain("function clampAnchorDrag(oldAbsPos, newAbsPos)");
     expect(transformerSource).toContain("return clampTransformerAnchorDragBySize({");
   });
+
+  it("prevents CoordinateCore ColorPicker flash by only closing on visibleChange(false)", () => {
+    const stylePanelSource = readFileSync(new URL("../../../src/app/components/StylePanel.jsx", import.meta.url), "utf8");
+
+    // ColorPicker onVisibleChange must only close when v is false
+    expect(stylePanelSource).toContain("onVisibleChange: (v) => { if (!v) onClose?.(); }");
+    // activeColor state at CoordinateCore level for mutual exclusion
+    expect(stylePanelSource).toContain("const [activeColor, setActiveColor] = useState(null)");
+    // LabeledColor uses separate onToggle (click) and onClose (visibleChange)
+    expect(stylePanelSource).toContain("function LabeledColor({ label, value, set, open, onToggle, onClose })");
+    // onClose only clears its own key, avoiding cross-key clash
+    expect(stylePanelSource).toContain("onClose={() => setActiveColor(v => v === 'grid' ? null : v)}");
+  });
+
 });
