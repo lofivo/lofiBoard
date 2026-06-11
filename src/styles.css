@@ -1328,6 +1328,8 @@ button {
 .brush-color-grid {
   grid-template-columns: repeat(6, 1fr) 1px 1fr;
   align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
 }
 
 .brush-color-divider {
@@ -1436,60 +1438,107 @@ button {
 
 .brush-color-swatch {
   position: relative;
-  display: grid;
-  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--swatch-color);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .brush-custom-color {
   position: relative;
-  overflow: hidden;
+  width: 26px;
+  height: 26px;
   padding: 0;
   cursor: pointer;
-}
-
-.brush-color-swatch::before {
-  content: "";
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--fluent-stroke);
-  border-radius: 7px;
-  background: var(--swatch-color);
-}
-
-.brush-custom-color::before {
-  content: "";
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--fluent-stroke);
-  border-radius: 7px;
-  background: #ffffff;
-  box-shadow:
-    inset 7px 0 0 #ef4444,
-    inset 11px 0 0 #f59e0b,
-    inset 15px 0 0 #22c55e,
-    inset 18px 0 0 #2563eb;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 .brush-custom-color input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 26px;
+  height: 26px;
   border: 0;
   padding: 0;
-  opacity: 0;
+  border-radius: 50%;
   cursor: pointer;
+  opacity: 1;
+}
+
+.brush-custom-color input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.brush-custom-color input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.brush-custom-color input::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.color-custom-picker input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-custom-picker input::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+.color-custom-picker input::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
 }
 
 .brush-preset-button:hover,
-.brush-color-swatch:hover,
-.brush-custom-color:hover,
-.brush-preset-button.active,
-.brush-color-swatch.active,
-.brush-custom-color.active {
+.brush-preset-button.active {
   color: var(--fluent-text-primary);
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.brush-color-swatch:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.brush-custom-color:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.color-preset-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-preset-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.color-custom-picker {
+  transition: transform 0.15s ease;
+}
+
+.color-custom-picker:hover {
+  transform: scale(1.15);
+}
+
+.brush-color-swatch.active {
+  box-shadow: 0 0 0 2px var(--fluent-accent), 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.brush-custom-color.active {
+  box-shadow: 0 0 0 2px var(--fluent-accent), 0 0 0 4px rgba(37, 99, 235, 0.15);
 }
 
 .brush-style-preset.active {

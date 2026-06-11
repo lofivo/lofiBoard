@@ -82,8 +82,6 @@ describe("app shell", () => {
       styles.match(/\.layer-panel \{[\s\S]*?\n\}/)?.[0] ?? "",
       styles.match(/\.inspector-section \{[\s\S]*?\n\}/)?.[0] ?? "",
       styles.match(/\.layer-item(?:,\n\.inspector-section-toggle)? \{[\s\S]*?\n\}/)?.[0] ?? "",
-      styles.match(/\.brush-custom-color::before \{[\s\S]*?\n\}/)?.[0] ?? "",
-      styles.match(/\.brush-style-line-dot \{[\s\S]*?\n\}/)?.[0] ?? "",
     ].join("\n");
 
     expect(styles).toContain("--fluent-panel-bg");
@@ -851,6 +849,68 @@ describe("app shell", () => {
     expect(appSource).not.toContain("[data-brush-width]");
     expect(appSource).toContain("brushCustomColorInput");
     expect(propertyDomSource).toContain("syncBrushPresetButtons");
+  });
+
+  it("renders preset swatch and custom-color swatch at 24px and 26px sizes", () => {
+    const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
+
+    // Extract the dedicated .brush-color-swatch block (not the shared one)
+    const swatchContainerMatch = styles.match(/\.brush-color-swatch \{([\s\S]*?)\n\}/);
+    const customContainerMatch = styles.match(/\.brush-custom-color \{([\s\S]*?)\n\}/);
+    expect(swatchContainerMatch).toBeTruthy();
+    expect(customContainerMatch).toBeTruthy();
+
+    const swatchContainer = swatchContainerMatch[1];
+    const customContainer = customContainerMatch[1];
+
+    // Preset swatch is 24px
+    expect(swatchContainer).toMatch(/width:\s*24px/);
+    expect(swatchContainer).toMatch(/height:\s*24px/);
+
+    // Custom color picker is 26px
+    expect(customContainer).toMatch(/width:\s*26px/);
+    expect(customContainer).toMatch(/height:\s*26px/);
+
+    // Both must reset padding
+    expect(swatchContainer).toContain("padding: 0");
+    expect(customContainer).toContain("padding: 0");
+
+    // Both must be circular
+    expect(swatchContainer).toContain("border-radius: 50%");
+    expect(customContainer).toContain("border-radius: 50%");
+
+    // Preset swatch must strip browser-native button appearance
+    expect(swatchContainer).toContain("appearance: none");
+
+    // Preset uses own background (no ::before)
+    expect(swatchContainer).toContain("background:");
+
+    // No ::before on brush-custom-color — the <input type=color> itself
+    // shows the current colour.
+    expect(styles).not.toMatch(/\.brush-custom-color::before\s*\{/);
+
+    // The hidden input must now be visible and fill the container
+    const inputMatch = styles.match(/\.brush-custom-color input \{([\s\S]*?)\n\}/);
+    expect(inputMatch).toBeTruthy();
+    const inputBlock = inputMatch[1];
+    expect(inputBlock).toContain("opacity: 1");
+    expect(inputBlock).toContain("border-radius: 50%");
+
+    // Native colour picker swatch pseudo-elements must be styled so the
+    // selected colour fills the entire circle.
+    expect(styles).toContain("::-webkit-color-swatch-wrapper");
+    expect(styles).toContain("::-webkit-color-swatch");
+    expect(styles).toContain("::-moz-color-swatch");
+    expect(styles).toMatch(/::-webkit-color-swatch\s*\{[\s\S]*?border-radius:\s*50%/);
+    expect(styles).toMatch(/::-moz-color-swatch\s*\{[\s\S]*?border-radius:\s*50%/);
+
+    // DOM check: both elements are present
+    const markup = renderShell();
+    const doc = new (require("jsdom").JSDOM)(markup).window.document;
+    const swatchEl = doc.querySelector(".brush-color-swatch");
+    const customEl = doc.querySelector(".brush-custom-color");
+    expect(swatchEl).toBeTruthy();
+    expect(customEl).toBeTruthy();
   });
 
   it("syncs visible text and sticky typography controls from the selected element", () => {

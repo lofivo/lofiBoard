@@ -28,24 +28,23 @@ const FONTS = [
 const labelStyle = { color: 'var(--semi-color-text-2)', fontSize: 12, fontWeight: 600, lineHeight: 1.1 };
 const fieldGap = { display: 'flex', flexDirection: 'column', gap: 6 };
 
-function ColorField({ label, dual, colors, value, set }) {
+function ColorField({ label, colors, value, set }) {
   return (
     <div style={fieldGap}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, ...labelStyle }}>
         <span>{label}</span>
-        {dual && <span style={{ fontWeight: 400, color: 'var(--semi-color-text-3)' }}>{dual}</span>}
       </div>
       <div role="group" style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         {colors.map(c => (
           <button key={c} onClick={() => set?.(c)} title={c}
-            style={{ width: 24, height: 24, padding: 0, cursor: 'pointer', border: 'none', borderRadius: 6,
-              backgroundColor: c, boxShadow: value === c ? `0 0 0 2px var(--semi-color-primary)` : `0 0 0 1px var(--semi-color-border)` }} />
+            className="color-preset-btn" style={{ width: 24, height: 24, padding: 0, cursor: 'pointer', border: 'none', borderRadius: 6,
+              backgroundColor: c, boxShadow: value === c ? `0 0 0 2px var(--semi-color-primary)` : `inset 0 0 0 1px rgba(0,0,0,0.15)` }} />
         ))}
         <div style={{ width: 1, height: 20, backgroundColor: 'var(--semi-color-border)', margin: '0 3px', flex: 'none' }} />
-        <label style={{ display: 'flex' }}>
+        <span className="color-custom-picker" style={{ display: 'flex', width: 26, height: 26, border: '1px solid rgba(0,0,0,0.15)', borderRadius: 6, overflow: 'hidden' }}>
           <input type="color" value={value || '#111827'} onChange={e => set?.(e.target.value)}
-            style={{ width: 24, height: 24, padding: 2, border: '1px solid var(--semi-color-border)', borderRadius: 6, cursor: 'pointer', background: 'var(--semi-color-fill-0)' }} />
-        </label>
+            style={{ width: '100%', height: '100%', padding: 0, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'transparent' }} />
+        </span>
       </div>
     </div>
   );
@@ -156,7 +155,7 @@ function BrushCore({ ctx, showFill, showArrow, showCapStyle }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} />
-      <ColorField label="颜色" dual={showFill ? '边框颜色' : undefined} colors={COLORS} value={ctx.brushColor} set={ctx.setBrushColor} />
+      <ColorField label={showFill ? '边框颜色' : '颜色'} colors={COLORS} value={ctx.brushColor} set={ctx.setBrushColor} />
       {showFill && <ColorField label="填充颜色" colors={FILLS} value={ctx.fillColor} set={ctx.setFillColor} />}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
         <RangeCtl label="粗细" min={1} max={28} step={1} value={ctx.brushWidth||6} onChange={v => ctx.setBrushWidth?.(v)} />
