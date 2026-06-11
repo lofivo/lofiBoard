@@ -41,10 +41,20 @@ function ColorField({ label, colors, value, set }) {
               backgroundColor: c, boxShadow: value === c ? `0 0 0 2px var(--semi-color-primary)` : `inset 0 0 0 1px rgba(0,0,0,0.15)` }} />
         ))}
         <div style={{ width: 1, height: 20, backgroundColor: 'var(--semi-color-border)', margin: '0 3px', flex: 'none' }} />
-        <span className="color-custom-picker" style={{ display: 'flex', width: 26, height: 26, border: '1px solid rgba(0,0,0,0.15)', borderRadius: 6, overflow: 'hidden' }}>
-          <input type="color" value={value || '#111827'} onChange={e => set?.(e.target.value)}
-            style={{ width: '100%', height: '100%', padding: 0, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'transparent' }} />
-        </span>
+        <ColorPicker
+          value={ColorPicker.colorStringToValue(value || '#111827')}
+          onChange={(v) => set?.(v.hex)}
+          usePopover={true}
+          popoverProps={{ trigger: 'click' }}
+          alpha={false}
+          eyeDropper={false}
+        >
+          <div
+            style={{ ...colorTriggerBase, backgroundColor: value || '#111827', width: 26, height: 26 }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+          />
+        </ColorPicker>
       </div>
     </div>
   );
