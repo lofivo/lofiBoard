@@ -24,6 +24,7 @@
 20. 修改 `whiteboard-app.js` 初始化顺序、controller 接线或从中抽取 controller 后，必须运行 `tests/app/shell/whiteboard-app-startup.test.js` 或全量测试；只跑子 controller 测试和源码字符串断言无法覆盖 `createWhiteboardApp()` 启动阶段的 TDZ/漏导入错误。
 21. 用户要求“补充项目文档/实现文档/方便后续 AI agent 开发”时，不能只更新 `CONTEXT.md` 或 ADR；应维护 `docs/agents/implementation/` 下的实现导览、代码地图、交互流程和测试指南，并同步 `docs/agents/domain.md` 的读取顺序。
 22. React 替换遗留 DOM 时，给 `legacyRootRef` 设置 `zIndex`（非 `auto`）会创建层叠上下文，导致遗留 DOM 内所有 `position: fixed` 弹窗（如 `.structure-panel`、`.shape-popover`、`.cell-editor` 等）被困在低层层叠上下文中，被 React 面板遮挡。应使用 `zIndex: "auto"` 不创建层叠上下文，让子元素的 z-index 参与根层叠上下文的排列。
+23. Semi `ColorPicker` 用 `trigger="custom"` + `visible` 受控时，`onVisibleChange` 回调在弹窗打开时也会触发（传入 `true`），不能直接将 `onVisibleChange` 设为 toggle 函数，否则打开瞬间被反转导致闪烁消失。应写成 `onVisibleChange: (v) => { if (!v) closeHandler?.(); }`，只在关闭时清空状态，打开回调不做处理。
 
 ## Agent skills
 
