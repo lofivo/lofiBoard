@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, ColorPicker, Select, Slider, InputNumber, TextArea, Checkbox } from '@douyinfe/semi-ui';
+import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
@@ -311,7 +311,7 @@ const textAreaInner = {
   outline: 'none', fontFamily: 'inherit',
 };
 
-const numberInputStyle = {
+const inputStyle = {
   width: '100%', boxSizing: 'border-box', height: 28, padding: '0 8px', fontSize: 12,
   border: '1px solid var(--semi-color-border)', borderRadius: 6,
   background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
@@ -408,22 +408,22 @@ function LinearStructureInspector({ ctx }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         <div style={fieldGap}>
           <div style={labelStyle}>高亮起点</div>
-          <InputNumber min={0} step={1} value={Number(hStart) || 0} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={numberInputStyle} />
+          <Input value={hStart} size="small"
+            onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={inputStyle} />
         </div>
         <div style={fieldGap}>
           <div style={labelStyle}>高亮终点</div>
-          <InputNumber min={0} step={1} value={Number(hEnd) || 0} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={numberInputStyle} />
+          <Input value={hEnd} size="small"
+            onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={inputStyle} />
         </div>
         <div style={fieldGap}>
           <div style={labelStyle}>指针</div>
-          <InputNumber min={0} step={1} value={Number(hPointer) || 0} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={numberInputStyle} />
+          <Input value={hPointer} size="small"
+            onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={inputStyle} />
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
         {[
           { action: 'array-highlight', label: '应用高亮' },
           { action: 'array-clear-highlight', label: '清除高亮' },
@@ -434,7 +434,7 @@ function LinearStructureInspector({ ctx }) {
           { action: 'linear-pointer-show', label: '显示指针' },
           { action: 'linear-pointer-hide', label: '隐藏指针' },
         ].map(a => (
-          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
             onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
@@ -448,7 +448,7 @@ function LinearStructureInspector({ ctx }) {
             { value: 'insertion-sort', label: '插入排序' },
           ]} />
         <div style={{ color: 'var(--semi-color-text-2)', fontSize: 11, lineHeight: 1.4 }}>{algoStatus || '选择数组后开始演示'}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
           {[
             { action: 'array-algorithm-start', label: '开始' },
             { action: 'array-algorithm-prev', label: '上一步' },
@@ -457,7 +457,7 @@ function LinearStructureInspector({ ctx }) {
             { action: 'array-algorithm-reset', label: '重置' },
             { action: 'array-algorithm-stop', label: '结束' },
           ].map(a => (
-            <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 26, fontSize: 10, padding: '0 8px' }}
+            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
@@ -531,9 +531,9 @@ function GraphStructureInspector({ ctx }) {
         <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
           spellCheck={false} placeholder="A->B&#10;A-C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         {GRAPH_ACTIONS_FULL.map(a => (
-          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
             onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
@@ -596,9 +596,9 @@ function TreeStructureInspector({ ctx }) {
         <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
           spellCheck={false} placeholder="A->B&#10;A->C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
         {actions.map(a => (
-          <Button key={a.action} size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
+          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
             onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
         ))}
       </div>
