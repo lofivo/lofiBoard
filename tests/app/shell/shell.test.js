@@ -2142,4 +2142,36 @@ describe("app shell", () => {
     expect(stylePanelSource).toContain("onClose={() => setActiveColor(v => v === 'grid' ? null : v)}");
   });
 
+  it("replaces InputNumber with Input in LinearStructureInspector and uses grid layout with outline button theme", () => {
+    const stylePanelSource = readFileSync(new URL("../../../src/app/components/StylePanel.jsx", import.meta.url), "utf8");
+
+    // Input replaces InputNumber for highlight/pointer fields (no stepper)
+    expect(stylePanelSource).toContain("Input,");
+    expect(stylePanelSource).not.toContain("InputNumber");
+    // Grid layout for shortcut action buttons (4 columns)
+    expect(stylePanelSource).toContain("'repeat(4, 1fr)'");
+    // Grid layout for graph structure buttons (3 columns)
+    expect(stylePanelSource).toContain("'repeat(3, 1fr)'");
+    // Grid layout for tree structure buttons (2 columns)
+    expect(stylePanelSource).toContain("'repeat(2, 1fr)'");
+    // Unified outline button theme for all structure action button groups
+    const outlineMatches = (stylePanelSource.match(/theme="outline" type="tertiary"/g) || []).length;
+    expect(outlineMatches).toBeGreaterThanOrEqual(3);
+  });
+
+  it("uses Card, Divider and modern components in StructurePanel popup", () => {
+    const structurePanelSource = readFileSync(new URL("../../../src/app/components/StructurePanel.jsx", import.meta.url), "utf8");
+
+    // Uses Semi Design Card component for polished container
+    expect(structurePanelSource).toContain("Card, Divider, Space");
+    // Input replaces InputNumber (no stepper)
+    expect(structurePanelSource).not.toContain("InputNumber");
+    // Card with shadow and proper structure
+    expect(structurePanelSource).toContain('shadows="always"');
+    expect(structurePanelSource).toContain("footer=");
+    // Modern button styles in footer
+    expect(structurePanelSource).toContain('theme="outline"');
+    expect(structurePanelSource).toContain('theme="solid" type="primary"');
+  });
+
 });
