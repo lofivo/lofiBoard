@@ -1,4 +1,5 @@
 import { containsRenderableLatex, renderLatexMixedToHtml } from "./latex.js";
+import { getStickyTextInsets } from "../tools/interaction-rules.js";
 
 function hasFontStyleToken(fontStyle, token) {
   return String(fontStyle ?? "").split(/\s+/).includes(token);
@@ -57,10 +58,11 @@ export function getTextOverlayDisplayStyle(element, {
   }
 
   if (element.type === "sticky") {
+    const insets = getStickyTextInsets(element.fontSize);
     return {
       ...baseStyle,
       color: element.textFill ?? "#1f2937",
-      padding: "0",
+      padding: `${insets.y * scale}px ${insets.x * scale}px`,
     };
   }
 

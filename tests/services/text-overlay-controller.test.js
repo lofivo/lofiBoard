@@ -6,6 +6,7 @@ import {
   createTextOverlayController,
   getTextOverlayDisplayStyle,
 } from "../../src/services/text-overlay-controller.js";
+import { getStickyTextInsets } from "../../src/tools/interaction-rules.js";
 
 describe("text-overlay-controller", () => {
   let container;
@@ -167,6 +168,28 @@ describe("text-overlay-controller", () => {
       fontFamily: "Inter, sans-serif",
       fontSize: "22px",
     });
+  });
+
+  it("applies sticky text insets as padding in the DOM overlay", () => {
+    const insets = getStickyTextInsets(stickyElement.fontSize);
+    expect(insets.x).toBe(14);
+    expect(insets.y).toBe(12);
+
+    const style = getTextOverlayDisplayStyle(stickyElement, {
+      containerRect: { left: 0, top: 0 },
+      stage: { x: 0, y: 0, scale: 1 },
+    });
+
+    expect(style.padding).toBe("12px 14px");
+  });
+
+  it("scales sticky text inset padding with stage scale", () => {
+    const style = getTextOverlayDisplayStyle(stickyElement, {
+      containerRect: { left: 0, top: 0 },
+      stage: { x: 0, y: 0, scale: 2 },
+    });
+
+    expect(style.padding).toBe("24px 28px");
   });
 
   it("hides overlays by id", async () => {
