@@ -1414,6 +1414,12 @@ describe("app shell", () => {
     expect(stagePointerSource).toMatch(/if \(!shouldHandlePointerEvent\(event\?\.evt, activeDrawingPointerCapture\?\.pointerId\)\) return false;/);
     expect(stagePointerSource).toMatch(/if \(currentTool === TOOLS\.PEN\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?drawingInteractionController\.startStroke/);
     expect(stagePointerSource).toMatch(/if \(currentTool === TOOLS\.ERASER_STROKE\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?drawingInteractionController\.beginEraser/);
+    // showStrokeEraser must fire before eraseStrokeAt to keep cursor visible during board re-render
+    const eraserPointerDown = stagePointerSource.slice(
+      stagePointerSource.indexOf("if (currentTool === TOOLS.ERASER_STROKE) {"),
+      stagePointerSource.indexOf("if (currentTool === TOOLS.ERASER_OBJECT) {"),
+    );
+    expect(eraserPointerDown.indexOf("showStrokeEraser")).toBeLessThan(eraserPointerDown.indexOf("eraseStrokeAt"));
     expect(stagePointerSource).toMatch(/if \(isShapeTool\(drawingTool\)\) \{[\s\S]*?beginDrawingPointerSession\(event\);[\s\S]*?draftInteractionController\.startShapeDraft/);
     expect(styles).toMatch(/\.stage-container \{[\s\S]*?touch-action: none;/);
   });
@@ -1428,6 +1434,26 @@ describe("app shell", () => {
     expect(drawingSource).toContain("areStrokeFragmentsEquivalent");
     expect(eraseSource).toContain("!areStrokeFragmentsEquivalent(element, fragments)");
     expect(eraseSource).not.toContain("fragments.length !== 1 || fragments[0].points.length !== element.points.length");
+  });
+
+  it("guards pointerleave hideToolCursors behind hasActiveDrawingPointerCapture so eraser stays visible", () => {
+    const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const pointerleaveLine = appSource.slice(
+      appSource.indexOf('"pointerleave"'),
+      appSource.indexOf('"pointerleave"') + 120,
+    );
+    expect(pointerleaveLine).toContain("hasActiveDrawingPointerCapture");
+  });
+
+  it("always calls showStrokeEraser on pointermove during active erasing to track cursor position", () => {
+    const stagePointerSource = readFileSync(new URL("../../../src/app/shell/stage-pointer-controller.js", import.meta.url), "utf8");
+    // Skip the first (hover) block — target the active erasing block
+    const first = stagePointerSource.indexOf("hasActiveEraserSnapshot()) {");
+    const second = stagePointerSource.indexOf("hasActiveEraserSnapshot()) {", first + 1);
+    const activeBlock = stagePointerSource.slice(second, second + 200);
+    // showStrokeEraser must be called unconditionally (no radius guard) to track cursor position
+    expect(activeBlock).toContain("showStrokeEraser(worldPoint, radius)");
+    expect(activeBlock).not.toContain("lastDisplayedEraserRadius");
   });
 
   it("uses scale-aware stroke eraser sizing without the old minimum radius floor", () => {

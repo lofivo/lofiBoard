@@ -1592,7 +1592,11 @@ export function createWhiteboardApp(root) {
     stage.on("pointerdown", stagePointerController.handlePointerDown);
     stage.on("pointermove", stagePointerController.handlePointerMove);
     stage.on("pointerup pointercancel", stagePointerController.handlePointerUp);
-    stage.container().addEventListener("pointerleave", hideToolCursors);
+    stage.container().addEventListener("pointerleave", () => {
+      if (!stagePointerController.hasActiveDrawingPointerCapture()) {
+        hideToolCursors();
+      }
+    });
     stage.container().addEventListener("contextmenu", stagePointerController.handleContextMenu);
 
     selectionTransformEventsController.bindTransformerEvents({

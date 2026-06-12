@@ -157,8 +157,8 @@ export function createStagePointerController({
       const radius = drawingInteractionController.beginEraser(worldPoint);
       enterInteraction(SM.ERASING);
       stage.container().classList.add("is-erasing");
-      drawingInteractionController.eraseStrokeAt(worldPoint, radius);
       showStrokeEraser(worldPoint, radius);
+      drawingInteractionController.eraseStrokeAt(worldPoint, radius);
       return true;
     }
 

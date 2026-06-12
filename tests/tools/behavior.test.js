@@ -53,10 +53,11 @@ describe("tool behavior", () => {
     });
   });
 
-  it("keeps square eraser dash density within a controlled range", () => {
+  it("keeps square eraser dash pattern consistent at all zoom-out levels", () => {
+    // Dash pattern stays fixed regardless of eraser radius — only adjusts for zoom-in
     expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 18, 1).dash).toEqual([2.5, 1.8]);
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 72, 1).dash).toEqual([4.38, 3.15]);
-    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 120, 1).dash).toEqual([5, 3.6]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 72, 1).dash).toEqual([2.5, 1.8]);
+    expect(getSquareEraserPreviewAttrs({ x: 100, y: 80 }, 120, 1).dash).toEqual([2.5, 1.8]);
   });
 
   it("keeps square eraser border spacing stable on screen when zoomed out", () => {

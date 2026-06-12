@@ -64,7 +64,7 @@ function createHarness(overrides = {}) {
     getBrushInputSmoothingValue: () => 0,
     getScale: () => 1,
     getBaseEraserRadius: () => 10,
-    getVisibleEraserRadius: (radius) => radius,
+    getVisibleEraserRadius: overrides.getVisibleEraserRadius ?? ((radius) => radius),
     addElement: callbacks.addElement,
     pushHistory: callbacks.pushHistory,
     renderBoard: callbacks.renderBoard,
@@ -170,5 +170,21 @@ describe("drawing-interaction-controller", () => {
     expect(callbacks.setSelectedIds).toHaveBeenCalledWith(["locked_1"]);
     expect(callbacks.renderBoard).toHaveBeenCalledTimes(1);
     expect(callbacks.pushHistory).toHaveBeenCalledWith("已擦除内容");
+  });
+
+  it("returns raw unscaled radii so showStrokeEraser avoids double-scaling on zoomed-out canvases", () => {
+    const scaleVisual = vi.fn((r) => r / 0.25);
+    const harness = createHarness({
+      getVisibleEraserRadius: scaleVisual,
+    });
+
+    const beginRadius = harness.controller.beginEraser({ x: 50, y: 0 });
+    // beginEraser must return the raw base radius (10), NOT the scaled value (40)
+    expect(beginRadius).toBe(10);
+
+    const updateRadius = harness.controller.updateStrokeEraser({ x: 80, y: 0 });
+    // updateStrokeEraser must return the raw computed radius, NOT scaled by getVisibleEraserRadius
+    expect(updateRadius).toBeGreaterThan(0);
+    expect(scaleVisual).not.toHaveBeenCalled();
   });
 });

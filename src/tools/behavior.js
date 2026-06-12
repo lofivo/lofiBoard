@@ -20,19 +20,14 @@ export function getScaledEraserRadius(radius, scale = 1) {
 export function getSquareEraserPreviewAttrs(center, radius, scale = 1) {
   const safeRadius = Math.max(1, Number(radius) || 1);
   const safeScale = Math.max(0.01, Number(scale) || 1);
-  const screenRadius = safeRadius * safeScale;
-  const densityProgress = Math.min(1, Math.max(0, (screenRadius - 18) / 72));
-  const dashSize = 2.5 + densityProgress * 2.5;
-  const gapSize = 1.8 + densityProgress * 1.8;
-  const dashScale = safeScale <= 1 ? 1 : safeScale;
   return {
     x: center.x - safeRadius,
     y: center.y - safeRadius,
     width: safeRadius * 2,
     height: safeRadius * 2,
     dash: [
-      Number((dashSize / dashScale).toFixed(2)),
-      Number((gapSize / dashScale).toFixed(2)),
+      Number((2.5 / (safeScale <= 1 ? 1 : safeScale)).toFixed(2)),
+      Number((1.8 / (safeScale <= 1 ? 1 : safeScale)).toFixed(2)),
     ],
   };
 }

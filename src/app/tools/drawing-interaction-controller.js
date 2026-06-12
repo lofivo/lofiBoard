@@ -107,7 +107,7 @@ export function createDrawingInteractionController({
     eraseSnapshot = snapshotBoard();
     activeEraserRadius = getBaseEraserRadius();
     lastEraserPoint = { ...worldPoint, time: now() };
-    return getVisibleEraserRadius(activeEraserRadius);
+    return activeEraserRadius;
   }
 
   function eraseStrokeAt(worldPoint, radius) {
@@ -173,10 +173,10 @@ export function createDrawingInteractionController({
 
     const elapsed = Math.max(16, currentTime - lastEraserPoint.time);
     const speed = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) / elapsed;
-    activeEraserRadius = getVisibleEraserRadius(computeEraserRadius({
+    activeEraserRadius = computeEraserRadius({
       baseRadius: getBaseEraserRadius(),
       speed,
-    }));
+    });
     lastEraserPoint = { ...worldPoint, time: currentTime };
     return activeEraserRadius;
   }
