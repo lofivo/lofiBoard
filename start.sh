@@ -21,6 +21,7 @@ if [[ -f "$PID_FILE" ]]; then
 fi
 
 cd "$ROOT_DIR"
+npm install --prefer-offline --no-audit --no-fund
 npm run build
 if command -v setsid >/dev/null 2>&1; then
   nohup setsid npm run preview -- --host "$HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
