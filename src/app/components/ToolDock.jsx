@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { Button, Tooltip, Popover } from '@douyinfe/semi-ui';
+import React, { useCallback, useRef, useState, useLayoutEffect } from 'react';
+import { Button, Tooltip, Card } from '@douyinfe/semi-ui';
 import {
   MousePointer2, Hand, PenLine, Eraser, Trash2,
   Type, StickyNote, Image as ImageIcon, Binary, Shapes,
@@ -55,14 +55,6 @@ const TOOL_BTN_STYLE = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 };
 
-const SHAPE_OPTION_BTN_STYLE = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  height: 36, padding: '0 12px', cursor: 'pointer', fontSize: 13,
-  border: '1px solid var(--semi-color-border)', borderRadius: 8,
-  background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-1)',
-  whiteSpace: 'nowrap',
-};
-
 function ToolIcon({ svg }) {
   return <span className="icon-wrapper" dangerouslySetInnerHTML={{ __html: icon(svg) }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} />;
 }
@@ -74,36 +66,97 @@ export default function ToolDock() {
     ctx.selectShape?.(shapeId);
   }, [ctx]);
 
-  const shapeContent = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 4 }}>
-      {SHAPE_OPTIONS.map(s => (
-        <button key={s.id} type="button" onClick={() => handleShapeClick(s.id)} style={SHAPE_OPTION_BTN_STYLE}>
-          <span dangerouslySetInnerHTML={{ __html: icon(s.svg) }} style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', flexShrink: 0 }} />
-          <span>{s.label}{s.shortcut ? ` (${s.shortcut})` : ''}</span>
-        </button>
-      ))}
-    </div>
-  );
+  const closeShapePopover = useCallback(() => {
+    ctx.setShapePopoverVisible?.(false);
+  }, [ctx]);
+
+  const shapeBtnRef = useRef(null);
+  const [shapePopoverStyle, setShapePopoverStyle] = useState({});
+
+  useLayoutEffect(() => {
+    if (ctx.shapePopoverVisible && shapeBtnRef.current) {
+      const rect = shapeBtnRef.current.getBoundingClientRect();
+      setShapePopoverStyle({
+        bottom: window.innerHeight - rect.top + 8,
+        left: rect.left + rect.width / 2,
+        transform: 'translateX(-50%)',
+      });
+    }
+  }, [ctx.shapePopoverVisible]);
 
   return (
-    <div style={DOCK_STYLE}>
-      {TOOL_CONFIG.map((tool) => {
-        const isActive = tool.id
-          ? (ctx.currentTool === tool.id || (tool.id === 'shape' && SHAPE_SUB_TOOLS.includes(ctx.currentTool)))
-          : false;
-
-        if (tool.id === 'shape') {
-          return (
-            <Popover
-              key="shape"
-              visible={ctx.shapePopoverVisible}
-              trigger="custom"
-              position="top"
-              showArrow
-              content={shapeContent}
-              onClickOutside={() => ctx.setShapePopoverVisible?.(false)}
+    <>
+      {/* Shape popover: fixed card panel */}
+      {ctx.shapePopoverVisible && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 30 }} onClick={closeShapePopover} />
+          <div
+            className="structure-panel-react"
+            style={{
+              position: 'fixed', zIndex: 31,
+              ...shapePopoverStyle,
+            }}
+          >
+            <Card
+              bordered={false}
+              shadows="always"
+              style={{ borderRadius: 16, overflow: 'visible' }}
+              bodyStyle={{ padding: 6 }}
             >
-              <Tooltip content={tool.label} position="top" showArrow={false}>
+              <div className="shape-popover-grid">
+                {SHAPE_OPTIONS.map(s => {
+                  const isShapeActive = ctx.currentTool === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={`shape-option-card${isShapeActive ? ' active' : ''}`}
+                      onClick={() => handleShapeClick(s.id)}
+                    >
+                      <span
+                        className="shape-option-icon"
+                        dangerouslySetInnerHTML={{ __html: icon(s.svg) }}
+                      />
+                      <span className="shape-option-label">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
+
+      <div style={DOCK_STYLE}>
+        {TOOL_CONFIG.map((tool) => {
+          const isActive = tool.id
+            ? (ctx.currentTool === tool.id || (tool.id === 'shape' && SHAPE_SUB_TOOLS.includes(ctx.currentTool)))
+            : false;
+
+          if (tool.id === 'shape') {
+            return (
+              <span key="shape" ref={shapeBtnRef} style={{ display: 'inline-flex' }}>
+                <Tooltip content={tool.label} position="top" showArrow={false}>
+                  <Button
+                    theme={isActive ? 'solid' : 'borderless'}
+                    type={isActive ? 'primary' : 'tertiary'}
+                    size="small"
+                    icon={<ToolIcon svg={tool.svg} />}
+                    aria-label={tool.label}
+                    style={TOOL_BTN_STYLE}
+                    onClick={() => {
+                      ctx.setTool?.('shape');
+                      ctx.setShapePopoverVisible?.(v => !v);
+                    }}
+                  />
+                </Tooltip>
+              </span>
+            );
+          }
+
+          if (tool.id === 'structure') {
+            return (
+              <Tooltip key="structure" content={tool.label} position="top" showArrow={false}>
                 <Button
                   theme={isActive ? 'solid' : 'borderless'}
                   type={isActive ? 'primary' : 'tertiary'}
@@ -112,18 +165,16 @@ export default function ToolDock() {
                   aria-label={tool.label}
                   style={TOOL_BTN_STYLE}
                   onClick={() => {
-                    ctx.setTool?.('shape');
-                    ctx.setShapePopoverVisible?.(v => !v);
+                    ctx.setTool?.('structure');
+                    ctx.setStructurePanelVisible?.(v => !v);
                   }}
                 />
               </Tooltip>
-            </Popover>
-          );
-        }
+            );
+          }
 
-        if (tool.id === 'structure') {
           return (
-            <Tooltip key="structure" content={tool.label} position="top" showArrow={false}>
+            <Tooltip key={tool.id || tool.action} content={tool.label} position="top" showArrow={false}>
               <Button
                 theme={isActive ? 'solid' : 'borderless'}
                 type={isActive ? 'primary' : 'tertiary'}
@@ -132,31 +183,14 @@ export default function ToolDock() {
                 aria-label={tool.label}
                 style={TOOL_BTN_STYLE}
                 onClick={() => {
-                  ctx.setTool?.('structure');
-                  ctx.setStructurePanelVisible?.(v => !v);
+                  if (tool.action) ctx.runAction?.(tool.action);
+                  else ctx.setTool?.(tool.id);
                 }}
               />
             </Tooltip>
           );
-        }
-
-        return (
-          <Tooltip key={tool.id || tool.action} content={tool.label} position="top" showArrow={false}>
-            <Button
-              theme={isActive ? 'solid' : 'borderless'}
-              type={isActive ? 'primary' : 'tertiary'}
-              size="small"
-              icon={<ToolIcon svg={tool.svg} />}
-              aria-label={tool.label}
-              style={TOOL_BTN_STYLE}
-              onClick={() => {
-                if (tool.action) ctx.runAction?.(tool.action);
-                else ctx.setTool?.(tool.id);
-              }}
-            />
-          </Tooltip>
-        );
-      })}
-    </div>
+        })}
+      </div>
+    </>
   );
 }

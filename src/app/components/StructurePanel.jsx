@@ -1,16 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, Tabs, TextArea, Input, Card, Divider, Space } from '@douyinfe/semi-ui';
+import { Button, TextArea, Input, Card, Typography } from '@douyinfe/semi-ui';
+import {
+  BetweenHorizontalEnd, Layers, ListOrdered, ArrowLeftRight,
+  Share2, GitFork, Binary,
+} from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { STRUCTURE_ITEMS } from '../../structures/types.js';
+import { icon } from '../../ui/config.js';
+
+const { Text } = Typography;
 
 const LINEAR_TYPES = new Set(['array', 'stack', 'queue', 'deque', 'tree', 'binary-tree']);
 
-const STRUCTURE_TABS = STRUCTURE_ITEMS.map(item => ({ tab: item.label, itemKey: item.id }));
-
-const INIT_MODE_TABS = [
-  { tab: '手填结构', itemKey: 'manual' },
-  { tab: '随机生成', itemKey: 'random' },
-];
+const STRUCTURE_ICON_MAP = {
+  array: BetweenHorizontalEnd,
+  stack: Layers,
+  queue: ListOrdered,
+  deque: ArrowLeftRight,
+  graph: Share2,
+  tree: GitFork,
+  'binary-tree': Binary,
+};
 
 function findLegacyRoot() {
   const container = document.querySelector('#stage-container');
@@ -112,64 +122,100 @@ export default function StructurePanel() {
   return (
     <>
       <div style={{ position: 'fixed', inset: 0, zIndex: 30 }} onClick={() => ctx.setStructurePanelVisible?.(false)} />
-      <div style={{
-        position: 'fixed', zIndex: 31, bottom: 76, left: '50%',
-        transform: 'translateX(-50%)', width: 360,
-      }}>
+      <div
+        className="structure-panel-react"
+        style={{
+          position: 'fixed', zIndex: 31, bottom: 76, left: '50%',
+          transform: 'translateX(-50%)', width: 392,
+        }}
+      >
         <Card
-          title="结构模板"
-          bordered
+          bordered={false}
           shadows="always"
-          headerStyle={{ padding: '12px 16px' }}
-          bodyStyle={{ padding: '6px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}
-          footerLine
-          footerStyle={{ padding: '8px 16px' }}
+          style={{ borderRadius: 16, overflow: 'visible' }}
+          headerStyle={{ padding: '16px 20px 0' }}
+          bodyStyle={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
+          footerLine={false}
+          footerStyle={{ padding: '0 20px 16px' }}
+          title={
+            <Text weight="bold" style={{ fontSize: 15, color: 'var(--semi-color-text-0)' }}>
+              结构模板
+            </Text>
+          }
           footer={
-            <Space spacing="medium" style={{ justifyContent: 'flex-end', width: '100%' }}>
-              <Button size="small" theme="outline" type="tertiary" style={{ borderRadius: 8 }} onClick={handleCancel}>取消</Button>
-              <Button size="small" theme="solid" type="primary" style={{ borderRadius: 8 }} onClick={handleInsert}>插入</Button>
-            </Space>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button theme="borderless" type="tertiary" style={{ borderRadius: 8 }} onClick={handleCancel}>取消</Button>
+              <Button theme="solid" type="primary" style={{ borderRadius: 8 }} onClick={handleInsert}>插入</Button>
+            </div>
           }
         >
-          <Tabs
-            activeKey={activeType}
-            onChange={handleTypeChange}
-            tabList={STRUCTURE_TABS}
-            type="card"
-            size="small"
-            tabPaneMotion={false}
-          />
+          {/* Structure type card grid */}
+          <div className="structure-type-grid">
+            {STRUCTURE_ITEMS.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={`structure-type-card${activeType === item.id ? ' active' : ''}`}
+                onClick={() => handleTypeChange(item.id)}
+              >
+                {STRUCTURE_ICON_MAP[item.id] && (
+                  <span
+                    className="icon-wrapper"
+                    dangerouslySetInnerHTML={{ __html: icon(STRUCTURE_ICON_MAP[item.id]) }}
+                  />
+                )}
+                <span className="structure-type-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
 
+          {/* Segmented control for init mode */}
           {supportsRandom && (
-            <Tabs
-              activeKey={initMode}
-              onChange={handleModeChange}
-              tabList={INIT_MODE_TABS}
-              type="card"
-              size="small"
-              tabPaneMotion={false}
-            />
+            <div className="segmented-control">
+              <div
+                className="segmented-slider"
+                style={{ transform: `translateX(${initMode === 'manual' ? 0 : 100}%)` }}
+              />
+              <button
+                type="button"
+                className={`segmented-btn${initMode === 'manual' ? ' active' : ''}`}
+                onClick={() => handleModeChange('manual')}
+              >
+                手填结构
+              </button>
+              <button
+                type="button"
+                className={`segmented-btn${initMode === 'random' ? ' active' : ''}`}
+                onClick={() => handleModeChange('random')}
+              >
+                随机生成
+              </button>
+            </div>
           )}
 
-          <Divider margin="4px" />
-
+          {/* Manual input area */}
           {showInput && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ color: 'var(--semi-color-text-2)', fontSize: 12, fontWeight: 600 }}>初始结构</div>
+              <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
+                初始结构
+              </Text>
               <TextArea
                 value={input}
                 onChange={handleInputChange}
                 rows={3}
                 spellCheck={false}
                 resize="vertical"
-                style={{ border: '1px solid var(--semi-color-border)', borderRadius: 6, background: 'var(--semi-color-fill-0)' }}
+                placeholder={getStructureItem(activeType).placeholder}
               />
             </div>
           )}
 
+          {/* Random count input */}
           {supportsRandom && initMode === 'random' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ color: 'var(--semi-color-text-2)', fontSize: 12, fontWeight: 600 }}>元素数量</div>
+              <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
+                元素数量
+              </Text>
               <Input
                 value={String(count)}
                 onChange={handleCountChange}

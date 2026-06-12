@@ -277,6 +277,73 @@ button {
   display: none;
 }
 
+/* ── React shape popover card grid ── */
+@keyframes shape-popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shape-popover-grid {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  animation: shape-popover-fade-in 0.2s ease-out;
+}
+
+.shape-option-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 70px;
+  height: 70px;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--semi-color-text-2);
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  outline: none;
+  user-select: none;
+}
+
+.shape-option-card:hover {
+  border-color: var(--semi-color-primary);
+  color: var(--semi-color-primary);
+  background: var(--semi-color-primary-light-default);
+}
+
+.shape-option-card.active {
+  border-color: var(--semi-color-primary);
+  color: var(--semi-color-primary);
+  background: var(--semi-color-primary-light-default);
+  box-shadow: 0 0 0 1px var(--semi-color-primary);
+  font-weight: 600;
+}
+
+.shape-option-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shape-option-label {
+  white-space: nowrap;
+  text-align: center;
+}
+
 .structure-panel {
   position: fixed;
   z-index: 29;
@@ -438,6 +505,124 @@ button {
 
 .structure-actions [data-structure-insert]:hover {
   background: #1d4ed8;
+}
+
+/* React structure panel fade-in animation */
+@keyframes structure-panel-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.structure-panel-react {
+  animation: structure-panel-fade-in 0.2s ease-out;
+}
+
+/* ── Structure type card grid ── */
+.structure-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.structure-type-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--semi-color-text-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  outline: none;
+  user-select: none;
+}
+
+.structure-type-card:hover {
+  border-color: var(--semi-color-primary);
+  color: var(--semi-color-primary);
+  background: var(--semi-color-primary-light-default);
+}
+
+.structure-type-card.active {
+  border-color: var(--semi-color-primary);
+  color: var(--semi-color-primary);
+  background: var(--semi-color-primary-light-default);
+  box-shadow: 0 0 0 1px var(--semi-color-primary);
+  font-weight: 600;
+}
+
+.structure-type-card .icon-wrapper {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.structure-type-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Segmented control (init mode) ── */
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--semi-color-fill-1);
+}
+
+.segmented-slider {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 8px;
+  background: var(--semi-color-bg-0);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.segmented-btn {
+  position: relative;
+  z-index: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--semi-color-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s;
+  outline: none;
+  user-select: none;
+}
+
+.segmented-btn.active {
+  color: var(--semi-color-text-0);
+  font-weight: 600;
+}
+
+.segmented-btn:hover:not(.active) {
+  color: var(--semi-color-text-1);
 }
 
 .context-menu {

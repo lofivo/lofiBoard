@@ -2159,19 +2159,31 @@ describe("app shell", () => {
     expect(outlineMatches).toBeGreaterThanOrEqual(3);
   });
 
-  it("uses Card, Divider and modern components in StructurePanel popup", () => {
+  it("uses custom card grid and segmented control in StructurePanel popup", () => {
     const structurePanelSource = readFileSync(new URL("../../../src/app/components/StructurePanel.jsx", import.meta.url), "utf8");
 
-    // Uses Semi Design Card component for polished container
-    expect(structurePanelSource).toContain("Card, Divider, Space");
+    // Uses Semi Design Card and Typography components for polished UI
+    expect(structurePanelSource).toContain("Card, Typography");
+    // No legacy Tabs component (replaced by custom card grid + segmented control)
+    expect(structurePanelSource).not.toContain("Tabs,");
     // Input replaces InputNumber (no stepper)
     expect(structurePanelSource).not.toContain("InputNumber");
-    // Card with shadow and proper structure
+    // Card with shadow, no border, and proper structure
+    expect(structurePanelSource).toContain("bordered={false}");
     expect(structurePanelSource).toContain('shadows="always"');
     expect(structurePanelSource).toContain("footer=");
     // Modern button styles in footer
-    expect(structurePanelSource).toContain('theme="outline"');
+    expect(structurePanelSource).toContain('theme="borderless"');
     expect(structurePanelSource).toContain('theme="solid" type="primary"');
+    // Custom card grid for structure types
+    expect(structurePanelSource).toContain('className="structure-type-grid"');
+    expect(structurePanelSource).toContain('className={`structure-type-card${');
+    // Custom segmented control for init mode
+    expect(structurePanelSource).toContain('className="segmented-control"');
+    expect(structurePanelSource).toContain('className="segmented-slider"');
+    expect(structurePanelSource).toContain('translateX(${initMode');
+    // Fade-in animation class
+    expect(structurePanelSource).toContain('className="structure-panel-react"');
   });
 
 });
