@@ -53,6 +53,7 @@ function createController(overrides = {}) {
     getCurrentTool: overrides.getCurrentTool ?? (() => TOOLS.ERASER_STROKE),
     getScale: overrides.getScale ?? (() => 2),
     getStrokeWidth: overrides.getStrokeWidth ?? (() => 12),
+    hasActiveEraserSnapshot: overrides.hasActiveEraserSnapshot ?? (() => false),
     isTemporaryPanActive: overrides.isTemporaryPanActive ?? (() => false),
   });
 
@@ -132,5 +133,21 @@ describe("app tools cursor-controller", () => {
     expect(controller.nodes.eraserCursor.visible()).toBe(false);
     expect(controller.nodes.objectEraserCursor.visible()).toBe(false);
     expect(controller.nodes.brushCursorDot.visible()).toBe(false);
+  });
+
+  it("keeps the active eraser preview visible when generic cursor hiding fires during erasing", () => {
+    const { controller } = createController({ hasActiveEraserSnapshot: () => true });
+
+    controller.showStrokeEraser({ x: 10, y: 20 }, 20);
+    controller.hideToolCursors();
+
+    expect(controller.nodes.eraserCursor.visible()).toBe(true);
+    expect(controller.nodes.objectEraserCursor.visible()).toBe(false);
+
+    controller.showObjectEraser({ x: 30, y: 40 });
+    controller.hideToolCursors();
+
+    expect(controller.nodes.eraserCursor.visible()).toBe(false);
+    expect(controller.nodes.objectEraserCursor.visible()).toBe(true);
   });
 });

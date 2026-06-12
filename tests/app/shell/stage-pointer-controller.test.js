@@ -80,6 +80,8 @@ function createHarness(overrides = {}) {
     shouldShowContextMenu: vi.fn(() => true),
     showContextMenu: vi.fn(),
     showBrushCursor: vi.fn(),
+    showObjectEraser: vi.fn(),
+    showStrokeEraser: vi.fn(),
     startStroke: vi.fn(),
     syncBinaryTreeActiveVisual: vi.fn(),
     updateGrid: vi.fn(),
@@ -172,6 +174,8 @@ function createHarness(overrides = {}) {
     shouldShowContextMenu: callbacks.shouldShowContextMenu,
     showBrushCursor: callbacks.showBrushCursor,
     showContextMenu: callbacks.showContextMenu,
+    showObjectEraser: callbacks.showObjectEraser,
+    showStrokeEraser: callbacks.showStrokeEraser,
     syncBinaryTreeActiveVisual: callbacks.syncBinaryTreeActiveVisual,
     updateGrid: callbacks.updateGrid,
     updateViewportChrome: callbacks.updateViewportChrome,
@@ -242,6 +246,84 @@ describe("stage-pointer-controller", () => {
     expect(drawingInteractionController.appendStroke).toHaveBeenCalledWith({ x: 10, y: 20 }, 0.8);
     expect(drawingInteractionController.finishStroke).toHaveBeenCalled();
     expect(callbacks.exitInteractionToIdle).toHaveBeenCalled();
+  });
+
+  it("marks an eraser pointer session active before setPointerCapture can synchronously dispatch pointerleave", () => {
+    let controller;
+    let activeDuringCapture = false;
+    const captureTarget = {
+      setPointerCapture: vi.fn(() => {
+        activeDuringCapture = controller.hasActiveDrawingPointerCapture();
+      }),
+    };
+    const harness = createHarness({ currentTool: TOOLS.ERASER_STROKE });
+    controller = harness.controller;
+
+    controller.handlePointerDown(createKonvaEvent({
+      evt: {
+        pointerId: 7,
+        pointerType: "mouse",
+        target: captureTarget,
+      },
+    }));
+
+    expect(captureTarget.setPointerCapture).toHaveBeenCalledWith(7);
+    expect(activeDuringCapture).toBe(true);
+    expect(harness.callbacks.showStrokeEraser).toHaveBeenCalledWith({ x: 10, y: 20 }, 12);
+    expect(harness.drawingInteractionController.eraseStrokeAt).toHaveBeenCalledWith({ x: 10, y: 20 }, 12);
+  });
+
+  it("keeps the stroke eraser preview visible after a click finishes erasing", () => {
+    let hasActiveEraser = false;
+    const { callbacks, controller, drawingInteractionController } = createHarness({
+      currentTool: TOOLS.ERASER_STROKE,
+      drawingInteractionController: {
+        beginEraser: vi.fn(() => {
+          hasActiveEraser = true;
+          return 12;
+        }),
+        finishEraser: vi.fn(() => {
+          hasActiveEraser = false;
+          return false;
+        }),
+        hasActiveEraserSnapshot: vi.fn(() => hasActiveEraser),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ evt: { pointerId: 7 } }));
+    controller.handlePointerUp(createKonvaEvent({ evt: { pointerId: 7 } }));
+
+    expect(callbacks.showStrokeEraser).toHaveBeenCalledWith({ x: 10, y: 20 }, 12);
+    expect(callbacks.hideEraser).not.toHaveBeenCalled();
+    expect(drawingInteractionController.finishEraser).toHaveBeenCalled();
+    expect(callbacks.exitInteractionToIdle).toHaveBeenCalled();
+  });
+
+  it("keeps the object eraser preview visible after a click finishes erasing", () => {
+    let hasActiveEraser = false;
+    const target = { id: "target" };
+    const { callbacks, controller, drawingInteractionController } = createHarness({
+      currentTool: TOOLS.ERASER_OBJECT,
+      drawingInteractionController: {
+        beginEraser: vi.fn(() => {
+          hasActiveEraser = true;
+          return 12;
+        }),
+        finishEraser: vi.fn(() => {
+          hasActiveEraser = false;
+          return false;
+        }),
+        hasActiveEraserSnapshot: vi.fn(() => hasActiveEraser),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target, evt: { pointerId: 7 } }));
+    controller.handlePointerUp(createKonvaEvent({ target, evt: { pointerId: 7 } }));
+
+    expect(callbacks.showObjectEraser).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(callbacks.hideEraser).not.toHaveBeenCalled();
+    expect(drawingInteractionController.eraseObjectAt).toHaveBeenCalledWith(target);
+    expect(drawingInteractionController.finishEraser).toHaveBeenCalled();
   });
 
   it("starts a selected tree drag from the binary tree blank area without selecting a tree node", () => {

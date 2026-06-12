@@ -1440,9 +1440,21 @@ describe("app shell", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const pointerleaveLine = appSource.slice(
       appSource.indexOf('"pointerleave"'),
-      appSource.indexOf('"pointerleave"') + 120,
+      appSource.indexOf('"pointerleave"') + 130,
     );
     expect(pointerleaveLine).toContain("hasActiveDrawingPointerCapture");
+  });
+
+  it("keeps eraser cursor visible during active erasing even when hideToolCursors fires", () => {
+    const cursorSource = readFileSync(new URL("../../../src/app/tools/cursor-controller.js", import.meta.url), "utf8");
+    const hideSource = cursorSource.slice(
+      cursorSource.indexOf("function hideToolCursors()"),
+      cursorSource.indexOf("function updateBrushCursorStyle()"),
+    );
+    // During active erasing (hasActiveEraserSnapshot), eraser cursors stay visible
+    expect(hideSource).toContain("hasActiveEraserSnapshot()");
+    expect(hideSource).toContain("eraserCursor.visible(false)");
+    expect(hideSource.indexOf("hasActiveEraserSnapshot()")).toBeLessThan(hideSource.indexOf("eraserCursor.visible(false)"));
   });
 
   it("always calls showStrokeEraser on pointermove during active erasing to track cursor position", () => {

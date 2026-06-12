@@ -14,6 +14,7 @@ import {
 import { isShapeTool, resolveActiveDrawingTool } from "../../tools/behavior.js";
 import {
   captureDrawingPointer,
+  getPointerEventId,
   preventDrawingPointerDefault,
   releaseDrawingPointer,
   shouldHandlePointerEvent,
@@ -87,6 +88,9 @@ export function createStagePointerController({
 
   function beginDrawingPointerSession(event) {
     const nativeEvent = event?.evt;
+    // Set the capture flag BEFORE calling setPointerCapture so the
+    // synchronous pointerleave event sees an active session.
+    activeDrawingPointerCapture = { pointerId: getPointerEventId(nativeEvent), captured: false };
     preventDrawingPointerDefault(nativeEvent);
     activeDrawingPointerCapture = captureDrawingPointer(nativeEvent);
   }
@@ -334,7 +338,6 @@ export function createStagePointerController({
 
     if (drawingInteractionController.hasActiveEraserSnapshot()) {
       endDrawingPointerSession();
-      hideEraser();
       stage.container().classList.remove("is-erasing");
       drawingInteractionController.finishEraser();
       exitInteractionToIdle();

@@ -1593,7 +1593,7 @@ export function createWhiteboardApp(root) {
     stage.on("pointermove", stagePointerController.handlePointerMove);
     stage.on("pointerup pointercancel", stagePointerController.handlePointerUp);
     stage.container().addEventListener("pointerleave", () => {
-      if (!stagePointerController.hasActiveDrawingPointerCapture()) {
+      if (!stagePointerController.hasActiveDrawingPointerCapture() && !drawingInteractionController.hasActiveEraserSnapshot()) {
         hideToolCursors();
       }
     });

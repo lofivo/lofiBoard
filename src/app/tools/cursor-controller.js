@@ -128,8 +128,10 @@ export function createToolCursorController({
   }
 
   function hideToolCursors() {
-    eraserCursor.visible(false);
-    objectEraserCursor.visible(false);
+    if (!hasActiveEraserSnapshot()) {
+      eraserCursor.visible(false);
+      objectEraserCursor.visible(false);
+    }
     brushCursorGap.visible(false);
     brushCursorDot.visible(false);
     brushCursorRing.visible(false);
