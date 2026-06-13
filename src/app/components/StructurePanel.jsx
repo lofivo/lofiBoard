@@ -50,7 +50,7 @@ export default function StructurePanel() {
   const [activeType, setActiveType] = useState('array');
   const [initMode, setInitMode] = useState('manual');
   const [input, setInput] = useState('');
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState('5');
   const initializedRef = useRef(false);
 
   const supportsRandom = LINEAR_TYPES.has(activeType);
@@ -98,9 +98,9 @@ export default function StructurePanel() {
   }, []);
 
   const handleCountChange = useCallback((v) => {
-    const num = v || 5;
-    setCount(num);
-    writeDomValue(findLegacyRoot(), '[data-array-random-count]', String(num));
+    const nextCount = String(v ?? '');
+    setCount(nextCount);
+    writeDomValue(findLegacyRoot(), '[data-array-random-count]', nextCount);
   }, []);
 
   const handleInsert = useCallback(() => {
@@ -217,7 +217,7 @@ export default function StructurePanel() {
                 元素数量
               </Text>
               <Input
-                value={String(count)}
+                value={count}
                 onChange={handleCountChange}
                 size="small"
                 style={{ width: '100%' }}
