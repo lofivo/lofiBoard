@@ -251,7 +251,12 @@ export default function App() {
         inputContextTargetRef.current = request.target;
         setContextMenuMode('input');
         setInputContextMenuDisabledActions(getInputContextMenuState(request.target));
-        setContextMenuPos({ x: e.clientX, y: e.clientY });
+        const pos = getContextMenuPosition({
+          clientX: e.clientX, clientY: e.clientY,
+          menuBox: { width: 168, height: 154 },
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        });
+        setContextMenuPos({ x: pos.left, y: pos.top });
         setContextMenuVisible(true);
         contextMenuVisibleRef.current = true;
         return;
@@ -267,7 +272,12 @@ export default function App() {
 
       setContextMenuMode('object');
       setContextMenuDisabledActions(readContextMenuDisabledActions());
-      setContextMenuPos({ x: e.clientX, y: e.clientY });
+      const pos = getContextMenuPosition({
+        clientX: e.clientX, clientY: e.clientY,
+        menuBox: { width: 168, height: 478 },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      });
+      setContextMenuPos({ x: pos.left, y: pos.top });
       setContextMenuVisible(true);
       contextMenuVisibleRef.current = true;
     };
