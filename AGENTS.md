@@ -25,6 +25,8 @@
 21. 用户要求“补充项目文档/实现文档/方便后续 AI agent 开发”时，不能只更新 `CONTEXT.md` 或 ADR；应维护 `docs/agents/implementation/` 下的实现导览、代码地图、交互流程和测试指南，并同步 `docs/agents/domain.md` 的读取顺序。
 22. React 替换遗留 DOM 时，给 `legacyRootRef` 设置 `zIndex`（非 `auto`）会创建层叠上下文，导致遗留 DOM 内所有 `position: fixed` 弹窗（如 `.structure-panel`、`.shape-popover`、`.cell-editor` 等）被困在低层层叠上下文中，被 React 面板遮挡。应使用 `zIndex: "auto"` 不创建层叠上下文，让子元素的 z-index 参与根层叠上下文的排列。
 23. Semi `ColorPicker` 用 `trigger="custom"` + `visible` 受控时，`onVisibleChange` 回调在弹窗打开时也会触发（传入 `true`），不能直接将 `onVisibleChange` 设为 toggle 函数，否则打开瞬间被反转导致闪烁消失。应写成 `onVisibleChange: (v) => { if (!v) closeHandler?.(); }`，只在关闭时清空状态，打开回调不做处理。
+24. 输入态自定义右键菜单必须在菜单容器捕获阶段阻止 `pointerdown` / `mousedown` 默认行为，不能只依赖 Semi `Dropdown.Item` 转发事件；否则 textarea 会先 blur 提交，表现为全选失效或退出编辑态。
+25. 输入态右键菜单的全选/剪切/粘贴不能只依赖浏览器 `select()` 或系统 `navigator.clipboard` 成功；全选要显式设置 textarea selection range，剪切/粘贴要有应用内文本剪贴板兜底，且全选这种只改选区的动作不能派发 `input` 事件。
 
 ## Agent skills
 
