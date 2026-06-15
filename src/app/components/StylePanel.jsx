@@ -518,9 +518,10 @@ function LinearStructureInspector({ ctx }) {
         </div>
       </div>
 
-      {/* 4. 排序演示演示 */}
+      {/* 4. 排序演示 - 仅数组 */}
+      {ctx.structureSelection === 'array-structure' && (
       <div style={cardGroupStyle}>
-        <div style={cardGroupTitleStyle}>排序演示演示</div>
+        <div style={cardGroupTitleStyle}>排序演示</div>
         <div style={fieldGap}>
           <div style={labelStyle}>演示算法</div>
           <Select value={algo} onChange={handleAlgoChange} size="small" style={{ width: '100%' }}
@@ -572,6 +573,7 @@ function LinearStructureInspector({ ctx }) {
           <Slider min={0.5} max={3} step={0.5} value={Number(algoSpeed) || 1} onChange={handleSpeedChange} tipFormatter={null} />
         </div>
       </div>
+      )}
     </div>
   );
 }

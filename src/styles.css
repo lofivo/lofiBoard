@@ -1912,6 +1912,13 @@ button {
   padding-top: 2px;
 }
 
+/* 栈/队列/双端队列不应显示排序功能 */
+[data-structure-selection="stack-structure"] .linear-algorithm-panel,
+[data-structure-selection="queue-structure"] .linear-algorithm-panel,
+[data-structure-selection="deque-structure"] .linear-algorithm-panel {
+  display: none;
+}
+
 .linear-algorithm-panel select {
   min-width: 108px;
   height: 28px;
