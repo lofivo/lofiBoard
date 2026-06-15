@@ -2838,6 +2838,8 @@ describe("konva elements", () => {
     expect(activeNode.findOne("Ellipse").strokeWidth()).toBe(3);
     expect(inactiveNode.findOne("Ellipse").stroke()).not.toBe("#2563eb");
     expect(inactiveNode.findOne("Ellipse").strokeWidth()).toBe(2);
+    expect(activeNode.findOne("Text").text()).toBe("B");
+    expect(inactiveNode.findOne("Text").text()).toBe("A");
   });
 
   it("renders ordinary tree active node borders from runtime state", () => {
@@ -2917,6 +2919,61 @@ describe("konva elements", () => {
     expect(normalNode).toBe(firstNode);
     expect(highlightedNode.findOne("Ellipse").fill()).toBe("#fef3c7");
     expect(normalNode.findOne("Ellipse").fill()).toBe("#f8fafc");
+  });
+
+  it("syncs binary tree node text labels without recreating the group", () => {
+    const binaryTree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+        { id: "node_b", label: "B", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      runtime: { activeNodeId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const firstNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+    const secondNode = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+
+    // Sync with updated labels — same node count, same IDs
+    const didSync = syncElementNode(binaryTree, {
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "X", x: 80, y: 24 },
+        { id: "node_b", label: "Y", x: 40, y: 92 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", side: "left" }],
+      settings: { rootId: "node_a", treeKind: "binary" },
+      runtime: { activeNodeId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+    const updatedFirst = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_a");
+    const updatedSecond = binaryTree.find(".tree-node").find((node) => node.getAttr("treeNodeId") === "node_b");
+
+    expect(didSync).toBe(true);
+    // Groups are reused, not recreated
+    expect(updatedFirst).toBe(firstNode);
+    expect(updatedSecond).toBe(secondNode);
+    // Text labels are updated
+    expect(updatedFirst.findOne("Text").text()).toBe("X");
+    expect(updatedSecond.findOne("Text").text()).toBe("Y");
   });
 
   it("returns structure node attrs for rerender sync", () => {

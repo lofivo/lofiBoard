@@ -867,10 +867,13 @@ function syncBinaryTreeNodeVisuals(group, element, handlers = {}) {
     if (!node) return false;
     const ellipse = nodeGroup.findOne("Ellipse");
     if (!ellipse) return false;
+    const text = nodeGroup.findOne("Text");
+    if (!text) return false;
     const isActive = activeNodeId === nodeId;
     ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
     ellipse.strokeWidth(isActive ? 3 : 2);
     ellipse.fill(getTreeNodeFill(element, node, style, handlers.getTreeConnectState));
+    text.text(String(node.label ?? node.value ?? ""));
     if (isActive) nodeGroup.moveToTop();
   }
   return true;
