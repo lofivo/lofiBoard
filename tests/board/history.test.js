@@ -45,4 +45,24 @@ describe("history", () => {
       elements: [],
     });
   });
+
+  it("reports whether undo and redo snapshots are available without changing history", () => {
+    const history = createHistory({ elements: [] });
+
+    expect(history.canUndo()).toBe(false);
+    expect(history.canRedo()).toBe(false);
+
+    history.push({ elements: [{ id: "a" }] });
+
+    expect(history.canUndo()).toBe(true);
+    expect(history.canRedo()).toBe(false);
+
+    expect(history.undo()).toEqual({ elements: [] });
+
+    expect(history.canUndo()).toBe(false);
+    expect(history.canRedo()).toBe(true);
+    expect(history.current()).toEqual({ elements: [] });
+
+    expect(history.redo()).toEqual({ elements: [{ id: "a" }] });
+  });
 });

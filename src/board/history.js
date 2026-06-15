@@ -33,10 +33,18 @@ export function createHistory(initialState, limit = 80) {
     return current();
   }
 
+  function canUndo() {
+    return index > 0;
+  }
+
+  function canRedo() {
+    return index < past.length - 1;
+  }
+
   function reset(state) {
     past.splice(0, past.length, clone(state));
     index = 0;
   }
 
-  return { current, push, undo, redo, reset };
+  return { current, push, undo, redo, canUndo, canRedo, reset };
 }
