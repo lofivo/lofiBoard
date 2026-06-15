@@ -367,6 +367,14 @@ function LinearStructureInspector({ ctx }) {
   const [algoStatus, setAlgoStatus] = useState('');
   const [algoSpeed, setAlgoSpeed] = useState('1');
 
+  const [startDisabled, setStartDisabled] = useState(false);
+  const [prevDisabled, setPrevDisabled] = useState(true);
+  const [nextDisabled, setNextDisabled] = useState(true);
+  const [playDisabled, setPlayDisabled] = useState(true);
+  const [resetDisabled, setResetDisabled] = useState(true);
+  const [stopDisabled, setStopDisabled] = useState(true);
+  const [playLabel, setPlayLabel] = useState('播放');
+
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
 
@@ -384,6 +392,42 @@ function LinearStructureInspector({ ctx }) {
       setAlgo(prev => { const v = readDom(root, '[data-array-algorithm-select]'); return prev !== v ? v : prev; });
       setAlgoStatus(prev => { const v = readDom(root, '[data-array-algorithm-status]', 'textContent'); return prev !== v ? v : prev; });
       setAlgoSpeed(prev => { const v = readDom(root, '[data-array-algorithm-speed]'); return prev !== v ? v : prev; });
+
+      setStartDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-start']");
+        const val = btn ? btn.disabled : false;
+        return prev !== val ? val : prev;
+      });
+      setPrevDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-prev']");
+        const val = btn ? btn.disabled : true;
+        return prev !== val ? val : prev;
+      });
+      setNextDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-next']");
+        const val = btn ? btn.disabled : true;
+        return prev !== val ? val : prev;
+      });
+      setPlayDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-play']");
+        const val = btn ? btn.disabled : true;
+        return prev !== val ? val : prev;
+      });
+      setResetDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-reset']");
+        const val = btn ? btn.disabled : true;
+        return prev !== val ? val : prev;
+      });
+      setStopDisabled(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-stop']");
+        const val = btn ? btn.disabled : true;
+        return prev !== val ? val : prev;
+      });
+      setPlayLabel(prev => {
+        const btn = root.querySelector("[data-action='array-algorithm-play']");
+        const val = btn ? (btn.textContent || '播放') : '播放';
+        return prev !== val ? val : prev;
+      });
     };
     sync();
     const id = setInterval(sync, 150);
@@ -449,7 +493,7 @@ function LinearStructureInspector({ ctx }) {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 4 }}>
-          <Button size="small" theme="light" type="primary" style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: 600 }}
+          <Button size="small" theme="light" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: 600 }}
             onClick={() => ctx.runAction?.('array-highlight')}>应用高亮</Button>
           <Button size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
             onClick={() => ctx.runAction?.('array-clear-highlight')}>清除高亮</Button>
@@ -487,11 +531,11 @@ function LinearStructureInspector({ ctx }) {
             ]} />
         </div>
         <div style={{
-          background: 'var(--semi-color-primary-light-default)',
-          border: '1px solid var(--semi-color-primary-disabled)',
+          background: 'var(--semi-color-fill-1)',
+          border: '1px solid var(--semi-color-border)',
           borderRadius: '8px',
           padding: '8px 10px',
-          color: 'var(--semi-color-primary)',
+          color: 'var(--semi-color-text-1)',
           fontSize: '11px',
           lineHeight: '1.4',
           minHeight: '28px',
@@ -505,16 +549,17 @@ function LinearStructureInspector({ ctx }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
           {[
-            { action: 'array-algorithm-start', label: '开始', main: true },
-            { action: 'array-algorithm-prev', label: '上一步' },
-            { action: 'array-algorithm-next', label: '下一步' },
-            { action: 'array-algorithm-play', label: '播放', main: true },
-            { action: 'array-algorithm-reset', label: '重置' },
-            { action: 'array-algorithm-stop', label: '结束' },
+            { action: 'array-algorithm-start', label: '开始', main: true, disabled: startDisabled },
+            { action: 'array-algorithm-prev', label: '上一步', disabled: prevDisabled },
+            { action: 'array-algorithm-next', label: '下一步', disabled: nextDisabled },
+            { action: 'array-algorithm-play', label: playLabel, main: true, disabled: playDisabled },
+            { action: 'array-algorithm-reset', label: '重置', disabled: resetDisabled },
+            { action: 'array-algorithm-stop', label: '结束', disabled: stopDisabled },
           ].map(a => (
             <Button key={a.action} size="small"
               theme={a.main ? "light" : "outline"}
-              type={a.main ? "primary" : "tertiary"}
+              type="tertiary"
+              disabled={a.disabled}
               style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: a.main ? 600 : 400 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
@@ -588,7 +633,7 @@ function GraphStructureInspector({ ctx }) {
           ].map(a => (
             <Button key={a.action} size="small"
               theme={a.main ? "light" : "outline"}
-              type={a.main ? "primary" : "tertiary"}
+              type="tertiary"
               style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
@@ -608,7 +653,7 @@ function GraphStructureInspector({ ctx }) {
           ].map(a => (
             <Button key={a.action} size="small"
               theme={a.main ? "light" : "outline"}
-              type={a.main ? "primary" : "tertiary"}
+              type="tertiary"
               style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
@@ -627,7 +672,7 @@ function GraphStructureInspector({ ctx }) {
           ].map(a => (
             <Button key={a.action} size="small"
               theme={a.main ? "light" : "outline"}
-              type={a.main ? "primary" : "tertiary"}
+              type="tertiary"
               style={{ height: 28, fontSize: 12, borderRadius: 8 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
@@ -723,7 +768,7 @@ function TreeStructureInspector({ ctx }) {
             return (
               <Button key={a.action} size="small"
                 theme={isClear ? "outline" : "light"}
-                type={isClear ? "tertiary" : "primary"}
+                type="tertiary"
                 style={{ height: 28, fontSize: 12, borderRadius: 8 }}
                 onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
             );
