@@ -269,6 +269,33 @@ describe("app editing controller", () => {
     expect(deps.onHistory).not.toHaveBeenCalledWith("已删除空文字");
   });
 
+  it("does not commit editor when pointerdown lands inside a React context menu", () => {
+    const deps = createDeps({
+      stage: makeStage(),
+    });
+    const element = textElement({ text: "hello" });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.getSelectedIds.mockReturnValue([element.id]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const menu = document.createElement("div");
+    menu.dataset.reactContextMenu = "";
+    const menuBtn = document.createElement("button");
+    menu.appendChild(menuBtn);
+    document.body.appendChild(menu);
+
+    menuBtn.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+
+    expect(controller.isEditing).toBe(true);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+    expect(deps.onHistory).not.toHaveBeenCalled();
+  });
+
   it("keeps an empty text editor open when the DOM pointerdown lands on the canvas over a transformer", () => {
     const transformerTarget = { getClassName: vi.fn(() => "Transformer") };
     const canvas = document.createElement("canvas");

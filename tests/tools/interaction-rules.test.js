@@ -157,6 +157,27 @@ describe("interaction rules", () => {
     })).toBe(true);
   });
 
+  it("treats context menu targets as text editor preserving targets", () => {
+    const editorFrame = { contains: () => false };
+    const reactMenuBtn = {
+      closest: (selector) => selector.includes("[data-react-context-menu]") ? { role: "react-context-menu" } : null,
+    };
+    const legacyMenuBtn = {
+      closest: (selector) => selector.includes("[data-context-menu]") ? { role: "context-menu" } : null,
+    };
+
+    expect(shouldPreserveTextEditorOnPointerDown({
+      target: reactMenuBtn,
+      editorFrame,
+      isTransformer: false,
+    })).toBe(true);
+    expect(shouldPreserveTextEditorOnPointerDown({
+      target: legacyMenuBtn,
+      editorFrame,
+      isTransformer: false,
+    })).toBe(true);
+  });
+
   it("keeps text selection resizing available on corners and invisible side edges", () => {
     expect(getTransformerAnchorsForSelection([{ type: "text" }], true)).toEqual([
       "top-left",

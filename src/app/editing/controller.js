@@ -279,6 +279,9 @@ export function createEditController({
 
     const handleEditorOutsidePointerDown = (event) => {
       if (editorClosed) return;
+      if (typeof Element !== "undefined" && event.target instanceof Element) {
+        if (event.target.closest("[data-react-context-menu], [data-context-menu]")) return;
+      }
       const isTransformerPointer = isTransformerPointerEvent(event);
       const shouldPreserveEditor = shouldPreserveTextEditorOnPointerDown({
         target: event.target,
