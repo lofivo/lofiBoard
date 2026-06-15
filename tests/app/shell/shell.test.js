@@ -2222,4 +2222,18 @@ describe("app shell", () => {
     expect(structurePanelSource).toContain('className="structure-panel-react"');
   });
 
+  it("renders structure inspectors with cardGroupStyle container grouping and primary/tertiary button style theme", () => {
+    const stylePanelSource = readFileSync(new URL("../../../src/app/components/StylePanel.jsx", import.meta.url), "utf8");
+
+    // Container style for semantic card grouping
+    expect(stylePanelSource).toContain("cardGroupStyle");
+    // Class name or text matching semantic groups
+    expect(stylePanelSource).toContain("节点与连边");
+    expect(stylePanelSource).toContain("图布局");
+    expect(stylePanelSource).toContain("视图与高亮");
+    expect(stylePanelSource).toContain("数据导入导出");
+    // Enhanced theme colors for main buttons (light primary or solid primary)
+    expect(stylePanelSource).toContain('theme="light" type="primary"');
+  });
+
 });

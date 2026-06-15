@@ -28,6 +28,25 @@ const FONTS = [
 const labelStyle = { color: 'var(--semi-color-text-2)', fontSize: 12, fontWeight: 600, lineHeight: 1.1 };
 const fieldGap = { display: 'flex', flexDirection: 'column', gap: 6 };
 
+const cardGroupStyle = {
+  background: 'var(--semi-color-fill-0)',
+  border: '1px solid var(--semi-color-border)',
+  borderRadius: '12px',
+  padding: '12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+};
+
+const cardGroupTitleStyle = {
+  fontSize: '11px',
+  fontWeight: '700',
+  color: 'var(--semi-color-text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  marginBottom: '2px',
+};
+
 function ColorField({ label, colors, value, set }) {
   return (
     <div style={fieldGap}>
@@ -395,74 +414,116 @@ function LinearStructureInspector({ ctx }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={fieldGap}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={labelStyle}>{valuesTitle}</span>
-          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
-            onClick={() => ctx.runAction?.('linear-apply-values')}>应用结构</Button>
-        </div>
-        <TextArea value={values} onChange={v => handleValuesChange(v)} rows={3}
-          spellCheck={false} placeholder="1,2,3" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+      {/* 1. 数据输入 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>数据输入</div>
         <div style={fieldGap}>
-          <div style={labelStyle}>高亮起点</div>
-          <Input value={hStart} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={inputStyle} />
-        </div>
-        <div style={fieldGap}>
-          <div style={labelStyle}>高亮终点</div>
-          <Input value={hEnd} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={inputStyle} />
-        </div>
-        <div style={fieldGap}>
-          <div style={labelStyle}>指针</div>
-          <Input value={hPointer} size="small"
-            onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={inputStyle} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={labelStyle}>{valuesTitle}</span>
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+              onClick={() => ctx.runAction?.('linear-apply-values')}>应用结构</Button>
+          </div>
+          <TextArea value={values} onChange={v => handleValuesChange(v)} rows={2}
+            spellCheck={false} placeholder="1,2,3" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-        {[
-          { action: 'array-highlight', label: '应用高亮' },
-          { action: 'array-clear-highlight', label: '清除高亮' },
-          { action: 'linear-index-zero', label: '0 下标' },
-          { action: 'linear-index-one', label: '1 下标' },
-          { action: 'linear-index-show', label: '显示下标' },
-          { action: 'linear-index-hide', label: '隐藏下标' },
-          { action: 'linear-pointer-show', label: '显示指针' },
-          { action: 'linear-pointer-hide', label: '隐藏指针' },
-        ].map(a => (
-          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
-            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-        ))}
+      {/* 2. 元素高亮指示器 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>元素高亮指示器</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          <div style={fieldGap}>
+            <div style={labelStyle}>高亮起点</div>
+            <Input value={hStart} size="small"
+              onChange={handleFieldChange('[data-linear-field="highlight-start"]', setHStart)} style={inputStyle} />
+          </div>
+          <div style={fieldGap}>
+            <div style={labelStyle}>高亮终点</div>
+            <Input value={hEnd} size="small"
+              onChange={handleFieldChange('[data-linear-field="highlight-end"]', setHEnd)} style={inputStyle} />
+          </div>
+          <div style={fieldGap}>
+            <div style={labelStyle}>指针</div>
+            <Input value={hPointer} size="small"
+              onChange={handleFieldChange('[data-linear-field="highlight-pointer"]', setHPointer)} style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 4 }}>
+          <Button size="small" theme="light" type="primary" style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: 600 }}
+            onClick={() => ctx.runAction?.('array-highlight')}>应用高亮</Button>
+          <Button size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+            onClick={() => ctx.runAction?.('array-clear-highlight')}>清除高亮</Button>
+        </div>
       </div>
 
-      <div style={fieldGap}>
-        <div style={labelStyle}>排序算法</div>
-        <Select value={algo} onChange={handleAlgoChange} size="small" style={{ width: '100%' }}
-          optionList={[
-            { value: 'bubble-sort', label: '冒泡排序' },
-            { value: 'selection-sort', label: '选择排序' },
-            { value: 'insertion-sort', label: '插入排序' },
-          ]} />
-        <div style={{ color: 'var(--semi-color-text-2)', fontSize: 11, lineHeight: 1.4 }}>{algoStatus || '选择数组后开始演示'}</div>
+      {/* 3. 下标与指针选项 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>下标与指针选项</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
           {[
-            { action: 'array-algorithm-start', label: '开始' },
+            { action: 'linear-index-zero', label: '0 下标' },
+            { action: 'linear-index-one', label: '1 下标' },
+            { action: 'linear-index-show', label: '显示下标' },
+            { action: 'linear-index-hide', label: '隐藏下标' },
+            { action: 'linear-pointer-show', label: '显示指针' },
+            { action: 'linear-pointer-hide', label: '隐藏指针' },
+          ].map(a => (
+            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, padding: 0, borderRadius: 6 }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. 排序演示演示 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>排序演示演示</div>
+        <div style={fieldGap}>
+          <div style={labelStyle}>演示算法</div>
+          <Select value={algo} onChange={handleAlgoChange} size="small" style={{ width: '100%' }}
+            optionList={[
+              { value: 'bubble-sort', label: '冒泡排序' },
+              { value: 'selection-sort', label: '选择排序' },
+              { value: 'insertion-sort', label: '插入排序' },
+            ]} />
+        </div>
+        <div style={{
+          background: 'var(--semi-color-primary-light-default)',
+          border: '1px solid var(--semi-color-primary-disabled)',
+          borderRadius: '8px',
+          padding: '8px 10px',
+          color: 'var(--semi-color-primary)',
+          fontSize: '11px',
+          lineHeight: '1.4',
+          minHeight: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 500,
+          textAlign: 'center',
+        }}>
+          {algoStatus || '选择数组后开始演示'}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {[
+            { action: 'array-algorithm-start', label: '开始', main: true },
             { action: 'array-algorithm-prev', label: '上一步' },
             { action: 'array-algorithm-next', label: '下一步' },
-            { action: 'array-algorithm-play', label: '播放' },
+            { action: 'array-algorithm-play', label: '播放', main: true },
             { action: 'array-algorithm-reset', label: '重置' },
             { action: 'array-algorithm-stop', label: '结束' },
           ].map(a => (
-            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+            <Button key={a.action} size="small"
+              theme={a.main ? "light" : "outline"}
+              type={a.main ? "primary" : "tertiary"}
+              style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: a.main ? 600 : 400 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
         <div style={fieldGap}>
-          <div style={labelStyle}>速度</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', ...labelStyle }}>
+            <span>演示速度</span>
+            <span style={{ color: 'var(--semi-color-primary)' }}>{algoSpeed}x</span>
+          </div>
           <Slider min={0.5} max={3} step={0.5} value={Number(algoSpeed) || 1} onChange={handleSpeedChange} tipFormatter={null} />
         </div>
       </div>
@@ -471,30 +532,6 @@ function LinearStructureInspector({ ctx }) {
 }
 
 /* ---- Graph Structure Inspector ---- */
-
-const GRAPH_ACTIONS_FULL = [
-  { action: 'graph-add-node', label: '加点' },
-  { action: 'graph-add-edge', label: '连边' },
-  { action: 'graph-connect-mode', label: '点选连边' },
-  { action: 'graph-add-edge-input', label: '输入连边' },
-  { action: 'graph-delete-node', label: '删点' },
-  { action: 'graph-delete-edge', label: '删边' },
-  { action: 'graph-edit-edge', label: '改边' },
-  { action: 'graph-directed-on', label: '默认有向' },
-  { action: 'graph-directed-off', label: '默认无向' },
-  { action: 'graph-highlight', label: '图高亮' },
-  { action: 'graph-clear-highlight', label: '清高亮' },
-  { action: 'graph-layout-circle', label: '环形布局' },
-  { action: 'graph-layout-grid', label: '网格布局' },
-  { action: 'graph-layout-layered', label: '分层布局' },
-  { action: 'graph-layout-force', label: '力导向' },
-  { action: 'graph-export-edge-list', label: '导出边表' },
-  { action: 'graph-export-adjacency-list', label: '导出邻接表' },
-  { action: 'graph-export-adjacency-matrix', label: '导出矩阵' },
-  { action: 'graph-import-adjacency-list', label: '导入邻接表' },
-  { action: 'graph-import-adjacency-matrix', label: '导入矩阵' },
-  { action: 'graph-reload', label: '图重载' },
-];
 
 function GraphStructureInspector({ ctx }) {
   const [input, setInput] = useState('');
@@ -522,20 +559,96 @@ function GraphStructureInspector({ ctx }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={fieldGap}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={labelStyle}>当前图结构</span>
-          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
-            onClick={() => ctx.runAction?.('graph-apply-structure')}>应用结构</Button>
+      {/* 1. 图结构数据 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>图结构数据</div>
+        <div style={fieldGap}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={labelStyle}>顶点与边关系</span>
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+              onClick={() => ctx.runAction?.('graph-apply-structure')}>应用结构</Button>
+          </div>
+          <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
+            spellCheck={false} placeholder="A->B&#10;A-C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
-        <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
-          spellCheck={false} placeholder="A->B&#10;A-C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-        {GRAPH_ACTIONS_FULL.map(a => (
-          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
-            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-        ))}
+
+      {/* 2. 节点与连边 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>节点与连边</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {[
+            { action: 'graph-add-node', label: '加点', main: true },
+            { action: 'graph-add-edge', label: '连边', main: true },
+            { action: 'graph-connect-mode', label: '点选连边', main: true },
+            { action: 'graph-add-edge-input', label: '输入连边' },
+            { action: 'graph-edit-edge', label: '改边' },
+            { action: 'graph-delete-node', label: '删点' },
+            { action: 'graph-delete-edge', label: '删边' },
+          ].map(a => (
+            <Button key={a.action} size="small"
+              theme={a.main ? "light" : "outline"}
+              type={a.main ? "primary" : "tertiary"}
+              style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. 视图与高亮 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>视图与高亮</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {[
+            { action: 'graph-highlight', label: '图高亮', main: true },
+            { action: 'graph-clear-highlight', label: '清高亮' },
+            { action: 'graph-reload', label: '图重载' },
+            { action: 'graph-directed-on', label: '默认有向' },
+            { action: 'graph-directed-off', label: '默认无向' },
+          ].map(a => (
+            <Button key={a.action} size="small"
+              theme={a.main ? "light" : "outline"}
+              type={a.main ? "primary" : "tertiary"}
+              style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. 图布局 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>图布局</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+          {[
+            { action: 'graph-layout-force', label: '力导向布局', main: true },
+            { action: 'graph-layout-circle', label: '环形布局' },
+            { action: 'graph-layout-grid', label: '网格布局' },
+            { action: 'graph-layout-layered', label: '分层布局' },
+          ].map(a => (
+            <Button key={a.action} size="small"
+              theme={a.main ? "light" : "outline"}
+              type={a.main ? "primary" : "tertiary"}
+              style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. 数据导入导出 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>数据导入导出</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {[
+            { action: 'graph-import-adjacency-list', label: '导入邻接表' },
+            { action: 'graph-import-adjacency-matrix', label: '导入矩阵' },
+            { action: 'graph-export-edge-list', label: '导出边表' },
+            { action: 'graph-export-adjacency-list', label: '导出邻接表' },
+            { action: 'graph-export-adjacency-matrix', label: '导出矩阵' },
+          ].map(a => (
+            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, borderRadius: 8, padding: 0 }}
+              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -587,20 +700,35 @@ function TreeStructureInspector({ ctx }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={fieldGap}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={labelStyle}>当前树结构</span>
-          <Button size="small" theme="borderless" type="tertiary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}
-            onClick={() => ctx.runAction?.('tree-apply-structure')}>应用结构</Button>
+      {/* 1. 树结构数据 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>树结构数据</div>
+        <div style={fieldGap}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={labelStyle}>父子节点关系</span>
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+              onClick={() => ctx.runAction?.('tree-apply-structure')}>应用结构</Button>
+          </div>
+          <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
+            spellCheck={false} placeholder="A->B&#10;A->C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
-        <TextArea value={input} onChange={v => handleInputChange(v)} rows={5}
-          spellCheck={false} placeholder="A->B&#10;A->C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-        {actions.map(a => (
-          <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
-            onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-        ))}
+
+      {/* 2. 遍历与交互 */}
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>遍历与交互</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+          {actions.map(a => {
+            const isClear = a.action.includes('clear');
+            return (
+              <Button key={a.action} size="small"
+                theme={isClear ? "outline" : "light"}
+                type={isClear ? "tertiary" : "primary"}
+                style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+                onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
