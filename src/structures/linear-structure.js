@@ -268,12 +268,16 @@ export function clearArrayAlgorithmMarkers(element) {
 
 export function setLinearIndexOptions(element, { indexBase = element?.settings?.indexBase ?? 0, showIndexes = element?.settings?.showIndexes ?? true } = {}) {
   if (!isLinearStructureElement(element)) return element;
+  const style = { ...ARRAY_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const nextShowIndexes = showIndexes !== undefined ? Boolean(showIndexes)
+    : (element.settings?.showIndexes ?? element.type === STRUCTURE_ELEMENT_TYPES.ARRAY);
   return {
     ...element,
+    height: style.cellHeight * (nextShowIndexes ? 2 : 1),
     settings: {
       ...(element.settings ?? {}),
       indexBase: Number(indexBase) === 1 ? 1 : 0,
-      showIndexes: Boolean(showIndexes),
+      showIndexes: nextShowIndexes,
     },
   };
 }

@@ -516,8 +516,11 @@ describe("structure templates", () => {
     expect(stack.type).toBe(STRUCTURE_ELEMENT_TYPES.STACK);
     expect(stack.settings).toEqual({ indexBase: 0, showIndexes: false });
     expect(queue.type).toBe(STRUCTURE_ELEMENT_TYPES.QUEUE);
-    expect(setLinearIndexOptions(queue, { indexBase: 1, showIndexes: true }).settings)
-      .toEqual({ indexBase: 1, showIndexes: true });
+    const withIndex = setLinearIndexOptions(queue, { indexBase: 1, showIndexes: true });
+    expect(withIndex.settings).toEqual({ indexBase: 1, showIndexes: true });
+    expect(withIndex.height).toBe(88);
+    const hidden = setLinearIndexOptions(withIndex, { showIndexes: false });
+    expect(hidden.height).toBe(44);
   });
 
   it("adds graph nodes and edges then deletes the last edge", () => {

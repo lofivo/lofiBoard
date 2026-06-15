@@ -2186,9 +2186,7 @@ describe("app shell", () => {
     // Input replaces InputNumber for highlight/pointer fields (no stepper)
     expect(stylePanelSource).toContain("Input,");
     expect(stylePanelSource).not.toContain("InputNumber");
-    // Grid layout for shortcut action buttons (4 columns)
-    expect(stylePanelSource).toContain("'repeat(4, 1fr)'");
-    // Grid layout for graph structure buttons (3 columns)
+    // Grid layout for shortcut action buttons (3 columns, matching legacy 3-col layout)
     expect(stylePanelSource).toContain("'repeat(3, 1fr)'");
     // Grid layout for tree structure buttons (2 columns)
     expect(stylePanelSource).toContain("'repeat(2, 1fr)'");

@@ -423,7 +423,7 @@ function LinearStructureInspector({ ctx }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         {[
           { action: 'array-highlight', label: '应用高亮' },
           { action: 'array-clear-highlight', label: '清除高亮' },
