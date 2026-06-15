@@ -82,6 +82,11 @@ describe("ui config", () => {
     const shell = renderShell();
     const contextMenu = contextMenuMarkup();
 
+    expect(contextMenu).toContain('data-context-action="undo"');
+    expect(contextMenu).toContain('data-context-action="redo"');
+    expect(contextMenu.indexOf('data-context-action="undo"')).toBeLessThan(
+      contextMenu.indexOf('data-context-action="copy"'),
+    );
     expect(contextMenu).toContain('data-context-action="bring-forward"');
     expect(contextMenu).toContain('data-context-action="send-backward"');
     expect(contextMenu).toContain('data-context-action="bring-front"');

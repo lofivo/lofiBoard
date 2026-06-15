@@ -64,10 +64,12 @@ function createHarness(overrides = {}) {
     handleLinearPointerMove: vi.fn(() => false),
     handleLinearPointerUp: vi.fn(() => false),
     hideBinaryTreeControls: vi.fn(),
+    commitTextEditing: vi.fn(),
     hideContextMenu: vi.fn(),
     hideEraser: vi.fn(),
     hideToolCursors: vi.fn(),
     isElementLocked: vi.fn(() => false),
+    isEditingText: vi.fn(() => false),
     isTransformerAnchorTarget: vi.fn(() => false),
     isTransformerTarget: vi.fn(() => false),
     persistCurrentDraft: vi.fn(),
@@ -153,11 +155,13 @@ function createHarness(overrides = {}) {
     handleLinearPointerMove: callbacks.handleLinearPointerMove,
     handleLinearPointerUp: callbacks.handleLinearPointerUp,
     hideBinaryTreeControls: callbacks.hideBinaryTreeControls,
+    commitTextEditing: callbacks.commitTextEditing,
     hideContextMenu: callbacks.hideContextMenu,
     hideEraser: callbacks.hideEraser,
     hideToolCursors: callbacks.hideToolCursors,
     isBinaryTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind === "binary",
     isElementLocked: callbacks.isElementLocked,
+    isEditingText: callbacks.isEditingText,
     isGeneralTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind !== "binary",
     isTemporaryPanActive: overrides.isTemporaryPanActive ?? (() => false),
     isTransformerAnchorTarget: callbacks.isTransformerAnchorTarget,
@@ -389,5 +393,24 @@ describe("stage-pointer-controller", () => {
       selectedIds: ["text_1"],
     });
     expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120);
+  });
+
+  it("commits active text editing before opening an object context menu", () => {
+    const { callbacks, controller } = createHarness({
+      callbacks: {
+        isEditingText: vi.fn(() => true),
+      },
+    });
+    const event = {
+      clientX: 100,
+      clientY: 120,
+      preventDefault: vi.fn(),
+    };
+
+    controller.handleContextMenu(event);
+
+    expect(callbacks.commitTextEditing.mock.invocationCallOrder[0]).toBeLessThan(
+      callbacks.showContextMenu.mock.invocationCallOrder[0],
+    );
   });
 });

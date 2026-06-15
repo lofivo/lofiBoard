@@ -31,6 +31,7 @@ export function createStagePointerController({
   clearSelection = () => {},
   consumeSuppressNextCanvasSelection = () => false,
   consumeSuppressSelectionDragOnce = () => false,
+  commitTextEditing = () => {},
   createStickyElement = defaultCreateStickyElement,
   createTextElement = defaultCreateTextElement,
   editElement = () => {},
@@ -349,6 +350,9 @@ export function createStagePointerController({
 
   function handleContextMenu(event) {
     event.preventDefault();
+    if (isEditingText()) {
+      commitTextEditing();
+    }
     stage.setPointersPositions(event);
     const pointer = stage.getPointerPosition();
     const worldPoint = getWorldPoint();

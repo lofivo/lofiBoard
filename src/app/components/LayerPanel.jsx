@@ -115,7 +115,16 @@ export default function LayerPanel() {
               return (
                 <div key={item.id}
                   role="button"
+                  data-layer-id={item.id}
                   onClick={() => ctx.selectLayerItem?.(item.id)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    ctx.openLayerItemContextMenu?.(item.id, {
+                      clientX: event.clientX,
+                      clientY: event.clientY,
+                    });
+                  }}
                   style={{
                     ...itemBase,
                     background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',

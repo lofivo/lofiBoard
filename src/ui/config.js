@@ -113,6 +113,8 @@ export const TEXT_FORMAT_ICONS = {
 };
 
 export const CONTEXT_MENU_ITEMS = [
+  { action: "undo", label: "撤销", icon: Undo2 },
+  { action: "redo", label: "重做", icon: Redo2 },
   { action: "copy", label: "复制", icon: Copy },
   { action: "cut", label: "剪切", icon: Scissors },
   { action: "paste", label: "粘贴", icon: Clipboard },

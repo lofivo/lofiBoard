@@ -63,7 +63,7 @@ export function shouldPreserveTextEditorOnPointerDown({
   target,
   editorFrame,
   isTransformer = false,
-  auxiliarySelector = "[data-style-panel], [data-panel-edge='style']",
+  auxiliarySelector = "[data-style-panel], [data-panel-edge='style'], [data-react-context-menu], [data-context-menu]",
 } = {}) {
   if (editorFrame?.contains?.(target)) return true;
   if (isTransformer) return true;

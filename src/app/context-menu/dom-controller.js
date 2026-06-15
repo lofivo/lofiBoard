@@ -4,6 +4,8 @@ export function createContextMenuDomController({
   contextMenuController,
   getSelectedIds,
   hasClipboard,
+  canUndo = () => false,
+  canRedo = () => false,
   getViewport,
   actions,
 }) {
@@ -41,6 +43,8 @@ export function createContextMenuDomController({
       button.disabled = contextMenuController.isActionDisabled(button.dataset.contextAction, {
         selectedIds: getSelectedIds(),
         hasClipboard: hasClipboard(),
+        canUndo: canUndo(),
+        canRedo: canRedo(),
       });
     });
   }

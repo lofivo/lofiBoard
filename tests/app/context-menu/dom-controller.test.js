@@ -17,7 +17,7 @@ createButton.listeners = new Map();
 
 function createController() {
   createButton.listeners.clear();
-  const buttons = [createButton("copy"), createButton("paste")];
+  const buttons = [createButton("undo"), createButton("redo"), createButton("copy"), createButton("paste")];
   const root = {
     querySelectorAll: vi.fn((selector) => (selector === "[data-context-action]" ? buttons : [])),
   };
@@ -28,7 +28,7 @@ function createController() {
   };
   const contextMenuController = {
     getPosition: vi.fn(() => ({ left: 12, top: 24 })),
-    isActionDisabled: vi.fn((action) => action === "paste"),
+    isActionDisabled: vi.fn((action) => action === "paste" || action === "redo"),
   };
   const actions = {
     copy: vi.fn(),
@@ -40,6 +40,8 @@ function createController() {
     contextMenuController,
     getSelectedIds: () => ["rect_1"],
     hasClipboard: () => false,
+    canUndo: () => true,
+    canRedo: () => false,
     getViewport: () => ({ width: 300, height: 200 }),
     actions,
   });
@@ -74,12 +76,22 @@ describe("dom-controller", () => {
 
     controller.updateContextMenuActions();
 
+    expect(contextMenuController.isActionDisabled).toHaveBeenCalledWith("undo", {
+      selectedIds: ["rect_1"],
+      hasClipboard: false,
+      canUndo: true,
+      canRedo: false,
+    });
     expect(contextMenuController.isActionDisabled).toHaveBeenCalledWith("copy", {
       selectedIds: ["rect_1"],
       hasClipboard: false,
+      canUndo: true,
+      canRedo: false,
     });
     expect(buttons[0].disabled).toBe(false);
     expect(buttons[1].disabled).toBe(true);
+    expect(buttons[2].disabled).toBe(false);
+    expect(buttons[3].disabled).toBe(true);
   });
 
   it("hides the menu and runs the selected context action", () => {

@@ -943,11 +943,15 @@ export function createWhiteboardApp(root) {
     contextMenuController,
     getSelectedIds: () => selectedIds,
     hasClipboard: () => clipboardController.hasSnapshot(),
+    canUndo: () => boardSession.getHistory().canUndo?.() ?? false,
+    canRedo: () => boardSession.getHistory().canRedo?.() ?? false,
     getViewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
     }),
     actions: {
+      undo: () => undoHistory(),
+      redo: () => redoHistory(),
       copy: () => copySelection(),
       cut: () => cutSelection(),
       paste: () => pasteClipboard(),
@@ -1511,6 +1515,7 @@ export function createWhiteboardApp(root) {
       suppressSelectionDragOnce = false;
       return true;
     },
+    commitTextEditing: () => editController.commit?.(),
   });
 
   hydrateLocalDraft();
@@ -1540,6 +1545,22 @@ export function createWhiteboardApp(root) {
   };
 
   root._getSelectedIds = () => [...selectedIds];
+
+  root._getContextMenuActionStates = () => {
+    updateContextMenuActions();
+    return Object.fromEntries(
+      [...root.querySelectorAll("[data-context-action]")].map((button) => [
+        button.dataset.contextAction,
+        Boolean(button.disabled),
+      ]),
+    );
+  };
+
+  root._commitActiveTextEditor = () => {
+    if (!editController.commit) return false;
+    editController.commit();
+    return true;
+  };
 
   root._selectLayerItemById = (id, modifier) => {
     setTool(TOOLS.SELECT);
