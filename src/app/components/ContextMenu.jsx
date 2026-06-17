@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import {
-  Copy, Scissors, Clipboard, Layers, Undo2, Redo2, TextSelect,
+  Copy, Scissors, Clipboard, Layers, Undo2, Redo2,
   BringToFront, SendToBack, Group, Ungroup, Lock, Trash2,
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
@@ -24,13 +24,6 @@ const ITEMS = [
   { action: 'ungroup', label: '取消分组', svg: Ungroup },
   { action: 'toggle-lock', label: '锁定/解锁', svg: Lock },
   { action: 'delete', label: '删除', svg: Trash2 },
-];
-
-const INPUT_ITEMS = [
-  { action: 'select-all', label: '全选', svg: TextSelect },
-  { action: 'copy', label: '复制', svg: Copy },
-  { action: 'cut', label: '剪切', svg: Scissors },
-  { action: 'paste', label: '粘贴', svg: Clipboard },
 ];
 
 const menuListStyle = {
@@ -60,20 +53,12 @@ const menuItemStyle = {
 export default function ContextMenu() {
   const ctx = useWhiteboardContext();
   const pointerActionRef = useRef(null);
-  const isInputMenu = ctx.contextMenuMode === 'input';
-  const items = isInputMenu ? INPUT_ITEMS : ITEMS;
-  const disabledActions = isInputMenu
-    ? (ctx.inputContextMenuDisabledActions || {})
-    : (ctx.contextMenuDisabledActions || {});
+  const disabledActions = ctx.contextMenuDisabledActions || {};
   const preventPointerDefault = (event) => {
     event.preventDefault();
   };
   const runMenuAction = async (action) => {
-    if (isInputMenu) {
-      await ctx.runInputContextAction?.(action);
-    } else {
-      await ctx.runContextAction?.(action);
-    }
+    await ctx.runContextAction?.(action);
     ctx.hideContextMenu?.();
   };
   const runPointerAction = (event, action, disabled) => {
@@ -115,7 +100,7 @@ export default function ContextMenu() {
       border: '1px solid rgba(148,163,184,0.28)',
     }}>
       <ul role="menu" style={menuListStyle}>
-        {items.map(item => {
+        {ITEMS.map(item => {
           const disabled = Boolean(disabledActions[item.action]);
           return (
           <li key={item.action} role="none">

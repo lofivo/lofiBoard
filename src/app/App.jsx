@@ -4,10 +4,8 @@ import { createWhiteboardApp } from './whiteboard-app.js';
 import { TOOLS } from '../ui/config.js';
 import { isNativeTextEditingTarget } from '../tools/interaction-rules.js';
 import {
-  getInputContextMenuState,
   getWhiteboardContextMenuRequest,
   getContextMenuPosition,
-  runInputContextAction as runTextInputContextAction,
 } from './context-menu/controller.js';
 import Topbar from './components/Topbar';
 import ToolDock from './components/ToolDock';
@@ -23,7 +21,6 @@ export default function App() {
   const legacyRootRef = useRef(null);
   const initializedRef = useRef(false);
   const contextMenuVisibleRef = useRef(false);
-  const inputContextTargetRef = useRef(null);
   const statusClearTimerRef = useRef(null);
   const lastStatusRef = useRef('就绪');
   const shiftRef = useRef(false);
@@ -43,10 +40,8 @@ export default function App() {
   const [shapePopoverVisible, setShapePopoverVisible] = useState(false);
   const [structurePanelVisible, setStructurePanelVisible] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
-  const [contextMenuMode, setContextMenuMode] = useState('object');
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuDisabledActions, setContextMenuDisabledActions] = useState({});
-  const [inputContextMenuDisabledActions, setInputContextMenuDisabledActions] = useState({});
   const [selectionCaps, setSelectionCaps] = useState({});
 
   const [brushColor, setBrushColor] = useState('#111827');
@@ -240,29 +235,12 @@ export default function App() {
         appRoot: appShellRef.current,
         legacyRoot,
         stageContainer,
-        activeElement: document.activeElement,
         isNativeTextEditingTarget,
       });
-      if (request.type === 'outside') return;
+      if (request.type === 'outside' || request.type === 'input') return;
       e.preventDefault();
       if (request.type === 'menu') return;
 
-      if (request.type === 'input') {
-        inputContextTargetRef.current = request.target;
-        setContextMenuMode('input');
-        setInputContextMenuDisabledActions(getInputContextMenuState(request.target));
-        const pos = getContextMenuPosition({
-          clientX: e.clientX, clientY: e.clientY,
-          menuBox: { width: 168, height: 154 },
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-        });
-        setContextMenuPos({ x: pos.left, y: pos.top });
-        setContextMenuVisible(true);
-        contextMenuVisibleRef.current = true;
-        return;
-      }
-
-      inputContextTargetRef.current = null;
       if (request.type !== 'canvas') {
         legacyRoot._commitActiveTextEditor?.();
         setContextMenuVisible(false);
@@ -270,7 +248,6 @@ export default function App() {
         return;
       }
 
-      setContextMenuMode('object');
       setContextMenuDisabledActions(readContextMenuDisabledActions());
       const pos = getContextMenuPosition({
         clientX: e.clientX, clientY: e.clientY,
@@ -368,14 +345,6 @@ export default function App() {
     if (btn) btn.click();
   }, [getLegacyRoot]);
 
-  const runInputContextAction = useCallback(async (action) => {
-    const target = inputContextTargetRef.current;
-    if (!target) return;
-    await runTextInputContextAction(action, target);
-    target.focus?.({ preventScroll: true });
-    setInputContextMenuDisabledActions(getInputContextMenuState(target));
-  }, []);
-
   const hideContextMenu = useCallback(() => {
     setContextMenuVisible(false);
     contextMenuVisibleRef.current = false;
@@ -391,13 +360,11 @@ export default function App() {
   const openLayerItemContextMenu = useCallback((id, point) => {
     const root = getLegacyRoot();
     if (!root) return;
-    inputContextTargetRef.current = null;
     root._commitActiveTextEditor?.();
     const selectedIds = root._getSelectedIds?.() ?? [];
     if (!selectedIds.includes(id)) {
       root._selectLayerItemById?.(id, 'none');
     }
-    setContextMenuMode('object');
     setContextMenuDisabledActions(root._getContextMenuActionStates?.() ?? {});
     const position = getContextMenuPosition({
       clientX: point?.clientX ?? 0,
@@ -416,8 +383,8 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    contextMenuVisible, contextMenuMode, contextMenuPos,
-    contextMenuDisabledActions, inputContextMenuDisabledActions, selectionCaps,
+    contextMenuVisible, contextMenuPos,
+    contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
     textBold, textItalic, textUnderline, textStrike,
@@ -426,7 +393,7 @@ export default function App() {
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
     selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
-    runContextAction, runInputContextAction, hideContextMenu, selectLayerItem,
+    runContextAction, hideContextMenu, selectLayerItem,
     openLayerItemContextMenu,
     selectShape,
     setBackgroundMode: handleSetBackgroundMode,
@@ -453,8 +420,8 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    contextMenuVisible, contextMenuMode, contextMenuPos,
-    contextMenuDisabledActions, inputContextMenuDisabledActions, selectionCaps,
+    contextMenuVisible, contextMenuPos,
+    contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
     textBold, textItalic, textUnderline, textStrike,
@@ -463,7 +430,7 @@ export default function App() {
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
     selectedLayerIds,
     runAction, setTool, zoomBy, setZoomAtCenter,
-    runContextAction, runInputContextAction, hideContextMenu, selectLayerItem,
+    runContextAction, hideContextMenu, selectLayerItem,
     openLayerItemContextMenu,
     selectShape,
     handleSetBackgroundMode,
