@@ -199,6 +199,31 @@ describe("app editing controller", () => {
     expect(deps.onStateChange).not.toHaveBeenCalled();
   });
 
+  it("sets browser autocomplete/spellcheck/autocorrect attributes to off on editor textareas", () => {
+    const deps = createDeps();
+    const element = textElement();
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
+    expect(textarea).toBeTruthy();
+    expect(textarea.spellcheck).toBe(false);
+    expect(textarea.autocorrect).toBe("off");
+    expect(textarea.autocomplete).toBe("off");
+    expect(textarea.autocapitalize).toBe("off");
+
+    const measureTextarea = document.querySelector("textarea.text-editor-measure");
+    expect(measureTextarea).toBeTruthy();
+    expect(measureTextarea.spellcheck).toBe(false);
+    expect(measureTextarea.autocorrect).toBe("off");
+    expect(measureTextarea.autocomplete).toBe("off");
+    expect(measureTextarea.autocapitalize).toBe("off");
+  });
+
   it("creates a text editor DOM frame", () => {
     const deps = createDeps();
     const element = textElement();
