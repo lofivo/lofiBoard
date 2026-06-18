@@ -305,8 +305,9 @@ export function updateGraphFromInput(element, input) {
   return updateGraphFromParsedGraph(element, graph);
 }
 
-export function createGraphStructureElement(graph, point, zIndex) {
-  const nodeRadius = GRAPH_STRUCTURE_STYLE.nodeRadius;
+export function createGraphStructureElement(graph, point, zIndex, styleOverride = {}) {
+  const style = { ...GRAPH_STRUCTURE_STYLE, ...(styleOverride ?? {}) };
+  const nodeRadius = style.nodeRadius;
   const count = Math.max(1, graph.nodes.length);
   const { width, height, layoutRadius } = getGraphMinSize(count, nodeRadius);
   const labelToId = new Map(graph.nodes.map((label) => [label, createId("graph_node")]));
@@ -344,7 +345,7 @@ export function createGraphStructureElement(graph, point, zIndex) {
       directedDefault: graph.edges.some((edge) => edge.directed),
       weightedDefault: false,
     },
-    style: { ...GRAPH_STRUCTURE_STYLE },
+    style,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
@@ -365,13 +366,24 @@ function splitEdgeWeight(edgeText) {
 
 function updateGraphFromParsedGraph(element, graph) {
   const previousNodesByLabel = new Map((element.nodes ?? []).map((node) => [node.label ?? node.id, node]));
+  const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const created = createGraphStructureElement(graph, {
     x: element.x + element.width / 2,
     y: element.y + element.height / 2,
-  }, element.zIndex ?? 0);
+  }, element.zIndex ?? 0, style);
+  const radius = Number(style.nodeRadius) || GRAPH_STRUCTURE_STYLE.nodeRadius;
+  const clamp = (value, max) => {
+    const upper = Math.max(radius, max - radius);
+    return Math.min(Math.max(Number(value) || 0, radius), upper);
+  };
   const nodes = created.nodes.map((node) => {
     const previous = previousNodesByLabel.get(node.label);
-    return previous ? { ...node, id: previous.id, x: previous.x, y: previous.y } : node;
+    const next = previous ? { ...node, id: previous.id, x: previous.x, y: previous.y } : node;
+    return {
+      ...next,
+      x: clamp(next.x, created.width),
+      y: clamp(next.y, created.height),
+    };
   });
   const idByLabel = new Map(nodes.map((node) => [node.label, node.id]));
   return {
@@ -387,7 +399,7 @@ function updateGraphFromParsedGraph(element, graph) {
       }))
       .filter((edge) => edge.from && edge.to),
     settings: created.settings,
-    style: { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) },
+    style,
   };
 }
 

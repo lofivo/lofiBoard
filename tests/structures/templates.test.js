@@ -798,6 +798,39 @@ describe("structure templates", () => {
     ]);
   });
 
+  it("reloads graph input using the current node radius and clamps preserved positions", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const radius = 52;
+    const enlarged = {
+      ...graph,
+      width: 468,
+      height: 468,
+      style: { ...graph.style, nodeRadius: radius },
+      nodes: graph.nodes.map((node) => (
+        node.label === "A" ? { ...node, x: 999, y: 999 } : node
+      )),
+    };
+
+    const updated = updateGraphFromInput(enlarged, "A-B, B-C, C-D");
+    const min = getGraphMinSize(updated.nodes.length, radius);
+    const nodeA = updated.nodes.find((node) => node.label === "A");
+
+    expect(updated.width).toBe(min.width);
+    expect(updated.height).toBe(min.height);
+    expect(nodeA).toMatchObject({ x: min.width - radius, y: min.height - radius });
+    expect(updated.nodes.every((node) => (
+      node.x >= radius
+      && node.x <= updated.width - radius
+      && node.y >= radius
+      && node.y <= updated.height - radius
+    ))).toBe(true);
+  });
+
   it("adds, deletes, moves, and reloads general tree nodes from edge list input", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,

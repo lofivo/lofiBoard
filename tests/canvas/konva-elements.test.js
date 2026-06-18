@@ -12,6 +12,10 @@ import {
   syncTextNodeScalePreview,
   syncTextNodeSize,
 } from "../../src/canvas/konva-elements.js";
+import {
+  getGraphMinSize,
+  updateGraphFromInput,
+} from "../../src/structures/graph-structure.js";
 
 const baseHandlers = {
   draggable: false,
@@ -635,6 +639,41 @@ describe("konva elements", () => {
     expect(boundFunc(toAbsolute({ x: 90, y: 100 }))).toEqual(toAbsolute({ x: 90, y: 100 }));
     expect(boundFunc(toAbsolute({ x: -999, y: -999 }))).toEqual(toAbsolute({ x: 52, y: 52 }));
     expect(boundFunc(toAbsolute({ x: 999, y: 999 }))).toEqual(toAbsolute({ x: 300 - 52, y: 240 - 52 }));
+  });
+
+  it("keeps graph node drag bounds correct after applying graph structure input with a custom node radius", () => {
+    const radius = 52;
+    const element = {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 468,
+      height: 468,
+      nodes: [
+        { id: "node_a", label: "A", x: 999, y: 999 },
+        { id: "node_b", label: "B", x: 120, y: 120 },
+      ],
+      edges: [{ id: "edge_1", from: "node_a", to: "node_b", directed: false, weight: "" }],
+      settings: { directedDefault: false },
+      style: { nodeRadius: radius },
+    };
+    const graph = createElementNode(element, { ...baseHandlers, draggable: true });
+    const updated = updateGraphFromInput(element, "A-B, B-C, C-D");
+    const min = getGraphMinSize(updated.nodes.length, radius);
+
+    expect(syncElementNode(graph, updated, { ...baseHandlers, draggable: true })).toBe(true);
+    graph.position({ x: 200, y: 120 });
+
+    const graphNodeA = graph.find(".graph-node").find((node) => node.getAttr("graphNodeId") === "node_a");
+    const boundFunc = graphNodeA.dragBoundFunc();
+    const toAbsolute = (local) => graph.getAbsoluteTransform().point(local);
+
+    expect(graph.width()).toBe(min.width);
+    expect(graph.height()).toBe(min.height);
+    expect(graphNodeA.position()).toEqual({ x: min.width - radius, y: min.height - radius });
+    expect(boundFunc(toAbsolute({ x: -999, y: -999 }))).toEqual(toAbsolute({ x: radius, y: radius }));
+    expect(boundFunc(toAbsolute({ x: 999, y: 999 }))).toEqual(toAbsolute({ x: min.width - radius, y: min.height - radius }));
   });
 
   it("disables the current graph group while dragging a synced graph node", () => {
