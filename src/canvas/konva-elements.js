@@ -1520,7 +1520,7 @@ function createGraphStructureNode(element, common, {
       const source = getNodePosition(record.edge.from);
       const target = getNodePosition(record.edge.to);
       if (!source || !target) continue;
-      record.line.points(getGraphEdgePoints(source, target, record.edgeIndex, record.isSelfLoop));
+      record.line.points(getGraphEdgePoints(source, target, record.edgeIndex, record.isSelfLoop, style.nodeRadius));
       if (record.weightBackground && record.weightLabel) {
         const labelPoint = getGraphEdgeLabelPoint(source, target, record.edgeIndex);
         const offsetX = labelPoint.offsetX ?? 0;
@@ -1538,7 +1538,7 @@ function createGraphStructureNode(element, common, {
     const edgeIndex = getParallelEdgeIndex(element.edges ?? [], edge);
     const isSelfLoop = edge.from === edge.to;
     const lineAttrs = {
-      points: getGraphEdgePoints(source, target, edgeIndex),
+      points: getGraphEdgePoints(source, target, edgeIndex, isSelfLoop, style.nodeRadius),
       stroke: (element.markers?.highlightedEdges ?? []).includes(edge.id) ? style.edgeHighlightStroke : style.stroke,
       strokeWidth: 3,
       lineCap: "round",
@@ -1602,12 +1602,17 @@ function createGraphStructureNode(element, common, {
       x: node.x,
       y: node.y,
       draggable: Boolean(common.draggable),
-      dragBoundFunc: common.draggable ? (pos) => {
-        const transform = group.getAbsoluteTransform().copy();
+      graphNodeId: node.id,
+    });
+    const getCurrentGraphGroup = () => nodeGroup.getParent() ?? group;
+    if (common.draggable) {
+      nodeGroup.dragBoundFunc((pos) => {
+        const graphGroup = getCurrentGraphGroup();
+        const transform = graphGroup.getAbsoluteTransform().copy();
         const localPos = transform.copy().invert().point(pos);
         const r = style.nodeRadius;
-        const width = Number(group.width()) || element.width;
-        const height = Number(group.height()) || element.height;
+        const width = Number(graphGroup.width()) || element.width;
+        const height = Number(graphGroup.height()) || element.height;
         const clampInside = (value, max) => {
           const upper = Math.max(r, max - r);
           return Math.min(Math.max(value, r), upper);
@@ -1617,9 +1622,8 @@ function createGraphStructureNode(element, common, {
           y: clampInside(localPos.y, height),
         };
         return transform.point(nextLocalPos);
-      } : undefined,
-      graphNodeId: node.id,
-    });
+      });
+    }
     nodeGroups.set(node.id, nodeGroup);
     nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
@@ -1646,7 +1650,7 @@ function createGraphStructureNode(element, common, {
     }));
     nodeGroup.on("dragstart", (event) => {
       event.cancelBubble = true;
-      group.draggable(false);
+      getCurrentGraphGroup().draggable(false);
       onGraphNodeDragStart?.({
         elementId: element.id,
         nodeId: node.id,
@@ -1655,11 +1659,11 @@ function createGraphStructureNode(element, common, {
     nodeGroup.on("dragmove", (event) => {
       event.cancelBubble = true;
       refreshEdges();
-      group.getLayer()?.batchDraw();
+      getCurrentGraphGroup().getLayer()?.batchDraw();
     });
     nodeGroup.on("dragend", (event) => {
       event.cancelBubble = true;
-      group.draggable(Boolean(common.draggable));
+      getCurrentGraphGroup().draggable(Boolean(common.draggable));
       onGraphNodeMove?.({
         elementId: element.id,
         nodeId: node.id,
@@ -1929,7 +1933,7 @@ function getParallelEdgeIndex(edges, edge) {
   return index <= 0 ? 0 : index;
 }
 
-function getGraphEdgePoints(source, target, edgeIndex = 0, isSelfLoop = false) {
+function getGraphEdgePoints(source, target, edgeIndex = 0, isSelfLoop = false, nodeRadius = 0) {
   const effectiveSelfLoop = isSelfLoop
     || (source.id != null && target.id != null && source.id === target.id)
     || (source.x === target.x && source.y === target.y);
@@ -1946,16 +1950,21 @@ function getGraphEdgePoints(source, target, edgeIndex = 0, isSelfLoop = false) {
       source.y + 24,
     ];
   }
-  if (edgeIndex === 0) return [source.x, source.y, target.x, target.y];
   const dx = target.x - source.x;
   const dy = target.y - source.y;
   const distance = Math.max(1, Math.hypot(dx, dy));
+  const inset = Math.min(Math.max(0, Number(nodeRadius) || 0) + 4, Math.max(0, distance / 3));
+  const startX = source.x + (dx / distance) * inset;
+  const startY = source.y + (dy / distance) * inset;
+  const endX = target.x - (dx / distance) * inset;
+  const endY = target.y - (dy / distance) * inset;
+  if (edgeIndex === 0) return [startX, startY, endX, endY];
   const normalX = -dy / distance;
   const normalY = dx / distance;
   const offset = edgeIndex * 28;
   const middleX = (source.x + target.x) / 2 + normalX * offset;
   const middleY = (source.y + target.y) / 2 + normalY * offset;
-  return [source.x, source.y, middleX, middleY, target.x, target.y];
+  return [startX, startY, middleX, middleY, endX, endY];
 }
 
 function getGraphEdgeLabelPoint(source, target, edgeIndex = 0) {

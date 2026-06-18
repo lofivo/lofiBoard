@@ -597,6 +597,84 @@ describe("konva elements", () => {
     expect(graph.findOne(".graph-frame").height()).toBe(200);
   });
 
+  it("constrains synced graph node dragging with the current group position and node radius", () => {
+    const graph = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 240,
+      nodes: [
+        { id: "A", label: "A", x: 80, y: 80 },
+      ],
+      edges: [],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    expect(syncElementNode(graph, {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 240,
+      nodes: [
+        { id: "A", label: "A", x: 80, y: 80 },
+      ],
+      edges: [],
+      style: { nodeRadius: 52 },
+    }, { ...baseHandlers, draggable: true })).toBe(true);
+
+    graph.position({ x: 200, y: 120 });
+
+    const graphNode = graph.findOne(".graph-node");
+    const boundFunc = graphNode.dragBoundFunc();
+    const toAbsolute = (local) => graph.getAbsoluteTransform().point(local);
+
+    expect(boundFunc(toAbsolute({ x: 90, y: 100 }))).toEqual(toAbsolute({ x: 90, y: 100 }));
+    expect(boundFunc(toAbsolute({ x: -999, y: -999 }))).toEqual(toAbsolute({ x: 52, y: 52 }));
+    expect(boundFunc(toAbsolute({ x: 999, y: 999 }))).toEqual(toAbsolute({ x: 300 - 52, y: 240 - 52 }));
+  });
+
+  it("disables the current graph group while dragging a synced graph node", () => {
+    const graph = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 240,
+      nodes: [
+        { id: "A", label: "A", x: 80, y: 80 },
+      ],
+      edges: [],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    expect(syncElementNode(graph, {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 240,
+      nodes: [
+        { id: "A", label: "A", x: 80, y: 80 },
+      ],
+      edges: [],
+      style: { nodeRadius: 52 },
+    }, { ...baseHandlers, draggable: true })).toBe(true);
+
+    const graphNode = graph.findOne(".graph-node");
+    graph.draggable(true);
+    graphNode.fire("dragstart", { cancelBubble: false });
+    expect(graph.draggable()).toBe(false);
+
+    graphNode.fire("dragend", { cancelBubble: false });
+    expect(graph.draggable()).toBe(true);
+  });
+
   it("does not select ordinary tree nodes from pointer down before a click is confirmed", () => {
     const onTreeNodeClick = vi.fn();
     const onTreeNodeEdit = vi.fn();
@@ -2388,7 +2466,10 @@ describe("konva elements", () => {
       style: {},
     }, baseHandlers);
 
-    expect(node.find("Arrow")).toHaveLength(1);
+    const arrows = node.find("Arrow");
+    expect(arrows).toHaveLength(1);
+    const points = arrows[0].points();
+    expect(points.at(-2)).toBeLessThan(130);
     expect(node.find("Ellipse")).toHaveLength(2);
     expect(node.find("Text").map((text) => text.text())).toContain("5");
   });
@@ -2633,9 +2714,11 @@ describe("konva elements", () => {
     // 边的端点应随节点位置更新
     const newPoints = line.points();
     expect(newPoints).not.toEqual(originalPoints);
-    // 边的起点应更新为节点A的新位置
-    expect(newPoints[0]).toBe(80);
-    expect(newPoints[1]).toBe(70);
+    // 边的起点应随节点A移动,但停在节点圆边缘而不是中心。
+    expect(newPoints[0]).toBeGreaterThan(80);
+    expect(newPoints[0]).toBeLessThan(150);
+    expect(newPoints[1]).toBeGreaterThan(70);
+    expect(newPoints[1]).toBeLessThan(100);
   });
 
   it("renders graph highlights and allows edges to be edited", () => {
