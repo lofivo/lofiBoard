@@ -178,6 +178,19 @@ describe("board-action-controller", () => {
     expect(callbacks.pushHistory).toHaveBeenCalledWith("已更新树");
   });
 
+  it("skips history when editSelectedStructure is called with history:false (live preview)", () => {
+    const { callbacks, controller, getElements } = createController({
+      elements: [createBinaryTreeElement()],
+      selectedIds: ["tree_1"],
+    });
+
+    controller.editSelectedStructure("tree-structure", (element) => ({ ...element, edited: true }), "已更新树", { history: false });
+
+    expect(getElements()[0].edited).toBe(true);
+    expect(callbacks.renderBoard).toHaveBeenCalled();
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
+  });
+
   it("routes binary tree node press into whole-tree selection drag without changing active tree nodes", () => {
     const { callbacks, controller, structureInteraction } = createController({
       elements: [createBinaryTreeElement()],

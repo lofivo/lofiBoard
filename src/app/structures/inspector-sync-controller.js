@@ -1,6 +1,7 @@
 export function createStructureInspectorSyncController({
   root,
   graphStructureInput,
+  graphNodeScale,
   treeStructureInput,
   getElements,
   getSelectedIds,
@@ -8,6 +9,7 @@ export function createStructureInspectorSyncController({
   structureInspectorController,
   exportGraph,
   exportTree,
+  graphStructureStyle,
   isLinearStructureElement,
 }) {
   function getSelectedElements() {
@@ -39,6 +41,14 @@ export function createStructureInspectorSyncController({
     if (getActiveElement() !== graphStructureInput) {
       graphStructureInput.value = element ? exportGraph(element, "edge-list") : "";
       structureInspectorController.setGraphStructureDraft(graphStructureInput.value);
+    }
+    if (root) {
+      root.dataset.graphDirected = element?.settings?.directedDefault ? "true" : "false";
+    }
+    if (graphNodeScale && getActiveElement() !== graphNodeScale) {
+      const baseRadius = graphStructureStyle?.nodeRadius ?? 26;
+      const radius = element?.style?.nodeRadius ?? baseRadius;
+      graphNodeScale.value = String(Math.round((radius / baseRadius) * 100));
     }
   }
 

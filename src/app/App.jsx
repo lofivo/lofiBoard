@@ -37,6 +37,7 @@ export default function App() {
   const [layers, setLayers] = useState([]);
   const [selectedLayerIds, setSelectedLayerIds] = useState([]);
   const [structureSelection, setStructureSelection] = useState('none');
+  const [graphDirected, setGraphDirected] = useState(false);
   const [shapePopoverVisible, setShapePopoverVisible] = useState(false);
   const [structurePanelVisible, setStructurePanelVisible] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
@@ -179,6 +180,8 @@ export default function App() {
         });
         const structure = legacyRoot.dataset.structureSelection || 'none';
         setStructureSelection((prev) => (prev !== structure ? structure : prev));
+        const directed = legacyRoot.dataset.graphDirected === 'true';
+        setGraphDirected((prev) => (prev !== directed ? directed : prev));
         const container = legacyRoot.querySelector('#stage-container');
         if (container) {
           const bg = container.dataset.background || 'plain';
@@ -383,6 +386,7 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
+    graphDirected,
     contextMenuVisible, contextMenuPos,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
@@ -420,6 +424,7 @@ export default function App() {
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
+    graphDirected,
     contextMenuVisible, contextMenuPos,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,

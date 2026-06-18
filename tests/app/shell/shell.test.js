@@ -402,32 +402,14 @@ describe("app shell", () => {
     expect(markup).not.toContain("linear-panel-heading");
     expect(markup).not.toContain("linear-panel-chevron");
     expect(markup).not.toContain("高亮与下标");
-    expect(markup).toContain('data-action="graph-add-node"');
-    expect(markup).toContain('data-action="graph-add-edge"');
-    expect(markup).toContain('data-action="graph-connect-mode"');
-    expect(markup).toContain('data-action="graph-add-edge-input"');
-    expect(markup).toContain('data-action="graph-delete-node"');
-    expect(markup).toContain('data-action="graph-delete-edge"');
-    expect(markup).toContain('data-action="graph-edit-edge"');
-    expect(markup).toContain('data-action="graph-directed-on"');
-    expect(markup).toContain('data-action="graph-directed-off"');
-    expect(markup).toContain('data-action="graph-highlight"');
-    expect(markup).toContain('data-action="graph-clear-highlight"');
-    expect(markup).toContain('data-action="graph-layout-circle"');
-    expect(markup).toContain('data-action="graph-layout-grid"');
-    expect(markup).toContain('data-action="graph-layout-layered"');
-    expect(markup).toContain('data-action="graph-layout-force"');
-    expect(markup).toContain('data-action="graph-export-edge-list"');
-    expect(markup).toContain('data-action="graph-export-adjacency-list"');
-    expect(markup).toContain('data-action="graph-export-adjacency-matrix"');
-    expect(markup).toContain('data-action="graph-import-adjacency-list"');
-    expect(markup).toContain('data-action="graph-import-adjacency-matrix"');
-    expect(markup).toContain('data-action="graph-reload"');
     expect(markup).toContain('data-graph-structure-input');
-    expect(markup).toContain("当前图结构");
+    expect(markup).toContain("顶点与边关系");
     expect(markup).toContain('data-action="graph-apply-structure"');
-    expect(markup.indexOf('data-action="graph-apply-structure"')).toBeLessThan(markup.indexOf('data-action="graph-add-node"'));
+    expect(markup).toContain('data-action="graph-directed-toggle"');
     expect(markup).toContain('class="structure-values-header"');
+    expect(markup).not.toContain('data-action="graph-add-node"');
+    expect(markup).not.toContain('data-action="graph-layout-force"');
+    expect(markup).not.toContain('data-action="graph-export-edge-list"');
     expect(treeMarkup).not.toContain('data-action="tree-add-node"');
     expect(treeMarkup).not.toContain('data-action="tree-connect-mode"');
     expect(treeMarkup).not.toContain('data-action="tree-add-left"');
@@ -2095,12 +2077,10 @@ describe("app shell", () => {
     expect(shapeRenderAdapterSource).toContain("activeTreeNode?.elementId === element.id");
     expect(nodeActionSource).toContain("isTreeElementWithTraversal(element) ? stepTreeTraversalHighlight(element, direction) : element");
     expect(structureNodeQuerySource).toContain("function isInteractiveStructureElement(element");
-    expect(editActionSource).toContain("function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(editActionSource).toContain("function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId })");
     expect(editActionSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");
     expect(structureBoardActionSource).toContain("function handleTreeStructureNodePress(event, group)");
     expect(appSource).not.toContain("group.startDrag");
-    expect(appSource).toContain("onGraphNodeConnect: connectGraphStructureNodes");
     expect(appSource).toContain("onTreeNodeMove: moveTreeStructureNode");
     expect(appSource).toContain("onTreeNodeConnect: connectTreeStructureNodes");
     expect(appSource).toContain("getTreeConnectState:");
@@ -2192,7 +2172,7 @@ describe("app shell", () => {
     expect(stylePanelSource).toContain("'repeat(2, 1fr)'");
     // Unified outline button theme for all structure action button groups
     const outlineMatches = (stylePanelSource.match(/theme="outline" type="tertiary"/g) || []).length;
-    expect(outlineMatches).toBeGreaterThanOrEqual(3);
+    expect(outlineMatches).toBeGreaterThanOrEqual(2);
   });
 
   it("uses custom card grid and segmented control in StructurePanel popup", () => {
@@ -2228,10 +2208,8 @@ describe("app shell", () => {
     // Container style for semantic card grouping
     expect(stylePanelSource).toContain("cardGroupStyle");
     // Class name or text matching semantic groups
-    expect(stylePanelSource).toContain("节点与连边");
-    expect(stylePanelSource).toContain("图布局");
-    expect(stylePanelSource).toContain("视图与高亮");
-    expect(stylePanelSource).toContain("数据导入导出");
+    expect(stylePanelSource).toContain("图结构数据");
+    expect(stylePanelSource).toContain("图设置");
     // Enhanced theme colors for main buttons (light primary or solid primary)
     expect(stylePanelSource).toContain('theme="light" type="primary"');
   });

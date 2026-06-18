@@ -9,6 +9,7 @@ function createController(overrides = {}) {
   };
   const root = { dataset: {} };
   const graphStructureInput = { value: "stale-graph" };
+  const graphNodeScale = { value: "100" };
   const treeStructureInput = { value: "stale-tree" };
   const structureInspectorController = {
     setGraphStructureDraft: vi.fn(),
@@ -16,6 +17,7 @@ function createController(overrides = {}) {
   const controller = createStructureInspectorSyncController({
     root,
     graphStructureInput,
+    graphNodeScale,
     treeStructureInput,
     getElements: () => state.elements,
     getSelectedIds: () => state.selectedIds,
@@ -23,11 +25,13 @@ function createController(overrides = {}) {
     structureInspectorController,
     exportGraph: (element, format) => `${format}:${element.id}`,
     exportTree: (element) => `tree:${element.id}`,
+    graphStructureStyle: { nodeRadius: 26 },
     isLinearStructureElement: (element) => element?.type === "array-structure" || element?.type === "stack-structure",
   });
   return {
     controller,
     graphStructureInput,
+    graphNodeScale,
     root,
     state,
     structureInspectorController,
@@ -77,6 +81,38 @@ describe("inspector-sync-controller", () => {
 
     expect(graphStructureInput.value).toBe("user draft");
     expect(structureInspectorController.setGraphStructureDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes the directed flag to the root dataset for the React switch", () => {
+    const { controller, root } = createController({
+      elements: [{ id: "graph_1", type: "graph-structure", settings: { directedDefault: true } }],
+      selectedIds: ["graph_1"],
+    });
+    controller.syncGraphStructurePanelState();
+    expect(root.dataset.graphDirected).toBe("true");
+
+    const undirected = createController({
+      elements: [{ id: "graph_2", type: "graph-structure", settings: { directedDefault: false } }],
+      selectedIds: ["graph_2"],
+    });
+    undirected.controller.syncGraphStructurePanelState();
+    expect(undirected.root.dataset.graphDirected).toBe("false");
+  });
+
+  it("syncs the node-size slider to the element's nodeRadius percentage", () => {
+    const { controller, graphNodeScale, state } = createController({
+      elements: [{ id: "graph_1", type: "graph-structure", style: { nodeRadius: 52 } }],
+      selectedIds: ["graph_1"],
+    });
+
+    controller.syncGraphStructurePanelState();
+    expect(graphNodeScale.value).toBe("200"); // 52 / 26 = 200%
+
+    // 用户正在拖滑块时不覆盖其值
+    state.activeElement = graphNodeScale;
+    graphNodeScale.value = "130";
+    controller.syncGraphStructurePanelState();
+    expect(graphNodeScale.value).toBe("130");
   });
 
   it("syncs tree input and tree kind unless the tree input is being edited", () => {

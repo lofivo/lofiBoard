@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox } from '@douyinfe/semi-ui';
+import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox, Switch } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
@@ -582,6 +582,7 @@ function LinearStructureInspector({ ctx }) {
 
 function GraphStructureInspector({ ctx }) {
   const [input, setInput] = useState('');
+  const [nodeScale, setNodeScale] = useState('100');
 
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
@@ -593,6 +594,7 @@ function GraphStructureInspector({ ctx }) {
       const t = ctxRef.current.structureSelection || 'none';
       if (t !== 'graph-structure') return;
       setInput(prev => { const v = readDom(root, '[data-graph-structure-input]'); return prev !== v ? v : prev; });
+      setNodeScale(prev => { const v = readDom(root, '[data-graph-node-scale]') || '100'; return prev !== v ? v : prev; });
     };
     sync();
     const id = setInterval(sync, 150);
@@ -602,6 +604,12 @@ function GraphStructureInspector({ ctx }) {
   const handleInputChange = useCallback((v) => {
     setInput(v);
     writeDomValue(findLegacyRoot(), '[data-graph-structure-input]', v);
+  }, []);
+
+  const handleNodeScaleChange = useCallback((v) => {
+    const val = String(v);
+    setNodeScale(val);
+    writeDomValue(findLegacyRoot(), '[data-graph-node-scale]', val);
   }, []);
 
   return (
@@ -620,81 +628,23 @@ function GraphStructureInspector({ ctx }) {
         </div>
       </div>
 
-      {/* 2. 节点与连边 */}
+      {/* 2. 图设置 */}
       <div style={cardGroupStyle}>
-        <div style={cardGroupTitleStyle}>节点与连边</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {[
-            { action: 'graph-add-node', label: '加点', main: true },
-            { action: 'graph-add-edge', label: '连边', main: true },
-            { action: 'graph-connect-mode', label: '点选连边', main: true },
-            { action: 'graph-add-edge-input', label: '输入连边' },
-            { action: 'graph-edit-edge', label: '改边' },
-            { action: 'graph-delete-node', label: '删点' },
-            { action: 'graph-delete-edge', label: '删边' },
-          ].map(a => (
-            <Button key={a.action} size="small"
-              theme={a.main ? "light" : "outline"}
-              type="tertiary"
-              style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
-              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-          ))}
+        <div style={cardGroupTitleStyle}>图设置</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13 }}>有向图</span>
+          <Switch checked={ctx.graphDirected ?? false}
+            onChange={() => ctx.runAction?.('graph-directed-toggle')} />
         </div>
-      </div>
-
-      {/* 3. 视图与高亮 */}
-      <div style={cardGroupStyle}>
-        <div style={cardGroupTitleStyle}>视图与高亮</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {[
-            { action: 'graph-highlight', label: '图高亮', main: true },
-            { action: 'graph-clear-highlight', label: '清高亮' },
-            { action: 'graph-reload', label: '图重载' },
-            { action: 'graph-directed-on', label: '默认有向' },
-            { action: 'graph-directed-off', label: '默认无向' },
-          ].map(a => (
-            <Button key={a.action} size="small"
-              theme={a.main ? "light" : "outline"}
-              type="tertiary"
-              style={{ height: 28, fontSize: 12, borderRadius: 8, padding: 0 }}
-              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. 图布局 */}
-      <div style={cardGroupStyle}>
-        <div style={cardGroupTitleStyle}>图布局</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-          {[
-            { action: 'graph-layout-force', label: '力导向布局', main: true },
-            { action: 'graph-layout-circle', label: '环形布局' },
-            { action: 'graph-layout-grid', label: '网格布局' },
-            { action: 'graph-layout-layered', label: '分层布局' },
-          ].map(a => (
-            <Button key={a.action} size="small"
-              theme={a.main ? "light" : "outline"}
-              type="tertiary"
-              style={{ height: 28, fontSize: 12, borderRadius: 8 }}
-              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. 数据导入导出 */}
-      <div style={cardGroupStyle}>
-        <div style={cardGroupTitleStyle}>数据导入导出</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {[
-            { action: 'graph-import-adjacency-list', label: '导入邻接表' },
-            { action: 'graph-import-adjacency-matrix', label: '导入矩阵' },
-            { action: 'graph-export-edge-list', label: '导出边表' },
-            { action: 'graph-export-adjacency-list', label: '导出邻接表' },
-            { action: 'graph-export-adjacency-matrix', label: '导出矩阵' },
-          ].map(a => (
-            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, borderRadius: 8, padding: 0 }}
-              onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
-          ))}
+        <div style={fieldGap}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', ...labelStyle }}>
+            <span>节点大小</span>
+            <span style={{ color: 'var(--semi-color-primary)' }}>{nodeScale}%</span>
+          </div>
+          <Slider min={50} max={200} step={10} value={Number(nodeScale) || 100}
+            onChange={handleNodeScaleChange}
+            onAfterChange={() => ctx.runAction?.('graph-node-scale-commit')}
+            tipFormatter={null} />
         </div>
       </div>
     </div>

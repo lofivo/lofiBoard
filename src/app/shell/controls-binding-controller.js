@@ -9,6 +9,7 @@ export function createControlsBindingController({
   runLinearItemAction,
   runTreeNodeAction,
   runBinaryTreeNodeAction,
+  runGraphNodeAction,
   runTreeTraversalAction,
   setTool,
   setShapePopoverOpen,
@@ -33,10 +34,12 @@ export function createControlsBindingController({
   applyInspectorSectionState,
   setLinearValuesDraft,
   setGraphStructureDraft,
+  setGraphNodeScale,
   setLinearPanelField,
 }) {
   const {
     graphStructureInput,
+    graphNodeScale,
     imageInput,
     inspectorSectionButtons,
     linearFieldInputs,
@@ -71,6 +74,9 @@ export function createControlsBindingController({
     graphStructureInput?.addEventListener("input", () => {
       setGraphStructureDraft(graphStructureInput.value);
     });
+    graphNodeScale?.addEventListener("input", () => {
+      setGraphNodeScale?.(Number(graphNodeScale.value));
+    });
     root.addEventListener("click", (event) => {
       const button = closestElement(event.target, "[data-linear-item-action]");
       if (!button) return;
@@ -90,6 +96,11 @@ export function createControlsBindingController({
       const button = closestElement(event.target, "[data-binary-tree-traversal-action]");
       if (!button) return;
       runTreeTraversalAction(button.dataset.binaryTreeTraversalAction);
+    });
+    root.addEventListener("click", (event) => {
+      const button = closestElement(event.target, "[data-graph-node-action]");
+      if (!button) return;
+      runGraphNodeAction(button.dataset.graphNodeAction);
     });
 
     for (const button of root.querySelectorAll("[data-background-mode]")) {

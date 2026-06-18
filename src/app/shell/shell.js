@@ -372,34 +372,19 @@ export function renderShell() {
             <div class="inspector-section-content" data-section-content="graph">
               <label class="structure-values-field">
                 <span class="structure-values-header">
-                  <span>当前图结构</span>
+                  <span>顶点与边关系</span>
                   <button type="button" data-action="graph-apply-structure">应用结构</button>
                 </span>
                 <textarea data-graph-structure-input rows="5" spellcheck="false" placeholder="A->B&#10;A-C"></textarea>
               </label>
               <div class="quick-actions quick-actions-graph">
-                <button type="button" data-action="graph-add-node">加点</button>
-                <button type="button" data-action="graph-add-edge">连边</button>
-                <button type="button" data-action="graph-connect-mode">点选连边</button>
-                <button type="button" data-action="graph-add-edge-input">输入连边</button>
-                <button type="button" data-action="graph-delete-node">删点</button>
-                <button type="button" data-action="graph-delete-edge">删边</button>
-                <button type="button" data-action="graph-edit-edge">改边</button>
-                <button type="button" data-action="graph-directed-on">默认有向</button>
-                <button type="button" data-action="graph-directed-off">默认无向</button>
-                <button type="button" data-action="graph-highlight">图高亮</button>
-                <button type="button" data-action="graph-clear-highlight">清高亮</button>
-                <button type="button" data-action="graph-layout-circle">环形布局</button>
-                <button type="button" data-action="graph-layout-grid">网格布局</button>
-                <button type="button" data-action="graph-layout-layered">分层布局</button>
-                <button type="button" data-action="graph-layout-force">力导向</button>
-                <button type="button" data-action="graph-export-edge-list">导出边表</button>
-                <button type="button" data-action="graph-export-adjacency-list">导出邻接表</button>
-                <button type="button" data-action="graph-export-adjacency-matrix">导出矩阵</button>
-                <button type="button" data-action="graph-import-adjacency-list">导入邻接表</button>
-                <button type="button" data-action="graph-import-adjacency-matrix">导入矩阵</button>
-                <button type="button" data-action="graph-reload">图重载</button>
+                <button type="button" data-action="graph-directed-toggle">有向图</button>
               </div>
+              <label class="linear-field graph-node-scale-field">
+                <span>节点大小</span>
+                <input data-graph-node-scale type="range" min="50" max="200" step="10" value="100" />
+              </label>
+              <button type="button" data-action="graph-node-scale-commit" hidden aria-hidden="true"></button>
             </div>
           </section>
 

@@ -72,6 +72,7 @@ function createController(overrides = {}) {
   const root = createRoot(nodes);
   const refs = {
     graphStructureInput: createClickable(),
+    graphNodeScale: createClickable(),
     imageInput: createClickable(),
     inspectorSectionButtons: [
       createClickable({ sectionToggle: "appearance" }),
@@ -109,6 +110,7 @@ function createController(overrides = {}) {
     setArrayInitMode: vi.fn(),
     setBackgroundMode: vi.fn(),
     setGraphStructureDraft: vi.fn(),
+    setGraphNodeScale: vi.fn(),
     setLinearPanelField: vi.fn(),
     setLinearValuesDraft: vi.fn(),
     setShapePopoverOpen: vi.fn(),
@@ -165,6 +167,9 @@ describe("controls-binding-controller", () => {
     expect(callbacks.setLinearValuesDraft).toHaveBeenCalledWith("1,2,3");
     refs.graphStructureInput.dispatch("input");
     expect(callbacks.setGraphStructureDraft).toHaveBeenCalledWith("A B");
+    refs.graphNodeScale.value = "150";
+    refs.graphNodeScale.dispatch("input");
+    expect(callbacks.setGraphNodeScale).toHaveBeenCalledWith(150);
     refs.linearFieldInputs.highlightStart.dispatch("input");
     expect(callbacks.setLinearPanelField).toHaveBeenCalledWith("highlightStart", "2");
 

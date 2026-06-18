@@ -17,6 +17,7 @@ export function queryWhiteboardRefs(root) {
     arrayRandomFields: query("[data-array-random-fields]"),
     arrayRandomCountInput: query("[data-array-random-count]"),
     graphStructureInput: query("[data-graph-structure-input]"),
+    graphNodeScale: query("[data-graph-node-scale]"),
     treeStructureInput: query("[data-tree-structure-input]"),
     contextMenu: query("[data-context-menu]"),
     layerPanel: query("[data-layer-panel]"),

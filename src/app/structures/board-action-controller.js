@@ -126,7 +126,7 @@ export function createStructureBoardActionController({
     });
   }
 
-  function editSelectedStructure(type, edit, message) {
+  function editSelectedStructure(type, edit, message, { history = true } = {}) {
     const targetId = readSelectedIds().find((id) => {
       const element = readElements().find((item) => item.id === id);
       return element?.type === type && !element.locked;
@@ -141,7 +141,7 @@ export function createStructureBoardActionController({
     renderBoard();
     selectIds([targetId]);
     syncTreeStructurePanelState();
-    pushHistory(message);
+    if (history) pushHistory(message);
   }
 
   function handleTreeStructureNodePress(event, group) {
