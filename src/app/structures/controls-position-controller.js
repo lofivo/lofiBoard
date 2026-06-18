@@ -5,13 +5,16 @@ export function createStructureControlsPositionController({
   structureInteraction,
   findLinearItemNode,
   findTreeNodeGroup,
+  findGraphNodeGroup,
   isSelectedGeneralTreeElement,
   isSelectedBinaryTreeElement,
   isSelectedTreeElementWithTraversal,
+  isSelectedGraphElement,
   getLinearItemControls,
   getTreeNodeControls,
   getBinaryTreeNodeControls,
   getTreeTraversalControls,
+  getGraphNodeControls,
 }) {
   const controller = {
     updateLinearItemControlsPosition,
@@ -19,6 +22,7 @@ export function createStructureControlsPositionController({
     updateTreeNodeControlsPosition,
     updateBinaryTreeNodeControlsPosition,
     updateTreeTraversalControlsPosition,
+    updateGraphNodeControlsPosition,
   };
 
   function updateLinearItemControlsPosition() {
@@ -84,6 +88,20 @@ export function createStructureControlsPositionController({
     controls.style.left = `${stageBox.left + box.x + box.width - controls.offsetWidth}px`;
     controls.style.top = `${stageBox.top + box.y + box.height + 8}px`;
     controls.style.transform = "none";
+  }
+
+  function updateGraphNodeControlsPosition() {
+    const controls = getGraphNodeControls();
+    const activeGraphNode = structureInteraction.getActiveGraphNode();
+    if (!controls || controls.hidden || !activeGraphNode) return;
+    const element = getElements().find((item) => item.id === activeGraphNode.elementId);
+    if (!isSelectedGraphElement(element)) return;
+    const graphNode = findGraphNodeGroup(contentLayer.findOne(`#${element.id}`), activeGraphNode.nodeId);
+    if (!graphNode) {
+      controls.hidden = true;
+      return;
+    }
+    positionNodeControls(controls, graphNode);
   }
 
   function positionNodeControls(controls, treeNode) {

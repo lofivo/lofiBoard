@@ -2046,7 +2046,8 @@ button {
 
 .tree-node-controls,
 .binary-tree-node-controls,
-.binary-tree-traversal-controls {
+.binary-tree-traversal-controls,
+.graph-node-controls {
   position: fixed;
   z-index: 45;
   display: flex;
@@ -2061,13 +2062,15 @@ button {
 
 .tree-node-controls[hidden],
 .binary-tree-node-controls[hidden],
-.binary-tree-traversal-controls[hidden] {
+.binary-tree-traversal-controls[hidden],
+.graph-node-controls[hidden] {
   display: none;
 }
 
 .tree-node-controls button,
 .binary-tree-node-controls button,
-.binary-tree-traversal-controls button {
+.binary-tree-traversal-controls button,
+.graph-node-controls button {
   min-width: 34px;
   height: 30px;
   border: 0;
@@ -2080,7 +2083,8 @@ button {
 
 .tree-node-controls button:hover,
 .binary-tree-node-controls button:hover,
-.binary-tree-traversal-controls button:hover {
+.binary-tree-traversal-controls button:hover,
+.graph-node-controls button:hover {
   background: #e0f2fe;
 }
 

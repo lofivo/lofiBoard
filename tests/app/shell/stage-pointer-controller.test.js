@@ -47,8 +47,10 @@ function createHarness(overrides = {}) {
   let elements = overrides.elements ?? [
     { id: "text_1", type: "text" },
     { id: "tree_1", type: "tree-structure", settings: { treeKind: "binary" } },
+    { id: "graph_1", type: "graph-structure" },
   ];
   const activeTreeNode = overrides.activeTreeNode ?? null;
+  const activeGraphNode = overrides.activeGraphNode ?? null;
   const callbacks = {
     addElement: vi.fn((element) => { elements = [...elements, element]; }),
     beginDrawingPointerSession: undefined,
@@ -64,6 +66,7 @@ function createHarness(overrides = {}) {
     handleLinearPointerMove: vi.fn(() => false),
     handleLinearPointerUp: vi.fn(() => false),
     hideBinaryTreeControls: vi.fn(),
+    hideGraphNodeControls: vi.fn(),
     commitTextEditing: vi.fn(),
     hideContextMenu: vi.fn(),
     hideEraser: vi.fn(),
@@ -86,6 +89,7 @@ function createHarness(overrides = {}) {
     showStrokeEraser: vi.fn(),
     startStroke: vi.fn(),
     syncBinaryTreeActiveVisual: vi.fn(),
+    syncGraphActiveVisual: vi.fn(),
     updateGrid: vi.fn(),
     updateSelectionDrag: vi.fn(),
     updateViewportChrome: vi.fn(),
@@ -125,7 +129,9 @@ function createHarness(overrides = {}) {
   };
   const structureInteraction = {
     clearActiveTreeNode: vi.fn(),
+    clearActiveGraphNode: vi.fn(),
     getActiveTreeNode: vi.fn(() => activeTreeNode),
+    getActiveGraphNode: vi.fn(() => activeGraphNode),
   };
   const controller = createStagePointerController({
     stage,
@@ -155,6 +161,7 @@ function createHarness(overrides = {}) {
     handleLinearPointerMove: callbacks.handleLinearPointerMove,
     handleLinearPointerUp: callbacks.handleLinearPointerUp,
     hideBinaryTreeControls: callbacks.hideBinaryTreeControls,
+    hideGraphNodeControls: callbacks.hideGraphNodeControls,
     commitTextEditing: callbacks.commitTextEditing,
     hideContextMenu: callbacks.hideContextMenu,
     hideEraser: callbacks.hideEraser,
@@ -163,6 +170,8 @@ function createHarness(overrides = {}) {
     isElementLocked: callbacks.isElementLocked,
     isEditingText: callbacks.isEditingText,
     isGeneralTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind !== "binary",
+    isGraphNodeHitTarget: callbacks.isGraphNodeHitTarget ?? (() => false),
+    isGraphStructureElement: (element) => element?.type === "graph-structure",
     isTemporaryPanActive: overrides.isTemporaryPanActive ?? (() => false),
     isTransformerAnchorTarget: callbacks.isTransformerAnchorTarget,
     isTransformerTarget: callbacks.isTransformerTarget,
@@ -181,6 +190,7 @@ function createHarness(overrides = {}) {
     showObjectEraser: callbacks.showObjectEraser,
     showStrokeEraser: callbacks.showStrokeEraser,
     syncBinaryTreeActiveVisual: callbacks.syncBinaryTreeActiveVisual,
+    syncGraphActiveVisual: callbacks.syncGraphActiveVisual,
     updateGrid: callbacks.updateGrid,
     updateViewportChrome: callbacks.updateViewportChrome,
   });
@@ -345,6 +355,25 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.hideBinaryTreeControls).toHaveBeenCalled();
     expect(callbacks.syncBinaryTreeActiveVisual).toHaveBeenCalledWith("tree_1");
     expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(callbacks.selectElementById).not.toHaveBeenCalled();
+  });
+
+  it("lets graph node pointerdown flow to the graph node drag handler", () => {
+    const graphNodeTarget = { id: "inner_node" };
+    const { callbacks, controller, selectionDragController, structureInteraction } = createHarness({
+      selectedIds: ["graph_1"],
+      activeGraphNode: { elementId: "graph_1", nodeId: "A" },
+      callbacks: {
+        getSelectableElementIdAtWorldPoint: vi.fn(() => "graph_1"),
+        isGraphNodeHitTarget: vi.fn(() => true),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: graphNodeTarget }));
+
+    expect(callbacks.isGraphNodeHitTarget).toHaveBeenCalledWith(graphNodeTarget);
+    expect(selectionDragController.beginSelectionDrag).not.toHaveBeenCalled();
+    expect(structureInteraction.clearActiveGraphNode).not.toHaveBeenCalled();
     expect(callbacks.selectElementById).not.toHaveBeenCalled();
   });
 

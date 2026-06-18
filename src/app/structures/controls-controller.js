@@ -8,18 +8,22 @@ export function createStructureControlsController({
   isSelectedGeneralTreeElement,
   isSelectedBinaryTreeElement,
   isSelectedTreeElementWithTraversal,
+  isSelectedGraphElement,
   findTreeNodeGroup,
+  findGraphNodeGroup,
   isTreeRootNode,
   getBinaryTreeChildSides,
   updateLinearItemControlsPosition,
   updateTreeNodeControlsPosition,
   updateBinaryTreeNodeControlsPosition,
   updateTreeTraversalControlsPosition,
+  updateGraphNodeControlsPosition,
 }) {
   let linearItemControls = null;
   let treeNodeControls = null;
   let binaryTreeNodeControls = null;
   let binaryTreeTraversalControls = null;
+  let graphNodeControls = null;
 
   function ensureLinearItemControls() {
     if (linearItemControls) return linearItemControls;
@@ -93,6 +97,42 @@ export function createStructureControlsController({
 
   function hideTreeControls() {
     if (treeNodeControls) treeNodeControls.hidden = true;
+  }
+
+  function ensureGraphNodeControls() {
+    if (graphNodeControls) return graphNodeControls;
+    const controls = document.createElement("div");
+    controls.className = "graph-node-controls";
+    controls.hidden = true;
+    controls.innerHTML = `
+      <button type="button" data-graph-node-action="add-connect" title="添加连接节点" aria-label="添加连接节点">添加连接节点</button>
+      <button type="button" data-graph-node-action="delete" title="删除" aria-label="删除">删除</button>
+    `;
+    root.appendChild(controls);
+    graphNodeControls = controls;
+    return controls;
+  }
+
+  function hideGraphNodeControls() {
+    if (graphNodeControls) graphNodeControls.hidden = true;
+  }
+
+  function renderGraphNodeControls() {
+    const controls = ensureGraphNodeControls();
+    const activeGraphNode = structureInteraction.getActiveGraphNode();
+    const element = getElements().find((item) => item.id === activeGraphNode?.elementId);
+    if (!isSelectedGraphElement(element) || element.locked || !activeGraphNode?.nodeId) {
+      controls.hidden = true;
+      return;
+    }
+    const group = contentLayer.findOne(`#${element.id}`);
+    const graphNode = findGraphNodeGroup(group, activeGraphNode.nodeId);
+    if (!graphNode) {
+      controls.hidden = true;
+      return;
+    }
+    controls.hidden = false;
+    updateGraphNodeControlsPosition();
   }
 
   function renderLinearItemControls() {
@@ -181,18 +221,22 @@ export function createStructureControlsController({
     ensureTreeNodeControls,
     ensureBinaryTreeNodeControls,
     ensureBinaryTreeTraversalControls,
+    ensureGraphNodeControls,
     getLinearItemControls: () => linearItemControls,
     getTreeNodeControls: () => treeNodeControls,
     getBinaryTreeNodeControls: () => binaryTreeNodeControls,
     getTreeTraversalControls: () => binaryTreeTraversalControls,
+    getGraphNodeControls: () => graphNodeControls,
     hideLinearItemControls,
     hideBinaryTreeControls,
     hideTreeControls,
+    hideGraphNodeControls,
     renderLinearItemControls,
     renderTreeControls,
     renderTreeNodeControls,
     renderBinaryTreeControls,
     renderBinaryTreeNodeControls,
     renderTreeTraversalControls,
+    renderGraphNodeControls,
   };
 }

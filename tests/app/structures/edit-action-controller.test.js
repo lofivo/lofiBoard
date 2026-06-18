@@ -40,6 +40,8 @@ function createController(initialElements, {
     finishStructureConnect: vi.fn(() => ({ connection: finishedConnection })),
     getStructureConnectState: vi.fn(() => connectState),
     setActiveTreeNode: vi.fn(() => ({ previousActiveTreeNode: { elementId: "previous_tree" } })),
+    setActiveGraphNode: vi.fn(() => ({ previousActiveGraphNode: { elementId: "previous_graph" } })),
+    clearActiveGraphNode: vi.fn(() => ({ previousActiveGraphNode: { elementId: "previous_graph" } })),
     setStructureConnectSource: vi.fn(),
   };
   const callbacks = {
@@ -49,10 +51,13 @@ function createController(initialElements, {
     pushHistory: vi.fn(),
     renderBoard: vi.fn(),
     renderTreeNodeControls: vi.fn(),
+    renderGraphNodeControls: vi.fn(),
+    hideGraphNodeControls: vi.fn(),
     selectIds: vi.fn(),
     setStatus: vi.fn(),
     syncBinaryTreeActiveVisual: vi.fn(),
     syncGeneralTreeActiveVisual: vi.fn(),
+    syncGraphActiveVisual: vi.fn(),
     syncTreeStructurePanelState: vi.fn(),
   };
   const controller = createStructureEditActionController({
@@ -83,21 +88,57 @@ describe("edit-action-controller", () => {
     expect(callbacks.setStatus).toHaveBeenCalledWith("连接父子：点击父节点，再点击子节点");
   });
 
-  it("uses graph connect state to add a graph edge", () => {
-    const { callbacks, controller, getElements, structureInteraction } = createController([createGraphElement()], {
-      connectState: { sourceNodeId: "A" },
-      finishedConnection: { sourceNodeId: "A", targetNodeId: "B" },
-    });
+  it("selects a graph node and sets active state", () => {
+    const { callbacks, controller, structureInteraction } = createController([createGraphElement()]);
 
-    controller.handleGraphNodeClick({ elementId: "graph_1", nodeId: "B" });
+    controller.handleGraphNodeClick({ elementId: "graph_1", nodeId: "A" });
 
-    expect(structureInteraction.finishStructureConnect).toHaveBeenCalledWith({
-      kind: "graph",
-      elementId: "graph_1",
-      targetNodeId: "B",
-    });
-    expect(getElements()[0].edges).toHaveLength(1);
-    expect(callbacks.pushHistory).toHaveBeenCalledWith("已添加图边");
+    expect(structureInteraction.clearStructureConnectState).toHaveBeenCalled();
+    expect(structureInteraction.setActiveGraphNode).toHaveBeenCalledWith({ elementId: "graph_1", nodeId: "A" });
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["graph_1"]);
+    expect(callbacks.syncGraphActiveVisual).toHaveBeenCalled();
+    expect(callbacks.renderGraphNodeControls).toHaveBeenCalled();
+    expect(callbacks.setStatus).toHaveBeenCalledWith("已选择图节点");
+  });
+
+  it("clears graph node selection when a node drag starts", () => {
+    const { callbacks, controller, structureInteraction } = createController([createGraphElement()]);
+
+    controller.handleGraphNodeDragStart({ elementId: "graph_1", nodeId: "A" });
+
+    expect(structureInteraction.clearActiveGraphNode).toHaveBeenCalled();
+    expect(callbacks.hideGraphNodeControls).toHaveBeenCalled();
+    expect(callbacks.syncGraphActiveVisual).toHaveBeenCalledWith("previous_graph");
+  });
+
+  it("moveGraphStructureNode 移动节点不改变边框尺寸/原点(整图不跟随)", () => {
+    const graph = {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 200,
+      y: 200,
+      width: 234,
+      height: 234,
+      style: { nodeRadius: 26 },
+      settings: { directedDefault: false },
+      nodes: [
+        { id: "A", label: "A", x: 40, y: 40 },
+        { id: "B", label: "B", x: 180, y: 180 },
+      ],
+      edges: [],
+    };
+    const { controller, getElements } = createController([graph]);
+
+    // 把节点拖到贴近左上角(旧实现会触发负 shift 平移整图)
+    controller.moveGraphStructureNode({ elementId: "graph_1", nodeId: "A", x: 0, y: 0 });
+
+    const moved = getElements().find((element) => element.id === "graph_1");
+    expect(moved.x).toBe(200);
+    expect(moved.y).toBe(200);
+    expect(moved.width).toBe(234);
+    expect(moved.height).toBe(234);
+    expect(moved.nodes.find((node) => node.id === "A")).toMatchObject({ x: 0, y: 0 });
+    expect(moved.nodes.find((node) => node.id === "B")).toMatchObject({ x: 180, y: 180 });
   });
 
   it("selects binary tree nodes through shared active tree state", () => {
@@ -112,18 +153,16 @@ describe("edit-action-controller", () => {
     expect(callbacks.setStatus).toHaveBeenCalledWith("已选择二叉树节点");
   });
 
-  it("edits graph edge data through prompt values", () => {
+  it("provides editGraphEdgeData as a noop for backward compat", () => {
     const graph = {
       ...createGraphElement(),
-      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "1" }],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: true, weight: "5" }],
     };
-    const { callbacks, controller } = createController([graph]);
-    callbacks.promptValue.mockReturnValue("9");
-    callbacks.promptBoolean.mockReturnValue(true);
+    const { controller } = createController([graph]);
 
-    const nextGraph = controller.editGraphEdgeData(graph);
+    const result = controller.editGraphEdgeData(graph);
 
-    expect(nextGraph.edges[0]).toMatchObject({ weight: "9", directed: true });
+    expect(result).toBe(graph);
   });
 
   it("moves ordinary tree nodes but ignores binary tree moves", () => {

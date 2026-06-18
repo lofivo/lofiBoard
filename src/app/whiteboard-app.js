@@ -31,10 +31,13 @@ import {
   getTreeRootNodeId,
   isBinaryTreeElement,
   isGeneralTreeElement,
+  isGraphStructureElement,
+  isGraphNodeHitTarget,
   isInteractiveStructureElement,
   isTreeElementWithTraversal,
   isTreeNodeHitTarget,
   isTreeRootNode,
+  findGraphNodeGroup,
 } from "./structures/node-query.js";
 import { createStructurePanelController } from "./structures/panel-controller.js";
 import { createToolActivationController } from "./tools/activation-controller.js";
@@ -161,7 +164,9 @@ import {
 } from "../structures/linear-structure.js";
 import { LINEAR_STRUCTURE_TYPES } from "../structures/types.js";
 import {
+  GRAPH_STRUCTURE_STYLE,
   exportGraph,
+  setGraphNodeRadius,
 } from "../structures/graph-structure.js";
 import {
   TREE_STRUCTURE_STYLE,
@@ -198,6 +203,7 @@ export function createWhiteboardApp(root) {
     arrayRandomFields,
     arrayRandomCountInput,
     graphStructureInput,
+    graphNodeScale,
     treeStructureInput,
     contextMenu,
     layerPanel,
@@ -347,7 +353,9 @@ export function createWhiteboardApp(root) {
     isLinearStructureElement,
     isBinaryTreeElement,
     isGeneralTreeElement,
+    isGraphStructureElement,
     treeStructureStyle: TREE_STRUCTURE_STYLE,
+    graphStructureStyle: GRAPH_STRUCTURE_STYLE,
     renderBinaryTreeControls: () => structureControlsController.renderBinaryTreeControls(),
     renderTreeNodeControls: () => structureControlsController.renderTreeNodeControls(),
   });
@@ -362,13 +370,16 @@ export function createWhiteboardApp(root) {
     isSelectedGeneralTreeElement,
     isSelectedBinaryTreeElement,
     isSelectedTreeElementWithTraversal,
+    isSelectedGraphElement,
     findTreeNodeGroup,
+    findGraphNodeGroup,
     isTreeRootNode,
     getBinaryTreeChildSides,
     updateLinearItemControlsPosition: () => structureControlsPositionController.updateLinearItemControlsPosition(),
     updateTreeNodeControlsPosition: () => structureControlsPositionController.updateTreeNodeControlsPosition(),
     updateBinaryTreeNodeControlsPosition: () => structureControlsPositionController.updateBinaryTreeNodeControlsPosition(),
     updateTreeTraversalControlsPosition: () => structureControlsPositionController.updateTreeTraversalControlsPosition(),
+    updateGraphNodeControlsPosition: () => structureControlsPositionController.updateGraphNodeControlsPosition(),
   });
 
   const structureControlsPositionController = createStructureControlsPositionController({
@@ -378,13 +389,16 @@ export function createWhiteboardApp(root) {
     structureInteraction,
     findLinearItemNode,
     findTreeNodeGroup,
+    findGraphNodeGroup,
     isSelectedGeneralTreeElement,
     isSelectedBinaryTreeElement,
     isSelectedTreeElementWithTraversal,
+    isSelectedGraphElement,
     getLinearItemControls: structureControlsController.getLinearItemControls,
     getTreeNodeControls: structureControlsController.getTreeNodeControls,
     getBinaryTreeNodeControls: structureControlsController.getBinaryTreeNodeControls,
     getTreeTraversalControls: structureControlsController.getTreeTraversalControls,
+    getGraphNodeControls: structureControlsController.getGraphNodeControls,
   });
 
   const {
@@ -1057,12 +1071,14 @@ export function createWhiteboardApp(root) {
   } = createStructureInspectorSyncController({
     root,
     graphStructureInput,
+    graphNodeScale,
     treeStructureInput,
     getElements: () => board.elements,
     getSelectedIds: () => selectedIds,
     structureInspectorController,
     exportGraph,
     exportTree,
+    graphStructureStyle: GRAPH_STRUCTURE_STYLE,
     isLinearStructureElement,
   });
   const {
@@ -1214,9 +1230,10 @@ export function createWhiteboardApp(root) {
     connectGraphStructureNodes,
     connectTreeStructureNodes,
     editGraphEdgeData,
-    editGraphStructureEdge,
-    editGraphStructureNode,
+    editGraphStructureEdge: _deprecatedGraphEdgeEdit,
+    editGraphStructureNode: _deprecatedGraphNodeEdit,
     handleGraphNodeClick,
+    handleGraphNodeDragStart,
     handleTreeNodeClick,
     moveGraphStructureNode,
     moveTreeStructureNode,
@@ -1232,7 +1249,10 @@ export function createWhiteboardApp(root) {
     consumeSuppressedBinaryTreeNodeClick: (elementId) => selectionDragController.consumeSuppressedBinaryTreeNodeClick(elementId),
     syncBinaryTreeActiveVisual,
     syncGeneralTreeActiveVisual,
+    syncGraphActiveVisual,
     renderTreeNodeControls: structureControlsController.renderTreeNodeControls,
+    renderGraphNodeControls: structureControlsController.renderGraphNodeControls,
+    hideGraphNodeControls: structureControlsController.hideGraphNodeControls,
     renderBoard,
     selectIds,
     setStatus,
@@ -1242,6 +1262,8 @@ export function createWhiteboardApp(root) {
   const {
     editArrayStructureItem,
     editTreeStructureNode,
+    editGraphStructureNode,
+    editGraphStructureEdge,
     syncActiveCellEditor,
   } = createStructureCellEditorController({
     container,
@@ -1255,25 +1277,24 @@ export function createWhiteboardApp(root) {
     isLinearStructureElement,
     findLinearItemNode,
     findTreeNodeGroup,
+    findGraphNodeGroup,
     structureInteraction,
     renderBoard,
     selectIds,
     setActiveLinearItem,
     syncTreeStructurePanelState,
+    syncGraphStructurePanelState,
     pushHistory,
     setSuppressNextCanvasSelection: (value) => { suppressNextCanvasSelection = value; },
   });
   const { runAction, runToolAction } = createAppActionController({
-    beginGraphConnectMode,
     beginTreeConnectMode,
     bringSelectionForward,
     bringSelectionToFront,
     clearBoard,
     closeMainMenu,
-    copySelectedGraphExport,
     copySelectedTreeSubtree,
     deleteSelection,
-    editGraphEdgeData,
     editSelectedArrayStructure,
     editSelectedStructure,
     exportPng,
@@ -1311,6 +1332,7 @@ export function createWhiteboardApp(root) {
   const {
     runBinaryTreeNodeAction,
     runBinaryTreeTraversalAction,
+    runGraphNodeAction,
     runLinearItemAction,
     runTreeNodeAction,
     runTreeTraversalAction,
@@ -1333,8 +1355,10 @@ export function createWhiteboardApp(root) {
     editTreeStructureNode,
     hideTreeControls: structureControlsController.hideTreeControls,
     hideBinaryTreeControls: structureControlsController.hideBinaryTreeControls,
+    hideGraphNodeControls: structureControlsController.hideGraphNodeControls,
     updateChrome,
     syncTreeStructurePanelState,
+    syncGraphStructurePanelState,
     pushHistory,
     editSelectedStructure,
   });
@@ -1342,6 +1366,7 @@ export function createWhiteboardApp(root) {
     root,
     refs: {
       graphStructureInput,
+      graphNodeScale,
       imageInput,
       inspectorSectionButtons,
       linearFieldInputs,
@@ -1357,6 +1382,7 @@ export function createWhiteboardApp(root) {
     runLinearItemAction,
     runTreeNodeAction,
     runBinaryTreeNodeAction,
+    runGraphNodeAction,
     runTreeTraversalAction,
     setTool,
     setShapePopoverOpen,
@@ -1381,6 +1407,11 @@ export function createWhiteboardApp(root) {
     applyInspectorSectionState,
     setLinearValuesDraft: (value) => structureInspectorController.setLinearValuesDraft(value),
     setGraphStructureDraft: (value) => structureInspectorController.setGraphStructureDraft(value),
+    setGraphNodeScale: (percent) => {
+      const radius = GRAPH_STRUCTURE_STYLE.nodeRadius * (Number(percent) || 100) / 100;
+      // 拖动中实时预览,不逐步写历史,避免一次拖拽产生大量撤销点
+      editSelectedStructure("graph-structure", (element) => setGraphNodeRadius(element, radius), "已调整节点大小", { history: false });
+    },
     setLinearPanelField: (key, value) => structureInspectorController.setLinearPanelField(key, value),
   });
   const { bindKeyboard } = createKeyboardController({
@@ -1477,12 +1508,15 @@ export function createWhiteboardApp(root) {
     hideBinaryTreeControls: () => structureControlsController.hideBinaryTreeControls(),
     hideContextMenu,
     hideEraser,
+    hideGraphNodeControls: () => structureControlsController.hideGraphNodeControls(),
     hideToolCursors,
     hideTreeControls: () => structureControlsController.hideTreeControls(),
     isBinaryTreeElement,
     isElementLocked,
     isEditingText: () => editController.isEditing,
     isGeneralTreeElement,
+    isGraphNodeHitTarget,
+    isGraphStructureElement,
     isTemporaryPanActive,
     isTreeNodeHitTarget,
     persistCurrentDraft,
@@ -1503,6 +1537,7 @@ export function createWhiteboardApp(root) {
     showStrokeEraser,
     syncBinaryTreeActiveVisual,
     syncGeneralTreeActiveVisual,
+    syncGraphActiveVisual,
     updateGrid,
     updateViewportChrome,
     consumeSuppressNextCanvasSelection: () => {
@@ -1685,10 +1720,9 @@ export function createWhiteboardApp(root) {
       onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event),
       onGraphNodeMove: moveGraphStructureNode,
       onGraphNodeClick: handleGraphNodeClick,
-      onGraphNodeConnect: connectGraphStructureNodes,
+      onGraphNodeDragStart: handleGraphNodeDragStart,
       onGraphNodeEdit: editGraphStructureNode,
       onGraphEdgeEdit: editGraphStructureEdge,
-      getGraphEdgeState: (elementId) => structureInteraction.getStructureConnectState({ kind: "graph", elementId }),
       onTreeNodeEdit: editTreeStructureNode,
       onTreeNodeClick: handleTreeNodeClick,
       onTreeNodePress: handleTreeStructureNodePress,
@@ -1723,6 +1757,7 @@ export function createWhiteboardApp(root) {
     syncSelectionNodes();
     structureControlsController.renderLinearItemControls();
     structureControlsController.renderTreeControls();
+    structureControlsController.renderGraphNodeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
     syncTextOverlays({ hiddenIds: editController.isEditing ? selectedIds : [] });
@@ -1797,6 +1832,10 @@ export function createWhiteboardApp(root) {
     return isGeneralTreeElement(element) && selectedIds.includes(element.id);
   }
 
+  function isSelectedGraphElement(element) {
+    return isGraphStructureElement(element) && selectedIds.includes(element.id);
+  }
+
   function isSelectedTreeElementWithTraversal(element) {
     return isTreeElementWithTraversal(element) && selectedIds.includes(element.id);
   }
@@ -1811,6 +1850,10 @@ export function createWhiteboardApp(root) {
 
   function syncGeneralTreeActiveVisual(elementId) {
     structureActiveVisualController.syncGeneralTreeActiveVisual(elementId);
+  }
+
+  function syncGraphActiveVisual(elementId) {
+    structureActiveVisualController.syncGraphActiveVisual(elementId);
   }
 
   function shouldElementBeDraggable(element) {

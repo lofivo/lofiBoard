@@ -7,6 +7,7 @@ const SELECT_TOOL = "select";
 export function createStructureInteraction() {
   let activeLinearItem = null;
   let activeTreeNode = null;
+  let activeGraphNode = null;
   let linearItemDragState = null;
   let linearPointerDragState = null;
   let structureConnectState = null;
@@ -29,6 +30,10 @@ export function createStructureInteraction() {
 
   function getActiveTreeNode() {
     return activeTreeNode ? { ...activeTreeNode } : null;
+  }
+
+  function getActiveGraphNode() {
+    return activeGraphNode ? { ...activeGraphNode } : null;
   }
 
   function getStructureConnectState({ kind = null, elementId = null } = {}) {
@@ -243,6 +248,9 @@ export function createStructureInteraction() {
     if (isTreeStructureElement(element) && activeTreeNode?.elementId === element.id) {
       runtime.activeNodeId = activeTreeNode.nodeId;
     }
+    if (element?.type === STRUCTURE_ELEMENT_TYPES.GRAPH && activeGraphNode?.elementId === element.id) {
+      runtime.activeNodeId = activeGraphNode.nodeId;
+    }
     return runtime;
   }
 
@@ -384,6 +392,24 @@ export function createStructureInteraction() {
     };
   }
 
+  function setActiveGraphNode({ elementId, nodeId } = {}) {
+    const previousActiveGraphNode = getActiveGraphNode();
+    activeGraphNode = elementId && nodeId ? { elementId, nodeId } : null;
+    return {
+      previousActiveGraphNode,
+      activeGraphNode: getActiveGraphNode(),
+    };
+  }
+
+  function clearActiveGraphNode() {
+    const previousActiveGraphNode = getActiveGraphNode();
+    activeGraphNode = null;
+    return {
+      previousActiveGraphNode,
+      activeGraphNode: null,
+    };
+  }
+
   function beginStructureConnect({ kind, elementId } = {}) {
     structureConnectState = kind && elementId
       ? { kind, elementId, sourceNodeId: null }
@@ -491,6 +517,7 @@ export function createStructureInteraction() {
   return {
     getActiveLinearItem,
     getActiveTreeNode,
+    getActiveGraphNode,
     getStructureConnectState,
     getLinearItemDragState,
     getLinearPointerDragState,
@@ -528,6 +555,8 @@ export function createStructureInteraction() {
     hasLinearPointerDragState,
     setActiveTreeNode,
     clearActiveTreeNode,
+    setActiveGraphNode,
+    clearActiveGraphNode,
     beginStructureConnect,
     setStructureConnectSource,
     finishStructureConnect,

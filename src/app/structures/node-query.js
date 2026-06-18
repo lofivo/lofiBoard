@@ -54,3 +54,16 @@ export function isTreeRootNode(element, nodeId) {
 export function isTreeNodeHitTarget(target) {
   return Boolean(target?.hasName?.("tree-node") || target?.findAncestor?.(".tree-node"));
 }
+
+export function findGraphNodeGroup(group, nodeId) {
+  if (!group || !nodeId) return null;
+  return group.find(".graph-node")?.find((node) => node.getAttr("graphNodeId") === nodeId) ?? null;
+}
+
+export function isGraphNodeHitTarget(target) {
+  return Boolean(target?.hasName?.("graph-node") || target?.findAncestor?.(".graph-node"));
+}
+
+export function isGraphStructureElement(element) {
+  return element?.type === "graph-structure";
+}

@@ -9,6 +9,11 @@ import {
   deleteTreeSubtree,
   stepTreeTraversalHighlight,
 } from "../../structures/tree-structure.js";
+import {
+  addGraphNode,
+  addGraphEdge,
+  deleteGraphNode,
+} from "../../structures/graph-structure.js";
 import { removeElementsById } from "../../services/clipboard.js";
 
 export function createStructureNodeActionController({
@@ -30,8 +35,10 @@ export function createStructureNodeActionController({
   editTreeStructureNode,
   hideTreeControls,
   hideBinaryTreeControls,
+  hideGraphNodeControls,
   updateChrome,
   syncTreeStructurePanelState,
+  syncGraphStructurePanelState,
   pushHistory,
   editSelectedStructure,
 }) {
@@ -180,6 +187,54 @@ export function createStructureNodeActionController({
     }
   }
 
+  function runGraphNodeAction(action) {
+    const activeGraphNode = structureInteraction.getActiveGraphNode();
+    const elementId = activeGraphNode?.elementId;
+    const nodeId = activeGraphNode?.nodeId;
+    const element = findElement(elementId);
+    if (!element || element.type !== "graph-structure" || element.locked || !nodeId) return;
+
+    if (action === "add-connect") {
+      const centerX = element.width / 2;
+      const centerY = element.height / 2;
+      const withNode = addGraphNode(element, "", { position: { x: centerX, y: centerY } });
+      const newNodeId = withNode.nodes[withNode.nodes.length - 1]?.id;
+      if (!newNodeId) return;
+      const withEdge = addGraphEdge(withNode, nodeId, newNodeId, {
+        directed: element.settings?.directedDefault ?? false,
+      });
+      replaceElement(elementId, withEdge);
+      structureInteraction.setActiveGraphNode({ elementId, nodeId });
+      renderBoard();
+      selectIds([elementId]);
+      syncGraphStructurePanelState();
+      pushHistory("已添加连接节点");
+      return;
+    }
+
+    if (action === "delete") {
+      const afterDelete = deleteGraphNode(element, nodeId);
+      const nodesLeft = afterDelete.nodes ?? [];
+      if (nodesLeft.length === 0) {
+        setElements(removeElementsById(getElements(), [elementId]));
+        structureInteraction.clearActiveGraphNode();
+        setSelectedIds(getSelectedIds().filter((id) => id !== elementId));
+        hideGraphNodeControls();
+        renderBoard();
+        updateChrome();
+        pushHistory("已删除图");
+        return;
+      }
+      replaceElement(elementId, afterDelete);
+      structureInteraction.clearActiveGraphNode();
+      hideGraphNodeControls();
+      renderBoard();
+      selectIds([elementId]);
+      syncGraphStructurePanelState();
+      pushHistory("已删除图节点");
+    }
+  }
+
   function runTreeTraversalAction(action) {
     const direction = action === "prev" ? -1 : 1;
     editSelectedStructure("tree-structure", (element) => (
@@ -194,6 +249,7 @@ export function createStructureNodeActionController({
   return {
     runBinaryTreeNodeAction,
     runBinaryTreeTraversalAction,
+    runGraphNodeAction,
     runLinearItemAction,
     runTreeNodeAction,
     runTreeTraversalAction,

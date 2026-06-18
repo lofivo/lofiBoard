@@ -21,7 +21,10 @@ export function createStructureEditActionController({
   consumeSuppressedBinaryTreeNodeClick,
   syncBinaryTreeActiveVisual,
   syncGeneralTreeActiveVisual,
+  syncGraphActiveVisual,
   renderTreeNodeControls,
+  renderGraphNodeControls,
+  hideGraphNodeControls,
   renderBoard,
   selectIds,
   setStatus,
@@ -38,18 +41,6 @@ export function createStructureEditActionController({
     )));
   }
 
-  function beginGraphConnectMode() {
-    const graphId = getSelectedIds().find((id) => {
-      const element = findElement(id);
-      return element?.type === "graph-structure" && !element.locked;
-    });
-    if (!graphId) return;
-    structureInteraction.beginStructureConnect({ kind: "graph", elementId: graphId });
-    renderBoard();
-    selectIds([graphId]);
-    setStatus("连边模式：点击源节点，再点击目标节点");
-  }
-
   function beginTreeConnectMode() {
     const treeId = getSelectedIds().find((id) => {
       const element = findElement(id);
@@ -63,33 +54,22 @@ export function createStructureEditActionController({
   }
 
   function handleGraphNodeClick({ elementId, nodeId }) {
-    const connectState = structureInteraction.getStructureConnectState({ kind: "graph", elementId });
-    if (!connectState) {
-      selectIds([elementId]);
-      return;
-    }
-    if (!connectState.sourceNodeId) {
-      structureInteraction.setStructureConnectSource({ kind: "graph", elementId, sourceNodeId: nodeId });
-      renderBoard();
-      selectIds([elementId]);
-      setStatus("连边模式：点击目标节点");
-      return;
-    }
-    const { connection } = structureInteraction.finishStructureConnect({
-      kind: "graph",
-      elementId,
-      targetNodeId: nodeId,
-    });
-    if (!connection) return;
-    replaceElement(elementId, (item) => addGraphEdge(
-      item,
-      connection.sourceNodeId,
-      connection.targetNodeId,
-      { directed: item.settings?.directedDefault ?? false },
-    ));
-    renderBoard();
+    if (isTemporaryPanActive()) return;
+    structureInteraction.clearStructureConnectState();
+    const { previousActiveGraphNode } = structureInteraction.setActiveGraphNode({ elementId, nodeId });
     selectIds([elementId]);
-    pushHistory("已添加图边");
+    syncGraphActiveVisual(previousActiveGraphNode?.elementId);
+    syncGraphActiveVisual(elementId);
+    renderGraphNodeControls();
+    setStatus("已选择图节点");
+  }
+
+  function handleGraphNodeDragStart({ elementId }) {
+    const { previousActiveGraphNode } = structureInteraction.clearActiveGraphNode();
+    hideGraphNodeControls();
+    if (previousActiveGraphNode?.elementId) {
+      syncGraphActiveVisual(previousActiveGraphNode.elementId);
+    }
   }
 
   function handleTreeNodeClick({ elementId, nodeId }) {
@@ -143,21 +123,6 @@ export function createStructureEditActionController({
     pushHistory("已连接树节点");
   }
 
-  function connectGraphStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
-    const element = findElement(elementId);
-    if (!element || element.type !== "graph-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
-    structureInteraction.clearStructureConnectState();
-    replaceElement(elementId, (item) => addGraphEdge(
-      item,
-      sourceNodeId,
-      targetNodeId,
-      { directed: item.settings?.directedDefault ?? false },
-    ));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已添加图边");
-  }
-
   function connectTreeStructureNodes({ elementId, sourceNodeId, targetNodeId }) {
     const element = findElement(elementId);
     if (!element || element.type !== "tree-structure" || element.locked || !sourceNodeId || !targetNodeId) return;
@@ -174,36 +139,6 @@ export function createStructureEditActionController({
     selectIds([elementId]);
     syncTreeStructurePanelState();
     pushHistory("已连接树节点");
-  }
-
-  function editGraphStructureEdge({ elementId, edgeId, directed, weight }) {
-    const element = findElement(elementId);
-    if (!element || element.type !== "graph-structure" || element.locked) return;
-    const nextWeight = promptValue("边权，留空表示无权", weight);
-    const nextDirected = promptBoolean("是否有向？y/n", directed);
-    replaceElement(elementId, (item) => updateGraphEdge(item, edgeId, { weight: nextWeight, directed: nextDirected }));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已更新图边");
-  }
-
-  function editGraphStructureNode({ elementId, nodeId, label }) {
-    const element = findElement(elementId);
-    if (!element || element.type !== "graph-structure" || element.locked) return;
-    const nextLabel = promptValue("节点名称", label);
-    replaceElement(elementId, (item) => updateGraphNodeLabel(item, nodeId, nextLabel));
-    renderBoard();
-    selectIds([elementId]);
-    pushHistory("已更新图节点");
-  }
-
-  function editGraphEdgeData(element) {
-    const edge = element.edges?.at(-1);
-    if (!edge) return element;
-    return updateGraphEdge(element, edge.id, {
-      weight: promptValue("边权，留空表示无权", edge.weight ?? ""),
-      directed: promptBoolean("是否有向？y/n", edge.directed),
-    });
   }
 
   function moveGraphStructureNode({ elementId, nodeId, x, y }) {
@@ -226,14 +161,15 @@ export function createStructureEditActionController({
   }
 
   return {
-    beginGraphConnectMode,
+    beginGraphConnectMode: () => {},
     beginTreeConnectMode,
-    connectGraphStructureNodes,
+    connectGraphStructureNodes: () => {},
     connectTreeStructureNodes,
-    editGraphEdgeData,
-    editGraphStructureEdge,
-    editGraphStructureNode,
+    editGraphEdgeData: (element) => element,
+    editGraphStructureEdge: () => {},
+    editGraphStructureNode: () => {},
     handleGraphNodeClick,
+    handleGraphNodeDragStart,
     handleTreeNodeClick,
     moveGraphStructureNode,
     moveTreeStructureNode,

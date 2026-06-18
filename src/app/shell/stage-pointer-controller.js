@@ -56,10 +56,13 @@ export function createStagePointerController({
   hideEraser = () => {},
   hideToolCursors = () => {},
   hideTreeControls = () => {},
+  hideGraphNodeControls = () => {},
   isBinaryTreeElement = () => false,
   isElementLocked = () => false,
   isEditingText = () => false,
   isGeneralTreeElement = () => false,
+  isGraphNodeHitTarget = () => false,
+  isGraphStructureElement = () => false,
   isTemporaryPanActive = () => false,
   isTransformerAnchorTarget = defaultIsTransformerAnchorTarget,
   isTransformerTarget = defaultIsTransformerTarget,
@@ -80,6 +83,7 @@ export function createStagePointerController({
   showStrokeEraser = () => {},
   syncBinaryTreeActiveVisual = () => {},
   syncGeneralTreeActiveVisual = () => {},
+  syncGraphActiveVisual = () => {},
   updateGrid = () => {},
   updateViewportChrome = () => {},
 } = {}) {
@@ -434,6 +438,21 @@ export function createStagePointerController({
         return true;
       }
       if (isGeneralTreeElement(element) && isTreeNodeHitTarget(event.target)) {
+        return true;
+      }
+      const activeGraphNode = structureInteraction.getActiveGraphNode();
+      if (isGraphStructureElement(element) && !isGraphNodeHitTarget(event.target) && activeGraphNode?.elementId === targetElement) {
+        const shouldDragGraphBlank = !event.evt.shiftKey && targetIds.some((id) => getSelectedIds().includes(id));
+        const previousActiveGraphElementId = activeGraphNode.elementId;
+        structureInteraction.clearActiveGraphNode();
+        hideGraphNodeControls();
+        syncGraphActiveVisual(previousActiveGraphElementId);
+        if (shouldDragGraphBlank) {
+          selectionDragController.beginSelectionDrag(worldPoint);
+        }
+        return true;
+      }
+      if (isGraphStructureElement(element) && isGraphNodeHitTarget(event.target)) {
         return true;
       }
       if (!event.evt.shiftKey && targetIds.some((id) => getSelectedIds().includes(id))) {

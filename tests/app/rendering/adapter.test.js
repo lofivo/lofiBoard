@@ -51,6 +51,20 @@ describe("app rendering adapter", () => {
     }, { activeTreeNode })).toBe("activeTreeNode:");
   });
 
+  it("includes the active graph node only for the matching graph element", () => {
+    const activeGraphNode = { elementId: "graph-1", nodeId: "node-2" };
+
+    expect(createElementRenderHandlerSnapshot({
+      id: "graph-1",
+      type: "graph-structure",
+    }, { activeGraphNode })).toBe("activeGraphNode:node-2");
+
+    expect(createElementRenderHandlerSnapshot({
+      id: "graph-2",
+      type: "graph-structure",
+    }, { activeGraphNode })).toBe("activeGraphNode:");
+  });
+
   it("distinguishes general trees from binary trees", () => {
     expect(isGeneralTreeStructure({
       type: "tree-structure",
@@ -67,6 +81,7 @@ describe("app rendering adapter", () => {
     const projected = { id: "array-1", type: "array-structure", runtime: { activeIndex: 1 } };
     const structureInteraction = {
       getActiveTreeNode: vi.fn(() => null),
+      getActiveGraphNode: vi.fn(() => null),
       projectRuntime: vi.fn(() => projected),
     };
     const adapter = createShapeRenderAdapter({

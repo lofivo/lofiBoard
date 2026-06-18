@@ -8,7 +8,9 @@ export function createStructureActiveVisualController({
   isLinearStructureElement,
   isBinaryTreeElement,
   isGeneralTreeElement,
+  isGraphStructureElement,
   treeStructureStyle,
+  graphStructureStyle,
   renderBinaryTreeControls,
   renderTreeNodeControls,
 }) {
@@ -56,9 +58,29 @@ export function createStructureActiveVisualController({
     contentLayer.batchDraw();
   }
 
+  function syncGraphActiveVisual(elementId) {
+    if (!elementId) return;
+    const activeGraphNode = structureInteraction.getActiveGraphNode();
+    const element = getElements().find((item) => item.id === elementId);
+    const group = contentLayer.findOne(`#${elementId}`);
+    if (!isGraphStructureElement(element) || !group) return;
+    const style = { ...graphStructureStyle, ...(element.style ?? {}) };
+    group.find(".graph-node").forEach((nodeGroup) => {
+      const nodeId = nodeGroup.getAttr("graphNodeId");
+      const ellipse = nodeGroup.findOne("Ellipse");
+      if (!ellipse) return;
+      const isActive = activeGraphNode?.elementId === elementId && activeGraphNode.nodeId === nodeId;
+      ellipse.stroke(isActive ? "#2563eb" : style.nodeStroke);
+      ellipse.strokeWidth(isActive ? 3 : 2);
+      if (isActive) nodeGroup.moveToTop();
+    });
+    contentLayer.batchDraw();
+  }
+
   return {
     syncLinearItemActiveVisual,
     syncBinaryTreeActiveVisual,
     syncGeneralTreeActiveVisual,
+    syncGraphActiveVisual,
   };
 }
