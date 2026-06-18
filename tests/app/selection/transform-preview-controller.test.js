@@ -156,4 +156,39 @@ describe("transform-preview-controller", () => {
     expect(contentLayer.batchDraw).toHaveBeenCalled();
     expect(overlayLayer.batchDraw).toHaveBeenCalled();
   });
+
+  it("previews graph resize by clearing scale and applying real size (floored at count min)", () => {
+    const graphNode = createNode({ id: "graph_1", width: 200, height: 200, scaleX: 2, scaleY: 2 });
+    graphNode.applyGraphResize = vi.fn();
+    const { controller, transformer } = createHarness({
+      node: graphNode,
+      elements: [
+        { id: "graph_1", type: "graph-structure", width: 200, height: 200, style: { nodeRadius: 26 }, nodes: [{ id: "A" }, { id: "B" }], edges: [] },
+      ],
+    });
+
+    controller.syncGraphTransformPreview();
+
+    // scale 复位为 1,改用真实尺寸(200*2=400,>下限 234)
+    expect(graphNode.attrs.scaleX).toBe(1);
+    expect(graphNode.attrs.scaleY).toBe(1);
+    expect(graphNode.applyGraphResize).toHaveBeenCalledWith(400, 400);
+    expect(transformer.forceUpdate).toHaveBeenCalled();
+  });
+
+  it("floors graph resize preview at the count-derived minimum size", () => {
+    const graphNode = createNode({ id: "graph_1", width: 400, height: 400, scaleX: 0.3, scaleY: 0.3 });
+    graphNode.applyGraphResize = vi.fn();
+    const { controller } = createHarness({
+      node: graphNode,
+      elements: [
+        { id: "graph_1", type: "graph-structure", width: 400, height: 400, style: { nodeRadius: 26 }, nodes: [{ id: "A" }, { id: "B" }], edges: [] },
+      ],
+    });
+
+    controller.syncGraphTransformPreview();
+
+    // 400*0.3=120 < min 234 → 钳到 234
+    expect(graphNode.applyGraphResize).toHaveBeenCalledWith(234, 234);
+  });
 });

@@ -159,6 +159,115 @@ describe("transform-commit-controller", () => {
     });
   });
 
+  it("commits graph structure resize into width/height, keeps node positions fixed, clears scale", () => {
+    const { controller, state } = createHarness({
+      elements: [
+        {
+          id: "graph_1",
+          type: "graph-structure",
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 200,
+          style: { nodeRadius: 26 },
+          nodes: [
+            { id: "A", label: "A", x: 50, y: 50 },
+            { id: "B", label: "B", x: 150, y: 150 },
+          ],
+          edges: [],
+        },
+      ],
+    });
+    const node = createNode({ id: "graph_1", x: 7, y: 8, width: 200, height: 200, rotation: 0, scaleX: 1.5, scaleY: 1.5 });
+
+    controller.syncNodeToElement(node);
+
+    const committed = state.elements[0];
+    expect(committed).toMatchObject({
+      id: "graph_1",
+      x: 7,
+      y: 8,
+      width: 300,
+      height: 300,
+      scaleX: 1,
+      scaleY: 1,
+    });
+    // 节点位置固定不动(不随边框等比缩放)
+    expect(committed.nodes.find((n) => n.id === "A")).toMatchObject({ x: 50, y: 50 });
+    expect(committed.nodes.find((n) => n.id === "B")).toMatchObject({ x: 150, y: 150 });
+  });
+
+  it("commits graph resize from preview-baked node size when scale already reset to 1", () => {
+    // 复现 BUG:拖边框时 preview(syncGraphTransformPreview)每次都把真实尺寸烘焙进 node、
+    // 复位 scale=1。transformend 时 node.width()=真实尺寸、scaleX=1,但 element.width 仍是
+    // transformstart 旧值。commit 必须读 node 的真实尺寸而非旧 element.width;否则 scale=1
+    // 时 nextWidth 退回旧尺寸 → 边框不放大,而 x/y 又取自被 Konva 移动过的 node → 整图移动。
+    const { controller, state } = createHarness({
+      elements: [
+        {
+          id: "graph_1",
+          type: "graph-structure",
+          x: 0,
+          y: 0,
+          width: 200, // 模型仍是 transformstart 旧值(preview 不更新模型)
+          height: 200,
+          style: { nodeRadius: 26 },
+          nodes: [
+            { id: "A", label: "A", x: 50, y: 50 },
+            { id: "B", label: "B", x: 150, y: 150 },
+          ],
+          edges: [],
+        },
+      ],
+    });
+    // preview 后状态:真实尺寸 320 已写进 node、scale 复位为 1、x/y 为拖动后的左上角
+    const node = createNode({ id: "graph_1", x: 30, y: 40, width: 320, height: 320, rotation: 0, scaleX: 1, scaleY: 1 });
+
+    controller.syncNodeToElement(node);
+
+    const committed = state.elements[0];
+    // 边框采用 preview 烘焙后的真实尺寸 320,而不是旧 element.width(200)
+    expect(committed.width).toBe(320);
+    expect(committed.height).toBe(320);
+    // 位置与 node 一致(不发生额外偏移)
+    expect(committed.x).toBe(30);
+    expect(committed.y).toBe(40);
+    expect(committed.scaleX).toBe(1);
+    expect(committed.scaleY).toBe(1);
+  });
+
+  it("floors graph resize at count-derived min size and clamps nodes inside", () => {
+    const { controller, state } = createHarness({
+      elements: [
+        {
+          id: "graph_1",
+          type: "graph-structure",
+          x: 0,
+          y: 0,
+          width: 400,
+          height: 400,
+          style: { nodeRadius: 26 },
+          nodes: [{ id: "A", label: "A", x: 380, y: 380 }],
+          edges: [],
+        },
+      ],
+    });
+    // 缩小到远低于下限(400*0.5=200 < min 234),应被钳到 234
+    const node = createNode({ id: "graph_1", x: 0, y: 0, width: 400, height: 400, rotation: 0, scaleX: 0.5, scaleY: 0.5 });
+
+    controller.syncNodeToElement(node);
+
+    const committed = state.elements[0];
+    expect(committed.width).toBe(234);
+    expect(committed.height).toBe(234);
+    expect(committed.scaleX).toBe(1);
+    // 节点圆完整保留在框内:中心钳到 [r, 边长-r] = [26, 208]
+    const a = committed.nodes.find((n) => n.id === "A");
+    expect(a.x).toBeLessThanOrEqual(208);
+    expect(a.x).toBeGreaterThanOrEqual(26);
+    expect(a.y).toBeLessThanOrEqual(208);
+  });
+
   it("commits every active transformer node when syncing selected nodes", () => {
     const { controller, state } = createHarness({
       elements: [

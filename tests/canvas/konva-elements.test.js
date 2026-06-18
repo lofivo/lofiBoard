@@ -521,6 +521,82 @@ describe("konva elements", () => {
     expect(onTreeNodeClick).toHaveBeenCalledWith({ elementId: "tree_1", nodeId: "node_b" });
   });
 
+  it("keeps graph nodes draggable after syncing while the root graph group was temporarily undraggable", () => {
+    const graph = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    graph.draggable(false);
+    expect(syncElementNode(graph, {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 20,
+      y: 30,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, draggable: true })).toBe(true);
+    graph.draggable(true);
+
+    expect(graph.findOne(".graph-node").draggable()).toBe(true);
+    expect(graph.findOne(".graph-node").dragBoundFunc()).toBeDefined();
+  });
+
+  it("keeps graph resize preview wired to the current frame after syncing graph content", () => {
+    const graph = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "A", label: "A", x: 30, y: 60 },
+        { id: "B", label: "B", x: 130, y: 60 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    expect(syncElementNode(graph, {
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 180,
+      height: 140,
+      nodes: [
+        { id: "A", label: "A", x: 40, y: 70 },
+        { id: "B", label: "B", x: 150, y: 70 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, draggable: true })).toBe(true);
+
+    graph.applyGraphResize(240, 200);
+
+    expect(graph.width()).toBe(240);
+    expect(graph.height()).toBe(200);
+    expect(graph.findOne(".graph-frame").width()).toBe(240);
+    expect(graph.findOne(".graph-frame").height()).toBe(200);
+  });
+
   it("does not select ordinary tree nodes from pointer down before a click is confirmed", () => {
     const onTreeNodeClick = vi.fn();
     const onTreeNodeEdit = vi.fn();
@@ -2314,14 +2390,35 @@ describe("konva elements", () => {
 
     expect(node.find("Arrow")).toHaveLength(1);
     expect(node.find("Ellipse")).toHaveLength(2);
-    expect(node.find("Rect")).toHaveLength(1);
     expect(node.find("Text").map((text) => text.text())).toContain("5");
+  });
+
+  it("scales graph node circle and label font with style.nodeRadius", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 400,
+      nodes: [{ id: "A", label: "A", x: 100, y: 100 }],
+      edges: [],
+      style: { nodeRadius: 52 }, // 200% of base 26
+    }, baseHandlers);
+
+    const graphNode = node.findOne(".graph-node");
+    expect(graphNode.findOne("Ellipse").radiusX()).toBe(52);
+    // 字号随半径等比放大(基准 20 @ r=26 → 40 @ r=52)
+    const label = graphNode.findOne("Text");
+    expect(label.fontSize()).toBe(40);
   });
 
   it("allows graph nodes to move inside the graph structure", () => {
     const onGraphNodeMove = vi.fn();
     const onGraphNodeClick = vi.fn();
     const onGraphNodeEdit = vi.fn();
+    const onGraphNodeDragStart = vi.fn();
+    const onDragStart = vi.fn();
     const node = createElementNode({
       id: "graph_1",
       type: "graph-structure",
@@ -2341,9 +2438,17 @@ describe("konva elements", () => {
       onGraphNodeMove,
       onGraphNodeClick,
       onGraphNodeEdit,
+      onGraphNodeDragStart,
+      onDragStart,
     });
 
     const graphNode = node.findOne(".graph-node");
+    graphNode.fire("dragstart", { cancelBubble: false });
+    expect(onGraphNodeDragStart).toHaveBeenCalledWith({
+      elementId: "graph_1",
+      nodeId: "A",
+    });
+    expect(onDragStart).not.toHaveBeenCalled();
     graphNode.position({ x: 50, y: 70 });
     graphNode.fire("dragmove", { cancelBubble: false });
     graphNode.fire("dragend", { cancelBubble: false });
@@ -2367,38 +2472,170 @@ describe("konva elements", () => {
     });
   });
 
-  it("connects graph nodes by dragging one node onto another in connect mode", () => {
-    const onGraphNodeConnect = vi.fn();
+  it("constrains graph node dragging within the parent element bounds", () => {
+    const onGraphNodeMove = vi.fn();
     const node = createElementNode({
       id: "graph_1",
       type: "graph-structure",
       x: 0,
       y: 0,
-      width: 160,
-      height: 120,
+      width: 200,
+      height: 150,
       nodes: [
-        { id: "node_a", label: "A", x: 30, y: 60 },
-        { id: "node_b", label: "B", x: 130, y: 60 },
+        { id: "A", label: "A", x: 50, y: 50 },
+        { id: "B", label: "B", x: 150, y: 100 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onGraphNodeMove,
+    });
+
+    const graphNode = node.findOne(".graph-node");
+    expect(graphNode.dragBoundFunc()).toBeDefined();
+
+    // 在边界内拖拽应正常工作(节点半径默认 26,可用区间 [26, 边长-26])
+    const boundFunc = graphNode.dragBoundFunc();
+    const withinBounds = boundFunc({ x: 80, y: 60 });
+    expect(withinBounds.x).toBe(80);
+    expect(withinBounds.y).toBe(60);
+
+    // 超出右边界应被钳制到 width-r,整圆留在框内
+    const clampRight = boundFunc({ x: 250, y: 60 });
+    expect(clampRight.x).toBe(200 - 26);
+
+    // 超出下边界应被钳制到 height-r
+    const clampBottom = boundFunc({ x: 80, y: 200 });
+    expect(clampBottom.y).toBe(150 - 26);
+
+    // 负坐标应被钳制到 r(而非 0),让整圆留在框内
+    const clampLeft = boundFunc({ x: -50, y: 60 });
+    expect(clampLeft.x).toBe(26);
+
+    const clampTop = boundFunc({ x: 80, y: -30 });
+    expect(clampTop.y).toBe(26);
+  });
+
+  it("constrains graph node dragging in local coordinates when the graph group is scaled", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 200,
+      y: 100,
+      width: 200,
+      height: 150,
+      nodes: [
+        { id: "A", label: "A", x: 50, y: 50 },
       ],
       edges: [],
       style: {},
     }, {
       ...baseHandlers,
       draggable: true,
-      getGraphEdgeState: () => ({ kind: "graph", elementId: "graph_1", sourceNodeId: null }),
-      onGraphNodeConnect,
+    });
+    node.scaleX(0.3);
+    node.scaleY(0.3);
+
+    const graphNode = node.findOne(".graph-node");
+    const boundFunc = graphNode.dragBoundFunc();
+    const toAbsolute = (local) => node.getAbsoluteTransform().point(local);
+
+    expect(boundFunc(toAbsolute({ x: 60, y: 70 }))).toEqual(toAbsolute({ x: 60, y: 70 }));
+    expect(boundFunc(toAbsolute({ x: 999, y: 999 }))).toEqual(toAbsolute({ x: 200 - 26, y: 150 - 26 }));
+    expect(boundFunc(toAbsolute({ x: -999, y: -999 }))).toEqual(toAbsolute({ x: 26, y: 26 }));
+  });
+
+  it("does not add a blank hit rect that hijacks graph node pointer events", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 150,
+      nodes: [
+        { id: "A", label: "A", x: 50, y: 50 },
+        { id: "B", label: "B", x: 150, y: 100 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    // 不应存在覆盖整个图区域的透明命中矩形，否则会拦截节点命中导致拖动整个结构
+    expect(node.findOne(".graph-blank-hit")).toBeFalsy();
+  });
+
+  it("anchors the graph bounding box to a fixed-size frame so moving a node inward does not shrink it", () => {
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 240,
+      nodes: [
+        { id: "A", label: "A", x: 40, y: 40 },
+        { id: "B", label: "B", x: 260, y: 200 },
+      ],
+      edges: [],
+      style: {},
+    }, { ...baseHandlers, draggable: true });
+
+    // 定尺矩形:不监听、不参与命中
+    const frame = node.findOne(".graph-frame");
+    expect(frame).toBeTruthy();
+    expect(frame.listening()).toBe(false);
+    expect(frame.width()).toBe(300);
+    expect(frame.height()).toBe(240);
+
+    const rectBefore = node.getClientRect({ skipTransform: true });
+    expect(rectBefore.width).toBe(300);
+    expect(rectBefore.height).toBe(240);
+
+    // 把一个节点拖到中间,包围盒宽高必须保持不变(锚定在定尺矩形上)
+    node.findOne(".graph-node").position({ x: 150, y: 120 });
+    const rectAfter = node.getClientRect({ skipTransform: true });
+    expect(rectAfter.width).toBe(300);
+    expect(rectAfter.height).toBe(240);
+  });
+
+  it("updates edge positions when graph nodes are dragged", () => {
+    const onGraphNodeMove = vi.fn();
+    const node = createElementNode({
+      id: "graph_1",
+      type: "graph-structure",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 150,
+      nodes: [
+        { id: "A", label: "A", x: 50, y: 50 },
+        { id: "B", label: "B", x: 150, y: 100 },
+      ],
+      edges: [{ id: "edge_1", from: "A", to: "B", directed: false, weight: "" }],
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+      onGraphNodeMove,
     });
 
-    const graphNode = node.find(".graph-node")[0];
-    graphNode.position({ x: 130, y: 60 });
-    graphNode.fire("dragend", { cancelBubble: false });
+    const line = node.findOne("Line");
+    const originalPoints = [...line.points()];
 
-    expect(onGraphNodeConnect).toHaveBeenCalledWith({
-      elementId: "graph_1",
-      sourceNodeId: "node_a",
-      targetNodeId: "node_b",
-    });
-    expect(graphNode.position()).toMatchObject({ x: 30, y: 60 });
+    // 拖拽节点A到新位置
+    const graphNode = node.findOne(".graph-node");
+    graphNode.position({ x: 80, y: 70 });
+    graphNode.fire("dragmove", { cancelBubble: false });
+
+    // 边的端点应随节点位置更新
+    const newPoints = line.points();
+    expect(newPoints).not.toEqual(originalPoints);
+    // 边的起点应更新为节点A的新位置
+    expect(newPoints[0]).toBe(80);
+    expect(newPoints[1]).toBe(70);
   });
 
   it("renders graph highlights and allows edges to be edited", () => {

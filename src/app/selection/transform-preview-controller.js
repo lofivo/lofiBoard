@@ -3,6 +3,7 @@ import {
   syncTextNodeSize as defaultSyncTextNodeSize,
 } from "../../canvas/konva-elements.js";
 import { isTextWidthResizeAnchor as defaultIsTextWidthResizeAnchor } from "../../tools/interaction-rules.js";
+import { getGraphMinSize } from "../../structures/graph-structure.js";
 
 export function createSelectionTransformPreviewController({
   contentLayer,
@@ -116,9 +117,33 @@ export function createSelectionTransformPreviewController({
     return true;
   }
 
+  function syncGraphTransformPreview() {
+    const nodes = transformer.nodes();
+    if (nodes.length !== 1) return false;
+    const node = nodes[0];
+    const id = getElementIdFromNode(node);
+    const element = getElements().find((item) => item.id === id);
+    if (element?.type !== "graph-structure") return false;
+    if (typeof node.applyGraphResize !== "function") return false;
+
+    const radius = Number(element.style?.nodeRadius) || 26;
+    const min = getGraphMinSize((element.nodes ?? []).length, radius);
+    const nextWidth = Math.max(min.width, node.width() * (node.scaleX() || 1));
+    const nextHeight = Math.max(min.height, node.height() * (node.scaleY() || 1));
+    // 复位 scale,改用真实尺寸:节点圆/标签不会被 scale 放大,节点位置固定不动。
+    node.scaleX(1);
+    node.scaleY(1);
+    node.applyGraphResize(nextWidth, nextHeight);
+    transformer.forceUpdate();
+    contentLayer.batchDraw();
+    overlayLayer.batchDraw();
+    return true;
+  }
+
   return {
     getTextOverlayPreviewElements,
     syncCoordinatePlaneTransformPreview,
+    syncGraphTransformPreview,
     syncTextTransformPreview,
     syncTextWidthResize,
   };

@@ -4,6 +4,7 @@ import {
   getTextTransformMinimumSize as defaultGetTextTransformMinimumSize,
   getTransformerAnchorsForSelection as defaultGetTransformerAnchorsForSelection,
 } from "../../tools/interaction-rules.js";
+import { getGraphMinSize } from "../../structures/graph-structure.js";
 import { TOOLS } from "../../ui/config.js";
 
 export function createSelectionTransformerController({
@@ -77,6 +78,9 @@ export function createSelectionTransformerController({
         measureText: (value) => measureTextValue(element, value),
       }).minWidth;
     }
+    if (element?.type === "graph-structure") {
+      return getGraphMinSize((element.nodes ?? []).length, element.style?.nodeRadius).width;
+    }
     return minTransformSize;
   }
 
@@ -89,6 +93,9 @@ export function createSelectionTransformerController({
         stageScale: getStageScale(),
         measureText: (value) => measureTextValue(element, value),
       }).minHeight;
+    }
+    if (element?.type === "graph-structure") {
+      return getGraphMinSize((element.nodes ?? []).length, element.style?.nodeRadius).height;
     }
     return minTransformSize;
   }

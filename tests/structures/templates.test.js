@@ -24,15 +24,15 @@ import {
   deleteGraphNode,
   deleteLastGraphEdge,
   moveGraphNode,
+  getGraphMinSize,
+  setGraphNodeRadius,
+  setGraphDirected,
   setGraphDirectedDefault,
   updateGraphEdge,
   updateGraphNodeLabel,
-  setGraphHighlight,
-  clearGraphHighlight,
   layoutGraph,
   exportGraph,
   exportTree,
-  importGraphFromText,
   updateGraphFromInput,
   addTreeNode,
   addTreeChild,
@@ -180,10 +180,10 @@ describe("structure templates", () => {
     expect(elements).toHaveLength(1);
     expect(elements[0]).toMatchObject({
       type: STRUCTURE_ELEMENT_TYPES.GRAPH,
-      x: -118,
-      y: -118,
-      width: 236,
-      height: 236,
+      x: -117,
+      y: -117,
+      width: 234,
+      height: 234,
     });
     expect(elements[0].nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
     expect(elements[0].nodes.map((node) => node.id)).not.toEqual(["A", "B", "C"]);
@@ -566,7 +566,138 @@ describe("structure templates", () => {
     expect(withoutB.edges).toHaveLength(0);
   });
 
-  it("updates graph edges and teaching highlights", () => {
+  it("derives graph min size from node count and node radius", () => {
+    const small = getGraphMinSize(3, 26);
+    expect(small.width).toBe(small.height);
+    expect(small.width).toBe(small.layoutRadius * 2 + 26 * 2);
+
+    // 节点更多 → 盒子更大
+    expect(getGraphMinSize(8, 26).width).toBeGreaterThan(getGraphMinSize(3, 26).width);
+    // 节点半径更大 → 盒子更大
+    expect(getGraphMinSize(3, 52).width).toBeGreaterThan(getGraphMinSize(3, 26).width);
+  });
+
+  it("moveGraphNode 移动节点不改变边框尺寸", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B-C",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const { width, height } = graph;
+    const nodeId = graph.nodes[0].id;
+
+    // 把节点拖到极端位置,边框宽高必须保持不变
+    const moved = moveGraphNode(graph, nodeId, 999, -999);
+    expect(moved.width).toBe(width);
+    expect(moved.height).toBe(height);
+    expect(moved.nodes.find((node) => node.id === nodeId)).toMatchObject({ x: 999, y: -999 });
+  });
+
+  // Bug1 复现:移动节点(尤其贴近左/上边缘)绝不能平移整个结构的原点 x/y。
+  // 旧实现里 moveGraphNode 会经 normalizeStructureBounds 在 minX-radius<0 时
+  // 把 element.x/y 一起平移,表现为"拖节点导致整个图跟着移动"。
+  it("moveGraphNode 移动节点不平移结构原点(整图不跟随)", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B-C",
+      point: { x: 200, y: 200 },
+      zIndexStart: 0,
+    });
+    const originX = graph.x;
+    const originY = graph.y;
+    const nodeId = graph.nodes[0].id;
+
+    // 把节点拖到贴近左上角(局部坐标接近 0,旧实现会触发负 shift)
+    const moved = moveGraphNode(graph, nodeId, 0, 0);
+    expect(moved.x).toBe(originX);
+    expect(moved.y).toBe(originY);
+    // 其他节点的局部坐标也不应被整体平移
+    const otherId = graph.nodes[1].id;
+    expect(moved.nodes.find((node) => node.id === otherId))
+      .toMatchObject(graph.nodes.find((node) => node.id === otherId));
+  });
+
+  it("增删节点时边框不小于 count 下限且不向下收缩", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const radius = graph.style?.nodeRadius ?? 26;
+
+    // 用户手动放大边框
+    const enlarged = { ...graph, width: graph.width + 400, height: graph.height + 400 };
+
+    // 加节点:不低于新 count 下限,且保留用户放大的尺寸
+    const withNode = addGraphNode(enlarged, "C");
+    expect(withNode.width).toBeGreaterThanOrEqual(getGraphMinSize(withNode.nodes.length, radius).width);
+    expect(withNode.width).toBe(enlarged.width);
+
+    // 删节点:不向下收缩
+    const afterDelete = deleteGraphNode(withNode, withNode.nodes[0].id);
+    expect(afterDelete.width).toBe(withNode.width);
+    expect(afterDelete.height).toBe(withNode.height);
+  });
+
+  it("addGraphNode 把过小的边框顶大到 count 下限", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const radius = graph.style?.nodeRadius ?? 26;
+    const tiny = { ...graph, width: 10, height: 10 };
+
+    const withNode = addGraphNode(tiny, "C");
+    const min = getGraphMinSize(withNode.nodes.length, radius);
+    expect(withNode.width).toBe(min.width);
+    expect(withNode.height).toBe(min.height);
+  });
+
+  it("setGraphNodeRadius 设置节点半径,顶大边框并把节点钳进框内", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B-C",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    const big = setGraphNodeRadius(graph, 52); // 200%
+    expect(big.style.nodeRadius).toBe(52);
+    const min = getGraphMinSize(big.nodes.length, 52);
+    expect(big.width).toBeGreaterThanOrEqual(min.width);
+    expect(big.height).toBeGreaterThanOrEqual(min.height);
+    // 所有节点中心保持在 [r, 边长-r] 内,整圆不出界
+    big.nodes.forEach((node) => {
+      expect(node.x).toBeGreaterThanOrEqual(52);
+      expect(node.x).toBeLessThanOrEqual(big.width - 52);
+      expect(node.y).toBeGreaterThanOrEqual(52);
+      expect(node.y).toBeLessThanOrEqual(big.height - 52);
+    });
+  });
+
+  it("setGraphDirected 整图翻转所有边的方向并同步默认", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      input: "A-B, B-C, C-A",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    expect(graph.edges.every((edge) => edge.directed === false)).toBe(true);
+
+    const directed = setGraphDirected(graph, true);
+    expect(directed.settings.directedDefault).toBe(true);
+    expect(directed.edges.every((edge) => edge.directed === true)).toBe(true);
+
+    const undirected = setGraphDirected(directed, false);
+    expect(undirected.settings.directedDefault).toBe(false);
+    expect(undirected.edges.every((edge) => edge.directed === false)).toBe(true);
+  });
+
+  it("updates graph edges", () => {
     const [graph] = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
       input: "A-B",
@@ -577,11 +708,6 @@ describe("structure templates", () => {
     const edgeId = graph.edges[0].id;
     const updated = updateGraphEdge(graph, edgeId, { directed: true, weight: "4" });
     expect(updated.edges[0]).toMatchObject({ directed: true, weight: "4" });
-
-    const highlighted = setGraphHighlight(updated, { nodes: [graph.nodes[0].id], edges: [edgeId] });
-    expect(highlighted.markers.highlightedNodes).toEqual([graph.nodes[0].id]);
-    expect(highlighted.markers.highlightedEdges).toEqual([edgeId]);
-    expect(clearGraphHighlight(highlighted).markers).toMatchObject({ highlightedNodes: [], highlightedEdges: [] });
   });
 
   it("updates graph node labels without changing edge endpoints", () => {
@@ -601,7 +727,7 @@ describe("structure templates", () => {
     expect(exportGraph(renamed, "edge-list")).toBe("Start->B");
   });
 
-  it("exports graph data in edge list, adjacency list, and matrix formats", () => {
+  it("exports graph data in edge list format", () => {
     const [graph] = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
       input: "A-B:7, B->C",
@@ -610,10 +736,6 @@ describe("structure templates", () => {
     });
 
     expect(exportGraph(graph, "edge-list")).toBe("A-B:7, B->C");
-    expect(exportGraph(graph, "adjacency-list")).toContain("A: B(7)");
-    expect(exportGraph(graph, "adjacency-list")).toContain("B: A(7), C");
-    expect(exportGraph(graph, "adjacency-matrix")).toContain(",A,B,C");
-    expect(exportGraph(graph, "adjacency-matrix")).toContain("A,0,7,0");
   });
 
   it("exports general tree data as a parent-child edge list", () => {
@@ -627,7 +749,7 @@ describe("structure templates", () => {
     expect(exportTree(tree)).toBe("A->B\nA->C\nB->D\nF");
   });
 
-  it("imports graph data from adjacency list and matrix formats", () => {
+  it("reloads graph data from text input", () => {
     const [graph] = createStructureElements({
       type: STRUCTURE_TYPES.GRAPH,
       input: "A-B",
@@ -635,18 +757,9 @@ describe("structure templates", () => {
       zIndexStart: 0,
     });
 
-    const fromList = importGraphFromText(graph, "A: B(5), C\nB: C", "adjacency-list");
-    expect(fromList.nodes.map((node) => node.label)).toEqual(["A", "B", "C"]);
-    const listIdByLabel = new Map(fromList.nodes.map((node) => [node.label, node.id]));
-    expect(fromList.edges).toMatchObject([
-      { from: listIdByLabel.get("A"), to: listIdByLabel.get("B"), directed: true, weight: "5" },
-      { from: listIdByLabel.get("A"), to: listIdByLabel.get("C"), directed: true, weight: "" },
-      { from: listIdByLabel.get("B"), to: listIdByLabel.get("C"), directed: true, weight: "" },
-    ]);
-
-    const fromMatrix = importGraphFromText(graph, ",A,B\nA,0,2\nB,0,0", "adjacency-matrix");
-    const matrixIdByLabel = new Map(fromMatrix.nodes.map((node) => [node.label, node.id]));
-    expect(fromMatrix.edges).toMatchObject([{ from: matrixIdByLabel.get("A"), to: matrixIdByLabel.get("B"), directed: true, weight: "2" }]);
+    const updated = updateGraphFromInput(graph, "A->C, B->D");
+    expect(updated.nodes.map((node) => node.label)).toEqual(["A", "C", "B", "D"]);
+    expect(updated.edges.length).toBe(2);
   });
 
   it("lays out graph nodes with circle, grid, and layered helpers", () => {

@@ -371,6 +371,7 @@ export function createElementNode(element, {
   onGraphNodeConnect,
   onGraphNodeEdit,
   onGraphEdgeEdit,
+  onGraphNodeDragStart,
   getGraphEdgeState,
   onTreeNodeEdit,
   onTreeNodeClick,
@@ -557,10 +558,9 @@ export function createElementNode(element, {
     node = createGraphStructureNode(element, common, {
       onGraphNodeMove,
       onGraphNodeClick,
-      onGraphNodeConnect,
       onGraphNodeEdit,
       onGraphEdgeEdit,
-      getGraphEdgeState,
+      onGraphNodeDragStart,
     });
   } else if (element.type === "tree-structure") {
     node = createTreeStructureNode(element, common, {
@@ -641,6 +641,10 @@ export function syncElementNode(node, element, handlers = {}) {
     syncTreeStructureNodeContent(node, element, handlers);
   }
   return true;
+}
+
+function getSyncedStructureDraggable(group, handlers = {}) {
+  return typeof handlers.draggable === "boolean" ? handlers.draggable : group.draggable();
 }
 
 export function createNodeAttrs(element) {
@@ -771,7 +775,7 @@ export function syncLinearStructureNodeContent(group, element, handlers) {
     id: element.id,
     name: "element",
     elementType: element.type,
-    draggable: group.draggable(),
+    draggable: getSyncedStructureDraggable(group, handlers),
     rotation: element.rotation ?? 0,
     scaleX: element.scaleX ?? 1,
     scaleY: element.scaleY ?? 1,
@@ -829,12 +833,16 @@ function syncGraphStructureNodeContent(group, element, handlers) {
     id: element.id,
     name: "element",
     elementType: element.type,
-    draggable: group.draggable(),
+    draggable: getSyncedStructureDraggable(group, handlers),
     rotation: element.rotation ?? 0,
     scaleX: element.scaleX ?? 1,
     scaleY: element.scaleY ?? 1,
   }, handlers);
+  const resizeRuntime = nextGroup.graphResizeRuntime;
   [...nextGroup.getChildren()].forEach((child) => child.moveTo(group));
+  if (resizeRuntime) {
+    installGraphResizePreview(group, resizeRuntime);
+  }
   nextGroup.destroy();
 }
 
@@ -847,7 +855,7 @@ function syncTreeStructureNodeContent(group, element, handlers) {
     id: element.id,
     name: "element",
     elementType: element.type,
-    draggable: group.draggable(),
+    draggable: getSyncedStructureDraggable(group, handlers),
     rotation: element.rotation ?? 0,
     scaleX: element.scaleX ?? 1,
     scaleY: element.scaleY ?? 1,
@@ -1472,10 +1480,9 @@ function getLinearStructurePreviewX({
 function createGraphStructureNode(element, common, {
   onGraphNodeMove,
   onGraphNodeClick,
-  onGraphNodeConnect,
   onGraphNodeEdit,
   onGraphEdgeEdit,
-  getGraphEdgeState,
+  onGraphNodeDragStart,
 } = {}) {
   const style = { ...GRAPH_STRUCTURE_STYLE, ...(element.style ?? {}) };
   const group = new Konva.Group({
@@ -1485,6 +1492,18 @@ function createGraphStructureNode(element, common, {
     width: element.width,
     height: element.height,
   });
+  // 定尺隐形边框矩形:把 group 的包围盒锚定到 element.width×height,
+  // 这样 Transformer 选中框只跟边框尺寸有关,不会随节点往里拖而收缩。
+  // listening:false 保证不上命中画布(不会劫持节点点击,见 AGENTS.md #24)。
+  const frameRect = new Konva.Rect({
+    name: "graph-frame",
+    x: 0,
+    y: 0,
+    width: element.width,
+    height: element.height,
+    listening: false,
+  });
+  group.add(frameRect);
   const nodes = new Map((element.nodes ?? []).map((node) => [node.id, { ...node }]));
   const nodeGroups = new Map();
   const edgeRecords = [];
@@ -1501,12 +1520,13 @@ function createGraphStructureNode(element, common, {
       const source = getNodePosition(record.edge.from);
       const target = getNodePosition(record.edge.to);
       if (!source || !target) continue;
-      record.line.points([source.x, source.y, target.x, target.y]);
+      record.line.points(getGraphEdgePoints(source, target, record.edgeIndex, record.isSelfLoop));
       if (record.weightBackground && record.weightLabel) {
-        const x = (source.x + target.x) / 2 - 18;
-        const y = (source.y + target.y) / 2 - 18;
-        record.weightBackground.position({ x, y });
-        record.weightLabel.position({ x, y });
+        const labelPoint = getGraphEdgeLabelPoint(source, target, record.edgeIndex);
+        const offsetX = labelPoint.offsetX ?? 0;
+        const offsetY = labelPoint.offsetY ?? -16;
+        record.weightBackground.position({ x: labelPoint.x + offsetX - 18, y: labelPoint.y + offsetY - 9 });
+        record.weightLabel.position({ x: labelPoint.x + offsetX - 18, y: labelPoint.y + offsetY - 9 });
       }
     }
   };
@@ -1544,12 +1564,14 @@ function createGraphStructureNode(element, common, {
         weight: edge.weight ?? "",
       });
     });
-    const record = { edge, line, weightBackground: null, weightLabel: null };
+    const record = { edge, line, weightBackground: null, weightLabel: null, edgeIndex, isSelfLoop };
     if (edge.weight) {
       const labelPoint = getGraphEdgeLabelPoint(source, target, edgeIndex);
+      const offsetX = labelPoint.offsetX ?? 0;
+      const offsetY = labelPoint.offsetY ?? -16;
       record.weightBackground = new Konva.Rect({
-        x: labelPoint.x - 18,
-        y: labelPoint.y - 9,
+        x: labelPoint.x + offsetX - 18,
+        y: labelPoint.y + offsetY - 9,
         width: 36,
         height: 18,
         fill: "rgba(255,255,255,0.92)",
@@ -1558,8 +1580,8 @@ function createGraphStructureNode(element, common, {
       });
       group.add(record.weightBackground);
       record.weightLabel = new Konva.Text({
-        x: labelPoint.x - 18,
-        y: labelPoint.y - 9,
+        x: labelPoint.x + offsetX - 18,
+        y: labelPoint.y + offsetY - 9,
         width: 36,
         height: 18,
         text: String(edge.weight),
@@ -1574,27 +1596,49 @@ function createGraphStructureNode(element, common, {
   });
 
   for (const node of nodes.values()) {
+    const isActiveGraphNode = element.runtime?.activeNodeId === node.id;
     const nodeGroup = new Konva.Group({
       name: "graph-node",
       x: node.x,
       y: node.y,
       draggable: Boolean(common.draggable),
+      dragBoundFunc: common.draggable ? (pos) => {
+        const transform = group.getAbsoluteTransform().copy();
+        const localPos = transform.copy().invert().point(pos);
+        const r = style.nodeRadius;
+        const width = Number(group.width()) || element.width;
+        const height = Number(group.height()) || element.height;
+        const clampInside = (value, max) => {
+          const upper = Math.max(r, max - r);
+          return Math.min(Math.max(value, r), upper);
+        };
+        const nextLocalPos = {
+          x: clampInside(localPos.x, width),
+          y: clampInside(localPos.y, height),
+        };
+        return transform.point(nextLocalPos);
+      } : undefined,
+      graphNodeId: node.id,
     });
     nodeGroups.set(node.id, nodeGroup);
     nodeGroup.add(new Konva.Ellipse({
       radiusX: style.nodeRadius,
       radiusY: style.nodeRadius,
-      stroke: style.nodeStroke,
-      strokeWidth: 2,
-      fill: getGraphNodeFill(element, node, style, getGraphEdgeState),
+      stroke: isActiveGraphNode ? "#2563eb" : style.nodeStroke,
+      strokeWidth: isActiveGraphNode ? 3 : 2,
+      fill: getGraphNodeFill(element, node, style),
     }));
+    // 标签字号随节点半径等比缩放(基准 20 @ r=26)
+    const labelRatio = style.nodeRadius / GRAPH_STRUCTURE_STYLE.nodeRadius;
+    const labelFontSize = 20 * labelRatio;
+    const labelHeight = 24 * labelRatio;
     nodeGroup.add(new Konva.Text({
       x: -style.nodeRadius,
-      y: -12,
+      y: -labelHeight / 2,
       width: style.nodeRadius * 2,
-      height: 24,
+      height: labelHeight,
       text: String(node.label ?? node.id),
-      fontSize: 20,
+      fontSize: labelFontSize,
       fontFamily: "Inter, system-ui, sans-serif",
       fill: style.textFill,
       align: "center",
@@ -1603,6 +1647,10 @@ function createGraphStructureNode(element, common, {
     nodeGroup.on("dragstart", (event) => {
       event.cancelBubble = true;
       group.draggable(false);
+      onGraphNodeDragStart?.({
+        elementId: element.id,
+        nodeId: node.id,
+      });
     });
     nodeGroup.on("dragmove", (event) => {
       event.cancelBubble = true;
@@ -1612,18 +1660,6 @@ function createGraphStructureNode(element, common, {
     nodeGroup.on("dragend", (event) => {
       event.cancelBubble = true;
       group.draggable(Boolean(common.draggable));
-      const connectState = getGraphEdgeState?.(element.id);
-      const targetNodeId = getStructureNodeIdAtPoint(nodeGroups, node.id, nodeGroup.position(), style.nodeRadius);
-      if (connectState && targetNodeId) {
-        nodeGroup.position({ x: node.x, y: node.y });
-        refreshEdges();
-        onGraphNodeConnect?.({
-          elementId: element.id,
-          sourceNodeId: connectState.sourceNodeId ?? node.id,
-          targetNodeId,
-        });
-        return;
-      }
       onGraphNodeMove?.({
         elementId: element.id,
         nodeId: node.id,
@@ -1649,7 +1685,38 @@ function createGraphStructureNode(element, common, {
     group.add(nodeGroup);
   }
 
+  const resizeRuntime = { style, frameRect, nodeGroups, refreshEdges };
+  installGraphResizePreview(group, resizeRuntime);
+  group.graphResizeRuntime = resizeRuntime;
+
   return group;
+}
+
+function installGraphResizePreview(group, {
+  style,
+  frameRect,
+  nodeGroups,
+  refreshEdges,
+}) {
+  // 供边框拖拽实时 preview 调用:就地改边框尺寸,把出界节点钳进 [r,边长-r],
+  // 并刷新边端点。节点本地坐标只在出界时收缩,不随边框等比缩放。
+  group.applyGraphResize = (nextWidth, nextHeight) => {
+    const width = Math.max(1, Number(nextWidth) || group.width());
+    const height = Math.max(1, Number(nextHeight) || group.height());
+    group.width(width);
+    group.height(height);
+    frameRect.width(width);
+    frameRect.height(height);
+    const r = style.nodeRadius;
+    const clampInside = (value, max) => Math.min(Math.max(value, r), max - r);
+    for (const nodeGroup of nodeGroups.values()) {
+      nodeGroup.position({
+        x: clampInside(nodeGroup.x(), width),
+        y: clampInside(nodeGroup.y(), height),
+      });
+    }
+    refreshEdges();
+  };
 }
 
 function createTreeStructureNode(element, common, {
@@ -1862,8 +1929,11 @@ function getParallelEdgeIndex(edges, edge) {
   return index <= 0 ? 0 : index;
 }
 
-function getGraphEdgePoints(source, target, edgeIndex = 0) {
-  if (source.id === target.id || (source.x === target.x && source.y === target.y)) {
+function getGraphEdgePoints(source, target, edgeIndex = 0, isSelfLoop = false) {
+  const effectiveSelfLoop = isSelfLoop
+    || (source.id != null && target.id != null && source.id === target.id)
+    || (source.x === target.x && source.y === target.y);
+  if (effectiveSelfLoop) {
     const radius = 28 + edgeIndex * 14;
     return [
       source.x,
@@ -1889,13 +1959,19 @@ function getGraphEdgePoints(source, target, edgeIndex = 0) {
 }
 
 function getGraphEdgeLabelPoint(source, target, edgeIndex = 0) {
-  const points = getGraphEdgePoints(source, target, edgeIndex);
-  if (points.length >= 6) {
-    return { x: points[2], y: points[3] };
-  }
+  const dx = target.x - source.x || 0.01;
+  const dy = target.y - source.y || 0.01;
+  const distance = Math.hypot(dx, dy);
+  const normalX = -dy / distance;
+  const normalY = dx / distance;
+  const offset = edgeIndex * 28;
+  const midX = (source.x + target.x) / 2 + normalX * offset;
+  const midY = (source.y + target.y) / 2 + normalY * offset;
   return {
-    x: (source.x + target.x) / 2,
-    y: (source.y + target.y) / 2,
+    x: midX,
+    y: midY,
+    offsetX: normalX * 22,
+    offsetY: normalY * 22,
   };
 }
 
@@ -1926,10 +2002,8 @@ function getCollapsedTreeNodeIds(element, collapsed) {
   return hidden;
 }
 
-function getGraphNodeFill(element, node, style, getGraphEdgeState) {
+function getGraphNodeFill(element, node, style) {
   if ((element.markers?.highlightedNodes ?? []).includes(node.id)) return style.highlightFill;
-  const state = getGraphEdgeState?.(element.id);
-  if (state?.sourceNodeId === node.id) return "#dbeafe";
   return style.nodeFill;
 }
 

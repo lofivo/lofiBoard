@@ -22,6 +22,7 @@ function createHarness(overrides = {}) {
     handleTransformerDoubleClick: vi.fn(),
     pushHistory: vi.fn(),
     syncCoordinatePlaneTransformPreview: vi.fn(),
+    syncGraphTransformPreview: vi.fn(),
     syncSelectedNodes: vi.fn(),
     syncTextTransformPreview: vi.fn(),
     syncTextWidthResize: vi.fn(),
@@ -35,6 +36,7 @@ function createHarness(overrides = {}) {
       syncTextWidthResize: callbacks.syncTextWidthResize,
       syncTextTransformPreview: callbacks.syncTextTransformPreview,
       syncCoordinatePlaneTransformPreview: callbacks.syncCoordinatePlaneTransformPreview,
+      syncGraphTransformPreview: callbacks.syncGraphTransformPreview,
     },
     handleTransformerDoubleClick: callbacks.handleTransformerDoubleClick,
     syncSelectedNodes: callbacks.syncSelectedNodes,
@@ -50,6 +52,7 @@ describe("app selection transform-events-controller", () => {
     expect(transformer.on).toHaveBeenCalledWith("transform", callbacks.syncTextWidthResize);
     expect(transformer.on).toHaveBeenCalledWith("transform", callbacks.syncTextTransformPreview);
     expect(transformer.on).toHaveBeenCalledWith("transform", callbacks.syncCoordinatePlaneTransformPreview);
+    expect(transformer.on).toHaveBeenCalledWith("transform", callbacks.syncGraphTransformPreview);
     expect(transformer.on).toHaveBeenCalledWith("dblclick dbltap", callbacks.handleTransformerDoubleClick);
   });
 

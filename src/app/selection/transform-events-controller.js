@@ -13,6 +13,7 @@ export function createSelectionTransformEventsController() {
     transformer.on("transform", selectionTransformPreviewController.syncTextWidthResize);
     transformer.on("transform", selectionTransformPreviewController.syncTextTransformPreview);
     transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview);
+    transformer.on("transform", selectionTransformPreviewController.syncGraphTransformPreview);
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
     });
