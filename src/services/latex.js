@@ -4,8 +4,6 @@ const DEFAULT_PADDING = 8;
 const latexImageSourceCache = new Map();
 const LATEX_DELIMITERS = [
   { left: "$$", right: "$$", displayMode: true, multiline: true },
-  { left: "\\[", right: "\\]", displayMode: true, multiline: true },
-  { left: "\\(", right: "\\)", displayMode: false, multiline: false },
   { left: "$", right: "$", displayMode: false, multiline: false },
 ];
 
@@ -35,27 +33,9 @@ export function parseLatexText(value) {
     return { ok: true, expression: blockMatch[1].trim(), displayMode: true };
   }
 
-  const inlineParenMatch = /^\\\(([\s\S]+)\\\)$/.exec(text);
-  if (inlineParenMatch) {
-    return { ok: true, expression: inlineParenMatch[1].trim(), displayMode: false };
-  }
-
   const inlineDollarMatch = /^\$([^\$][\s\S]*?)\$$/.exec(text);
   if (inlineDollarMatch) {
     return { ok: true, expression: inlineDollarMatch[1].trim(), displayMode: false };
-  }
-
-  const hasLatexCommand = /\\[a-zA-Z]+/.test(text);
-  const hasStrongMathSyntax = /[_^{}=<>]/.test(text);
-  const looksLikeNakedExpression = (
-    /^\\[a-zA-Z]+/.test(text)
-    || (
-      /^[a-zA-Z0-9\s\\_^{}+\-*/=().,[\]|<>:]+$/.test(text)
-      && (hasLatexCommand || hasStrongMathSyntax)
-    )
-  );
-  if (looksLikeNakedExpression) {
-    return { ok: true, expression: text, displayMode: false };
   }
 
   return { ok: false, expression: "", displayMode: false };

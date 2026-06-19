@@ -29,25 +29,30 @@ describe("latex service", () => {
     });
   });
 
-  it("detects inline and block latex delimiters", () => {
+  it("detects only dollar-delimited latex", () => {
     expect(parseLatexText("$$x^2 + y^2 = z^2$$")).toEqual({
       ok: true,
       expression: "x^2 + y^2 = z^2",
       displayMode: true,
-    });
-    expect(parseLatexText("\\(E = mc^2\\)")).toEqual({
-      ok: true,
-      expression: "E = mc^2",
-      displayMode: false,
     });
     expect(parseLatexText("$\\alpha + \\beta$")).toEqual({
       ok: true,
       expression: "\\alpha + \\beta",
       displayMode: false,
     });
+    expect(parseLatexText("\\(E = mc^2\\)")).toEqual({
+      ok: false,
+      expression: "",
+      displayMode: false,
+    });
+    expect(parseLatexText("\\[E = mc^2\\]")).toEqual({
+      ok: false,
+      expression: "",
+      displayMode: false,
+    });
     expect(parseLatexText("\\frac{a}{b}")).toEqual({
-      ok: true,
-      expression: "\\frac{a}{b}",
+      ok: false,
+      expression: "",
       displayMode: false,
     });
     expect(isLatexText("plain text")).toBe(false);
@@ -63,7 +68,7 @@ describe("latex service", () => {
     expect(getTextDisplayValue("\\$x^2\\$")).toBe("$x^2$");
   });
 
-  it("tokenizes mixed text with explicit inline and block latex delimiters", () => {
+  it("tokenizes mixed text with dollar-delimited inline and block latex only", () => {
     expect(tokenizeLatexText("速度 $v=\\frac{s}{t}$\n$$x^2$$")).toEqual([
       { type: "text", value: "速度 " },
       { type: "math", value: "v=\\frac{s}{t}", displayMode: false, raw: "$v=\\frac{s}{t}$" },
@@ -77,14 +82,18 @@ describe("latex service", () => {
       { type: "text", value: "$a\nb$" },
     ]);
     expect(tokenizeLatexText("\\[a\nb\\]")).toEqual([
-      { type: "math", value: "a\nb", displayMode: true, raw: "\\[a\nb\\]" },
+      { type: "text", value: "\\[a\nb\\]" },
+    ]);
+    expect(tokenizeLatexText("\\(a+b\\)")).toEqual([
+      { type: "text", value: "\\(a+b\\)" },
     ]);
   });
 
-  it("only treats explicit delimiters or whole-expression latex as renderable", () => {
+  it("only treats dollar-delimited latex as renderable", () => {
     expect(containsRenderableLatex("速度 $v=\\frac{s}{t}$")).toBe(true);
+    expect(containsRenderableLatex("速度 \\(v=\\frac{s}{t}\\)")).toBe(false);
     expect(containsRenderableLatex("速度 \\frac{s}{t}")).toBe(false);
-    expect(containsRenderableLatex("\\frac{s}{t}")).toBe(true);
+    expect(containsRenderableLatex("\\frac{s}{t}")).toBe(false);
     expect(containsRenderableLatex("path/to/file")).toBe(false);
     expect(containsRenderableLatex("1/2")).toBe(false);
     expect(containsRenderableLatex("价格 \\$5")).toBe(false);
