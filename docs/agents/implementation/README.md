@@ -13,15 +13,18 @@
    - `interaction-flows.md`：涉及指针、选区、拖拽、缩放、文本编辑、工具切换时读。
    - `structures-and-algorithms.md`：涉及数组/栈/队列/图/树、结构浮动控件、数组算法演示时读。
    - `testing-guide.md`：决定补哪些测试、跑哪些测试时读。
+5. 涉及 React 面板、工具栏、右键菜单、图层面板或结构属性栏时，先读 `code-map.md` 的 React 外壳桥接说明，再读对应专题。
 
 ## 当前实现总览
 
-应用入口是 `src/app/main.js`，它调用 `createWhiteboardApp(root)`。`src/app/whiteboard-app.js` 是装配入口，负责创建 Konva Stage/Layer、浏览器 DOM 引用、画板会话、controller 实例和跨 controller 的回调接线。
+应用入口是 `src/app/main.jsx`，它渲染 React 外壳。`src/app/App.jsx` 在 `legacyRootRef` 内调用 `createWhiteboardApp(root)`；`src/app/whiteboard-app.js` 是遗留白板装配入口，负责创建 Konva Stage/Layer、浏览器 DOM 引用、画板会话、controller 实例和跨 controller 的回调接线。
 
 实现分两层：
 
 - `src/<domain>/`：领域和纯逻辑模块，例如画板模型、结构规则、几何计算、工具规则、算法步骤。
 - `src/app/<domain>/`：应用 controller，负责 DOM、Konva、画板会话、选区、历史和 controller 协作。
+
+当前 UI 还有一层 React 外壳：`src/app/main.jsx` 渲染 `src/app/App.jsx`，再由 `App.jsx` 在 `legacyRootRef` 中调用 `createWhiteboardApp()`。React 组件替换了部分遗留 DOM 面板，但真实画板状态、历史和 Konva 运行时仍由遗留白板 controller 管理。
 
 测试目录基本镜像源码目录。改已有功能时先用 `rg` 搜对应测试；没有覆盖就先补测试，再改实现。
 

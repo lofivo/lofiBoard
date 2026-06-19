@@ -46,9 +46,11 @@ function createController(overrides = {}) {
     copySelection: vi.fn(),
     cutSelection: vi.fn(),
     deleteSelection: vi.fn(),
+    hasClipboardSnapshot: overrides.hasClipboardSnapshot ?? vi.fn(() => false),
     hideContextMenu: vi.fn(),
     hideToolCursors: vi.fn(),
     openBoardFile: vi.fn(),
+    pasteClipboard: vi.fn(),
     redoHistory: vi.fn(),
     saveBoardFile: vi.fn(),
     saveBoardFileAs: vi.fn(),
@@ -130,6 +132,20 @@ describe("keyboard-controller", () => {
     expect(callbacks.openBoardFile).toHaveBeenCalled();
     expect(callbacks.undoHistory).toHaveBeenCalled();
     expect(callbacks.redoHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it("pastes the board clipboard directly from Ctrl+V when a snapshot exists", () => {
+    const { callbacks, controller, windowTarget } = createController({
+      hasClipboardSnapshot: () => true,
+    });
+    controller.bindKeyboard();
+    const event = createEvent({ key: "v", ctrlKey: true });
+
+    windowTarget.dispatch("keydown", event);
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(callbacks.pasteClipboard).toHaveBeenCalled();
   });
 
   it("runs selection shortcuts and escape cleanup", () => {

@@ -21,6 +21,20 @@
 
 同一个工具可能进入多个状态。例如选择工具可进入框选、拖拽、缩放、结构交互；画笔工具可进入绘制；文本元素可从选择工具进入编辑态。
 
+## React 面板交互
+
+React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。
+
+典型流程：
+
+1. 遗留 controller 更新 DOM 文本、隐藏 input、`root.dataset.*` 或 root 暴露方法。
+2. `App.jsx` 轮询这些状态，写入 React context。
+3. React 组件显示受控控件。
+4. 用户操作 React 控件后，组件通过 `ctx.runAction()`、`ctx.setTool()`、`ctx.runContextAction()` 或属性同步 setter 触发遗留 DOM action/input。
+5. 遗留 controller 修改画板模型、历史、Konva node 和 DOM 回灌状态。
+
+改 React 控件时要沿着这条闭环验证：显示值必须能从遗留 controller 回灌，用户输入必须最终进入遗留 controller。只改 React state 会导致控件回弹或画板模型没有变化。
+
 ## 渲染同步
 
 `src/app/rendering/controller.js` 维护元素 id 到 Konva node 的 registry。渲染同步流程：

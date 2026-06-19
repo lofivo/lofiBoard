@@ -17,8 +17,10 @@
 - 修改选区、拖拽、Transformer、对齐：运行 `tests/app/selection/*` 和 `tests/tools/interaction-state-machine.test.js`。
 - 修改工具、画笔、橡皮、图形预览：运行 `tests/app/tools/*`、`tests/tools/stroke-engine.test.js`、`tests/tools/behavior.test.js`、`tests/canvas/geometry.test.js`。
 - 修改结构：运行 `tests/structures/*` 和 `tests/app/structures/*`。
+- 修改图结构属性栏、有向图开关、节点大小或结构输入桥接：运行 `tests/structures/templates.test.js`、`tests/app/structures/inspector-sync-controller.test.js`，并按涉及组件运行 `tests/app/components/*`。
 - 修改数组算法：运行 `tests/algorithms/array.test.js` 和 `tests/app/algorithms/array/*`。
-- 修改属性栏/面板/图层：运行 `tests/app/inspector/*`、`tests/app/panels/*`、`tests/ui/panel-state.test.js`。
+- 修改 React 外壳、React 面板、右键菜单或 React/遗留 DOM 桥接：运行对应 `tests/app/App.*.test.jsx`、`tests/app/components/*`，必要时补 `tests/app/inspector/*` 或 `tests/app/structures/*`。
+- 修改属性栏/面板/图层：运行 `tests/app/inspector/*`、`tests/app/panels/*`、`tests/app/components/*`、`tests/ui/panel-state.test.js`。
 - 修改导入导出/剪贴板/草稿：运行 `tests/app/import-export/*`、`tests/app/clipboard/*`、`tests/services/clipboard.test.js`、`tests/services/draft-storage.test.js`、`tests/services/image-import.test.js`。
 - 修改视口：运行 `tests/canvas/viewport.test.js`、`tests/app/viewport/*`。
 
@@ -37,6 +39,7 @@ rg "关键词|函数名|用户可见文案" tests src
 - 纯逻辑优先测纯模块，例如 `src/structures/*`、`src/tools/*`、`src/board/*`。
 - 应用 controller 通过依赖注入的 fake collaborator 测行为，不要启动浏览器。
 - 对 Konva 相关行为，优先测试 controller 如何调用 fake node/layer/transformer，以及状态如何提交到元素。
+- 对 React 外壳组件，测试组件展示和桥接调用；画板事实状态仍要在遗留 controller 或纯逻辑测试里断言。
 - 对 bug 修复，测试名要描述复现条件和期望结果。
 - 对历史和持久化，断言稳定画板数据，不要断言临时运行时状态被保存。
 
@@ -47,3 +50,4 @@ rg "关键词|函数名|用户可见文案" tests src
 - `pointerdown` 到首次 `dragmove` 之间不要重建正在拖拽的 Konva node。
 - 数组算法运行中不能允许线性结构内容被同时编辑。
 - 保存画板前不能把结构运行时投影、算法 marker、选区或工具状态写入文件。
+- React 受控控件必须能从遗留 DOM/dataset 回灌，并通过 `data-action` 或 `data-control` 闭环进入 controller。

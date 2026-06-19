@@ -1429,6 +1429,8 @@ export function createWhiteboardApp(root) {
     hideToolCursors,
     copySelection,
     cutSelection,
+    hasClipboardSnapshot: () => clipboardController.hasSnapshot(),
+    pasteClipboard,
     saveBoardFile,
     saveBoardFileAs,
     openBoardFile,

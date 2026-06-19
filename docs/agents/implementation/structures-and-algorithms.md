@@ -49,6 +49,19 @@
 
 图结构的节点 id 和 label 要区分。用户看到的是 label，边内部连接用节点 id。
 
+图结构属性栏横跨 React 外壳和遗留 controller：
+
+- React `StylePanel.jsx` 展示图输入、有向图 Switch、节点大小 Slider。
+- 图输入和节点大小仍写遗留 DOM：`[data-graph-structure-input]`、`[data-graph-node-scale]`。
+- “应用结构”“有向图”“节点大小提交”通过 `ctx.runAction()` 点击遗留 `[data-action]`，由 `src/app/shell/action-controller.js` 和结构 controller 更新模型、历史和渲染。
+- `syncGraphStructurePanelState()` 是回灌入口，负责把当前选中图导出到输入框、把 `root.dataset.graphDirected` 写给 React Switch、把当前节点半径换算成 Slider 百分比。
+
+关键约束：
+
+- `ctx.graphDirected` 是显示态，不是模型事实来源；必须由 `root.dataset.graphDirected` 回灌。Switch 点击后应触发 `graph-directed-toggle`，由 `setGraphDirected()` 整图翻转所有边并同步默认方向。
+- 节点大小 Slider 拖动中只写 DOM 值并实时预览；提交历史由 `graph-node-scale-commit` 在 `onAfterChange` 触发一次。
+- 应用结构重建图时要沿用当前 `style.nodeRadius`，并按当前半径钳制旧节点位置和新边框尺寸。
+
 ## 树结构
 
 纯逻辑在 `src/structures/tree-structure.js`。支持普通树和二叉树：

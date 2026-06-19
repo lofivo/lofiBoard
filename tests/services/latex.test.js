@@ -85,6 +85,8 @@ describe("latex service", () => {
     expect(containsRenderableLatex("速度 $v=\\frac{s}{t}$")).toBe(true);
     expect(containsRenderableLatex("速度 \\frac{s}{t}")).toBe(false);
     expect(containsRenderableLatex("\\frac{s}{t}")).toBe(true);
+    expect(containsRenderableLatex("path/to/file")).toBe(false);
+    expect(containsRenderableLatex("1/2")).toBe(false);
     expect(containsRenderableLatex("价格 \\$5")).toBe(false);
   });
 

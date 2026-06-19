@@ -2,7 +2,8 @@
 
 ## 顶层目录
 
-- `src/app/main.js`：浏览器入口，导入样式并创建白板应用。
+- `src/app/main.jsx`：React 浏览器入口，导入样式并渲染 `App`。
+- `src/app/App.jsx`：React 外壳。创建 `legacyRootRef`，在其中调用 `createWhiteboardApp(root)`，隐藏被 React 替换的遗留 DOM，并把遗留白板状态桥接到 React context。
 - `src/app/whiteboard-app.js`：应用装配入口。这里创建 Stage/Layer、状态变量、所有 controller，并把跨模块回调接起来。
 - `src/board/`：画板数据模型、元素工厂、历史栈、ID。
 - `src/canvas/`：Konva 形状创建/同步、几何计算、视口适配、导出背景。
@@ -13,8 +14,25 @@
 - `src/ui/`：工具栏、菜单、上下文菜单、面板等 UI 配置和轻量状态。
 - `src/styles.css`：全局样式、面板状态、文本 overlay、结构控件等样式入口。
 
+## React 外壳桥接
+
+React 组件位于 `src/app/components/*`。它们主要负责展示和用户输入，不直接拥有画板模型。真实状态仍在 `createWhiteboardApp()` 创建的遗留 controller、Konva node 和 board session 中。
+
+桥接方向分三类：
+
+- 遗留白板到 React：`App.jsx` 定时读取 `legacyRoot.dataset.*`、`[data-*]` 文本和 `legacyRoot._getLayersData()` / `_getSelectedIds()`，写入 `WhiteboardContext`。属性栏模式、选区能力、结构类型、图有向状态、当前工具、背景、缩放、文件名和状态栏都走这个方向。
+- React 到遗留白板 action：工具切换、菜单命令、缩放、背景、结构属性栏按钮等通过点击遗留 DOM 上的 `[data-action]`、`[data-tool]`、`[data-context-action]` 等入口触发，最终仍由 controller 改模型和历史。
+- React 到属性控件：颜色、线宽、字体、坐标系等连续属性通过 `syncPropertyToInput()` 写 `[data-control]` 隐藏 input，并派发 `input` / `change` 事件，让已有属性栏 controller 处理选区样式和历史。
+
+维护约束：
+
+- 不要把 React state 当成画板事实来源。React 受控控件必须能从遗留 controller 回灌，例如 `root.dataset.graphDirected` 经 `App.jsx` 同步到 `ctx.graphDirected` 后驱动 Switch。
+- `legacyRootRef` 的容器必须保持 `zIndex: "auto"`，避免创建层叠上下文把遗留 `position: fixed` 弹窗压到 React 面板下。
+- 新增 React 面板控件时，优先复用已有 `data-action` / `data-control` 桥接；只有确实没有遗留入口时，再在对应 controller 暴露窄方法。
+
 ## `src/app/` 分区
 
+- `components/`：React 外壳组件，包括顶栏、工具停靠栏、属性栏、结构面板、图层面板、状态栏和右键菜单。
 - `shell/`：应用外壳、DOM 引用、菜单/状态栏/键盘/指针/顶层 action、画板会话 action。
 - `tools/`：工具激活、画笔/橡皮交互、图形临时绘制、工具光标。
 - `selection/`：选区状态、命中查询、拖拽、Transformer、缩放提交、对齐吸附、剪贴板和图层 action。
@@ -42,6 +60,7 @@
 - 改选区/拖拽/缩放：优先看 `src/app/selection/*`，再看 `src/tools/interaction-state-machine.js` 和 `src/tools/interaction-rules.js`。
 - 改文本编辑：看 `src/app/editing/controller.js`、`src/app/editing/text-element-measure.js`、`src/services/text-overlay-controller.js` 和 `src/tools/interaction-rules.js`。
 - 改结构：先看 `src/structures/*` 的纯逻辑，再看 `src/app/structures/*` 的应用交互。
+- 改 React 属性栏或结构面板：先看 `src/app/App.jsx` 的桥接状态，再看 `src/app/components/StylePanel.jsx` / `StructurePanel.jsx`，最后看对应 `src/app/inspector/*` 或 `src/app/structures/*` controller。
 - 改保存/草稿/历史：看 `src/app/shell/board-session/*`、`src/board/history.js`、`src/services/file.js`、`src/services/draft-storage.js`。
 
 ## 命名约定

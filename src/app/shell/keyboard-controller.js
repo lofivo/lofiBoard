@@ -16,6 +16,8 @@ export function createKeyboardController({
   hideToolCursors,
   copySelection,
   cutSelection,
+  hasClipboardSnapshot = () => false,
+  pasteClipboard = () => {},
   saveBoardFile,
   saveBoardFileAs,
   openBoardFile,
@@ -75,6 +77,12 @@ export function createKeyboardController({
     }
 
     if (isModifierShortcut && key === "v") {
+      if (hasClipboardSnapshot()) {
+        event.preventDefault();
+        event.stopPropagation();
+        pasteClipboard();
+        return;
+      }
       event.stopPropagation();
       return;
     }

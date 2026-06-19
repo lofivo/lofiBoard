@@ -76,7 +76,7 @@ export default function App() {
   const getLegacyRoot = useCallback(() => legacyRootRef.current, []);
 
   // Sync a property value to the corresponding hidden input in the whiteboard's property storage
-  const syncPropertyToInput = useCallback((controlName, value, isChecked) => {
+  const syncPropertyToInput = useCallback((controlName, value, isChecked, { dispatch = true } = {}) => {
     const root = getLegacyRoot();
     if (!root) return;
     const input = root.querySelector(`[data-control="${controlName}"]`);
@@ -86,6 +86,7 @@ export default function App() {
     } else {
       input.value = String(value);
     }
+    if (!dispatch) return;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }, [getLegacyRoot]);
@@ -96,7 +97,12 @@ export default function App() {
   const setBrushOpacitySynced = useCallback((v) => { setBrushOpacity(v); syncPropertyToInput('brush-opacity', v); }, [syncPropertyToInput]);
   const setBrushCapSynced    = useCallback((v) => { setBrushCap(v); syncPropertyToInput('brush-cap', v); }, [syncPropertyToInput]);
   const setBrushStyleSynced  = useCallback((v) => { setBrushStyle(v); syncPropertyToInput('brush-style', v); }, [syncPropertyToInput]);
-  const setFillColorSynced   = useCallback((v) => { setFillColor(v); syncPropertyToInput('fill', v); }, [syncPropertyToInput]);
+  const setFillColorSynced   = useCallback((v) => {
+    setFillColor(v);
+    setFillTransparent(false);
+    syncPropertyToInput('fill-transparent', null, false, { dispatch: false });
+    syncPropertyToInput('fill', v);
+  }, [syncPropertyToInput]);
   const setFillTransparentSynced = useCallback((v) => { setFillTransparent(v); syncPropertyToInput('fill-transparent', null, v); }, [syncPropertyToInput]);
   const setTextColorSynced   = useCallback((v) => { setTextColor(v); syncPropertyToInput('color', v); }, [syncPropertyToInput]);
   const setFontSizeSynced    = useCallback((v) => { setFontSize(v); syncPropertyToInput('font-size', v); }, [syncPropertyToInput]);
@@ -178,6 +184,16 @@ export default function App() {
           for (const k of Object.keys(prev)) { if (caps[k] === undefined) return caps; }
           return prev;
         });
+        const fillInput = legacyRoot.querySelector('[data-control="fill"]');
+        if (fillInput) {
+          const nextFillColor = fillInput.value || '#ffffff';
+          setFillColor((prev) => (prev !== nextFillColor ? nextFillColor : prev));
+        }
+        const fillTransparentInput = legacyRoot.querySelector('[data-control="fill-transparent"]');
+        if (fillTransparentInput) {
+          const nextFillTransparent = Boolean(fillTransparentInput.checked);
+          setFillTransparent((prev) => (prev !== nextFillTransparent ? nextFillTransparent : prev));
+        }
         const structure = legacyRoot.dataset.structureSelection || 'none';
         setStructureSelection((prev) => (prev !== structure ? structure : prev));
         const directed = legacyRoot.dataset.graphDirected === 'true';

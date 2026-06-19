@@ -45,11 +45,13 @@ export function parseLatexText(value) {
     return { ok: true, expression: inlineDollarMatch[1].trim(), displayMode: false };
   }
 
+  const hasLatexCommand = /\\[a-zA-Z]+/.test(text);
+  const hasStrongMathSyntax = /[_^{}=<>]/.test(text);
   const looksLikeNakedExpression = (
     /^\\[a-zA-Z]+/.test(text)
     || (
       /^[a-zA-Z0-9\s\\_^{}+\-*/=().,[\]|<>:]+$/.test(text)
-      && /\\[a-zA-Z]+|[_^{}+\-*/=<>]/.test(text)
+      && (hasLatexCommand || hasStrongMathSyntax)
     )
   );
   if (looksLikeNakedExpression) {
