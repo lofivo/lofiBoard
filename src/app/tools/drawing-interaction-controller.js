@@ -113,6 +113,7 @@ export function createDrawingInteractionController({
   function eraseStrokeAt(worldPoint, radius) {
     let changed = false;
     const nextElements = [];
+    let footprintRadius = null;
 
     for (const element of getBoardElements()) {
       if (element.type !== "stroke") {
@@ -120,7 +121,8 @@ export function createDrawingInteractionController({
         continue;
       }
 
-      const fragments = splitStrokeByEraser(element, worldPoint, radius);
+      footprintRadius ??= getVisibleEraserRadius(radius);
+      const fragments = splitStrokeByEraser(element, worldPoint, footprintRadius);
       if (!areStrokeFragmentsEquivalent(element, fragments)) {
         changed = true;
       }
@@ -172,7 +174,9 @@ export function createDrawingInteractionController({
     }
 
     const elapsed = Math.max(16, currentTime - lastEraserPoint.time);
-    const speed = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) / elapsed;
+    const scale = Math.max(0.01, Number(getScale()) || 1);
+    const screenDistance = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) * scale;
+    const speed = screenDistance / elapsed;
     activeEraserRadius = computeEraserRadius({
       baseRadius: getBaseEraserRadius(),
       speed,

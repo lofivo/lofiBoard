@@ -62,7 +62,7 @@ function createHarness(overrides = {}) {
     getBrushStyle: () => "solid",
     getBrushSmoothingValue: () => 0.3,
     getBrushInputSmoothingValue: () => 0,
-    getScale: () => 1,
+    getScale: overrides.getScale ?? (() => 1),
     getBaseEraserRadius: () => 10,
     getVisibleEraserRadius: overrides.getVisibleEraserRadius ?? ((radius) => radius),
     addElement: callbacks.addElement,
@@ -186,5 +186,48 @@ describe("drawing-interaction-controller", () => {
     // updateStrokeEraser must return the raw computed radius, NOT scaled by getVisibleEraserRadius
     expect(updateRadius).toBeGreaterThan(0);
     expect(scaleVisual).not.toHaveBeenCalled();
+  });
+
+  it("erases the same zoom-adjusted footprint shown by the stroke eraser preview", () => {
+    const stroke = {
+      id: "stroke_1",
+      type: "stroke",
+      x: 0,
+      y: 0,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      strokeWidth: 6,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      zIndex: 0,
+    };
+    const { controller, state } = createHarness({
+      elements: [stroke],
+      getVisibleEraserRadius: (radius) => radius / 0.25,
+    });
+
+    const radius = controller.beginEraser({ x: 50, y: 0 });
+    controller.eraseStrokeAt({ x: 50, y: 0 }, radius);
+
+    expect(state.elements).toHaveLength(2);
+    expect(state.elements[0].points.at(-1).x).toBe(10);
+    expect(state.elements[1].points[0].x).toBe(90);
+  });
+
+  it("computes eraser speed from screen movement when the canvas is zoomed out", () => {
+    const { controller } = createHarness({
+      getScale: () => 0.25,
+      now: vi.fn()
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1040),
+    });
+
+    controller.beginEraser({ x: 0, y: 0 });
+    const radius = controller.updateStrokeEraser({ x: 40, y: 0 });
+
+    expect(radius).toBe(10);
   });
 });
