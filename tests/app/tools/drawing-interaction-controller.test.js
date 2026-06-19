@@ -230,4 +230,28 @@ describe("drawing-interaction-controller", () => {
 
     expect(radius).toBe(10);
   });
+
+  it("dampens speed growth at very low zoom so slight movement does not balloon the eraser", () => {
+    const { controller: tinyZoomController } = createHarness({
+      getScale: () => 0.12,
+      now: vi.fn()
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1016),
+    });
+    const { controller: normalZoomController } = createHarness({
+      getScale: () => 1,
+      now: vi.fn()
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1016),
+    });
+
+    tinyZoomController.beginEraser({ x: 0, y: 0 });
+    const tinyZoomRadius = tinyZoomController.updateStrokeEraser({ x: 20 / 0.12, y: 0 });
+
+    normalZoomController.beginEraser({ x: 0, y: 0 });
+    const normalZoomRadius = normalZoomController.updateStrokeEraser({ x: 20, y: 0 });
+
+    expect(tinyZoomRadius).toBe(10);
+    expect(normalZoomRadius).toBeGreaterThan(tinyZoomRadius);
+  });
 });

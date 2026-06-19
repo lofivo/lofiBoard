@@ -176,7 +176,8 @@ export function createDrawingInteractionController({
     const elapsed = Math.max(16, currentTime - lastEraserPoint.time);
     const scale = Math.max(0.01, Number(getScale()) || 1);
     const screenDistance = Math.hypot(worldPoint.x - lastEraserPoint.x, worldPoint.y - lastEraserPoint.y) * scale;
-    const speed = screenDistance / elapsed;
+    const zoomSpeedFactor = Math.min(1, scale / 0.25);
+    const speed = (screenDistance / elapsed) * zoomSpeedFactor;
     activeEraserRadius = computeEraserRadius({
       baseRadius: getBaseEraserRadius(),
       speed,
