@@ -1184,11 +1184,12 @@ describe("app shell", () => {
   });
 
   it("keeps live text editor height aligned with committed text box normalization", () => {
-    const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
     const textMeasureSource = readFileSync(new URL("../../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
 
-    expect(editSource).toContain("}) + 2 * scale");
+    expect(editSource).toContain("const measureTextContentHeight");
+    expect(editSource).toContain("return measureTextContentHeight(width) + 2 * scale");
+    expect(editSource).toContain("fitEditorToContent({ expandOnly: true });");
     expect(textMeasureSource).toContain("verticalGap: 2");
   });
 

@@ -9,6 +9,7 @@ vi.mock("html2canvas", () => ({
 }));
 
 import {
+  canRenderLatexText,
   clearLatexRenderCache,
   containsRenderableLatex,
   getTextDisplayValue,
@@ -97,6 +98,13 @@ describe("latex service", () => {
     expect(containsRenderableLatex("path/to/file")).toBe(false);
     expect(containsRenderableLatex("1/2")).toBe(false);
     expect(containsRenderableLatex("价格 \\$5")).toBe(false);
+  });
+
+  it("checks whether dollar-delimited latex can actually render", () => {
+    expect(canRenderLatexText("速度 $v=\\frac{s}{t}$")).toBe(true);
+    expect(canRenderLatexText("$$\n\\log n\n$$")).toBe(true);
+    expect(canRenderLatexText("坏公式 $\\notACommand$")).toBe(false);
+    expect(canRenderLatexText("plain text")).toBe(false);
   });
 
   it("renders mixed latex text to vector html and falls back to plain text on invalid math", async () => {

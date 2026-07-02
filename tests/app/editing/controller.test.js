@@ -142,6 +142,23 @@ function stickyElement(overrides = {}) {
   };
 }
 
+function installTextareaScrollHeight(getScrollHeight) {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+    configurable: true,
+    get() {
+      return getScrollHeight(this);
+    },
+  });
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalDescriptor);
+    } else {
+      delete HTMLElement.prototype.scrollHeight;
+    }
+  };
+}
+
 describe("app editing controller", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -239,6 +256,81 @@ describe("app editing controller", () => {
     const textarea = frame?.querySelector("textarea.text-editor");
     expect(textarea).toBeTruthy();
     expect(textarea?.value).toBe(element.text);
+  });
+
+  it("expands an existing multiline latex text editor to show its source on open", () => {
+    const restoreScrollHeight = installTextareaScrollHeight((element) => (
+      element.classList?.contains("text-editor-measure") && element.value.includes("\\log n")
+        ? 112
+        : 35
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        text: "$$\n\\log n\n$$",
+        width: 160,
+        height: 35,
+      });
+      const node = makeNode({
+        width: vi.fn(() => 160),
+        height: vi.fn(() => 35),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.contentLayer.findOne.mockReturnValue(node);
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+
+      const frame = document.querySelector(".text-editor-frame");
+      expect(Number.parseFloat(frame.style.height)).toBeGreaterThanOrEqual(114);
+      expect(node.height).toHaveBeenLastCalledWith(expect.any(Number));
+      expect(node.height.mock.calls.at(-1)[0]).toBeGreaterThanOrEqual(114);
+      expect(deps.transformer.forceUpdate).toHaveBeenCalled();
+    } finally {
+      restoreScrollHeight();
+    }
+  });
+
+  it("recomputes multiline latex text box from rendered content on commit", () => {
+    const restoreScrollHeight = installTextareaScrollHeight((element) => (
+      element.classList?.contains("text-editor-measure") && element.value.includes("\\log n")
+        ? 112
+        : 35
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        text: "$$\n\\log n\n$$",
+        width: 160,
+        height: 35,
+      });
+      const node = makeNode({
+        width: vi.fn(() => 160),
+        height: vi.fn(() => 35),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.getBoardElements.mockReturnValue([element]);
+      deps.contentLayer.findOne.mockReturnValue(node);
+      deps.measureTextValue = vi.fn((_, value) => String(value).length * 10);
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+
+      const frame = document.querySelector(".text-editor-frame");
+      expect(Number.parseFloat(frame.style.height)).toBeGreaterThanOrEqual(114);
+
+      const textarea = frame.querySelector("textarea.text-editor");
+      textarea.dispatchEvent(kEvent("Enter"));
+
+      const updatedElements = deps.setBoardElements.mock.calls[0][0];
+      const updated = updatedElements.find((el) => el.id === element.id);
+      expect(updated.text).toBe("$$\n\\log n\n$$");
+      expect(updated.width).toBe(160);
+      expect(updated.height).toBeGreaterThanOrEqual(30);
+      expect(updated.height).toBeLessThan(80);
+    } finally {
+      restoreScrollHeight();
+    }
   });
 
   it("removes empty text element on commit with no text", () => {

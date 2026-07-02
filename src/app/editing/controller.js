@@ -156,14 +156,18 @@ export function createEditController({
       node.height(nextHeight);
     };
 
-    const measureTextHeight = (width = getEditorWidth()) => {
+    const measureTextContentHeight = (width = getEditorWidth()) => {
       const currentFontSize = Number.parseFloat(textarea.style.fontSize) || element.fontSize * scale;
       return measureTextareaContentHeight({
         sourceTextarea: textarea,
         measureTextarea,
         width: Math.max(minEditorWidth, width),
         minHeight: currentFontSize * 1.25,
-      }) + 2 * scale;
+      });
+    };
+
+    const measureTextHeight = (width = getEditorWidth()) => {
+      return measureTextContentHeight(width) + 2 * scale;
     };
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {
@@ -177,7 +181,7 @@ export function createEditController({
       return measureTextValue(element, line, element.fontSize * scale);
     };
 
-    const fitEditorToContent = () => {
+    const fitEditorToContent = ({ expandOnly = false } = {}) => {
       const lines = textarea.value.split("\n");
       const contentWidth = Math.max(...lines.map(getTextLineWidth));
       const canAutoFitWidth = !originalText;
@@ -192,7 +196,12 @@ export function createEditController({
       const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
         ? (preferredTextWidth > maxAutoEditorWidth ? preferredTextWidth : Math.min(maxAutoEditorWidth, measuredAutoWidth))
         : getEditorWidth();
-      setEditorSize(nextWidth);
+      const currentHeight = getEditorHeight();
+      const contentHeight = measureTextContentHeight(nextWidth);
+      const nextHeight = expandOnly && contentHeight <= currentHeight
+        ? currentHeight
+        : contentHeight + 2 * scale;
+      setEditorSize(nextWidth, nextHeight);
       applyNodeSizeFromEditor();
       if (["text", "sticky"].includes(element.type)) {
         syncTextNodeContent(node, {
@@ -263,6 +272,7 @@ export function createEditController({
       }
       return nextBox;
     });
+    fitEditorToContent({ expandOnly: true });
     transformer.forceUpdate();
     overlayLayer.batchDraw();
     textarea.focus();

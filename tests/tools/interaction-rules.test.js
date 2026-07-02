@@ -739,6 +739,43 @@ describe("interaction rules", () => {
     expect(escapedBox.width).toBe(180);
   });
 
+  it("normalizes multiline latex height from the rendered expression instead of source lines", () => {
+    const measureText = (value) => String(value).length * 10;
+    const latexBox = getNormalizedTextBox({
+      text: "$$\n\\log n\n$$",
+      width: 160,
+      fontSize: 24,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+    const escapedBox = getNormalizedTextBox({
+      text: "\\$\\$\n\\log n\n\\$\\$",
+      width: 160,
+      fontSize: 24,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+
+    expect(latexBox.height).toBeLessThan(80);
+    expect(escapedBox.height).toBeGreaterThan(latexBox.height);
+  });
+
+  it("falls back to source text height when latex cannot render", () => {
+    const measureText = (value) => String(value).length * 10;
+    const invalidBox = getNormalizedTextBox({
+      text: "$$\n\\notACommand\n$$",
+      width: 160,
+      fontSize: 24,
+      padding: 6,
+      verticalGap: 2,
+      measureText,
+    });
+
+    expect(invalidBox.height).toBeGreaterThan(90);
+  });
+
   it("allows a short inline latex formula to wrap across multiple lines", () => {
     const measureText = (value) => String(value).length * 12;
     const latexBox = getNormalizedTextBox({

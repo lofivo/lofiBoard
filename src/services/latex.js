@@ -1,7 +1,9 @@
+import katex from "katex";
 import katexCss from "katex/dist/katex.min.css?raw";
 
 const DEFAULT_PADDING = 8;
 const latexImageSourceCache = new Map();
+const latexRenderabilityCache = new Map();
 const LATEX_DELIMITERS = [
   { left: "$$", right: "$$", displayMode: true, multiline: true },
   { left: "$", right: "$", displayMode: false, multiline: false },
@@ -20,6 +22,7 @@ function getLatexImageSourceCacheKey(value, { fill, fontSize, maxWidth, padding 
 
 export function clearLatexRenderCache() {
   latexImageSourceCache.clear();
+  latexRenderabilityCache.clear();
 }
 
 export function parseLatexText(value) {
@@ -130,6 +133,40 @@ export function containsRenderableLatex(value) {
   return containsExplicitLatex(text) || isLatexText(text);
 }
 
+export function canRenderLatexText(value) {
+  const text = String(value ?? "");
+  if (latexRenderabilityCache.has(text)) {
+    return latexRenderabilityCache.get(text);
+  }
+
+  const explicitTokens = tokenizeLatexText(text);
+  const hasExplicitMath = explicitTokens.some((token) => token.type === "math");
+  const wholeExpression = parseLatexText(text);
+  if (!hasExplicitMath && !wholeExpression.ok) {
+    latexRenderabilityCache.set(text, false);
+    return false;
+  }
+
+  const tokens = hasExplicitMath
+    ? explicitTokens.filter((token) => token.type === "math")
+    : [{ type: "math", value: wholeExpression.expression, displayMode: wholeExpression.displayMode }];
+
+  try {
+    tokens.forEach((token) => {
+      katex.renderToString(token.value, {
+        displayMode: token.displayMode,
+        throwOnError: true,
+        output: "html",
+      });
+    });
+    latexRenderabilityCache.set(text, true);
+    return true;
+  } catch {
+    latexRenderabilityCache.set(text, false);
+    return false;
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -142,7 +179,6 @@ function escapeHtml(value) {
 export async function renderLatexToHtml(value, options = {}) {
   const parsed = parseLatexText(value);
   if (!parsed.ok || !parsed.expression) return null;
-  const { default: katex } = await import("katex");
 
   return katex.renderToString(parsed.expression, {
     displayMode: parsed.displayMode,
@@ -159,7 +195,6 @@ export async function renderLatexMixedToHtml(value, options = {}) {
   const wholeExpression = parseLatexText(text);
   if (!hasExplicitMath && !wholeExpression.ok) return null;
 
-  const { default: katex } = await import("katex");
   const tokens = hasExplicitMath
     ? explicitTokens
     : [{ type: "math", value: wholeExpression.expression, displayMode: wholeExpression.displayMode, raw: text }];
