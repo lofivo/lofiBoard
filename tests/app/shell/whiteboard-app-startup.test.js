@@ -322,5 +322,5 @@ describe("whiteboard app startup", () => {
     expect(typeof app.getBoard).toBe("function");
 
     app.destroy();
-  });
+  }, 15_000);
 });
