@@ -108,10 +108,30 @@ export default function App() {
   const setFontSizeSynced    = useCallback((v) => { setFontSize(v); syncPropertyToInput('font-size', v); }, [syncPropertyToInput]);
   const setFontFamilySynced  = useCallback((v) => { setFontFamily(v); syncPropertyToInput('font-family', v); }, [syncPropertyToInput]);
   const setArrowDoubleEndedSynced = useCallback((v) => { setArrowDoubleEnded(v); syncPropertyToInput('arrow-double-ended', null, v); }, [syncPropertyToInput]);
+  const setStickyBgColorSynced = useCallback((v) => {
+    setStickyBgColor(v);
+    setFillTransparent(false);
+    syncPropertyToInput('fill-transparent', null, false, { dispatch: false });
+    syncPropertyToInput('fill', v);
+  }, [syncPropertyToInput]);
+  const setStickyTextColorSynced = useCallback((v) => { setStickyTextColor(v); syncPropertyToInput('color', v); }, [syncPropertyToInput]);
+  const setStickyFontFamilySynced = useCallback((v) => { setStickyFontFamily(v); syncPropertyToInput('font-family', v); }, [syncPropertyToInput]);
+  const setStickyFontSizeSynced = useCallback((v) => { setStickyFontSize(v); syncPropertyToInput('font-size', v); }, [syncPropertyToInput]);
   const setCoordinateUnitSizeSynced = useCallback((v) => { setCoordinateUnitSize(v); syncPropertyToInput('coordinate-unit-size', v); }, [syncPropertyToInput]);
   const setCoordinateShowGridSynced = useCallback((v) => { setCoordinateShowGrid(v); syncPropertyToInput('coordinate-show-grid', null, v); }, [syncPropertyToInput]);
   const setCoordinateShowTicksSynced = useCallback((v) => { setCoordinateShowTicks(v); syncPropertyToInput('coordinate-show-ticks', null, v); }, [syncPropertyToInput]);
   const setCoordinateShowLabelsSynced = useCallback((v) => { setCoordinateShowLabels(v); syncPropertyToInput('coordinate-show-labels', null, v); }, [syncPropertyToInput]);
+  const setCoordinateGridColorSynced = useCallback((v) => { setCoordinateGridColor(v); syncPropertyToInput('coordinate-grid-color', v); }, [syncPropertyToInput]);
+  const setCoordinateAxisColorSynced = useCallback((v) => { setCoordinateAxisColor(v); syncPropertyToInput('coordinate-axis-color', v); }, [syncPropertyToInput]);
+  const setCoordinateLabelColorSynced = useCallback((v) => { setCoordinateLabelColor(v); syncPropertyToInput('coordinate-label-color', v); }, [syncPropertyToInput]);
+  const setTextStyleSynced = useCallback((style) => {
+    const root = getLegacyRoot();
+    root?.querySelector(`[data-text-style="${style}"]`)?.click();
+    if (style === 'bold') setTextBold(b => !b);
+    if (style === 'italic') setTextItalic(i => !i);
+    if (style === 'underline') setTextUnderline(u => !u);
+    if (style === 'strike') setTextStrike(s => !s);
+  }, [getLegacyRoot]);
 
   useEffect(() => {
     if (!legacyRootRef.current || initializedRef.current) return;
@@ -423,18 +443,18 @@ export default function App() {
     setFillColor: setFillColorSynced, setFillTransparent: setFillTransparentSynced,
     setTextColor: setTextColorSynced, setFontFamily: setFontFamilySynced, setFontSize: setFontSizeSynced,
     setArrowDoubleEnded: setArrowDoubleEndedSynced,
-    setTextStyle: (s) => {
-      if (s === 'bold') setTextBold(b => !b);
-      if (s === 'italic') setTextItalic(i => !i);
-      if (s === 'underline') setTextUnderline(u => !u);
-      if (s === 'strike') setTextStrike(s => !s);
-    },
-    setStickyBgColor, setStickyTextColor, setStickyFontFamily, setStickyFontSize,
+    setTextStyle: setTextStyleSynced,
+    setStickyBgColor: setStickyBgColorSynced,
+    setStickyTextColor: setStickyTextColorSynced,
+    setStickyFontFamily: setStickyFontFamilySynced,
+    setStickyFontSize: setStickyFontSizeSynced,
     setCoordinateUnitSize: setCoordinateUnitSizeSynced,
     setCoordinateShowGrid: setCoordinateShowGridSynced,
     setCoordinateShowTicks: setCoordinateShowTicksSynced,
     setCoordinateShowLabels: setCoordinateShowLabelsSynced,
-    setCoordinateGridColor, setCoordinateAxisColor, setCoordinateLabelColor,
+    setCoordinateGridColor: setCoordinateGridColorSynced,
+    setCoordinateAxisColor: setCoordinateAxisColorSynced,
+    setCoordinateLabelColor: setCoordinateLabelColorSynced,
     setShapePopoverVisible, setStructurePanelVisible,
   }), [
     statusMessage, fileName, currentTool, currentZoom, zoomPercent,
@@ -459,7 +479,10 @@ export default function App() {
     setBrushColorSynced, setBrushWidthSynced, setBrushOpacitySynced, setBrushCapSynced, setBrushStyleSynced,
     setFillColorSynced, setFillTransparentSynced, setTextColorSynced, setFontFamilySynced, setFontSizeSynced,
     setArrowDoubleEndedSynced,
+    setStickyBgColorSynced, setStickyTextColorSynced, setStickyFontFamilySynced, setStickyFontSizeSynced,
+    setTextStyleSynced,
     setCoordinateUnitSizeSynced, setCoordinateShowGridSynced, setCoordinateShowTicksSynced, setCoordinateShowLabelsSynced,
+    setCoordinateGridColorSynced, setCoordinateAxisColorSynced, setCoordinateLabelColorSynced,
   ]);
 
   return (

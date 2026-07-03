@@ -5,6 +5,11 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
+  const colorInput = document.createElement("input");
+  colorInput.dataset.control = "color";
+  colorInput.type = "color";
+  colorInput.value = "#111827";
+
   const fillInput = document.createElement("input");
   fillInput.dataset.control = "fill";
   fillInput.type = "color";
@@ -15,10 +20,52 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   fillTransparentInput.type = "checkbox";
   fillTransparentInput.checked = true;
 
+  const fontFamilyInput = document.createElement("input");
+  fontFamilyInput.dataset.control = "font-family";
+  fontFamilyInput.value = "Inter, system-ui, sans-serif";
+
+  const fontSizeInput = document.createElement("input");
+  fontSizeInput.dataset.control = "font-size";
+  fontSizeInput.type = "range";
+  fontSizeInput.value = "28";
+
+  const coordinateGridColorInput = document.createElement("input");
+  coordinateGridColorInput.dataset.control = "coordinate-grid-color";
+  coordinateGridColorInput.type = "color";
+  coordinateGridColorInput.value = "#e5e7eb";
+
+  const coordinateAxisColorInput = document.createElement("input");
+  coordinateAxisColorInput.dataset.control = "coordinate-axis-color";
+  coordinateAxisColorInput.type = "color";
+  coordinateAxisColorInput.value = "#111827";
+
+  const coordinateLabelColorInput = document.createElement("input");
+  coordinateLabelColorInput.dataset.control = "coordinate-label-color";
+  coordinateLabelColorInput.type = "color";
+  coordinateLabelColorInput.value = "#64748b";
+
+  const boldTextStyleButton = document.createElement("button");
+  boldTextStyleButton.type = "button";
+  boldTextStyleButton.dataset.textStyle = "bold";
+  boldTextStyleButton.addEventListener("click", () => {
+    boldTextStyleButton.dataset.clickCount = String(Number(boldTextStyleButton.dataset.clickCount || "0") + 1);
+  });
+
   const stageContainer = document.createElement("div");
   stageContainer.id = "stage-container";
 
-  root.append(fillInput, fillTransparentInput, stageContainer);
+  root.append(
+    colorInput,
+    fillInput,
+    fillTransparentInput,
+    fontFamilyInput,
+    fontSizeInput,
+    coordinateGridColorInput,
+    coordinateAxisColorInput,
+    coordinateLabelColorInput,
+    boldTextStyleButton,
+    stageContainer,
+  );
   root._getContextMenuActionStates = () => ({});
   root._getLayersData = () => [];
   root._getSelectedIds = () => [];
@@ -60,6 +107,42 @@ vi.mock("../../src/app/components/StylePanel", async () => {
           },
           "set fill",
         ),
+        ReactModule.createElement(
+          "button",
+          {
+            type: "button",
+            "data-testid": "toggle-bold",
+            onClick: () => ctx.setTextStyle?.("bold"),
+          },
+          "toggle bold",
+        ),
+        ReactModule.createElement(
+          "button",
+          {
+            type: "button",
+            "data-testid": "set-sticky-style",
+            onClick: () => {
+              ctx.setStickyBgColor?.("#bbf7d0");
+              ctx.setStickyTextColor?.("#2563eb");
+              ctx.setStickyFontFamily?.("Georgia, serif");
+              ctx.setStickyFontSize?.(30);
+            },
+          },
+          "set sticky style",
+        ),
+        ReactModule.createElement(
+          "button",
+          {
+            type: "button",
+            "data-testid": "set-coordinate-colors",
+            onClick: () => {
+              ctx.setCoordinateGridColor?.("#94a3b8");
+              ctx.setCoordinateAxisColor?.("#0f172a");
+              ctx.setCoordinateLabelColor?.("#475569");
+            },
+          },
+          "set coordinate colors",
+        ),
       );
     },
   };
@@ -96,8 +179,15 @@ function mountApp() {
   });
   return {
     host,
+    boldTextStyleButton: host.querySelector('[data-text-style="bold"]'),
+    colorInput: host.querySelector('[data-control="color"]'),
     fillInput: host.querySelector('[data-control="fill"]'),
     fillTransparentInput: host.querySelector('[data-control="fill-transparent"]'),
+    fontFamilyInput: host.querySelector('[data-control="font-family"]'),
+    fontSizeInput: host.querySelector('[data-control="font-size"]'),
+    coordinateGridColorInput: host.querySelector('[data-control="coordinate-grid-color"]'),
+    coordinateAxisColorInput: host.querySelector('[data-control="coordinate-axis-color"]'),
+    coordinateLabelColorInput: host.querySelector('[data-control="coordinate-label-color"]'),
     probe: () => host.querySelector('[data-testid="style-probe"]'),
   };
 }
@@ -130,5 +220,46 @@ describe("App style control bridge", () => {
     expect(fillInput.value).toBe("#22c55e");
     expect(fillTransparentInput.checked).toBe(false);
     expect(transparentAtFillInput).toEqual([false]);
+  });
+
+  it("routes React text style toggles through the legacy text style button", () => {
+    const { boldTextStyleButton, host } = mountApp();
+
+    act(() => {
+      host.querySelector('[data-testid="toggle-bold"]').click();
+    });
+
+    expect(boldTextStyleButton.dataset.clickCount).toBe("1");
+  });
+
+  it("syncs React sticky style controls to the legacy property inputs", () => {
+    const { colorInput, fillInput, fillTransparentInput, fontFamilyInput, fontSizeInput, host } = mountApp();
+
+    act(() => {
+      host.querySelector('[data-testid="set-sticky-style"]').click();
+    });
+
+    expect(fillInput.value).toBe("#bbf7d0");
+    expect(fillTransparentInput.checked).toBe(false);
+    expect(colorInput.value).toBe("#2563eb");
+    expect(fontFamilyInput.value).toBe("Georgia, serif");
+    expect(fontSizeInput.value).toBe("30");
+  });
+
+  it("syncs React coordinate color controls to the legacy property inputs", () => {
+    const {
+      coordinateAxisColorInput,
+      coordinateGridColorInput,
+      coordinateLabelColorInput,
+      host,
+    } = mountApp();
+
+    act(() => {
+      host.querySelector('[data-testid="set-coordinate-colors"]').click();
+    });
+
+    expect(coordinateGridColorInput.value).toBe("#94a3b8");
+    expect(coordinateAxisColorInput.value).toBe("#0f172a");
+    expect(coordinateLabelColorInput.value).toBe("#475569");
   });
 });
