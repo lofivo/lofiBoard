@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderShell } from "../../../src/app/shell/shell.js";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 describe("app shell", () => {
   function extractLinearInspectorMarkup(markup) {
@@ -45,6 +45,14 @@ describe("app shell", () => {
       source.indexOf("function hasActiveDrawingPointerCapture()"),
     );
   }
+
+  it("uses only the React browser entrypoint", () => {
+    const indexSource = readFileSync(new URL("../../../index.html", import.meta.url), "utf8");
+
+    expect(indexSource).toContain('src="/src/app/main.jsx"');
+    expect(indexSource).not.toMatch(/src="\/src\/app\/main\.js"/);
+    expect(existsSync(new URL("../../../src/app/main.js", import.meta.url))).toBe(false);
+  });
 
   it("renders edge expand buttons for collapsed side panels", () => {
     const markup = renderShell();
