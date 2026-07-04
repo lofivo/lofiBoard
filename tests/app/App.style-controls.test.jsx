@@ -11,6 +11,11 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   colorInput.type = "color";
   colorInput.value = "#111827";
 
+  const widthInput = document.createElement("input");
+  widthInput.dataset.control = "width";
+  widthInput.type = "range";
+  widthInput.value = "6";
+
   const fillInput = document.createElement("input");
   fillInput.dataset.control = "fill";
   fillInput.type = "color";
@@ -29,6 +34,16 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   fontSizeInput.dataset.control = "font-size";
   fontSizeInput.type = "range";
   fontSizeInput.value = "28";
+
+  const coordinateUnitSizeInput = document.createElement("input");
+  coordinateUnitSizeInput.dataset.control = "coordinate-unit-size";
+  coordinateUnitSizeInput.type = "range";
+  coordinateUnitSizeInput.value = "40";
+
+  const coordinateShowGridInput = document.createElement("input");
+  coordinateShowGridInput.dataset.control = "coordinate-show-grid";
+  coordinateShowGridInput.type = "checkbox";
+  coordinateShowGridInput.checked = true;
 
   const coordinateGridColorInput = document.createElement("input");
   coordinateGridColorInput.dataset.control = "coordinate-grid-color";
@@ -57,10 +72,13 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
 
   root.append(
     colorInput,
+    widthInput,
     fillInput,
     fillTransparentInput,
     fontFamilyInput,
     fontSizeInput,
+    coordinateUnitSizeInput,
+    coordinateShowGridInput,
     coordinateGridColorInput,
     coordinateAxisColorInput,
     coordinateLabelColorInput,
@@ -99,6 +117,16 @@ vi.mock("../../src/app/components/StylePanel", async () => {
           "data-testid": "style-probe",
           "data-fill-color": ctx.fillColor,
           "data-fill-transparent": String(ctx.fillTransparent),
+          "data-brush-color": ctx.brushColor,
+          "data-brush-width": String(ctx.brushWidth),
+          "data-text-color": ctx.textColor,
+          "data-font-size": String(ctx.fontSize),
+          "data-font-family": ctx.fontFamily,
+          "data-sticky-bg-color": ctx.stickyBgColor,
+          "data-sticky-text-color": ctx.stickyTextColor,
+          "data-coordinate-unit-size": String(ctx.coordinateUnitSize),
+          "data-coordinate-show-grid": String(ctx.coordinateShowGrid),
+          "data-coordinate-grid-color": ctx.coordinateGridColor,
         },
         ReactModule.createElement(
           "button",
@@ -184,10 +212,13 @@ function mountApp() {
     host,
     boldTextStyleButton: host.querySelector('[data-text-style="bold"]'),
     colorInput: host.querySelector('[data-control="color"]'),
+    widthInput: host.querySelector('[data-control="width"]'),
     fillInput: host.querySelector('[data-control="fill"]'),
     fillTransparentInput: host.querySelector('[data-control="fill-transparent"]'),
     fontFamilyInput: host.querySelector('[data-control="font-family"]'),
     fontSizeInput: host.querySelector('[data-control="font-size"]'),
+    coordinateUnitSizeInput: host.querySelector('[data-control="coordinate-unit-size"]'),
+    coordinateShowGridInput: host.querySelector('[data-control="coordinate-show-grid"]'),
     coordinateGridColorInput: host.querySelector('[data-control="coordinate-grid-color"]'),
     coordinateAxisColorInput: host.querySelector('[data-control="coordinate-axis-color"]'),
     coordinateLabelColorInput: host.querySelector('[data-control="coordinate-label-color"]'),
@@ -207,6 +238,40 @@ describe("App style control bridge", () => {
 
     expect(probe().dataset.fillColor).toBe("#fef08a");
     expect(probe().dataset.fillTransparent).toBe("false");
+  });
+
+  it("syncs React style state from legacy master property inputs", () => {
+    const {
+      colorInput,
+      coordinateGridColorInput,
+      coordinateShowGridInput,
+      coordinateUnitSizeInput,
+      fontFamilyInput,
+      fontSizeInput,
+      probe,
+      widthInput,
+    } = mountApp();
+
+    colorInput.value = "#2563eb";
+    widthInput.value = "14";
+    fontFamilyInput.value = "Georgia, serif";
+    fontSizeInput.value = "36";
+    coordinateUnitSizeInput.value = "64";
+    coordinateShowGridInput.checked = false;
+    coordinateGridColorInput.value = "#94a3b8";
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(probe().dataset.brushColor).toBe("#2563eb");
+    expect(probe().dataset.brushWidth).toBe("14");
+    expect(probe().dataset.textColor).toBe("#2563eb");
+    expect(probe().dataset.fontFamily).toBe("Georgia, serif");
+    expect(probe().dataset.fontSize).toBe("36");
+    expect(probe().dataset.stickyTextColor).toBe("#2563eb");
+    expect(probe().dataset.coordinateUnitSize).toBe("64");
+    expect(probe().dataset.coordinateShowGrid).toBe("false");
+    expect(probe().dataset.coordinateGridColor).toBe("#94a3b8");
   });
 
   it("clears transparent fill before applying a React fill color change", () => {

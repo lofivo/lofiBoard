@@ -168,6 +168,24 @@ export default function App() {
     // Sync state from whiteboard to React
     const syncState = () => {
       try {
+        const readControl = (name) => legacyRoot.querySelector(`[data-control="${name}"]`);
+        const syncStringState = (setter, value) => {
+          if (value === undefined || value === null) return;
+          setter((prev) => (prev !== value ? value : prev));
+        };
+        const syncNumberState = (setter, value) => {
+          const next = Number(value);
+          if (!Number.isFinite(next)) return;
+          setter((prev) => (prev !== next ? next : prev));
+        };
+        const syncBooleanState = (setter, value) => {
+          setter((prev) => (prev !== value ? value : prev));
+        };
+        const isTextStyleActive = (style) => {
+          const button = legacyRoot.querySelector(`[data-text-style="${style}"]`);
+          return Boolean(button?.classList?.contains("active") || button?.getAttribute?.("aria-pressed") === "true");
+        };
+
         const zoomEl = legacyRoot.querySelector('[data-zoom]');
         if (zoomEl) {
           const text = zoomEl.textContent || '100%';
@@ -204,16 +222,60 @@ export default function App() {
           for (const k of Object.keys(prev)) { if (caps[k] === undefined) return caps; }
           return prev;
         });
-        const fillInput = legacyRoot.querySelector('[data-control="fill"]');
+        const colorInput = readControl("color");
+        if (colorInput) {
+          const nextColor = colorInput.value || '#111827';
+          syncStringState(setBrushColor, nextColor);
+          syncStringState(setTextColor, nextColor);
+          syncStringState(setStickyTextColor, nextColor);
+        }
+        const widthInput = readControl("width");
+        if (widthInput) syncNumberState(setBrushWidth, widthInput.value);
+        const brushOpacityInput = readControl("brush-opacity");
+        if (brushOpacityInput) syncNumberState(setBrushOpacity, brushOpacityInput.value);
+        const brushCapInput = readControl("brush-cap");
+        if (brushCapInput) syncStringState(setBrushCap, brushCapInput.value || 'round');
+        const brushStyleInput = readControl("brush-style");
+        if (brushStyleInput) syncStringState(setBrushStyle, brushStyleInput.value || 'solid');
+        const arrowDoubleEndedInput = readControl("arrow-double-ended");
+        if (arrowDoubleEndedInput) syncBooleanState(setArrowDoubleEnded, Boolean(arrowDoubleEndedInput.checked));
+        const fillInput = readControl("fill");
         if (fillInput) {
           const nextFillColor = fillInput.value || '#ffffff';
-          setFillColor((prev) => (prev !== nextFillColor ? nextFillColor : prev));
+          syncStringState(setFillColor, nextFillColor);
+          syncStringState(setStickyBgColor, nextFillColor);
         }
-        const fillTransparentInput = legacyRoot.querySelector('[data-control="fill-transparent"]');
-        if (fillTransparentInput) {
-          const nextFillTransparent = Boolean(fillTransparentInput.checked);
-          setFillTransparent((prev) => (prev !== nextFillTransparent ? nextFillTransparent : prev));
+        const fillTransparentInput = readControl("fill-transparent");
+        if (fillTransparentInput) syncBooleanState(setFillTransparent, Boolean(fillTransparentInput.checked));
+        const fontFamilyInput = readControl("font-family");
+        if (fontFamilyInput) {
+          const nextFontFamily = fontFamilyInput.value || 'Inter, system-ui, sans-serif';
+          syncStringState(setFontFamily, nextFontFamily);
+          syncStringState(setStickyFontFamily, nextFontFamily);
         }
+        const fontSizeInput = readControl("font-size");
+        if (fontSizeInput) {
+          syncNumberState(setFontSize, fontSizeInput.value);
+          syncNumberState(setStickyFontSize, fontSizeInput.value);
+        }
+        const coordinateUnitSizeInput = readControl("coordinate-unit-size");
+        if (coordinateUnitSizeInput) syncNumberState(setCoordinateUnitSize, coordinateUnitSizeInput.value);
+        const coordinateShowGridInput = readControl("coordinate-show-grid");
+        if (coordinateShowGridInput) syncBooleanState(setCoordinateShowGrid, Boolean(coordinateShowGridInput.checked));
+        const coordinateShowTicksInput = readControl("coordinate-show-ticks");
+        if (coordinateShowTicksInput) syncBooleanState(setCoordinateShowTicks, Boolean(coordinateShowTicksInput.checked));
+        const coordinateShowLabelsInput = readControl("coordinate-show-labels");
+        if (coordinateShowLabelsInput) syncBooleanState(setCoordinateShowLabels, Boolean(coordinateShowLabelsInput.checked));
+        const coordinateGridColorInput = readControl("coordinate-grid-color");
+        if (coordinateGridColorInput) syncStringState(setCoordinateGridColor, coordinateGridColorInput.value || '#e5e7eb');
+        const coordinateAxisColorInput = readControl("coordinate-axis-color");
+        if (coordinateAxisColorInput) syncStringState(setCoordinateAxisColor, coordinateAxisColorInput.value || '#111827');
+        const coordinateLabelColorInput = readControl("coordinate-label-color");
+        if (coordinateLabelColorInput) syncStringState(setCoordinateLabelColor, coordinateLabelColorInput.value || '#64748b');
+        syncBooleanState(setTextBold, isTextStyleActive("bold"));
+        syncBooleanState(setTextItalic, isTextStyleActive("italic"));
+        syncBooleanState(setTextUnderline, isTextStyleActive("underline"));
+        syncBooleanState(setTextStrike, isTextStyleActive("strike"));
         const structure = legacyRoot.dataset.structureSelection || 'none';
         setStructureSelection((prev) => (prev !== structure ? structure : prev));
         const directed = legacyRoot.dataset.graphDirected === 'true';
