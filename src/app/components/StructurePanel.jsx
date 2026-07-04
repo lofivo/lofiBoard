@@ -75,6 +75,8 @@ export default function StructurePanel() {
 
       const modeBtn = root.querySelector('[data-array-init-mode].active');
       if (modeBtn) setInitMode(modeBtn.dataset.arrayInitMode || 'manual');
+      const randomCountInput = root.querySelector('[data-array-random-count]');
+      if (randomCountInput) setCount(randomCountInput.value || '');
 
       initializedRef.current = true;
     }

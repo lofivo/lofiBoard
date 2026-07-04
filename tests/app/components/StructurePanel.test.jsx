@@ -48,23 +48,23 @@ function setNativeInputValue(input, value) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function setupLegacyStructurePanel() {
+function setupLegacyStructurePanel({ initMode = "manual", randomCount = "5" } = {}) {
   document.body.innerHTML = `
     <div data-legacy-root>
       <div id="stage-container"></div>
       <button type="button" data-structure-type="array" class="active">数组</button>
-      <button type="button" data-array-init-mode="manual" class="active">手填结构</button>
-      <button type="button" data-array-init-mode="random">随机生成</button>
+      <button type="button" data-array-init-mode="manual" class="${initMode === "manual" ? "active" : ""}">手填结构</button>
+      <button type="button" data-array-init-mode="random" class="${initMode === "random" ? "active" : ""}">随机生成</button>
       <textarea data-structure-input>1,2,3,4,5</textarea>
-      <input data-array-random-count value="5" />
+      <input data-array-random-count value="${randomCount}" />
       <button type="button" data-structure-insert>插入</button>
       <button type="button" data-structure-cancel>取消</button>
     </div>
   `;
 }
 
-function renderPanel() {
-  setupLegacyStructurePanel();
+function renderPanel(options) {
+  setupLegacyStructurePanel(options);
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -96,6 +96,12 @@ afterEach(() => {
 });
 
 describe("StructurePanel", () => {
+  it("initializes the random element count from the legacy panel input", () => {
+    const { host } = renderPanel({ initMode: "random", randomCount: "12" });
+
+    expect(host.querySelector("input").value).toBe("12");
+  });
+
   it("allows replacing the random element count with a value below five", () => {
     const { host } = renderPanel();
 
