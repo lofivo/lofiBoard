@@ -138,7 +138,7 @@ export default function App() {
     initializedRef.current = true;
 
     const legacyRoot = legacyRootRef.current;
-    createWhiteboardApp(legacyRoot);
+    const legacyApp = createWhiteboardApp(legacyRoot);
 
     // Hide original UI elements that React replaces
     const hideSelectors = [
@@ -321,6 +321,7 @@ export default function App() {
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
+      legacyApp?.destroy?.();
     };
   }, []);
 

@@ -1566,8 +1566,8 @@ export function createWhiteboardApp(root) {
   applyPanelState();
   updateChrome();
   bindStageEvents();
-  bindUiEvents();
-  bindKeyboard();
+  const unbindUiEvents = bindUiEvents();
+  const unbindKeyboard = bindKeyboard();
 
   root._getLayersData = () => {
     const ordered = reorderElements(board.elements);
@@ -1637,6 +1637,8 @@ export function createWhiteboardApp(root) {
       getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
     },
     destroy: () => {
+      unbindUiEvents?.();
+      unbindKeyboard?.();
       boardSession.destroy();
       destroyArrayAlgorithmSessionController();
       textOverlayController.clear();

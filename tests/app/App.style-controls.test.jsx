@@ -4,6 +4,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const appDestroyMock = vi.hoisted(() => vi.fn());
 const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   const colorInput = document.createElement("input");
   colorInput.dataset.control = "color";
@@ -70,6 +71,7 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   root._getLayersData = () => [];
   root._getSelectedIds = () => [];
   root._commitActiveTextEditor = vi.fn();
+  return { destroy: appDestroyMock };
 }));
 
 vi.mock("../../src/app/whiteboard-app.js", () => ({
@@ -156,6 +158,7 @@ let mountedRoot;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  appDestroyMock.mockClear();
   createWhiteboardAppMock.mockClear();
 });
 
@@ -261,5 +264,16 @@ describe("App style control bridge", () => {
     expect(coordinateGridColorInput.value).toBe("#94a3b8");
     expect(coordinateAxisColorInput.value).toBe("#0f172a");
     expect(coordinateLabelColorInput.value).toBe("#475569");
+  });
+
+  it("destroys the legacy whiteboard app when React unmounts", () => {
+    mountApp();
+
+    act(() => {
+      mountedRoot.unmount();
+    });
+    mountedRoot = null;
+
+    expect(appDestroyMock).toHaveBeenCalledTimes(1);
   });
 });

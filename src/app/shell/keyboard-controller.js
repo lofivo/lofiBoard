@@ -36,6 +36,10 @@ export function createKeyboardController({
   function bindKeyboard() {
     windowTarget.addEventListener("keydown", handleKeyDown, { capture: true });
     windowTarget.addEventListener("keyup", handleKeyUp, { capture: true });
+    return () => {
+      windowTarget.removeEventListener("keydown", handleKeyDown, { capture: true });
+      windowTarget.removeEventListener("keyup", handleKeyUp, { capture: true });
+    };
   }
 
   function handleKeyDown(event) {

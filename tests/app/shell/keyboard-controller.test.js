@@ -22,6 +22,9 @@ function createWindowTarget() {
     addEventListener: vi.fn((type, listener, options) => {
       listeners[type] = { listener, options };
     }),
+    removeEventListener: vi.fn((type, listener) => {
+      if (listeners[type]?.listener === listener) delete listeners[type];
+    }),
     dispatch(type, event) {
       listeners[type]?.listener(event);
     },
@@ -185,5 +188,19 @@ describe("keyboard-controller", () => {
     expect(callbacks.setActiveShapeTool).toHaveBeenCalledWith(TOOLS.LINE);
     expect(callbacks.setActiveShapeTool).toHaveBeenCalledWith(TOOLS.ARROW);
     expect(callbacks.setTool).toHaveBeenCalledWith(TOOLS.SHAPE);
+  });
+
+  it("returns a cleanup function that removes keyboard listeners", () => {
+    const { callbacks, controller, windowTarget } = createController();
+    const cleanup = controller.bindKeyboard();
+
+    cleanup();
+    windowTarget.dispatch("keydown", createEvent({ key: "v" }));
+    windowTarget.dispatch("keyup", createEvent({ code: "Space" }));
+
+    expect(callbacks.setTool).not.toHaveBeenCalled();
+    expect(callbacks.updateDraggableState).not.toHaveBeenCalled();
+    expect(windowTarget.removeEventListener).toHaveBeenCalledWith("keydown", expect.any(Function), { capture: true });
+    expect(windowTarget.removeEventListener).toHaveBeenCalledWith("keyup", expect.any(Function), { capture: true });
   });
 });

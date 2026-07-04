@@ -1569,7 +1569,8 @@ describe("app shell", () => {
     expect(keyboardSource).toContain("shouldUseBrowserSelectAll");
     expect(keyboardSource).toMatch(/if \(shouldSelectAll\(event\)\) \{[\s\S]*?if \(shouldUseBrowserSelectAll\(event\)\) return;[\s\S]*?event\.preventDefault\(\);[\s\S]*?clearNativeSelection\(\);/);
     expect(keyboardSource).toMatch(/windowTarget\.addEventListener\("keydown", handleKeyDown, \{ capture: true \}\);/);
-    expect(uiEventsSource).toMatch(/documentTarget\.addEventListener\("selectstart", \(event\) => \{[\s\S]*?isNativeTextEditingTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);[\s\S]*?\}, \{ capture: true \}\);/);
+    expect(uiEventsSource).toMatch(/bind\(documentTarget, "selectstart", \(event\) => \{[\s\S]*?isNativeTextEditingTarget\(event\.target\)[\s\S]*?event\.preventDefault\(\);[\s\S]*?\}, \{ capture: true \}\);/);
+    expect(uiEventsSource).toContain("target.removeEventListener(type, listener, options)");
     expect(keyboardSource.indexOf("if (shouldSelectAll(event)) {")).toBeLessThan(
       keyboardSource.indexOf("if (isTypingInEditableControl(event.target)) return;"),
     );

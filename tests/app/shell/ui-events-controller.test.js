@@ -8,6 +8,9 @@ function createEventTarget() {
       listeners[type] ??= [];
       listeners[type].push({ listener, options });
     }),
+    removeEventListener: vi.fn((type, listener) => {
+      listeners[type] = (listeners[type] ?? []).filter((entry) => entry.listener !== listener);
+    }),
     dispatch(type, event, index = 0) {
       listeners[type]?.[index]?.listener(event);
     },
@@ -154,5 +157,21 @@ describe("ui-events-controller", () => {
     expect(windowTarget.listeners.beforeunload[0].listener).toBe(callbacks.persistCurrentDraft);
     expect(container.listeners.dragover[0].listener).toBe(callbacks.handleImageDragOver);
     expect(container.listeners.drop[0].listener).toBe(callbacks.handleImageDrop);
+  });
+
+  it("returns a cleanup function that removes bound UI events", () => {
+    const { callbacks, container, controller, documentTarget, stage, windowTarget } = createController();
+    const cleanup = controller.bindUiEvents();
+
+    cleanup();
+    windowTarget.dispatch("resize", {});
+    documentTarget.dispatch("selectstart", { target: {}, preventDefault: vi.fn() });
+    container.dispatch("drop", {});
+
+    expect(stage.width).not.toHaveBeenCalled();
+    expect(callbacks.handleImageDrop).not.toHaveBeenCalled();
+    expect(windowTarget.removeEventListener).toHaveBeenCalledWith("beforeunload", callbacks.persistCurrentDraft, undefined);
+    expect(documentTarget.removeEventListener).toHaveBeenCalledWith("selectstart", expect.any(Function), { capture: true });
+    expect(container.removeEventListener).toHaveBeenCalledWith("drop", callbacks.handleImageDrop, undefined);
   });
 });

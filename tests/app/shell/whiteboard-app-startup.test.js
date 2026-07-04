@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class FakeKonvaNode {
   constructor(attrs = {}) {
@@ -310,6 +310,11 @@ describe("whiteboard app startup", () => {
     vi.stubGlobal("requestAnimationFrame", (callback) => setTimeout(callback, 0));
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = "";
+  });
+
   it("initializes the board session without boot-time reference errors", async () => {
     const { createWhiteboardApp } = await import("../../../src/app/whiteboard-app.js");
     const root = document.createElement("div");
@@ -322,5 +327,21 @@ describe("whiteboard app startup", () => {
     expect(typeof app.getBoard).toBe("function");
 
     app.destroy();
+  }, 15_000);
+
+  it("removes app-level window and document listeners when destroyed", async () => {
+    const { createWhiteboardApp } = await import("../../../src/app/whiteboard-app.js");
+    const removeWindowListener = vi.spyOn(window, "removeEventListener");
+    const removeDocumentListener = vi.spyOn(document, "removeEventListener");
+    const root = document.createElement("div");
+    root.id = "app";
+    document.body.append(root);
+
+    const app = createWhiteboardApp(root);
+    app.destroy();
+
+    expect(removeWindowListener).toHaveBeenCalledWith("keydown", expect.any(Function), { capture: true });
+    expect(removeWindowListener).toHaveBeenCalledWith("beforeunload", expect.any(Function), undefined);
+    expect(removeDocumentListener).toHaveBeenCalledWith("selectstart", expect.any(Function), { capture: true });
   }, 15_000);
 });
