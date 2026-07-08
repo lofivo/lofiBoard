@@ -12,6 +12,7 @@
    - `state-and-persistence.md`：涉及画板、历史、保存、草稿、导入导出时读。
    - `interaction-flows.md`：涉及指针、选区、拖拽、缩放、文本编辑、工具切换时读。
    - `structures-and-algorithms.md`：涉及数组/栈/队列/图/树、结构浮动控件、数组算法演示时读。
+   - `whiteboard-interaction-maturity-audit.md`：评估白板是否达到现代成熟交互、拆交互验收项或规划 P0/P1 改进时读。
    - `testing-guide.md`：决定补哪些测试、跑哪些测试时读。
 5. 涉及 React 面板、工具栏、右键菜单、图层面板或结构属性栏时，先读 `code-map.md` 的 React 外壳桥接说明，再读对应专题。
 

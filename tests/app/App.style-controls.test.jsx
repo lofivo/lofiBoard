@@ -127,6 +127,7 @@ vi.mock("../../src/app/components/StylePanel", async () => {
           "data-coordinate-unit-size": String(ctx.coordinateUnitSize),
           "data-coordinate-show-grid": String(ctx.coordinateShowGrid),
           "data-coordinate-grid-color": ctx.coordinateGridColor,
+          "data-graph-directed": String(ctx.graphDirected),
         },
         ReactModule.createElement(
           "button",
@@ -223,6 +224,7 @@ function mountApp() {
     coordinateAxisColorInput: host.querySelector('[data-control="coordinate-axis-color"]'),
     coordinateLabelColorInput: host.querySelector('[data-control="coordinate-label-color"]'),
     probe: () => host.querySelector('[data-testid="style-probe"]'),
+    legacyRoot: host.querySelector("#stage-container").parentElement,
   };
 }
 
@@ -272,6 +274,24 @@ describe("App style control bridge", () => {
     expect(probe().dataset.coordinateUnitSize).toBe("64");
     expect(probe().dataset.coordinateShowGrid).toBe("false");
     expect(probe().dataset.coordinateGridColor).toBe("#94a3b8");
+  });
+
+  it("syncs graph directed state from the legacy root dataset", () => {
+    const { legacyRoot, probe } = mountApp();
+
+    legacyRoot.dataset.graphDirected = "true";
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(probe().dataset.graphDirected).toBe("true");
+
+    legacyRoot.dataset.graphDirected = "false";
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(probe().dataset.graphDirected).toBe("false");
   });
 
   it("clears transparent fill before applying a React fill color change", () => {

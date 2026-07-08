@@ -3147,6 +3147,34 @@ describe("konva elements", () => {
     expect(binaryTree.findOne(".binary-tree-blank-hit")).toBeUndefined();
   });
 
+  it("keeps tree blank hit areas behind tree nodes so internal node clicks win", () => {
+    const tree = createElementNode({
+      id: "tree_1",
+      type: "tree-structure",
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+      nodes: [
+        { id: "node_a", label: "A", x: 80, y: 24 },
+      ],
+      edges: [],
+      settings: { rootId: "node_a" },
+      style: {},
+    }, {
+      ...baseHandlers,
+      draggable: true,
+    });
+
+    const children = tree.getChildren();
+    const blankHit = tree.findOne(".tree-blank-hit");
+    const treeNode = tree.findOne(".tree-node");
+
+    expect(blankHit.listening()).toBe(true);
+    expect(treeNode.listening()).toBe(true);
+    expect(children.indexOf(blankHit)).toBeLessThan(children.indexOf(treeNode));
+  });
+
   it("syncs binary tree active node borders without recreating the group", () => {
     const binaryTree = createElementNode({
       id: "tree_1",

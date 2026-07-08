@@ -36,6 +36,7 @@ function createHarness(overrides = {}) {
   };
   const structureInteraction = overrides.structureInteraction ?? createStructureInteraction();
   const callbacks = {
+    clearAlignmentGuides: vi.fn(),
     enterDragging: vi.fn(),
     pushHistory: vi.fn(),
     renderBoard: vi.fn(),
@@ -58,6 +59,7 @@ function createHarness(overrides = {}) {
   };
   const controller = createSelectionDragController({
     contentLayer,
+    clearAlignmentGuides: callbacks.clearAlignmentGuides,
     enterDragging: callbacks.enterDragging,
     getElementIdFromNode: (node) => node?.getId?.() ?? null,
     getElements: () => state.elements,
@@ -144,5 +146,58 @@ describe("drag-controller", () => {
     expect(nodes["#shape_1"].stopDrag).toHaveBeenCalled();
     expect(controller.hasSelectionDrag()).toBe(false);
     expect(nodes["#shape_1"].draggable).toHaveBeenLastCalledWith(true);
+  });
+
+  it("snaps with guides during native node drag and excludes moving elements from targets", () => {
+    const { callbacks, controller, nodes } = createHarness({
+      state: {
+        selectedIds: ["shape_1", "array_1", "locked_1"],
+      },
+    });
+
+    controller.beginNodeDragSelection(nodes["#shape_1"]);
+    controller.updateNodeDragSelection(nodes["#shape_1"]);
+
+    // 随拖拽移动的元素(shape_1、array_1)不能作为吸附目标;锁定元素 locked_1 不移动,仍是有效参照
+    expect(callbacks.snapNodeToAlignment).toHaveBeenCalledWith(nodes["#shape_1"], {
+      excludeIds: ["shape_1", "array_1"],
+      showGuides: true,
+    });
+  });
+
+  it("clears alignment guides when a native node drag finishes", () => {
+    const { callbacks, controller, nodes } = createHarness({
+      state: {
+        selectedIds: ["shape_1"],
+      },
+    });
+
+    controller.beginNodeDragSelection(nodes["#shape_1"]);
+    controller.updateNodeDragSelection(nodes["#shape_1"]);
+    controller.finishNodeDragSelection(nodes["#shape_1"]);
+
+    expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
+  });
+
+  it("clears alignment guides when a multi-selection node drag finishes", () => {
+    const { callbacks, controller, nodes } = createHarness({
+      state: {
+        selectedIds: ["shape_1", "array_1"],
+      },
+    });
+
+    controller.beginNodeDragSelection(nodes["#shape_1"]);
+    controller.updateNodeDragSelection(nodes["#shape_1"]);
+    controller.finishNodeDragSelection(nodes["#shape_1"]);
+
+    expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
+  });
+
+  it("clears alignment guides when the root drag state is reset", () => {
+    const { callbacks, controller } = createHarness();
+
+    controller.clearRootDragState("shape_1");
+
+    expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
   });
 });

@@ -102,4 +102,20 @@ describe("ContextMenu", () => {
     expect(isMenuItemDisabled(findMenuItem(host, "重做"))).toBe(false);
     expect(isMenuItemDisabled(findMenuItem(host, "复制"))).toBe(true);
   });
+
+  it("shows only canvas actions for blank canvas context menus", () => {
+    const host = renderMenu({
+      contextMenuVisible: true,
+      contextMenuScope: "canvas",
+      contextMenuPos: { x: 12, y: 24 },
+      contextMenuDisabledActions: { paste: false },
+    });
+
+    expect(host.textContent).toContain("撤销");
+    expect(host.textContent).toContain("重做");
+    expect(host.textContent).toContain("粘贴");
+    expect(host.textContent).not.toContain("复制");
+    expect(host.textContent).not.toContain("删除");
+    expect(host.textContent).not.toContain("锁定/解锁");
+  });
 });

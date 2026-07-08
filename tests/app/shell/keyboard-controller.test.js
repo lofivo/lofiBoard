@@ -35,6 +35,7 @@ function createWindowTarget() {
 function createController(overrides = {}) {
   let currentTool = overrides.currentTool ?? TOOLS.PEN;
   let isSpaceDown = false;
+  let isAltDown = false;
   const windowTarget = createWindowTarget();
   const stageContainer = {
     classList: {
@@ -72,6 +73,7 @@ function createController(overrides = {}) {
     getSelectedIds: overrides.getSelectedIds ?? (() => []),
     getIsSpaceDown: () => isSpaceDown,
     setIsSpaceDown: (nextValue) => { isSpaceDown = nextValue; },
+    setIsAltDown: (nextValue) => { isAltDown = nextValue; },
     isTypingInEditableControl: overrides.isTypingInEditableControl ?? (() => false),
     shouldSelectAll: overrides.shouldSelectAll ?? ((event) => event.key === "a" && event.ctrlKey),
     shouldUseBrowserSelectAll: overrides.shouldUseBrowserSelectAll ?? (() => false),
@@ -83,6 +85,7 @@ function createController(overrides = {}) {
     controller,
     getCurrentTool: () => currentTool,
     getIsSpaceDown: () => isSpaceDown,
+    getIsAltDown: () => isAltDown,
     stageContainer,
     windowTarget,
   };
@@ -117,6 +120,17 @@ describe("keyboard-controller", () => {
     expect(getIsSpaceDown()).toBe(false);
     expect(stageContainer.classList.remove).toHaveBeenCalledWith("is-pan-ready", "is-panning");
     expect(callbacks.updateDraggableState).toHaveBeenCalledTimes(2);
+  });
+
+  it("tracks Alt key state for temporarily disabling alignment snapping", () => {
+    const { controller, getIsAltDown, windowTarget } = createController();
+    controller.bindKeyboard();
+
+    windowTarget.dispatch("keydown", createEvent({ key: "Alt" }));
+    expect(getIsAltDown()).toBe(true);
+
+    windowTarget.dispatch("keyup", createEvent({ key: "Alt" }));
+    expect(getIsAltDown()).toBe(false);
   });
 
   it("runs file and history shortcuts", () => {

@@ -9,6 +9,8 @@ export function createContextMenuDomController({
   getViewport,
   actions,
 }) {
+  let lastContextMenuTargetId;
+
   function bindContextMenuActions() {
     for (const button of root.querySelectorAll("[data-context-action]")) {
       button.addEventListener("click", () => runContextAction(button.dataset.contextAction));
@@ -24,8 +26,11 @@ export function createContextMenuDomController({
     contextMenu.hidden = true;
   }
 
-  function showContextMenu(clientX, clientY) {
-    updateContextMenuActions();
+  function showContextMenu(clientX, clientY, options = {}) {
+    if (Object.hasOwn(options, "targetId")) {
+      lastContextMenuTargetId = options.targetId;
+    }
+    updateContextMenuActions({ targetId: lastContextMenuTargetId });
     contextMenu.hidden = false;
     const box = contextMenu.getBoundingClientRect();
     const { left, top } = contextMenuController.getPosition({
@@ -38,9 +43,10 @@ export function createContextMenuDomController({
     contextMenu.style.top = `${top}px`;
   }
 
-  function updateContextMenuActions() {
+  function updateContextMenuActions({ targetId = lastContextMenuTargetId } = {}) {
     root.querySelectorAll("[data-context-action]").forEach((button) => {
       button.disabled = contextMenuController.isActionDisabled(button.dataset.contextAction, {
+        targetId,
         selectedIds: getSelectedIds(),
         hasClipboard: hasClipboard(),
         canUndo: canUndo(),
@@ -49,8 +55,13 @@ export function createContextMenuDomController({
     });
   }
 
+  function getLastContextMenuTargetId() {
+    return lastContextMenuTargetId;
+  }
+
   return {
     bindContextMenuActions,
+    getLastContextMenuTargetId,
     hideContextMenu,
     runContextAction,
     showContextMenu,

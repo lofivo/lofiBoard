@@ -99,4 +99,48 @@ describe("controller", () => {
     expect(stage.position).toHaveBeenCalledWith({ x: -115, y: -60 });
     expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalled();
   });
+
+  it("zooms touchpad pinch wheel events around the pointer position", () => {
+    const preventDefault = vi.fn();
+    const stage = createFakeStage({ x: -100, y: -50, scale: 1, pointer: { x: 200, y: 150 } });
+    const { controller } = createController({ stage });
+
+    controller.handleWheel({ evt: { preventDefault, deltaY: -1, ctrlKey: true, deltaMode: 0 } });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stage.scale).toHaveBeenCalledWith({ x: 1.05, y: 1.05 });
+    expect(stage.position).toHaveBeenCalledWith({ x: -115, y: -60 });
+  });
+
+  it("pans fine-grained touchpad wheel events without changing zoom", () => {
+    const preventDefault = vi.fn();
+    const stage = createFakeStage({ x: -100, y: -50, scale: 1.5, pointer: { x: 200, y: 150 } });
+    const { controller, callbacks, styleValues } = createController({ stage });
+
+    controller.handleWheel({ evt: { preventDefault, deltaX: 12, deltaY: -8, deltaMode: 0 } });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stage.scale).not.toHaveBeenCalled();
+    expect(stage.position).toHaveBeenCalledWith({ x: -112, y: -42 });
+    expect(styleValues.get("--grid-x")).toBe("-112px");
+    expect(styleValues.get("--grid-y")).toBe("-42px");
+    expect(controller.getZoomLabelText()).toBe("150%");
+    expect(callbacks.updateContextPanel).toHaveBeenCalled();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalled();
+    expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalled();
+  });
+
+  it("keeps coarse mouse wheel events on zoom instead of touchpad pan", () => {
+    const preventDefault = vi.fn();
+    const stage = createFakeStage({ x: -100, y: -50, scale: 1, pointer: { x: 200, y: 150 } });
+    const { controller } = createController({ stage });
+
+    controller.handleWheel({ evt: { preventDefault, deltaY: 120, deltaMode: 0 } });
+
+    expect(stage.scale).toHaveBeenCalledWith({ x: 1 / 1.05, y: 1 / 1.05 });
+    expect(stage.position).toHaveBeenCalledWith({
+      x: expect.closeTo(-85.714, 3),
+      y: expect.closeTo(-40.476, 3),
+    });
+  });
 });

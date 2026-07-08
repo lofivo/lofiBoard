@@ -49,6 +49,14 @@ const levelBadgeStyle = {
   flex: 'none',
 };
 
+const stateBadgeStyle = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 18, height: 18, borderRadius: 5,
+  background: 'rgba(148,163,184,0.12)', color: '#64748b',
+  fontSize: 10, fontWeight: 700,
+  flex: 'none',
+};
+
 const itemBase = {
   display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
   borderRadius: 10, cursor: 'pointer', fontSize: 12,
@@ -112,10 +120,15 @@ export default function LayerPanel() {
             {layers.map((item) => {
               const isSelected = selectedIds.includes(item.id);
               const dotColor = TYPE_DOT[item.type] || '#94a3b8';
+              const stateLabel = [
+                item.locked ? '锁定' : null,
+                item.groupId ? '分组' : null,
+              ].filter(Boolean).join('，');
               return (
                 <div key={item.id}
                   role="button"
                   data-layer-id={item.id}
+                  aria-label={`${item.name}${stateLabel ? `，${stateLabel}` : ''}`}
                   onClick={() => ctx.selectLayerItem?.(item.id)}
                   onContextMenu={(event) => {
                     event.preventDefault();
@@ -142,6 +155,8 @@ export default function LayerPanel() {
                     flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     fontSize: 12, lineHeight: 1.3,
                   }}>{item.name}</span>
+                  {item.locked ? <span style={stateBadgeStyle} title="锁定">锁</span> : null}
+                  {item.groupId ? <span style={stateBadgeStyle} title="分组">组</span> : null}
                   <span style={levelBadgeStyle}>{item.level}</span>
                 </div>
               );

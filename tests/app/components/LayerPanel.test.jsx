@@ -67,4 +67,19 @@ describe("LayerPanel", () => {
     });
     expect(selectLayerItem).not.toHaveBeenCalled();
   });
+
+  it("shows locked and grouped layer state", () => {
+    const host = renderPanel({
+      layerPanelCollapsed: false,
+      layers: [{ id: "rect_1", name: "矩形", type: "rect", level: 0, locked: true, groupId: "group_1" }],
+      selectedLayerIds: [],
+    });
+    const item = [...host.querySelectorAll("[role='button']")]
+      .find((button) => button.textContent.includes("矩形"));
+
+    expect(item.textContent).toContain("锁");
+    expect(item.textContent).toContain("组");
+    expect(item.getAttribute("aria-label")).toContain("锁定");
+    expect(item.getAttribute("aria-label")).toContain("分组");
+  });
 });

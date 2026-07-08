@@ -126,6 +126,11 @@ class FakeKonvaNode {
 
   moveToTop() {}
 
+  moveTo(parent) {
+    parent?.add?.(this);
+    return this;
+  }
+
   name(value) {
     if (value === undefined) return this.attrs.name;
     this.attrs.name = value;
@@ -315,6 +320,23 @@ describe("whiteboard app startup", () => {
     document.body.innerHTML = "";
   });
 
+  function seedDraft(elements) {
+    localStorage.setItem("lofiBoard:auto-draft:v1", JSON.stringify({
+      version: 1,
+      elements,
+      viewport: { x: 0, y: 0, scale: 1 },
+    }));
+  }
+
+  async function mountApp() {
+    const { createWhiteboardApp } = await import("../../../src/app/whiteboard-app.js");
+    const root = document.createElement("div");
+    root.id = "app";
+    document.body.append(root);
+    const app = createWhiteboardApp(root);
+    return { app, root };
+  }
+
   it("initializes the board session without boot-time reference errors", async () => {
     const { createWhiteboardApp } = await import("../../../src/app/whiteboard-app.js");
     const root = document.createElement("div");
@@ -343,5 +365,60 @@ describe("whiteboard app startup", () => {
     expect(removeWindowListener).toHaveBeenCalledWith("keydown", expect.any(Function), { capture: true });
     expect(removeWindowListener).toHaveBeenCalledWith("beforeunload", expect.any(Function), undefined);
     expect(removeDocumentListener).toHaveBeenCalledWith("selectstart", expect.any(Function), { capture: true });
+  }, 15_000);
+
+  it("lists layers topmost-first with levels matching the element z order", async () => {
+    seedDraft([
+      { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
+      { id: "rect_b", type: "rect", x: 40, y: 40, width: 100, height: 60, zIndex: 1, locked: true },
+      { id: "rect_c", type: "rect", x: 80, y: 80, width: 100, height: 60, zIndex: 2 },
+    ]);
+    const { app, root } = await mountApp();
+
+    const layers = root._getLayersData();
+
+    expect(layers.map((layer) => layer.id)).toEqual(["rect_c", "rect_b", "rect_a"]);
+    expect(layers.map((layer) => layer.level)).toEqual([2, 1, 0]);
+    expect(layers.find((layer) => layer.id === "rect_b").locked).toBe(true);
+
+    app.destroy();
+  }, 15_000);
+
+  it("keeps the layer order in sync after layer-order context actions", async () => {
+    seedDraft([
+      { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
+      { id: "rect_b", type: "rect", x: 40, y: 40, width: 100, height: 60, zIndex: 1 },
+      { id: "rect_c", type: "rect", x: 80, y: 80, width: 100, height: 60, zIndex: 2 },
+    ]);
+    const { app, root } = await mountApp();
+
+    root._selectLayerItemById("rect_a", "none");
+    expect(root._getSelectedIds()).toEqual(["rect_a"]);
+    root._getContextMenuActionStates({ targetId: "rect_a" });
+    root.querySelector('[data-context-action="bring-forward"]').click();
+
+    expect(root._getLayersData().map((layer) => layer.id)).toEqual(["rect_c", "rect_a", "rect_b"]);
+
+    app.destroy();
+  }, 15_000);
+
+  it("unlocks a locked element through the layer panel context entry", async () => {
+    seedDraft([
+      { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
+      { id: "rect_b", type: "rect", x: 40, y: 40, width: 100, height: 60, zIndex: 1, locked: true },
+    ]);
+    const { app, root } = await mountApp();
+
+    root._selectLayerItemById("rect_b", "none");
+    expect(root._getSelectedIds()).toEqual(["rect_b"]);
+
+    const actionStates = root._getContextMenuActionStates({ targetId: "rect_b" });
+    expect(actionStates["toggle-lock"]).toBe(false);
+
+    root.querySelector('[data-context-action="toggle-lock"]').click();
+
+    expect(root._getLayersData().find((layer) => layer.id === "rect_b").locked).toBe(false);
+
+    app.destroy();
   }, 15_000);
 });

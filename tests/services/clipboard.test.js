@@ -59,4 +59,36 @@ describe("clipboard service", () => {
     expect(pasted[0].groupId).toBe(pasted[1].groupId);
     expect(pasted[0].groupId).not.toBe("group_1");
   });
+
+  it("keeps pressure-sensitive stroke points when copying and pasting", () => {
+    const pasted = createPastedElements(
+      createClipboardSnapshot(
+        [
+          {
+            id: "stroke_1",
+            type: "stroke",
+            x: 10,
+            y: 20,
+            zIndex: 0,
+            points: [
+              { x: 0, y: 0, pressure: 0.2 },
+              { x: 15, y: 8, pressure: 0.85 },
+              { x: 32, y: 12, pressure: 0.45 },
+            ],
+          },
+        ],
+        ["stroke_1"],
+      ),
+      { offset: 24, zIndexStart: 4 },
+    );
+
+    expect(pasted).toHaveLength(1);
+    expect(pasted[0]).toMatchObject({ type: "stroke", x: 34, y: 44, zIndex: 4 });
+    expect(pasted[0].id).not.toBe("stroke_1");
+    expect(pasted[0].points).toEqual([
+      { x: 0, y: 0, pressure: 0.2 },
+      { x: 15, y: 8, pressure: 0.85 },
+      { x: 32, y: 12, pressure: 0.45 },
+    ]);
+  });
 });

@@ -5,6 +5,7 @@ import {
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
+import { getContextMenuItemsForScope } from '../context-menu/controller.js';
 
 function SvgIcon({ svg }) {
   return <span dangerouslySetInnerHTML={{ __html: icon(svg) }} style={{ display:'flex', alignItems:'center', width:18, height:18 }} />;
@@ -54,6 +55,7 @@ export default function ContextMenu() {
   const ctx = useWhiteboardContext();
   const pointerActionRef = useRef(null);
   const disabledActions = ctx.contextMenuDisabledActions || {};
+  const items = getContextMenuItemsForScope(ITEMS, ctx.contextMenuScope);
   const preventPointerDefault = (event) => {
     event.preventDefault();
   };
@@ -100,7 +102,7 @@ export default function ContextMenu() {
       border: '1px solid rgba(148,163,184,0.28)',
     }}>
       <ul role="menu" style={menuListStyle}>
-        {ITEMS.map(item => {
+        {items.map(item => {
           const disabled = Boolean(disabledActions[item.action]);
           return (
           <li key={item.action} role="none">

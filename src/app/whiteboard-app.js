@@ -252,6 +252,7 @@ export function createWhiteboardApp(root) {
   let activeShapeTool = DEFAULT_SHAPE_TOOL;
   let selectedIds = [];
   let isSpaceDown = false;
+  let isAltDown = false;
   let isEditingText = false;
   let lastPointerWorldPoint = null;
   let initialStatusMessage = null;
@@ -538,11 +539,25 @@ export function createWhiteboardApp(root) {
   });
 
   const alignmentSnapController = createAlignmentSnapController({
+    Konva,
     contentLayer,
+    guideLayer: overlayLayer,
     getStageScale: () => stage.scaleX(),
+    getViewportWorldRect: () => {
+      const scale = stage.scaleX() || 1;
+      return {
+        x: -stage.x() / scale,
+        y: -stage.y() / scale,
+        width: stage.width() / scale,
+        height: stage.height() / scale,
+      };
+    },
+    // 按住 Alt 临时禁用对齐吸附,便于精细移动
+    isSnapDisabled: () => isAltDown,
   });
   selectionDragController = createSelectionDragController({
     contentLayer,
+    clearAlignmentGuides: alignmentSnapController.clearAlignmentGuides,
     enterDragging: () => interactionSM.enter(SM.DRAGGING),
     getElementIdFromNode,
     getElements: () => board.elements,
@@ -948,6 +963,7 @@ export function createWhiteboardApp(root) {
   });
   const {
     bindContextMenuActions,
+    getLastContextMenuTargetId,
     hideContextMenu,
     showContextMenu,
     updateContextMenuActions,
@@ -1419,6 +1435,7 @@ export function createWhiteboardApp(root) {
     getSelectedIds: () => selectedIds,
     getIsSpaceDown: () => isSpaceDown,
     setIsSpaceDown: (nextValue) => { isSpaceDown = nextValue; },
+    setIsAltDown: (nextValue) => { isAltDown = nextValue; },
     getStageContainer: () => stage.container(),
     isTypingInEditableControl,
     shouldSelectAll,
@@ -1578,13 +1595,14 @@ export function createWhiteboardApp(root) {
       level: layerLevels.get(element.id) ?? 0,
       type: element.type,
       locked: element.locked ?? false,
+      groupId: element.groupId,
     }));
   };
 
   root._getSelectedIds = () => [...selectedIds];
 
-  root._getContextMenuActionStates = () => {
-    updateContextMenuActions();
+  root._getContextMenuActionStates = (options = {}) => {
+    updateContextMenuActions(options);
     return Object.fromEntries(
       [...root.querySelectorAll("[data-context-action]")].map((button) => [
         button.dataset.contextAction,
@@ -1592,6 +1610,8 @@ export function createWhiteboardApp(root) {
       ]),
     );
   };
+
+  root._getLastContextMenuTargetId = () => getLastContextMenuTargetId();
 
   root._commitActiveTextEditor = () => {
     if (!editController.commit) return false;

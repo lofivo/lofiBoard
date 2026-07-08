@@ -95,6 +95,40 @@ describe("board model", () => {
     });
   });
 
+  it("preserves pressure-sensitive stroke points when normalizing and serializing a board", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [
+        {
+          id: "stroke_pressure_1",
+          type: "stroke",
+          points: [
+            { x: 0, y: 0, pressure: 0.15 },
+            { x: 12, y: 8, pressure: 0.72 },
+            { x: 28, y: 12, pressure: 0.43 },
+          ],
+          strokeWidth: 9,
+          zIndex: 0,
+        },
+      ],
+    });
+
+    const serialized = serializeBoard(board, { x: 5, y: -4, scale: 1.25 });
+
+    expect(board.elements[0].points).toEqual([
+      { x: 0, y: 0, pressure: 0.15 },
+      { x: 12, y: 8, pressure: 0.72 },
+      { x: 28, y: 12, pressure: 0.43 },
+    ]);
+    expect(serialized.elements[0].points).toEqual([
+      { x: 0, y: 0, pressure: 0.15 },
+      { x: 12, y: 8, pressure: 0.72 },
+      { x: 28, y: 12, pressure: 0.43 },
+    ]);
+    serialized.elements[0].points[0].pressure = 0.99;
+    expect(board.elements[0].points[0].pressure).toBe(0.15);
+  });
+
   it("normalizes structure element defaults", () => {
     const board = normalizeBoard({
       version: 1,

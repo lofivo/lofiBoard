@@ -46,6 +46,30 @@ describe("geometry", () => {
     expect(fragments.flatMap((fragment) => fragment.points).every((point) => point.x <= 38 || point.x >= 62)).toBe(true);
   });
 
+  it("interpolates pressure at erased fragment boundaries", () => {
+    const stroke = {
+      id: "stroke_pressure",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.2 },
+        { x: 100, y: 0, pressure: 0.8 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 2,
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 50, y: 0 }, 10);
+
+    expect(fragments).toHaveLength(2);
+    expect(fragments[0].points[0]).toEqual({ x: 0, y: 0, pressure: 0.2 });
+    expect(fragments[0].points[1].x).toBeCloseTo(39.73, 2);
+    expect(fragments[0].points[1].pressure).toBeCloseTo(0.43838, 5);
+    expect(fragments[1].points[0].x).toBeCloseTo(60.27, 2);
+    expect(fragments[1].points[0].pressure).toBeCloseTo(0.56162, 5);
+    expect(fragments[1].points[1]).toEqual({ x: 100, y: 0, pressure: 0.8 });
+  });
+
   it("keeps the actual erased footprint close to the eraser preview border", () => {
     const stroke = {
       id: "stroke_inset",

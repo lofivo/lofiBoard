@@ -1,5 +1,6 @@
 export function createSelectionDragController({
   contentLayer,
+  clearAlignmentGuides = () => {},
   enterDragging = () => {},
   getElementIdFromNode = () => null,
   getElements = () => [],
@@ -181,12 +182,19 @@ export function createSelectionDragController({
     const dx = node.x() - nodeDragSelection.start.x;
     const dy = node.y() - nodeDragSelection.start.y;
     nodeDragSelection.moved = nodeDragSelection.moved || Math.hypot(dx, dy) > 0.5;
+    // 吸附目标排除随拖拽移动的元素;锁定元素不在 originals 中,保持为静止参照
+    snapNodeToAlignment(node, {
+      excludeIds: nodeDragSelection.originals.map((item) => item.id),
+      showGuides: true,
+    });
+    const snappedDx = node.x() - nodeDragSelection.start.x;
+    const snappedDy = node.y() - nodeDragSelection.start.y;
     for (const original of nodeDragSelection.originals) {
       if (original.id === nodeDragSelection.id) continue;
       const selectedNode = contentLayer.findOne(`#${original.id}`);
       selectedNode?.position({
-        x: original.x + dx,
-        y: original.y + dy,
+        x: original.x + snappedDx,
+        y: original.y + snappedDy,
       });
     }
     setElements(getElements().map((element) => {
@@ -194,8 +202,8 @@ export function createSelectionDragController({
       if (!original) return element;
       return {
         ...element,
-        x: original.x + dx,
-        y: original.y + dy,
+        x: original.x + snappedDx,
+        y: original.y + snappedDy,
       };
     }));
     transformer.forceUpdate();
@@ -206,6 +214,7 @@ export function createSelectionDragController({
   }
 
   function finishNodeDragSelection(node) {
+    clearAlignmentGuides();
     const dragSelection = nodeDragSelection;
     nodeDragSelection = null;
     const nodeId = getElementIdFromNode(node);
@@ -220,7 +229,9 @@ export function createSelectionDragController({
     }
 
     if (dragSelection.originals.length <= 1) {
-      snapNodeToAlignment(node);
+      snapNodeToAlignment(node, {
+        excludeIds: dragSelection.originals.map((item) => item.id),
+      });
       syncNodeToElement(node);
       setHandledNodeDragEnd(true);
       pushHistory("已移动对象");
@@ -236,6 +247,7 @@ export function createSelectionDragController({
   }
 
   function clearRootDragState(elementId) {
+    clearAlignmentGuides();
     suppressedNodeDragElementId = elementId;
     contentLayer.findOne(`#${elementId}`)?.stopDrag();
     nodeDragSelection = null;

@@ -11,6 +11,8 @@ const SELECTION_ACTIONS = new Set([
   "send-back",
 ]);
 
+const CANVAS_ACTIONS = new Set(["undo", "redo", "paste"]);
+
 export function createContextMenuController() {
   return {
     shouldShow: shouldShowContextMenu,
@@ -24,11 +26,13 @@ export function shouldShowContextMenu({ targetId, selectedIds = [], hasClipboard
 }
 
 export function isActionDisabled(action, {
+  targetId,
   selectedIds = [],
   hasClipboard = false,
   canUndo = false,
   canRedo = false,
 } = {}) {
+  if (targetId === null && SELECTION_ACTIONS.has(action)) return true;
   const needsSelection = SELECTION_ACTIONS.has(action);
   const needsClipboard = action === "paste";
   const needsMultiple = action === "group";
@@ -37,6 +41,15 @@ export function isActionDisabled(action, {
   return (needsSelection && selectedIds.length === 0)
     || (needsMultiple && selectedIds.length < 2)
     || (needsClipboard && !hasClipboard);
+}
+
+export function getContextMenuScope({ targetId } = {}) {
+  return targetId === null ? "canvas" : "object";
+}
+
+export function getContextMenuItemsForScope(items, scope) {
+  if (scope !== "canvas") return items;
+  return items.filter((item) => CANVAS_ACTIONS.has(item.action));
 }
 
 export function getContextMenuPosition({

@@ -86,7 +86,13 @@ export function createViewportController({
   }
 
   function handleWheel(event) {
-    event.evt.preventDefault();
+    const nativeEvent = event.evt;
+    nativeEvent.preventDefault();
+    if (shouldPanWheelEvent(nativeEvent)) {
+      panByWheel(nativeEvent);
+      return;
+    }
+
     const oldScale = stage.scaleX();
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -116,6 +122,20 @@ export function createViewportController({
     schedulePersistCurrentDraft();
   }
 
+  function panByWheel(nativeEvent) {
+    const dx = Number(nativeEvent.deltaX) || 0;
+    const dy = Number(nativeEvent.deltaY) || 0;
+    stage.position({
+      x: stage.x() - dx,
+      y: stage.y() - dy,
+    });
+    updateGrid();
+    updateBrushCursorStyle();
+    updateEraserCursorStyle();
+    updateViewportChrome();
+    schedulePersistCurrentDraft();
+  }
+
   return {
     getViewport,
     getZoomLabelText,
@@ -126,6 +146,14 @@ export function createViewportController({
     zoomBy,
     handleWheel,
   };
+}
+
+function shouldPanWheelEvent(event) {
+  if (event.ctrlKey || event.metaKey) return false;
+  const deltaX = Math.abs(Number(event.deltaX) || 0);
+  const deltaY = Math.abs(Number(event.deltaY) || 0);
+  if (deltaX > 0) return true;
+  return event.deltaMode === 0 && deltaY > 0 && deltaY < 50;
 }
 
 function clamp(value, min, max) {

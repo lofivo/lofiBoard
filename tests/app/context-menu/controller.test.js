@@ -31,6 +31,15 @@ describe("controller", () => {
     expect(controller.isActionDisabled("redo", { selectedIds: [], canRedo: true })).toBe(false);
   });
 
+  it("disables object actions for a blank canvas context menu even when elements are selected", () => {
+    const controller = createContextMenuController();
+
+    expect(controller.isActionDisabled("copy", { targetId: null, selectedIds: ["a"], hasClipboard: true })).toBe(true);
+    expect(controller.isActionDisabled("delete", { targetId: null, selectedIds: ["a"], hasClipboard: true })).toBe(true);
+    expect(controller.isActionDisabled("paste", { targetId: null, selectedIds: ["a"], hasClipboard: true })).toBe(false);
+    expect(controller.isActionDisabled("undo", { targetId: null, selectedIds: ["a"], canUndo: true })).toBe(false);
+  });
+
   it("keeps the menu inside the viewport with an edge padding", () => {
     expect(getContextMenuPosition({
       clientX: 290,

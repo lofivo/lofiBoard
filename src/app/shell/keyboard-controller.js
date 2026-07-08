@@ -6,6 +6,7 @@ export function createKeyboardController({
   getSelectedIds,
   getIsSpaceDown,
   setIsSpaceDown,
+  setIsAltDown = () => {},
   getStageContainer,
   isTypingInEditableControl,
   shouldSelectAll,
@@ -43,6 +44,10 @@ export function createKeyboardController({
   }
 
   function handleKeyDown(event) {
+    if (event.key === "Alt") {
+      setIsAltDown(true);
+    }
+
     if (shouldSelectAll(event)) {
       if (shouldUseBrowserSelectAll(event)) return;
       event.preventDefault();
@@ -174,6 +179,9 @@ export function createKeyboardController({
   }
 
   function handleKeyUp(event) {
+    if (event.key === "Alt") {
+      setIsAltDown(false);
+    }
     if (event.code === "Space") {
       setIsSpaceDown(false);
       getStageContainer().classList.remove("is-pan-ready", "is-panning");

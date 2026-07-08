@@ -6,6 +6,7 @@ import { isNativeTextEditingTarget } from '../tools/interaction-rules.js';
 import {
   getWhiteboardContextMenuRequest,
   getContextMenuPosition,
+  getContextMenuScope,
 } from './context-menu/controller.js';
 import Topbar from './components/Topbar';
 import ToolDock from './components/ToolDock';
@@ -43,6 +44,7 @@ export default function App() {
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuDisabledActions, setContextMenuDisabledActions] = useState({});
+  const [contextMenuScope, setContextMenuScope] = useState('object');
   const [selectionCaps, setSelectionCaps] = useState({});
 
   const [brushColor, setBrushColor] = useState('#111827');
@@ -292,7 +294,16 @@ export default function App() {
           setLayers((prev) => {
             if (prev.length !== layersData.length) return layersData;
             for (let i = 0; i < layersData.length; i++) {
-              if (prev[i]?.id !== layersData[i].id || prev[i]?.name !== layersData[i].name) return layersData;
+              const prevLayer = prev[i];
+              const nextLayer = layersData[i];
+              if (
+                prevLayer?.id !== nextLayer.id
+                || prevLayer?.name !== nextLayer.name
+                || prevLayer?.level !== nextLayer.level
+                || prevLayer?.type !== nextLayer.type
+                || Boolean(prevLayer?.locked) !== Boolean(nextLayer.locked)
+                || (prevLayer?.groupId ?? null) !== (nextLayer.groupId ?? null)
+              ) return layersData;
             }
             return prev;
           });
@@ -326,7 +337,7 @@ export default function App() {
     };
     const interval = setInterval(syncState, 100);
 
-    const readContextMenuDisabledActions = () => legacyRoot._getContextMenuActionStates?.() ?? {};
+    const readContextMenuDisabledActions = (options) => legacyRoot._getContextMenuActionStates?.(options) ?? {};
 
     // Context menu: block browser-native menus inside the whiteboard and route by context.
     const handleContextMenu = (e) => {
@@ -349,7 +360,9 @@ export default function App() {
         return;
       }
 
-      setContextMenuDisabledActions(readContextMenuDisabledActions());
+      const targetId = legacyRoot._getLastContextMenuTargetId?.() ?? null;
+      setContextMenuScope(getContextMenuScope({ targetId }));
+      setContextMenuDisabledActions(readContextMenuDisabledActions({ targetId }));
       const pos = getContextMenuPosition({
         clientX: e.clientX, clientY: e.clientY,
         menuBox: { width: 168, height: 478 },
@@ -467,7 +480,8 @@ export default function App() {
     if (!selectedIds.includes(id)) {
       root._selectLayerItemById?.(id, 'none');
     }
-    setContextMenuDisabledActions(root._getContextMenuActionStates?.() ?? {});
+    setContextMenuScope('object');
+    setContextMenuDisabledActions(root._getContextMenuActionStates?.({ targetId: id }) ?? {});
     const position = getContextMenuPosition({
       clientX: point?.clientX ?? 0,
       clientY: point?.clientY ?? 0,
@@ -486,7 +500,7 @@ export default function App() {
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected,
-    contextMenuVisible, contextMenuPos,
+    contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,
@@ -524,7 +538,7 @@ export default function App() {
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected,
-    contextMenuVisible, contextMenuPos,
+    contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
     fillColor, fillTransparent, textColor, fontFamily, fontSize,

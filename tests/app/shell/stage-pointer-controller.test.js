@@ -421,7 +421,79 @@ describe("stage-pointer-controller", () => {
       targetId: "text_1",
       selectedIds: ["text_1"],
     });
-    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120);
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
+  });
+
+  it("passes blank canvas context to the context menu", () => {
+    const { callbacks, controller, stage } = createHarness({
+      callbacks: {
+        getElementIdFromNode: vi.fn(() => null),
+      },
+    });
+    stage.getIntersection = vi.fn(() => null);
+    const event = {
+      clientX: 20,
+      clientY: 40,
+      preventDefault: vi.fn(),
+    };
+
+    controller.handleContextMenu(event);
+
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
+      targetId: null,
+      selectedIds: [],
+    });
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(20, 40, { targetId: null });
+  });
+
+  it("keeps object context when the transformer overlay intercepts the right-click hit", () => {
+    const { callbacks, controller, stage } = createHarness({
+      selectedIds: ["text_1"],
+      callbacks: {
+        getSelectableElementIdAtWorldPoint: vi.fn(() => "text_1"),
+      },
+    });
+    const transformerBack = { name: "back" };
+    stage.getIntersection = vi.fn(() => transformerBack);
+    const event = {
+      clientX: 100,
+      clientY: 120,
+      preventDefault: vi.fn(),
+    };
+
+    controller.handleContextMenu(event);
+
+    expect(callbacks.getSelectableElementIdAtWorldPoint).toHaveBeenCalledWith(
+      { x: 10, y: 20 },
+      { fallbackNode: transformerBack },
+    );
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
+      targetId: "text_1",
+      selectedIds: ["text_1"],
+    });
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
+  });
+
+  it("resolves the right-click target from selection bounds when the pixel hit misses", () => {
+    const { callbacks, controller, stage } = createHarness({
+      selectedIds: [],
+      callbacks: {
+        getSelectableElementIdAtWorldPoint: vi.fn(() => "text_1"),
+      },
+    });
+    stage.getIntersection = vi.fn(() => null);
+    const event = {
+      clientX: 100,
+      clientY: 120,
+      preventDefault: vi.fn(),
+    };
+
+    controller.handleContextMenu(event);
+
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["text_1"]);
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
   });
 
   it("commits active text editing before opening an object context menu", () => {
