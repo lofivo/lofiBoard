@@ -476,6 +476,33 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
   });
 
+  it("keeps multi-selection context when right-clicking the empty gap inside distant selection bounds", () => {
+    const { callbacks, controller, stage } = createHarness({
+      selectedIds: ["text_1", "graph_1"],
+      callbacks: {
+        getElementIdFromNode: vi.fn(() => null),
+        getNearbySelectedElementId: vi.fn(() => "text_1"),
+        getSelectableElementIdAtWorldPoint: vi.fn(() => null),
+      },
+    });
+    stage.getIntersection = vi.fn(() => ({ name: "back" }));
+    const event = {
+      clientX: 100,
+      clientY: 120,
+      preventDefault: vi.fn(),
+    };
+
+    controller.handleContextMenu(event);
+
+    expect(callbacks.getNearbySelectedElementId).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
+      targetId: "text_1",
+      selectedIds: ["text_1", "graph_1"],
+    });
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
+  });
+
   it("resolves the right-click target from selection bounds when the pixel hit misses", () => {
     const { callbacks, controller, stage } = createHarness({
       selectedIds: [],

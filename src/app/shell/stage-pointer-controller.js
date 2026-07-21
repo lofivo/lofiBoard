@@ -366,9 +366,10 @@ export function createStagePointerController({
     // 像素级 getIntersection 会命中 Transformer 的 overdraw 背板（选中态盖在元素上方），
     // 也会漏掉未填充图形的内部；与左键选中共用包围盒命中，保证右键目标一致。
     const intersectionNode = pointer ? stage.getIntersection(pointer) : null;
-    const targetId = (worldPoint
+    const directTargetId = (worldPoint
       ? getSelectableElementIdAtWorldPoint(worldPoint, { fallbackNode: intersectionNode })
       : null) ?? getElementIdFromNode(intersectionNode);
+    const targetId = directTargetId ?? (worldPoint ? getNearbySelectedElementId(worldPoint) : null);
 
     if (targetId && !getSelectedIds().includes(targetId)) {
       selectIds([targetId]);
