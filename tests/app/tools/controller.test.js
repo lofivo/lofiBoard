@@ -37,9 +37,22 @@ describe("app tools controller", () => {
     expect(controller.activeShapeTool).toBe(TOOLS.ARROW);
   });
 
+  it("toggles whether placement keeps the current tool active", () => {
+    const controller = createToolController({
+      initialTool: TOOLS.SHAPE,
+      initialShapeTool: DEFAULT_SHAPE_TOOL,
+    });
+
+    expect(controller.keepToolActive).toBe(false);
+    expect(controller.toggleKeepToolActive()).toBe(true);
+    expect(controller.keepToolActive).toBe(true);
+    expect(controller.toggleKeepToolActive()).toBe(false);
+  });
+
   it("returns user-facing status text for each tool", () => {
     expect(getToolStatus(TOOLS.SELECT)).toBe("选择：单击单选，Shift 范围多选，Ctrl 切换多选");
     expect(getToolStatus(TOOLS.PEN)).toBe("画笔：拖动画出可编辑笔触");
+    expect(getToolStatus(TOOLS.SHAPE)).toBe("图形：拖动创建所选图形");
     expect(getToolStatus(TOOLS.ARROW)).toBe("箭头：拖动创建");
   });
 });

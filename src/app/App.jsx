@@ -30,6 +30,7 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState('就绪');
   const [fileName, setFileName] = useState('未命名白板');
   const [currentTool, setCurrentTool] = useState(TOOLS.PEN);
+  const [keepToolActive, setKeepToolActive] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [backgroundMode, setBackgroundModeState] = useState('plain');
   const [stylePanelTitle, setStylePanelTitle] = useState('属性');
@@ -282,6 +283,8 @@ export default function App() {
         setStructureSelection((prev) => (prev !== structure ? structure : prev));
         const directed = legacyRoot.dataset.graphDirected === 'true';
         setGraphDirected((prev) => (prev !== directed ? directed : prev));
+        const nextKeepToolActive = legacyRoot.dataset.keepToolActive === 'true';
+        setKeepToolActive((prev) => (prev !== nextKeepToolActive ? nextKeepToolActive : prev));
         const container = legacyRoot.querySelector('#stage-container');
         if (container) {
           const bg = container.dataset.background || 'plain';
@@ -423,6 +426,13 @@ export default function App() {
     if (actionBtn) actionBtn.click();
   }, [getLegacyRoot]);
 
+  const toggleKeepToolActive = useCallback(() => {
+    const root = getLegacyRoot();
+    if (!root) return;
+    root.querySelector('[data-tool-action="toggle-tool-lock"]')?.click();
+    setKeepToolActive(root.dataset.keepToolActive === 'true');
+  }, [getLegacyRoot]);
+
   const selectShape = useCallback((shapeTool) => {
     const root = getLegacyRoot();
     if (!root) return;
@@ -496,7 +506,7 @@ export default function App() {
   const zoomPercent = Math.round(currentZoom * 100);
 
   const contextValue = useMemo(() => ({
-    statusMessage, fileName, currentTool, currentZoom, zoomPercent,
+    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected,
@@ -509,7 +519,7 @@ export default function App() {
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
     selectedLayerIds,
-    runAction, setTool, zoomBy, setZoomAtCenter,
+    runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
     openLayerItemContextMenu,
     selectShape,
@@ -534,7 +544,7 @@ export default function App() {
     setCoordinateLabelColor: setCoordinateLabelColorSynced,
     setShapePopoverVisible, setStructurePanelVisible,
   }), [
-    statusMessage, fileName, currentTool, currentZoom, zoomPercent,
+    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected,
@@ -547,7 +557,7 @@ export default function App() {
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
     selectedLayerIds,
-    runAction, setTool, zoomBy, setZoomAtCenter,
+    runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
     openLayerItemContextMenu,
     selectShape,

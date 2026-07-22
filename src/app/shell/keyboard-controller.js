@@ -33,6 +33,7 @@ export function createKeyboardController({
   setTool,
   clearSelection,
   setActiveShapeTool,
+  toggleKeepToolActive = () => {},
 }) {
   function bindKeyboard() {
     windowTarget.addEventListener("keydown", handleKeyDown, { capture: true });
@@ -169,6 +170,11 @@ export function createKeyboardController({
       l: TOOLS.SHAPE,
       a: TOOLS.SHAPE,
     };
+
+    if (!event.ctrlKey && !event.metaKey && key === "q") {
+      toggleKeepToolActive();
+      return;
+    }
 
     if (!event.ctrlKey && !event.metaKey && shortcutMap[key]) {
       if (key === "r") setActiveShapeTool(TOOLS.RECT);

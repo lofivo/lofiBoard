@@ -1,5 +1,6 @@
 import { reorderElements } from "../../board/model.js";
 import { createStructureElements } from "../../structures/factory.js";
+import { nextToolAfterPlacement } from "../../tools/interaction-rules.js";
 import {
   isLinearStructureElement as defaultIsLinearStructureElement,
   moveArrayItem,
@@ -8,6 +9,7 @@ import {
 export function createStructureBoardActionController({
   getArrayRandomCountValue,
   getCurrentTool,
+  getKeepToolActive = () => false,
   getElementIdFromNode,
   getElements,
   getSelectedIds,
@@ -67,7 +69,9 @@ export function createStructureBoardActionController({
 
     setElements(reorderElements([...readElements(), ...elements]));
     setStructurePanelOpen(false);
-    setTool(selectTool);
+    const currentTool = getCurrentTool();
+    const nextTool = nextToolAfterPlacement(currentTool, getKeepToolActive());
+    if (nextTool !== currentTool) setTool(nextTool);
     renderBoard();
     selectIds(elements.map((element) => element.id));
     pushHistory(`已添加${activeStructureItem?.label ?? "结构"}`);

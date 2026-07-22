@@ -184,15 +184,16 @@ describe("app shell", () => {
     expect(syncSelectionSource).toContain("transformer.shouldOverdrawWholeArea");
   });
 
-  it("renders newly inserted structures after switching back to select so array cells are interactive immediately", () => {
+  it("resolves the post-placement tool before rendering newly inserted structures", () => {
     const structureBoardActionSource = readStructureBoardActionSource();
     const insertSource = structureBoardActionSource.slice(
       structureBoardActionSource.indexOf("function insertStructureFromPanel()"),
       structureBoardActionSource.indexOf("function editSelectedArrayStructure"),
     );
 
-    expect(insertSource.indexOf("setTool(selectTool)")).toBeGreaterThan(-1);
-    expect(insertSource.indexOf("renderBoard()")).toBeGreaterThan(insertSource.indexOf("setTool(selectTool)"));
+    expect(insertSource.indexOf("nextToolAfterPlacement(currentTool, getKeepToolActive())")).toBeGreaterThan(-1);
+    expect(insertSource.indexOf("if (nextTool !== currentTool) setTool(nextTool)")).toBeGreaterThan(-1);
+    expect(insertSource.indexOf("renderBoard()")).toBeGreaterThan(insertSource.indexOf("if (nextTool !== currentTool) setTool(nextTool)"));
     expect(insertSource.indexOf("selectIds(elements.map((element) => element.id))")).toBeGreaterThan(insertSource.indexOf("renderBoard()"));
   });
 
@@ -1848,15 +1849,15 @@ describe("app shell", () => {
     expect(algorithmSource).not.toContain("Math.round(700 / Math.max(0.5, speed))");
   });
 
-  it("returns to the select tool after adding non-pen, non-eraser elements", () => {
+  it("returns to select after placement unless the toolbar tool is locked", () => {
     const stagePointerSource = readStagePointerSource();
     const drawingSource = readFileSync(new URL("../../../src/app/tools/drawing-interaction-controller.js", import.meta.url), "utf8");
     const draftSource = readFileSync(new URL("../../../src/app/tools/draft-interaction-controller.js", import.meta.url), "utf8");
 
-    expect(draftSource).toMatch(/function finishShapeDraft\(\) \{[\s\S]*?addElement\(element, "已添加形状"\);[\s\S]*?selectIds\(\[element\.id\]\);[\s\S]*?setTool\(TOOLS\.SELECT\);/);
+    expect(draftSource).toMatch(/function finishShapeDraft\(\) \{[\s\S]*?addElement\(element, "已添加形状"\);[\s\S]*?selectIds\(\[element\.id\]\);[\s\S]*?nextToolAfterPlacement\(currentTool, getKeepToolActive\(\)\);/);
     expect(drawingSource).toMatch(/function finishStroke\(\) \{[\s\S]*?addElement\(element, "已添加笔触"\);[\s\S]*?\}/);
-    expect(stagePointerSource).toContain("setTool(nextToolAfterTextPlacement(currentTool))");
-    expect(stagePointerSource).toContain("setTool(TOOLS.SELECT)");
+    expect(stagePointerSource).toContain("nextToolAfterPlacement(tool, getKeepToolActive())");
+    expect(stagePointerSource).toContain("updateToolAfterPlacement(currentTool)");
   });
 
   it("opens image import from the toolbar without switching drawing tools", () => {

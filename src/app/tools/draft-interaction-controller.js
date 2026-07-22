@@ -4,6 +4,7 @@ import {
 } from "../../board/element-factory.js";
 import { normalizeRect, rectsIntersect } from "../../canvas/geometry.js";
 import { resolveActiveDrawingTool } from "../../tools/behavior.js";
+import { nextToolAfterPlacement } from "../../tools/interaction-rules.js";
 import { TOOLS } from "../../ui/config.js";
 
 export function createDraftInteractionController({
@@ -20,6 +21,7 @@ export function createDraftInteractionController({
   getBrushOpacityValue = () => 1,
   getBrushStyle = () => "solid",
   getCurrentTool = () => TOOLS.RECT,
+  getKeepToolActive = () => false,
   getElementIdFromNode = () => null,
   getFillColor = () => "#ffffff",
   getStrokeWidth = () => 4,
@@ -68,7 +70,9 @@ export function createDraftInteractionController({
     if (isTinyElement(element)) return false;
     addElement(element, "已添加形状");
     selectIds([element.id]);
-    setTool(TOOLS.SELECT);
+    const currentTool = getCurrentTool();
+    const nextTool = nextToolAfterPlacement(currentTool, getKeepToolActive());
+    if (nextTool !== currentTool) setTool(nextTool);
     return true;
   }
 

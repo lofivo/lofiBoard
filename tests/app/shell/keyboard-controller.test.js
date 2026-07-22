@@ -64,6 +64,7 @@ function createController(overrides = {}) {
     setStructurePanelOpen: vi.fn(),
     setTool: vi.fn((tool) => { currentTool = tool; }),
     setZoomMenuOpen: vi.fn(),
+    toggleKeepToolActive: vi.fn(),
     undoHistory: vi.fn(),
     updateDraggableState: vi.fn(),
   };
@@ -202,6 +203,16 @@ describe("keyboard-controller", () => {
     expect(callbacks.setActiveShapeTool).toHaveBeenCalledWith(TOOLS.LINE);
     expect(callbacks.setActiveShapeTool).toHaveBeenCalledWith(TOOLS.ARROW);
     expect(callbacks.setTool).toHaveBeenCalledWith(TOOLS.SHAPE);
+  });
+
+  it("toggles placement tool locking with Q", () => {
+    const { callbacks, controller, windowTarget } = createController();
+    controller.bindKeyboard();
+
+    windowTarget.dispatch("keydown", createEvent({ key: "Q" }));
+
+    expect(callbacks.toggleKeepToolActive).toHaveBeenCalledTimes(1);
+    expect(callbacks.setTool).not.toHaveBeenCalled();
   });
 
   it("returns a cleanup function that removes keyboard listeners", () => {

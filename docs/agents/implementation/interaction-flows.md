@@ -21,6 +21,10 @@
 
 同一个工具可能进入多个状态。例如选择工具可进入框选、拖拽、缩放、结构交互；画笔工具可进入绘制；文本元素可从选择工具进入编辑态。
 
+工具栏最左侧的锁按钮控制“放置后保持当前工具”，也可用 `Q` 切换。状态由遗留工具 controller 持有，通过 `root.dataset.keepToolActive` 回灌 React 工具栏。关闭时，文字、便签、图形和结构放置完成后切回选择工具；开启时保留当前工具。画笔和橡皮本身就是连续工具，不受该回退规则影响。
+
+锁按钮后用竖向分隔线与常用工具隔开。矩形、椭圆、直线和箭头直接显示在主工具栏；“更多工具”弹层只保留坐标系。React 按钮仍通过遗留 DOM 的 `[data-shape-tool]` 入口切换活动图形。
+
 ## React 面板交互
 
 React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。

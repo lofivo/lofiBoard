@@ -42,6 +42,7 @@ function createController() {
     stepArrayAlgorithmNext: vi.fn(),
     stepArrayAlgorithmPrevious: vi.fn(),
     toggleArrayAlgorithmPlayback: vi.fn(),
+    toggleKeepToolActive: vi.fn(),
     toggleSelectionLock: vi.fn(),
     undoHistory: vi.fn(),
     ungroupSelection: vi.fn(),
@@ -63,12 +64,14 @@ describe("app shell action-controller", () => {
     expect(callbacks.saveBoardFileAs).toHaveBeenCalled();
   });
 
-  it("runs toolbar tool actions without touching drawing tool state", () => {
+  it("runs toolbar actions without switching drawing tools", () => {
     const { callbacks, controller } = createController();
 
     controller.runToolAction("import-image");
+    controller.runToolAction("toggle-tool-lock");
 
     expect(callbacks.openImagePicker).toHaveBeenCalled();
+    expect(callbacks.toggleKeepToolActive).toHaveBeenCalled();
   });
 
   it("maps linear structure actions through the array edit boundary", () => {

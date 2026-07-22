@@ -7,7 +7,7 @@ import { SM } from "../../tools/interaction-state-machine.js";
 import {
   isTransformerAnchorTarget as defaultIsTransformerAnchorTarget,
   isTransformerTarget as defaultIsTransformerTarget,
-  nextToolAfterTextPlacement,
+  nextToolAfterPlacement,
   shouldEditTextOnTransformerDoubleClick,
   shouldIgnoreCanvasPointerDown as defaultShouldIgnoreCanvasPointerDown,
 } from "../../tools/interaction-rules.js";
@@ -45,6 +45,7 @@ export function createStagePointerController({
   getElementIdFromNode = () => null,
   getElements = () => [],
   getIsSpaceDown = () => false,
+  getKeepToolActive = () => false,
   getNearbySelectedElementId = () => null,
   getSelectableElementIdAtWorldPoint = () => null,
   getSelectedIds = () => [],
@@ -107,6 +108,11 @@ export function createStagePointerController({
 
   function updateLastPointerWorldPoint(worldPoint) {
     setLastPointerWorldPoint(worldPoint);
+  }
+
+  function updateToolAfterPlacement(tool) {
+    const nextTool = nextToolAfterPlacement(tool, getKeepToolActive());
+    if (nextTool !== tool) setTool(nextTool);
   }
 
   function handlePointerDown(event) {
@@ -188,7 +194,7 @@ export function createStagePointerController({
       });
       addElement(element, "已添加文字");
       selectIds([element.id]);
-      setTool(nextToolAfterTextPlacement(currentTool));
+      updateToolAfterPlacement(currentTool);
       requestAnimationFrame(() => editElement(element.id));
       return true;
     }
@@ -200,7 +206,7 @@ export function createStagePointerController({
       });
       addElement(element, "已添加便签");
       selectIds([element.id]);
-      setTool(TOOLS.SELECT);
+      updateToolAfterPlacement(currentTool);
       requestAnimationFrame(() => editElement(element.id));
       return true;
     }

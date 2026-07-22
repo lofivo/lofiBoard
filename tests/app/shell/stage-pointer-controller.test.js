@@ -154,6 +154,7 @@ function createHarness(overrides = {}) {
     getElementIdFromNode: callbacks.getElementIdFromNode,
     getElements: () => elements,
     getIsSpaceDown: overrides.getIsSpaceDown ?? (() => false),
+    getKeepToolActive: () => overrides.keepToolActive ?? false,
     getNearbySelectedElementId: callbacks.getNearbySelectedElementId,
     getSelectableElementIdAtWorldPoint: callbacks.getSelectableElementIdAtWorldPoint,
     getSelectedIds: () => selectedIds,
@@ -209,6 +210,24 @@ function createHarness(overrides = {}) {
 }
 
 describe("stage-pointer-controller", () => {
+  it.each([
+    [TOOLS.TEXT, "text_new"],
+    [TOOLS.STICKY, "sticky_new"],
+  ])("keeps %s active after placement when tool locking is enabled", (tool, elementId) => {
+    const { callbacks, controller, getCurrentTool } = createHarness({
+      currentTool: tool,
+      keepToolActive: true,
+    });
+
+    controller.handlePointerDown(createKonvaEvent());
+
+    expect(callbacks.addElement).toHaveBeenCalled();
+    expect(callbacks.selectIds).toHaveBeenCalledWith([elementId]);
+    expect(callbacks.editElement).toHaveBeenCalledWith(elementId);
+    expect(callbacks.setTool).not.toHaveBeenCalled();
+    expect(getCurrentTool()).toBe(tool);
+  });
+
   it("starts, moves, and finishes a pan gesture from temporary pan mode", () => {
     const { callbacks, controller, stage } = createHarness({
       getIsSpaceDown: () => true,

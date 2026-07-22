@@ -1,9 +1,11 @@
 export function createToolController({
   initialTool,
   initialShapeTool,
+  initialKeepToolActive = false,
 }) {
   let currentTool = initialTool;
   let activeShapeTool = initialShapeTool;
+  let keepToolActive = initialKeepToolActive;
 
   function setTool(tool) {
     const previousTool = currentTool;
@@ -21,11 +23,18 @@ export function createToolController({
     return activeShapeTool;
   }
 
+  function toggleKeepToolActive() {
+    keepToolActive = !keepToolActive;
+    return keepToolActive;
+  }
+
   return {
     get currentTool() { return currentTool; },
     get activeShapeTool() { return activeShapeTool; },
+    get keepToolActive() { return keepToolActive; },
     setTool,
     setActiveShapeTool,
+    toggleKeepToolActive,
   };
 }
 
@@ -39,7 +48,7 @@ export function getToolStatus(tool) {
     text: "文字：点击画布添加文字",
     sticky: "便签：点击画布添加便签",
     structure: "结构：选择数组、图或树并填写初始内容",
-    shape: "图形：从弹出框选择矩形、椭圆、直线或箭头",
+    shape: "图形：拖动创建所选图形",
     rect: "矩形：拖动创建",
     ellipse: "椭圆：拖动创建",
     line: "直线：拖动创建",

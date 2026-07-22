@@ -37,6 +37,7 @@
 32. React 属性栏的受控控件(Switch/Slider)必须把状态**回灌进 ctx**才能正确显示:`ctx.graphDirected` 之类只读不写的字段会恒为默认值,点完必回弹。正确做法是 `syncGraphStructurePanelState` 把状态写进 `root.dataset.graphDirected`,`App.jsx` 轮询读入 `setGraphDirected` → ctx。“有向图”开关语义是**整图翻转所有边**(`setGraphDirected`),不是只设新边默认。
 33. 图结构属性栏“应用结构”(`updateGraphFromInput`)重建顶点/边时必须沿用当前 `style.nodeRadius` 调 `createGraphStructureElement`/`getGraphMinSize`，并把保留的旧节点位置钳进 `[r,width-r]`/`[r,height-r]`。不能按默认半径 26 生成新边框，否则调过节点大小后点击应用会让模型宽高过小或节点初始在框外，随后 Konva `dragBoundFunc` 表现为拖不到边界或拖出边界。此类修复要同时补模型测试和真实 Konva 同步/拖拽边界测试。
 34. 右键（及其他指针）目标解析不能只依赖 `stage.getIntersection` 像素命中：元素选中后 Transformer `shouldOverdrawWholeArea` 背板盖在最上层，`getIntersection` 命中背板找不到 `.element` 祖先返回 null，导致右键菜单被误判为 canvas scope（只剩撤销/重做/粘贴）；未填充图形内部也命中不到。应与左键选中共用 `getSelectableElementIdAtWorldPoint(worldPoint, { fallbackNode: intersection })` 包围盒命中。
+35. React 工具栏这类包含 SVG 图标的固定浮层不要用 `left: 50%` + `translateX(-50%)` 居中；新增奇数宽度按钮或 1px 分隔线后，整个浮层和内部 SVG 会落在半像素并被变换层栅格化，表现为所有图标一起发虚，调 SVG 大小也无效。应使用 `left/right: 0` + `width: max-content` + `margin: 0 auto` 的非 transform 居中，并让 1px 分隔线放在偶数宽度的布局盒内；此类问题要用真实浏览器检查 `getBoundingClientRect()` 坐标是否为整数。
 
 ## Agent skills
 

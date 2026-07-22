@@ -3,7 +3,7 @@ import { Button, Tooltip, Card } from '@douyinfe/semi-ui';
 import {
   MousePointer2, Hand, PenLine, Eraser, Trash2,
   Type, StickyNote, Image as ImageIcon, Binary, Shapes,
-  Square, Circle, Minus, ArrowRight, Grid2X2,
+  Square, Circle, Minus, ArrowRight, Grid2X2, Lock,
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
@@ -18,25 +18,27 @@ const TOOL_CONFIG = [
   { id: 'sticky', label: '便签 (N)', svg: StickyNote },
   { action: 'import-image', label: '图片', svg: ImageIcon },
   { id: 'structure', label: '结构 (S)', svg: Binary },
-  { id: 'shape', label: '图形 (R/L/A)', svg: Shapes },
+  { shapeId: 'rect', label: '矩形 (R)', svg: Square },
+  { shapeId: 'ellipse', label: '椭圆', svg: Circle },
+  { shapeId: 'line', label: '直线 (L)', svg: Minus },
+  { shapeId: 'arrow', label: '箭头 (A)', svg: ArrowRight },
+  { id: 'more-tools', label: '更多工具', svg: Shapes },
 ];
 
 const SHAPE_OPTIONS = [
-  { id: 'rect', label: '矩形', shortcut: 'R', svg: Square },
-  { id: 'ellipse', label: '椭圆', svg: Circle },
-  { id: 'line', label: '直线', shortcut: 'L', svg: Minus },
-  { id: 'arrow', label: '箭头', shortcut: 'A', svg: ArrowRight },
   { id: 'coordinate-plane', label: '坐标系', svg: Grid2X2 },
 ];
 
-const SHAPE_SUB_TOOLS = ['rect', 'ellipse', 'line', 'arrow', 'coordinate-plane'];
+const KEEP_TOOL_ACTIVE_LABEL = '绘制后保持所选的工具栏状态 (Q)';
 
 const DOCK_STYLE = {
   position: 'fixed',
   zIndex: 28,
   bottom: 18,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  left: 0,
+  right: 0,
+  width: 'max-content',
+  margin: '0 auto',
   display: 'flex',
   gap: 4,
   padding: 6,
@@ -105,7 +107,7 @@ export default function ToolDock() {
             >
               <div className="shape-popover-grid">
                 {SHAPE_OPTIONS.map(s => {
-                  const isShapeActive = ctx.currentTool === s.id;
+                  const isShapeActive = ctx.currentTool === 'shape' && ctx.activeShape === s.id;
                   return (
                     <button
                       key={s.id}
@@ -113,10 +115,9 @@ export default function ToolDock() {
                       className={`shape-option-card${isShapeActive ? ' active' : ''}`}
                       onClick={() => handleShapeClick(s.id)}
                     >
-                      <span
-                        className="shape-option-icon"
-                        dangerouslySetInnerHTML={{ __html: icon(s.svg) }}
-                      />
+                      <span className="shape-option-icon">
+                        <ToolIcon svg={s.svg} />
+                      </span>
                       <span className="shape-option-label">{s.label}</span>
                     </button>
                   );
@@ -127,15 +128,36 @@ export default function ToolDock() {
         </>
       )}
 
-      <div style={DOCK_STYLE}>
+      <div role="toolbar" aria-label="白板工具" style={DOCK_STYLE}>
+        <Tooltip content={KEEP_TOOL_ACTIVE_LABEL} position="top" showArrow={false}>
+          <Button
+            theme={ctx.keepToolActive ? 'solid' : 'borderless'}
+            type={ctx.keepToolActive ? 'primary' : 'tertiary'}
+            size="small"
+            icon={<ToolIcon svg={Lock} />}
+            aria-label={KEEP_TOOL_ACTIVE_LABEL}
+            aria-pressed={Boolean(ctx.keepToolActive)}
+            style={TOOL_BTN_STYLE}
+            onClick={ctx.toggleKeepToolActive}
+          />
+        </Tooltip>
+        <span
+          role="separator"
+          aria-orientation="vertical"
+          style={{ alignSelf: 'center', width: 2, height: 20, margin: '0 2px', flex: '0 0 auto', boxSizing: 'border-box', borderLeft: '1px solid #e2e8f0' }}
+        />
         {TOOL_CONFIG.map((tool) => {
-          const isActive = tool.id
-            ? (ctx.currentTool === tool.id || (tool.id === 'shape' && SHAPE_SUB_TOOLS.includes(ctx.currentTool)))
+          const isActive = tool.shapeId
+            ? ctx.currentTool === 'shape' && ctx.activeShape === tool.shapeId
+            : tool.id === 'more-tools'
+              ? ctx.currentTool === 'shape' && SHAPE_OPTIONS.some(option => option.id === ctx.activeShape)
+            : tool.id
+            ? ctx.currentTool === tool.id
             : false;
 
-          if (tool.id === 'shape') {
+          if (tool.id === 'more-tools') {
             return (
-              <span key="shape" ref={shapeBtnRef} style={{ display: 'inline-flex' }}>
+              <span key="more-tools" ref={shapeBtnRef} style={{ display: 'inline-flex' }}>
                 <Tooltip content={tool.label} position="top" showArrow={false}>
                   <Button
                     theme={isActive ? 'solid' : 'borderless'}
@@ -144,13 +166,26 @@ export default function ToolDock() {
                     icon={<ToolIcon svg={tool.svg} />}
                     aria-label={tool.label}
                     style={TOOL_BTN_STYLE}
-                    onClick={() => {
-                      ctx.setTool?.('shape');
-                      ctx.setShapePopoverVisible?.(v => !v);
-                    }}
+                    onClick={() => ctx.setShapePopoverVisible?.(v => !v)}
                   />
                 </Tooltip>
               </span>
+            );
+          }
+
+          if (tool.shapeId) {
+            return (
+              <Tooltip key={tool.shapeId} content={tool.label} position="top" showArrow={false}>
+                <Button
+                  theme={isActive ? 'solid' : 'borderless'}
+                  type={isActive ? 'primary' : 'tertiary'}
+                  size="small"
+                  icon={<ToolIcon svg={tool.svg} />}
+                  aria-label={tool.label}
+                  style={TOOL_BTN_STYLE}
+                  onClick={() => handleShapeClick(tool.shapeId)}
+                />
+              </Tooltip>
             );
           }
 

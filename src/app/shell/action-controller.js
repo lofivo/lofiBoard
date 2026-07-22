@@ -61,6 +61,7 @@ export function createAppActionController({
   stepArrayAlgorithmPrevious,
   stopArrayAlgorithmSession,
   toggleArrayAlgorithmPlayback,
+  toggleKeepToolActive,
   toggleSelectionLock,
   undoHistory,
   ungroupSelection,
@@ -137,6 +138,7 @@ export function createAppActionController({
   function runToolAction(action) {
     const actions = {
       "import-image": openImagePicker,
+      "toggle-tool-lock": toggleKeepToolActive,
     };
 
     actions[action]?.();

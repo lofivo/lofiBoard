@@ -70,6 +70,7 @@ function createHarness(overrides = {}) {
     getElementIdFromNode: (node) => node.elementId,
     expandGroupedIds: (ids) => ids.flatMap((id) => (id === "shape_1" ? ["shape_1", "child_1"] : [id])),
     getCurrentTool: () => overrides.currentTool ?? TOOLS.RECT,
+    getKeepToolActive: () => overrides.keepToolActive ?? false,
     getActiveShapeTool: () => overrides.activeShapeTool ?? TOOLS.RECT,
     getBoardElementCount: () => 3,
     getBrushColor: () => "#111111",
@@ -133,6 +134,17 @@ describe("draft-interaction-controller", () => {
     expect(state.shapeNode.destroy).toHaveBeenCalled();
     expect(callbacks.addElement).not.toHaveBeenCalled();
     expect(callbacks.selectIds).not.toHaveBeenCalled();
+  });
+
+  it("keeps the shape tool active after placement when tool locking is enabled", () => {
+    const { callbacks, controller } = createHarness({ keepToolActive: true });
+
+    controller.startShapeDraft({ x: 10, y: 20 });
+    controller.updateShapeDraft({ x: 50, y: 70 });
+    controller.finishShapeDraft();
+
+    expect(callbacks.addElement).toHaveBeenCalled();
+    expect(callbacks.setTool).not.toHaveBeenCalled();
   });
 
   it("renders selection drafts and selects intersecting element nodes", () => {

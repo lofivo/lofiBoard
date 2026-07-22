@@ -80,6 +80,10 @@ class FakeKonvaNode {
     return { copy: () => ({ invert: () => ({ point: (point) => point }) }) };
   }
 
+  getAttr(name) {
+    return this.attrs[name];
+  }
+
   getClientRect() {
     return {
       x: Number(this.attrs.x) || 0,
@@ -347,6 +351,24 @@ describe("whiteboard app startup", () => {
 
     expect(app).toBeTruthy();
     expect(typeof app.getBoard).toBe("function");
+
+    app.destroy();
+  }, 15_000);
+
+  it("toggles placement tool locking from the toolbar action and Q shortcut", async () => {
+    const { app, root } = await mountApp();
+    const lockButton = root.querySelector('[data-tool-action="toggle-tool-lock"]');
+
+    expect(lockButton).toBeTruthy();
+    expect(root.dataset.keepToolActive).toBe("false");
+
+    lockButton.click();
+    expect(root.dataset.keepToolActive).toBe("true");
+    expect(lockButton.classList.contains("active")).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "q", bubbles: true }));
+    expect(root.dataset.keepToolActive).toBe("false");
+    expect(lockButton.classList.contains("active")).toBe(false);
 
     app.destroy();
   }, 15_000);

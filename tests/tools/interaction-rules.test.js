@@ -28,7 +28,7 @@ import {
   isTextWidthResizeAnchor,
   measureTextareaContentHeight,
   measureWrappedTextHeight,
-  nextToolAfterTextPlacement,
+  nextToolAfterPlacement,
   pickElementIdAtPoint,
   pointHitsSelectionBounds,
   shouldPreventBrowserZoom,
@@ -127,9 +127,10 @@ describe("interaction rules", () => {
     })).toBe(false);
   });
 
-  it("returns to select after placing text", () => {
-    expect(nextToolAfterTextPlacement(TOOLS.TEXT)).toBe(TOOLS.SELECT);
-    expect(nextToolAfterTextPlacement(TOOLS.PEN)).toBe(TOOLS.PEN);
+  it("returns to select after placement unless the current tool is locked", () => {
+    expect(nextToolAfterPlacement(TOOLS.TEXT, false)).toBe(TOOLS.SELECT);
+    expect(nextToolAfterPlacement(TOOLS.TEXT, true)).toBe(TOOLS.TEXT);
+    expect(nextToolAfterPlacement(TOOLS.STICKY, true)).toBe(TOOLS.STICKY);
   });
 
   it("treats property panel font-size controls as text editor preserving targets", () => {

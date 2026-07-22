@@ -12,13 +12,20 @@ describe("ui config", () => {
   it("renders tool tooltip text with shortcuts", () => {
     const markup = toolButtonsMarkup();
 
+    expect(markup).toContain('data-tool-action="toggle-tool-lock"');
+    expect(markup).toContain("绘制后保持所选的工具栏状态 (Q)");
+    expect(markup.indexOf('data-tool-action="toggle-tool-lock"')).toBeLessThan(markup.indexOf('data-tool="select"'));
     expect(markup).toContain("选择 (V)");
     expect(markup).toContain("平移 (H)");
     expect(markup).toContain("画笔 (B)");
     expect(markup).toContain('data-tool-action="import-image"');
     expect(markup).toContain("图片");
     expect(markup).toContain("结构 (S)");
-    expect(markup).toContain("图形 (R / L / A)");
+    expect(markup).toContain('data-shape-tool="rect"');
+    expect(markup).toContain('data-shape-tool="ellipse"');
+    expect(markup).toContain('data-shape-tool="line"');
+    expect(markup).toContain('data-shape-tool="arrow"');
+    expect(markup).toContain("更多工具");
     expect(markup).not.toContain("套索");
   });
 
@@ -27,8 +34,10 @@ describe("ui config", () => {
 
     expect(markup).toContain('data-shape-tool="coordinate-plane"');
     expect(markup).toContain("坐标系");
-    expect(markup).toContain("直线 (L)");
-    expect(markup).not.toContain("线段");
+    expect(markup).not.toContain('data-shape-tool="rect"');
+    expect(markup).not.toContain('data-shape-tool="ellipse"');
+    expect(markup).not.toContain('data-shape-tool="line"');
+    expect(markup).not.toContain('data-shape-tool="arrow"');
   });
 
   it("orders canvas background choices with plain before dots", () => {

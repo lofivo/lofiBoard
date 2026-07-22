@@ -29,6 +29,7 @@ function createController({
   elements = [],
   selectedIds = [],
   currentTool = "select",
+  keepToolActive = false,
   arrayAlgorithmLocked = false,
   activeLinearItemResult = {
     previousActiveLinearItem: { elementId: "previous_array", index: 0 },
@@ -72,6 +73,7 @@ function createController({
   const controller = createStructureBoardActionController({
     getArrayRandomCountValue: () => "5",
     getCurrentTool: () => currentTool,
+    getKeepToolActive: () => keepToolActive,
     getElements: () => currentElements,
     getSelectedIds: () => currentSelectedIds,
     getStructureInputValue: () => "1,2",
@@ -98,6 +100,7 @@ describe("board-action-controller", () => {
   it("inserts structures from the panel before selecting the new element", () => {
     const { callbacks, callOrder, controller, getElements } = createController({
       elements: [{ id: "rect_1", type: "rect", zIndex: 0 }],
+      currentTool: "structure",
     });
 
     controller.insertStructureFromPanel();
@@ -110,6 +113,19 @@ describe("board-action-controller", () => {
     expect(callbacks.pushHistory).toHaveBeenCalledWith("已添加数组");
     expect(callOrder.indexOf("tool:select")).toBeLessThan(callOrder.indexOf("render"));
     expect(callOrder.indexOf("render")).toBeLessThan(callOrder.findIndex((item) => item.startsWith("select:")));
+  });
+
+  it("keeps the structure tool active after insertion when tool locking is enabled", () => {
+    const { callbacks, controller } = createController({
+      currentTool: "structure",
+      keepToolActive: true,
+    });
+
+    controller.insertStructureFromPanel();
+
+    expect(callbacks.setStructurePanelOpen).toHaveBeenCalledWith(false);
+    expect(callbacks.setTool).not.toHaveBeenCalled();
+    expect(callbacks.selectIds).toHaveBeenCalled();
   });
 
   it("edits the selected linear structure unless an array algorithm locks it", () => {

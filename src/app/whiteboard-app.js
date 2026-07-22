@@ -428,6 +428,7 @@ export function createWhiteboardApp(root) {
   } = createStructureBoardActionController({
     getArrayRandomCountValue: () => arrayRandomCountInput.value,
     getCurrentTool: () => currentTool,
+    getKeepToolActive: () => toolController.keepToolActive,
     getElementIdFromNode,
     getElements: () => board.elements,
     getSelectedIds: () => selectedIds,
@@ -687,6 +688,7 @@ export function createWhiteboardApp(root) {
 
   const interactionSM = createInteractionStateMachine();
   const { setStatus } = createStatusController({ status });
+  syncKeepToolActiveState();
   const {
     promptBoolean,
     promptMultiline,
@@ -865,6 +867,7 @@ export function createWhiteboardApp(root) {
     getElementIdFromNode,
     expandGroupedIds,
     getCurrentTool: () => currentTool,
+    getKeepToolActive: () => toolController.keepToolActive,
     getActiveShapeTool: () => activeShapeTool,
     getBoardElementCount: () => board.elements.length,
     getBrushColor: () => colorInput.value,
@@ -1341,6 +1344,7 @@ export function createWhiteboardApp(root) {
     stepArrayAlgorithmPrevious,
     stopArrayAlgorithmSession,
     toggleArrayAlgorithmPlayback,
+    toggleKeepToolActive,
     toggleSelectionLock,
     undoHistory,
     ungroupSelection,
@@ -1462,6 +1466,7 @@ export function createWhiteboardApp(root) {
     setTool,
     clearSelection,
     setActiveShapeTool,
+    toggleKeepToolActive,
   });
   const { bindUiEvents } = createUiEventsController({
     container,
@@ -1516,6 +1521,7 @@ export function createWhiteboardApp(root) {
     getBaseEraserRadius,
     getBoardElementCount: () => board.elements.length,
     getCurrentTool: () => currentTool,
+    getKeepToolActive: () => toolController.keepToolActive,
     getElementIdFromNode,
     getElements: () => board.elements,
     getIsSpaceDown: () => isSpaceDown,
@@ -1691,6 +1697,22 @@ export function createWhiteboardApp(root) {
 
   function isTemporaryPanActive() {
     return isSpaceDown || currentTool === TOOLS.PAN;
+  }
+
+  function syncKeepToolActiveState() {
+    const keepToolActive = toolController.keepToolActive;
+    root.dataset.keepToolActive = String(keepToolActive);
+    const button = root.querySelector('[data-tool-action="toggle-tool-lock"]');
+    button?.classList.toggle("active", keepToolActive);
+    button?.setAttribute("aria-pressed", String(keepToolActive));
+    return keepToolActive;
+  }
+
+  function toggleKeepToolActive() {
+    toolController.toggleKeepToolActive();
+    const keepToolActive = syncKeepToolActiveState();
+    setStatus(keepToolActive ? "已开启绘制后保持工具" : "已关闭绘制后保持工具");
+    return keepToolActive;
   }
 
   function isArrayAlgorithmLocked(elementId) {

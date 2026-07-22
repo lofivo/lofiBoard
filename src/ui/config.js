@@ -63,6 +63,7 @@ export const SHAPE_TOOLS = new Set([TOOLS.RECT, TOOLS.ELLIPSE, TOOLS.LINE, TOOLS
 export const DEFAULT_SHAPE_TOOL = TOOLS.RECT;
 
 export const TOOL_ITEMS = [
+  { action: "toggle-tool-lock", label: "绘制后保持所选的工具栏状态", shortcut: "Q", icon: Lock },
   { id: TOOLS.SELECT, label: "选择", shortcut: "V", icon: MousePointer2 },
   { id: TOOLS.PAN, label: "平移", shortcut: "H", icon: Hand },
   { id: TOOLS.PEN, label: "画笔", shortcut: "B", icon: PenLine },
@@ -72,14 +73,14 @@ export const TOOL_ITEMS = [
   { id: TOOLS.STICKY, label: "便签", shortcut: "N", icon: StickyNote },
   { action: "import-image", label: "图片", icon: Image },
   { id: TOOLS.STRUCTURE, label: "结构", shortcut: "S", icon: Binary },
-  { id: TOOLS.SHAPE, label: "图形", shortcut: "R / L / A", icon: Shapes },
+  { shapeId: TOOLS.RECT, label: "矩形", shortcut: "R", icon: Square },
+  { shapeId: TOOLS.ELLIPSE, label: "椭圆", icon: Circle },
+  { shapeId: TOOLS.LINE, label: "直线", shortcut: "L", icon: Minus },
+  { shapeId: TOOLS.ARROW, label: "箭头", shortcut: "A", icon: ArrowRight },
+  { id: TOOLS.SHAPE, label: "更多工具", icon: Shapes },
 ];
 
 export const SHAPE_ITEMS = [
-  { id: TOOLS.RECT, label: "矩形", shortcut: "R", icon: Square },
-  { id: TOOLS.ELLIPSE, label: "椭圆", icon: Circle },
-  { id: TOOLS.LINE, label: "直线", shortcut: "L", icon: Minus },
-  { id: TOOLS.ARROW, label: "箭头", shortcut: "A", icon: ArrowRight },
   { id: TOOLS.COORDINATE_PLANE, label: "坐标系", icon: Grid2X2 },
 ];
 
@@ -147,7 +148,9 @@ export function toolButtonsMarkup() {
       const label = formatShortcutLabel(tool);
       const actionAttr = tool.action
         ? `data-tool-action="${tool.action}"`
-        : `data-tool="${tool.id}"`;
+        : tool.shapeId
+          ? `data-shape-tool="${tool.shapeId}"`
+          : `data-tool="${tool.id}"`;
       return `
       <button type="button" class="tool-button" ${actionAttr} title="${label}" aria-label="${label}">
         ${icon(tool.icon)}

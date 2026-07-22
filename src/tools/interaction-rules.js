@@ -87,8 +87,8 @@ export function shouldEditTextOnTransformerDoubleClick({
   return selectedIds.includes(element.id);
 }
 
-export function nextToolAfterTextPlacement(tool) {
-  return tool === TOOLS.TEXT ? TOOLS.SELECT : tool;
+export function nextToolAfterPlacement(tool, keepToolActive = false) {
+  return keepToolActive ? tool : TOOLS.SELECT;
 }
 
 export function getTransformerAnchorsForSelection(elements, canTransform) {
