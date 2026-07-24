@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTextElementMeasurer } from "../../../src/app/editing/text-element-measure.js";
+import {
+  applyMeasuredTextHeights,
+  createTextElementMeasurer,
+} from "../../../src/app/editing/text-element-measure.js";
 
 function createMeasurer() {
   const context = {
@@ -17,6 +20,25 @@ function createMeasurer() {
 }
 
 describe("text-element-measure", () => {
+  it("applies measured render heights without changing editing dimensions", () => {
+    const elements = [{
+      id: "text_1",
+      type: "text",
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    }];
+
+    const result = applyMeasuredTextHeights(elements, [{ id: "text_1", height: 84 }]);
+
+    expect(result.changed).toBe(true);
+    expect(result.elements[0]).toEqual({
+      ...elements[0],
+      height: 84,
+    });
+  });
+
   it("sets the canvas font from text style tokens before measuring", () => {
     const { context, measurer } = createMeasurer();
     const element = {

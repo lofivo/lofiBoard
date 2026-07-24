@@ -90,6 +90,188 @@ describe("text-overlay-controller", () => {
     expect(overlay.textContent).toBe("Hello World");
   });
 
+  it("returns the intrinsic rendered text height in world coordinates", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? 84 : 0;
+      },
+    });
+    try {
+      const ctrl = createTextOverlayController({
+        container,
+        contentLayer,
+        getContainerRect: () => ({ left: 0, top: 0 }),
+        getStageState: () => ({ x: 0, y: 0, scale: 2 }),
+      });
+
+      const measurements = await ctrl.sync([{ ...textElement, height: 20 }]);
+
+      expect(measurements).toEqual([{ id: "text_1", height: 42 }]);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalDescriptor);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  });
+
+  it("keeps measured world height stable when the viewport scale produces fractional pixels", async () => {
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? 53 : 0;
+      },
+    });
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      if (this.dataset?.elementId === "text_1") {
+        return { x: 0, y: 0, top: 0, right: 270, bottom: 52.5, left: 0, width: 270, height: 52.5 };
+      }
+      return { x: 0, y: 0, top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+    };
+    try {
+      const ctrl = createTextOverlayController({
+        container,
+        contentLayer,
+        getContainerRect: () => ({ left: 0, top: 0 }),
+        getStageState: () => ({ x: 0, y: 0, scale: 1.5 }),
+      });
+
+      const measurements = await ctrl.sync([{ ...textElement, height: 20 }]);
+
+      expect(measurements).toEqual([{ id: "text_1", height: 35 }]);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      if (originalScrollHeight) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalScrollHeight);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  });
+
+  it("measures latex only after the rendered formula is in the overlay", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        if (this.dataset?.elementId !== "text_1") return 0;
+        return this.innerHTML.includes("katex") ? 120 : 20;
+      },
+    });
+    try {
+      const ctrl = createTextOverlayController({
+        container,
+        contentLayer,
+        getContainerRect: () => ({ left: 0, top: 0 }),
+        getStageState: () => ({ x: 0, y: 0, scale: 1 }),
+      });
+
+      const measurements = await ctrl.sync([{
+        ...textElement,
+        text: "$$\\frac{a}{b}$$",
+        height: 24,
+      }]);
+
+      expect(measurements).toEqual([{ id: "text_1", height: 120 }]);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalDescriptor);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  });
+
+  it("includes latex descendants that extend below the overlay line box", async () => {
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? 40 : 0;
+      },
+    });
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      if (this.dataset?.elementId === "text_1") {
+        return { x: 0, y: 10, top: 10, right: 180, bottom: 50, left: 0, width: 180, height: 40 };
+      }
+      if (this.classList?.contains("katex")) {
+        return { x: 0, y: 10, top: 10, right: 120, bottom: 106, left: 0, width: 120, height: 96 };
+      }
+      return { x: 0, y: 0, top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+    };
+    try {
+      const ctrl = createTextOverlayController({
+        container,
+        contentLayer,
+        getContainerRect: () => ({ left: 0, top: 0 }),
+        getStageState: () => ({ x: 0, y: 0, scale: 1 }),
+      });
+
+      const measurements = await ctrl.sync([{
+        ...textElement,
+        text: "$$\\frac{a}{b}$$",
+        height: 24,
+      }]);
+
+      expect(measurements).toEqual([{ id: "text_1", height: 96 }]);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      if (originalScrollHeight) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalScrollHeight);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  });
+
+  it("measures text before rotation instead of using the rotated bounding box", async () => {
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? 80 : 0;
+      },
+    });
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      if (this.dataset?.elementId !== "text_1") {
+        return { x: 0, y: 0, top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+      }
+      const height = this.style.transform === "none" ? 80 : 180;
+      return { x: 0, y: 10, top: 10, right: 180, bottom: 10 + height, left: 0, width: 180, height };
+    };
+    try {
+      const ctrl = createTextOverlayController({
+        container,
+        contentLayer,
+        getContainerRect: () => ({ left: 0, top: 0 }),
+        getStageState: () => ({ x: 0, y: 0, scale: 1 }),
+      });
+
+      const measurements = await ctrl.sync([{
+        ...textElement,
+        rotation: 45,
+        height: 24,
+      }]);
+
+      expect(measurements).toEqual([{ id: "text_1", height: 80 }]);
+      expect(ctrl.getOverlay("text_1").style.transform).toBe("rotate(45deg)");
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      if (originalScrollHeight) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalScrollHeight);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  });
+
   it("creates DOM overlays for sticky elements", async () => {
     const ctrl = createTextOverlayController({
       container,

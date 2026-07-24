@@ -4,15 +4,12 @@ import {
   getMinimumTextResizeWidth,
   getSingleLineTextEditorHeight,
   getTransformerAnchorsForSelection,
-  getUniformScaledBoxForResize,
   shouldPreserveTextEditorOnPointerDown,
   clampTransformerAnchorDragBySize,
   isTransformerTarget,
   getStickyEditorCommitBox,
   getStickyTextInsets,
   getPreferredTextBoxWidth,
-  getMinimumTextBoxWidth,
-  getNormalizedTextBox,
 } from "../../tools/interaction-rules.js";
 import {
   syncTextNodeSize,
@@ -39,51 +36,6 @@ export function createEditController({
 }) {
   let isEditing = false;
   let editorCommitRef = null;
-
-  function getMinimumTextElementWidth(element, fontSize = element.fontSize) {
-    const padding = Number(element.padding ?? 0);
-    return getMinimumTextBoxWidth({
-      text: element.text,
-      fontSize,
-      padding,
-      measureText: (value) => measureTextValue(element, value, fontSize),
-    });
-  }
-
-  function getPreferredTextElementWidth(element, baseWidth = element.width) {
-    const padding = Number(element.padding ?? 0);
-    return getPreferredTextBoxWidth({
-      text: element.text,
-      baseWidth,
-      contentWidth: measureTextValue(element, element.text),
-      padding,
-    });
-  }
-
-  function normalizeTextElementBox(element, { preserveHeight = false } = {}) {
-    if (element.type !== "text") return element;
-    const box = getNormalizedTextElementBox(element);
-    return {
-      ...element,
-      width: box.width,
-      height: preserveHeight && Number.isFinite(element.height) ? element.height : box.height,
-      scaleX: 1,
-      scaleY: 1,
-    };
-  }
-
-  function getNormalizedTextElementBox(element, width = element.width) {
-    const padding = Number(element.padding ?? 0);
-    return getNormalizedTextBox({
-      text: element.text,
-      width,
-      fontSize: element.fontSize,
-      padding,
-      lineHeight: 1.25,
-      verticalGap: 2,
-      measureText: (value) => measureTextValue(element, value),
-    });
-  }
 
   function editElement(id) {
     const element = findElement(id);
@@ -127,11 +79,20 @@ export function createEditController({
     const horizontalPadding = editorPadding * scale;
     const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale + horizontalPadding * 2;
     const minEditorHeight = getSingleLineTextEditorHeight(element.fontSize, scale);
-    const editorWidth = Math.max(minEditorWidth, node.width() * scale);
-    const editorHeight = Math.max(minEditorHeight, (node.height?.() || element.height || element.fontSize * 1.25) * scale);
+    const persistedEditorWidth = Number(element.editWidth) || Number(node.width()) || Number(element.width) || 1;
+    const persistedEditorHeight = Number(element.editHeight)
+      || Number(node.height?.())
+      || Number(element.height)
+      || element.fontSize * 1.25;
+    const editorWidth = Math.max(minEditorWidth, persistedEditorWidth * scale);
+    const editorHeight = Math.max(minEditorHeight, persistedEditorHeight * scale);
     const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
     const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
     const maxAutoEditorWidth = editorWidth;
+    let manualEditorWidth = editorWidth;
+    let manualEditorHeight = editorHeight;
+    let preserveEditorOnNextBlur = false;
+    let editorTransforming = false;
 
     const getEditorWidth = () => Math.max(
       minEditorWidth,
@@ -172,7 +133,7 @@ export function createEditController({
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {
       const nextWidth = Math.max(minLiveEditorWidth, width);
-      const nextHeight = Math.max(minLiveEditorHeight, height);
+      const nextHeight = Math.max(minLiveEditorHeight, manualEditorHeight, height);
       editorFrame.style.width = `${nextWidth}px`;
       editorFrame.style.height = `${nextHeight}px`;
     };
@@ -215,6 +176,49 @@ export function createEditController({
       overlayLayer.batchDraw();
     };
 
+    const syncEditorTransform = () => {
+      const stageScale = Math.max(0.01, Number(stage.scaleX()) || 1);
+      const nodeScaleX = Math.abs(Number(node.scaleX?.()) || 1);
+      const nodeScaleY = Math.abs(Number(node.scaleY?.()) || 1);
+      const requestedWidth = Math.max(
+        minLiveEditorWidth,
+        (Number(node.width?.()) || 1) * nodeScaleX * stageScale,
+      );
+      const requestedHeight = Math.max(
+        minLiveEditorHeight,
+        (Number(node.height?.()) || 1) * nodeScaleY * stageScale,
+      );
+      const activeAnchor = transformer.getActiveAnchor?.() ?? "";
+      const resizesWidth = activeAnchor.includes("left") || activeAnchor.includes("right");
+      const resizesHeight = activeAnchor.includes("top") || activeAnchor.includes("bottom");
+      if (resizesWidth) {
+        manualEditorWidth = requestedWidth;
+      }
+      if (resizesHeight) {
+        manualEditorHeight = requestedHeight;
+      }
+      const contentHeight = measureTextContentHeight(requestedWidth);
+      const visibleHeight = Math.max(
+        resizesHeight ? requestedHeight : manualEditorHeight,
+        contentHeight + 2 * stageScale,
+      );
+      setEditorSize(requestedWidth, visibleHeight);
+      node.scaleX?.(1);
+      node.scaleY?.(1);
+      node.x?.(element.x);
+      node.y?.(element.y);
+      applyNodeSizeFromEditor();
+      syncTextNodeContent(node, {
+        ...element,
+        text: textarea.value,
+        width: getEditorWidth() / scale,
+        height: getEditorHeight() / scale,
+      }, { renderLatex: false });
+      transformer.forceUpdate();
+      contentLayer.batchDraw();
+      overlayLayer.batchDraw();
+    };
+
     editorFrame.style.left = `${box.left + absolute.x}px`;
     editorFrame.style.top = `${box.top + absolute.y}px`;
     setEditorSize(editorWidth, editorHeight);
@@ -238,7 +242,7 @@ export function createEditController({
     transformer.nodes([node]);
     transformer.visible(true);
     transformer.resizeEnabled(true);
-    transformer.rotateEnabled(true);
+    transformer.rotateEnabled(false);
     transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
     const previousBoundBoxFunc = transformer.boundBoxFunc();
     const previousAnchorDragBoundFunc = transformer.anchorDragBoundFunc();
@@ -254,14 +258,7 @@ export function createEditController({
     transformer.boundBoxFunc((oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
       const anchor = transformer.getActiveAnchor?.();
-      const nextBox = getUniformScaledBoxForResize({
-        elements: [element],
-        anchor,
-        oldBox,
-        newBox,
-        minWidth: minEditorWidth,
-        minHeight: minEditorHeight,
-      });
+      const nextBox = { ...newBox };
       if (nextBox.width < minEditorWidth) {
         if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minEditorWidth;
         nextBox.width = minEditorWidth;
@@ -271,6 +268,16 @@ export function createEditController({
         nextBox.height = minEditorHeight;
       }
       return nextBox;
+    });
+    transformer.on("transform.editor", syncEditorTransform);
+    transformer.on("transformstart.editor", () => {
+      editorTransforming = true;
+      preserveEditorOnNextBlur = true;
+    });
+    transformer.on("transformend.editor", () => {
+      editorTransforming = false;
+      preserveEditorOnNextBlur = false;
+      textarea.focus();
     });
     fitEditorToContent({ expandOnly: true });
     transformer.forceUpdate();
@@ -306,7 +313,11 @@ export function createEditController({
         editorFrame,
         isTransformer: isTransformerPointer,
       });
-      if (editorFrame.contains(event.target) || isTransformerPointer) return;
+      if (editorFrame.contains(event.target)) return;
+      if (isTransformerPointer) {
+        preserveEditorOnNextBlur = true;
+        return;
+      }
       if (shouldPreserveEditor) {
         doCommit({ preserveEmptyText: true });
         return;
@@ -321,13 +332,7 @@ export function createEditController({
       transformer.anchorDragBoundFunc(previousAnchorDragBoundFunc);
     };
 
-    const applyCommittedTextToNode = (nextElement) => {
-      syncTextNodeContent(node, nextElement);
-      node.scaleX(1);
-      node.scaleY(1);
-    };
-
-    const doCommit = ({ keepNode = false, preserveEmptyText = false } = {}) => {
+    const doCommit = ({ preserveEmptyText = false } = {}) => {
       if (editorClosed) return;
       editorClosed = true;
       isEditing = false;
@@ -352,7 +357,6 @@ export function createEditController({
         return;
       }
 
-      let committedElement = null;
       const boardElements = getBoardElements();
       setBoardElements(boardElements.map((item) => {
         if (item.id !== id) return item;
@@ -365,16 +369,13 @@ export function createEditController({
           scaleY: 1,
         };
         if (item.type === "text") {
-          const nextWidth = Math.max(
-            getMinimumTextElementWidth(nextElement, nextFontSize),
-            committedWidth / scale,
-          );
-          committedElement = normalizeTextElementBox({
+          return {
             ...nextElement,
-            width: getPreferredTextElementWidth(nextElement, nextWidth),
-            height: Math.max(nextFontSize * 1.25, committedHeight / scale),
-          });
-          return committedElement;
+            width: Math.max(1, Number(item.width) || 1),
+            height: Math.max(1, Number(item.height) || nextFontSize * 1.25),
+            editWidth: Math.max(1, manualEditorWidth / scale),
+            editHeight: Math.max(1, manualEditorHeight / scale),
+          };
         }
         if (item.type === "sticky") {
           const stickyBox = getStickyEditorCommitBox({
@@ -384,35 +385,16 @@ export function createEditController({
           });
           nextElement.width = Math.max(element.width, stickyBox.width);
           nextElement.height = Math.max(element.height, stickyBox.height);
-          committedElement = nextElement;
         }
         return nextElement;
       }));
       transformer.show();
-      if (keepNode && committedElement) {
-        const selectedIds = getSelectedIds();
-        if (!selectedIds.includes(id)) setSelectedIds([id]);
-        applyCommittedTextToNode(committedElement);
-        node.show();
-        transformer.nodes([node]);
-        transformer.forceUpdate();
-        contentLayer.batchDraw();
-        overlayLayer.batchDraw();
-        onHistory("已编辑文字");
-        return;
-      }
       onRender();
       onHistory("已编辑文字");
     };
 
     editorCommitRef = () => doCommit();
     window.addEventListener("pointerdown", handleEditorOutsidePointerDown, { capture: true });
-
-    const exitEditorForTransform = () => {
-      doCommit({ keepNode: true, preserveEmptyText: true });
-    };
-
-    transformer.on("transformstart.editor dragstart.editor", exitEditorForTransform);
 
     const cancel = () => {
       if (editorClosed) return;
@@ -454,7 +436,11 @@ export function createEditController({
     textarea.addEventListener("input", fitEditorToContent);
     textarea.addEventListener("blur", () => {
       window.setTimeout(() => {
-        if (!transformer.isTransforming?.()) doCommit();
+        if (preserveEditorOnNextBlur || editorTransforming || transformer.isTransforming?.()) {
+          preserveEditorOnNextBlur = false;
+          return;
+        }
+        doCommit();
       });
     });
   }

@@ -258,6 +258,298 @@ describe("app editing controller", () => {
     expect(textarea?.value).toBe(element.text);
   });
 
+  it("opens with the persisted editing box instead of the render box", () => {
+    const deps = createDeps();
+    const element = textElement({
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    });
+    const node = makeNode({
+      width: vi.fn(() => 180),
+      height: vi.fn(() => 40),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const frame = document.querySelector(".text-editor-frame");
+    expect(Number.parseFloat(frame.style.width)).toBe(320);
+    expect(Number.parseFloat(frame.style.height)).toBe(96);
+  });
+
+  it("commits manual editing dimensions without changing the render box", () => {
+    const deps = createDeps();
+    const element = textElement({
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    });
+    const node = makeNode({
+      width: vi.fn(() => 180),
+      height: vi.fn(() => 40),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+    const updated = deps.setBoardElements.mock.calls[0][0][0];
+    expect(updated).toMatchObject({
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    });
+  });
+
+  it("keeps editing active when an editor resize starts", () => {
+    const deps = createDeps();
+    const element = textElement({ editWidth: 260, editHeight: 72 });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    deps.transformer.trigger("transformstart.editor");
+
+    expect(controller.isEditing).toBe(true);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+  });
+
+  it("updates the editing frame while transformer resizing stays in edit mode", () => {
+    let nodeWidth = 200;
+    let nodeHeight = 60;
+    const deps = createDeps();
+    const element = textElement({ editWidth: 200, editHeight: 60 });
+    const node = makeNode({
+      width: vi.fn(function setWidth(value) {
+        if (arguments.length > 0) nodeWidth = value;
+        return nodeWidth;
+      }),
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("middle-right");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    nodeWidth = 260;
+    nodeHeight = 92;
+    deps.transformer.trigger("transform.editor");
+
+    const frame = document.querySelector(".text-editor-frame");
+    expect(controller.isEditing).toBe(true);
+    expect(Number.parseFloat(frame.style.width)).toBe(260);
+    expect(Number.parseFloat(frame.style.height)).toBe(60);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+  });
+
+  it("resizes editing width and height independently at corner anchors", () => {
+    const deps = createDeps();
+    const element = textElement({ editWidth: 200, editHeight: 60 });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("bottom-right");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    const boundBox = deps.transformer.boundBoxFunc.mock.calls.at(-1)[0];
+    const result = boundBox(
+      { x: 0, y: 0, width: 200, height: 60 },
+      { x: 0, y: 0, width: 260, height: 80 },
+    );
+
+    expect(result).toMatchObject({ width: 260, height: 80 });
+  });
+
+  it("limits edit-mode transformer actions to editing box resizing", () => {
+    const deps = createDeps();
+    const element = textElement();
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(makeNode());
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    expect(deps.transformer.resizeEnabled).toHaveBeenCalledWith(true);
+    expect(deps.transformer.rotateEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("persists manually resized editing dimensions while keeping render dimensions", () => {
+    let nodeWidth = 200;
+    let nodeHeight = 60;
+    const deps = createDeps();
+    const element = textElement({
+      width: 180,
+      height: 40,
+      editWidth: 200,
+      editHeight: 60,
+    });
+    const node = makeNode({
+      width: vi.fn(function setWidth(value) {
+        if (arguments.length > 0) nodeWidth = value;
+        return nodeWidth;
+      }),
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("bottom-right");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    nodeWidth = 260;
+    nodeHeight = 92;
+    deps.transformer.trigger("transform.editor");
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+    const updated = deps.setBoardElements.mock.calls[0][0][0];
+    expect(updated).toMatchObject({
+      width: 180,
+      height: 40,
+      editWidth: 260,
+      editHeight: 92,
+    });
+    expect(deps.onHistory).toHaveBeenCalledTimes(1);
+    expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
+  });
+
+  it("does not persist content-driven editor height growth", () => {
+    const restoreScrollHeight = installTextareaScrollHeight((target) => (
+      target.classList?.contains("text-editor-measure") ? 112 : 35
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        width: 180,
+        height: 40,
+        editWidth: 200,
+        editHeight: 35,
+      });
+      const node = makeNode({
+        width: vi.fn(() => 180),
+        height: vi.fn(() => 40),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.getBoardElements.mockReturnValue([element]);
+      deps.contentLayer.findOne.mockReturnValue(node);
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+      const frame = document.querySelector(".text-editor-frame");
+      expect(Number.parseFloat(frame.style.height)).toBeGreaterThan(112);
+      frame.querySelector("textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(35);
+    } finally {
+      restoreScrollHeight();
+    }
+  });
+
+  it("does not persist content-driven height when only the editing width is resized", () => {
+    let nodeWidth = 200;
+    let nodeHeight = 114;
+    const restoreScrollHeight = installTextareaScrollHeight((target) => {
+      if (!target.classList?.contains("text-editor-measure")) return 35;
+      return Number.parseFloat(target.style.width) >= 260 ? 35 : 112;
+    });
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        width: 180,
+        height: 40,
+        editWidth: 200,
+        editHeight: 35,
+      });
+      const node = makeNode({
+        width: vi.fn(function setWidth(value) {
+          if (arguments.length > 0) nodeWidth = value;
+          return nodeWidth;
+        }),
+        height: vi.fn(function setHeight(value) {
+          if (arguments.length > 0) nodeHeight = value;
+          return nodeHeight;
+        }),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.getBoardElements.mockReturnValue([element]);
+      deps.contentLayer.findOne.mockReturnValue(node);
+      deps.transformer.getActiveAnchor.mockReturnValue("middle-right");
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+      nodeWidth = 260;
+      deps.transformer.trigger("transform.editor");
+      expect(Number.parseFloat(document.querySelector(".text-editor-frame").style.height)).toBe(37);
+      document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+      expect(deps.setBoardElements.mock.calls[0][0][0]).toMatchObject({
+        editWidth: 260,
+        editHeight: 35,
+      });
+    } finally {
+      restoreScrollHeight();
+    }
+  });
+
+  it("keeps the persisted editing height as the live minimum when content becomes shorter", () => {
+    let measuredHeight = 112;
+    const restoreScrollHeight = installTextareaScrollHeight((target) => (
+      target.classList?.contains("text-editor-measure") ? measuredHeight : 35
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        width: 180,
+        height: 40,
+        editWidth: 200,
+        editHeight: 80,
+      });
+      const node = makeNode({
+        width: vi.fn(() => 180),
+        height: vi.fn(() => 40),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.getBoardElements.mockReturnValue([element]);
+      deps.contentLayer.findOne.mockReturnValue(node);
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+      const frame = document.querySelector(".text-editor-frame");
+      const textarea = frame.querySelector("textarea.text-editor");
+      expect(Number.parseFloat(frame.style.height)).toBeGreaterThan(112);
+
+      measuredHeight = 35;
+      textarea.value = "short";
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(Number.parseFloat(frame.style.height)).toBe(80);
+      textarea.dispatchEvent(kEvent("Enter"));
+      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(80);
+    } finally {
+      restoreScrollHeight();
+    }
+  });
+
   it("expands an existing multiline latex text editor to show its source on open", () => {
     const restoreScrollHeight = installTextareaScrollHeight((element) => (
       element.classList?.contains("text-editor-measure") && element.value.includes("\\log n")
@@ -355,7 +647,7 @@ describe("app editing controller", () => {
     expect(deps.onRender).toHaveBeenCalled();
   });
 
-  it("preserves a newly placed empty text element when resizing its editor frame", () => {
+  it("keeps a newly placed empty text element editing while resizing its editor frame", () => {
     const deps = createDeps();
     const element = textElement({ text: "" });
     const node = makeNode();
@@ -369,21 +661,9 @@ describe("app editing controller", () => {
 
     deps.transformer.trigger("transformstart.editor");
 
-    expect(controller.isEditing).toBe(false);
-    expect(deps.setBoardElements).toHaveBeenCalled();
-    const updatedElements = deps.setBoardElements.mock.calls[0][0];
-    expect(updatedElements).toHaveLength(1);
-    expect(updatedElements[0]).toMatchObject({
-      id: element.id,
-      type: "text",
-      text: "",
-      scaleX: 1,
-      scaleY: 1,
-    });
-    expect(node.show).toHaveBeenCalled();
-    expect(deps.transformer.nodes).toHaveBeenCalledWith([node]);
-    expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
-    expect(deps.onHistory).not.toHaveBeenCalledWith("已删除空文字");
+    expect(controller.isEditing).toBe(true);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+    expect(node.show).not.toHaveBeenCalled();
   });
 
   it("does not commit editor when pointerdown lands inside a React context menu", () => {
@@ -444,10 +724,37 @@ describe("app editing controller", () => {
 
     deps.transformer.trigger("transformstart.editor");
 
-    expect(controller.isEditing).toBe(false);
-    const updatedElements = deps.setBoardElements.mock.calls[0][0];
-    expect(updatedElements).toHaveLength(1);
-    expect(updatedElements[0]).toMatchObject({ id: element.id, text: "" });
+    expect(controller.isEditing).toBe(true);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+  });
+
+  it("does not let textarea blur commit after pointerdown on a transformer handle", async () => {
+    const transformerTarget = { getClassName: vi.fn(() => "Transformer") };
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const deps = createDeps({
+      stage: makeStage({
+        setPointersPositions: vi.fn(),
+        getPointerPosition: vi.fn(() => ({ x: 100, y: 80 })),
+        getIntersection: vi.fn(() => transformerTarget),
+      }),
+    });
+    const element = textElement({ text: "hello" });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
+
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    textarea.dispatchEvent(new FocusEvent("blur"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.isEditing).toBe(true);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
   });
 
   it("preserves sticky on commit even when empty", () => {
@@ -492,6 +799,37 @@ describe("app editing controller", () => {
     expect(deps.transformer.show).toHaveBeenCalled();
     expect(deps.onRender).toHaveBeenCalled();
     expect(deps.onStateChange).toHaveBeenCalledWith(false);
+  });
+
+  it("cancels a manual editing box resize without creating history", () => {
+    let nodeWidth = 200;
+    let nodeHeight = 60;
+    const deps = createDeps();
+    const element = textElement({ editWidth: 200, editHeight: 60 });
+    const node = makeNode({
+      width: vi.fn(function setWidth(value) {
+        if (arguments.length > 0) nodeWidth = value;
+        return nodeWidth;
+      }),
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    nodeWidth = 280;
+    nodeHeight = 110;
+    deps.transformer.trigger("transform.editor");
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Escape"));
+
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
+    expect(deps.onHistory).not.toHaveBeenCalled();
+    expect(deps.onRender).toHaveBeenCalledOnce();
   });
 
   it("removes empty text on cancel if it was empty on creation", () => {

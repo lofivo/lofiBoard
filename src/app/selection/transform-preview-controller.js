@@ -67,7 +67,21 @@ export function createSelectionTransformPreviewController({
     transformer.forceUpdate();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
-    syncTextOverlays({ elements: getTextOverlayPreviewElements() });
+    const overlaySync = syncTextOverlays({ elements: getTextOverlayPreviewElements() });
+    if (overlaySync?.then) {
+      void overlaySync.then((measurements = []) => {
+        const measurement = measurements.find((item) => item.id === id);
+        if (!measurement || Math.abs(node.width() - nextWidth) > 0.01) return;
+        syncTextNodeSize(node, {
+          width: nextWidth,
+          height: measurement.height,
+          padding: element.padding ?? 0,
+        });
+        transformer.forceUpdate();
+        contentLayer.batchDraw();
+        overlayLayer.batchDraw();
+      });
+    }
     return true;
   }
 
@@ -81,14 +95,33 @@ export function createSelectionTransformPreviewController({
     if (element?.type !== "text") return false;
     const previewElements = getTextOverlayPreviewElements();
     const previewElement = previewElements.find((item) => item.id === id);
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
     if (previewElement) {
       syncTextNodeScalePreview(node, previewElement, {
-        scaleX: node.scaleX(),
-        scaleY: node.scaleY(),
+        scaleX,
+        scaleY,
       });
       contentLayer.batchDraw();
     }
-    syncTextOverlays({ elements: previewElements });
+    const overlaySync = syncTextOverlays({ elements: previewElements });
+    if (previewElement && overlaySync?.then) {
+      void overlaySync.then((measurements = []) => {
+        const measurement = measurements.find((item) => item.id === id);
+        if (!measurement) return;
+        if (Math.abs(node.scaleX() - scaleX) > 0.01 || Math.abs(node.scaleY() - scaleY) > 0.01) return;
+        const correctedPreview = { ...previewElement, height: measurement.height };
+        syncTextNodeSize(node, {
+          width: node.width(),
+          height: measurement.height / Math.max(0.01, Math.abs(scaleY || 1)),
+          padding: element.padding ?? 0,
+        });
+        syncTextNodeScalePreview(node, correctedPreview, { scaleX, scaleY });
+        transformer.forceUpdate();
+        contentLayer.batchDraw();
+        overlayLayer.batchDraw();
+      });
+    }
     return true;
   }
 

@@ -119,6 +119,33 @@ describe("konva elements", () => {
     expect(node.findOne(".text-hit-area").height()).toBe(105);
   });
 
+  it("keeps a real Konva text group client rect aligned with the synced box", () => {
+    const node = createElementNode({
+      id: "text_1",
+      type: "text",
+      x: 10,
+      y: 20,
+      text: "Hello",
+      width: 120,
+      height: 40,
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+    }, baseHandlers);
+
+    syncTextNodeSize(node, { width: 240, height: 132, padding: 6 });
+
+    const rect = node.getClientRect({ skipTransform: true });
+    const textRect = node.findOne("Text").getClientRect({ skipTransform: true });
+    expect(rect.width).toBeCloseTo(240, 5);
+    expect(rect.height).toBeCloseTo(132, 5);
+    expect(textRect.width).toBeCloseTo(228, 5);
+    expect(textRect.height).toBeCloseTo(132, 5);
+  });
+
   it("previews plain text scaling with the committed font layout without resetting group scale", () => {
     const node = createElementNode({
       id: "text_1",

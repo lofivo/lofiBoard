@@ -77,9 +77,14 @@ React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolD
 
 - 默认文本高度是一行。
 - 点击文本进入编辑，拖拽才移动。
-- 编辑态高度必须跟随 textarea 真实 `scrollHeight`。
+- 仅 `text` 元素分离编辑框与渲染框：`editWidth` / `editHeight` 保存编辑框手动尺寸，`width` / `height` 保存渲染框尺寸；两者共用元素左上角。
+- 编辑态左右锚点只调整编辑宽度，上下锚点只调整编辑高度，角锚点可自由调整两轴；调整期间保持编辑态且禁用旋转。
+- 编辑框实际高度取“手动编辑高度”和 textarea 真实 `scrollHeight` 的较大值；内容自动撑高不能覆盖持久化的 `editHeight`。
+- Enter、失焦或外部点击提交文字与编辑框尺寸为一条历史；Escape 同时恢复两者。
+- 非编辑态 `height` 由 DOM overlay 的实际内容高度校正。LaTeX 必须等待 KaTeX HTML 写入后测量，并覆盖超出父行盒的子节点；浏览器字体加载完成后再次测量。
 - 文本元素是 Konva Group 包 Text，宽高变化要同步外层 Group、hit area 和内部 Text。
-- 退出编辑后要归一化文本 box，避免选中态和编辑态尺寸不一致。
+- 非编辑态宽度缩放先用 Canvas 测量即时预览，再用 DOM 实际高度修正；Canvas/启发式高度只作 DOM 尚不可用时的兜底。
+- 便签继续使用原有固定尺寸语义，不使用 `editWidth` / `editHeight`。
 
 ## 绘制和橡皮
 

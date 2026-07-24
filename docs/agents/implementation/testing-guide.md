@@ -13,7 +13,7 @@
 - 修改 `src/app/whiteboard-app.js` 初始化、controller 接线或抽取 controller：运行 `tests/app/shell/whiteboard-app-startup.test.js`，必要时全量。
 - 修改画板模型、元素默认值、序列化：运行 `tests/board/model.test.js`、`tests/board/element-factory.test.js`、相关应用测试。
 - 修改历史：运行 `tests/board/history.test.js` 和触发历史的应用 controller 测试。
-- 修改文本编辑/测量/LaTeX：运行 `tests/app/editing/*`、`tests/services/text-overlay*`、`tests/services/latex.test.js`、`tests/tools/interaction-rules.test.js`。
+- 修改文本编辑/测量/LaTeX：运行 `tests/app/editing/*`、`tests/services/text-overlay*`、`tests/services/latex.test.js`、`tests/tools/interaction-rules.test.js`、`tests/canvas/konva-elements.test.js`；涉及字体加载或应用装配时还要运行 `tests/app/shell/whiteboard-app-startup.test.js`。
 - 修改选区、拖拽、Transformer、对齐：运行 `tests/app/selection/*` 和 `tests/tools/interaction-state-machine.test.js`。
 - 修改工具、画笔、橡皮、图形预览：运行 `tests/app/tools/*`、`tests/tools/stroke-engine.test.js`、`tests/tools/behavior.test.js`、`tests/canvas/geometry.test.js`。
 - 修改结构：运行 `tests/structures/*` 和 `tests/app/structures/*`。
@@ -45,7 +45,7 @@ rg "关键词|函数名|用户可见文案" tests src
 
 ## 高风险回归点
 
-- 文本编辑态和选中态尺寸必须一致。
+- 文本编辑框和渲染框尺寸必须独立保存；编辑框自动撑高不能覆盖手动尺寸，渲染框高度必须以 DOM/KaTeX 实际内容为准。
 - 结构内部可交互元素不能被 Transformer 背板挡住。
 - `pointerdown` 到首次 `dragmove` 之间不要重建正在拖拽的 Konva node。
 - 数组算法运行中不能允许线性结构内容被同时编辑。

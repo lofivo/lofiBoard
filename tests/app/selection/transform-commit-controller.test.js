@@ -58,6 +58,8 @@ describe("transform-commit-controller", () => {
       y: 2,
       width: 100,
       height: 40,
+      editWidth: 280,
+      editHeight: 96,
       fontSize: 20,
       scaleX: 1,
       scaleY: 1,
@@ -99,6 +101,8 @@ describe("transform-commit-controller", () => {
       fontSize: 32,
       width: 180,
       height: 64,
+      editWidth: 280,
+      editHeight: 96,
     });
   });
 

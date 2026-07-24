@@ -65,6 +65,8 @@ const ELEMENT_DEFAULTS = {
     align: "left",
     width: 260,
     height: 35,
+    editWidth: 260,
+    editHeight: 35,
     padding: 6,
     rotation: 0,
   },
@@ -293,6 +295,16 @@ export function normalizeElement(element, fallbackIndex = 0) {
         y: Number(normalized.height ?? defaults.height) / 2,
       };
     }
+  }
+  if (normalized.type === "text") {
+    const renderWidth = Math.max(1, Number(normalized.width) || 1);
+    const renderHeight = Math.max(1, Number(normalized.height) || 1);
+    normalized.editWidth = Math.max(1, Number.isFinite(Number(element.editWidth))
+      ? Number(element.editWidth)
+      : renderWidth);
+    normalized.editHeight = Math.max(1, Number.isFinite(Number(element.editHeight))
+      ? Number(element.editHeight)
+      : renderHeight);
   }
   if (["array-structure", "stack-structure", "queue-structure", "deque-structure"].includes(normalized.type)) {
     normalized.settings = {

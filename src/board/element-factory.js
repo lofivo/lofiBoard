@@ -52,6 +52,8 @@ export function createTextElement({ point, zIndex, text = "", measureText }) {
     text,
     width: normalizedBox.width,
     height: normalizedBox.height,
+    editWidth: normalizedBox.width,
+    editHeight: normalizedBox.height,
     fontSize: DEFAULT_TEXT_STYLE.fontSize,
     fontFamily: DEFAULT_TEXT_STYLE.fontFamily,
     fontStyle: DEFAULT_TEXT_STYLE.fontStyle,

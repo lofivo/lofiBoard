@@ -5,6 +5,24 @@ import {
 } from "../../tools/interaction-rules.js";
 import { hasFontStyle } from "../inspector/text-style-tokens.js";
 
+export function applyMeasuredTextHeights(elements = [], measurements = []) {
+  const heightById = new Map(measurements
+    .filter(({ id, height }) => id && Number.isFinite(height) && height > 0)
+    .map(({ id, height }) => [id, height]));
+  let changed = false;
+  const nextElements = elements.map((element) => {
+    const nextHeight = heightById.get(element.id);
+    if (element.type !== "text" || !nextHeight) return element;
+    if (Math.abs((Number(element.height) || 0) - nextHeight) < 0.01) return element;
+    changed = true;
+    return { ...element, height: nextHeight };
+  });
+  return {
+    elements: changed ? nextElements : elements,
+    changed,
+  };
+}
+
 export function createTextElementMeasurer({
   createCanvas = () => document.createElement("canvas"),
 } = {}) {

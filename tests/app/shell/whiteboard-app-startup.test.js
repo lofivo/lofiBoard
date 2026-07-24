@@ -355,6 +355,115 @@ describe("whiteboard app startup", () => {
     app.destroy();
   }, 15_000);
 
+  it("corrects cached text height from the rendered DOM overlay after startup", async () => {
+    seedDraft([{
+      id: "text_1",
+      type: "text",
+      x: 20,
+      y: 30,
+      width: 180,
+      height: 20,
+      text: "Hello World",
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+      align: "left",
+      zIndex: 0,
+    }]);
+    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? 84 : 0;
+      },
+    });
+    try {
+      const { app } = await mountApp();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(app.getBoard().elements[0].height).toBe(84);
+
+      app.destroy();
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalDescriptor);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  }, 15_000);
+
+  it("remeasures rendered text after browser fonts finish loading", async () => {
+    seedDraft([{
+      id: "text_1",
+      type: "text",
+      x: 20,
+      y: 30,
+      width: 180,
+      height: 20,
+      text: "Hello World",
+      fontSize: 28,
+      fontFamily: "Inter, sans-serif",
+      fontStyle: "normal",
+      textDecoration: "",
+      padding: 6,
+      fill: "#111827",
+      align: "left",
+      zIndex: 0,
+    }]);
+    let renderedHeight = 35;
+    let resolveFontsReady;
+    const listeners = new Map();
+    const fonts = {
+      ready: new Promise((resolve) => { resolveFontsReady = resolve; }),
+      addEventListener: vi.fn((type, listener) => listeners.set(type, listener)),
+      removeEventListener: vi.fn((type, listener) => {
+        if (listeners.get(type) === listener) listeners.delete(type);
+      }),
+    };
+    const originalFonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(document, "fonts", { configurable: true, value: fonts });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.dataset?.elementId === "text_1" ? renderedHeight : 0;
+      },
+    });
+    try {
+      const { app } = await mountApp();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(app.getBoard().elements[0].height).toBe(35);
+
+      renderedHeight = 84;
+      resolveFontsReady();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(app.getBoard().elements[0].height).toBe(84);
+
+      renderedHeight = 112;
+      listeners.get("loadingdone")?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(app.getBoard().elements[0].height).toBe(112);
+
+      app.destroy();
+      expect(fonts.removeEventListener).toHaveBeenCalledWith("loadingdone", expect.any(Function));
+    } finally {
+      if (originalFonts) {
+        Object.defineProperty(document, "fonts", originalFonts);
+      } else {
+        delete document.fonts;
+      }
+      if (originalScrollHeight) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", originalScrollHeight);
+      } else {
+        delete HTMLElement.prototype.scrollHeight;
+      }
+    }
+  }, 15_000);
+
   it("toggles placement tool locking from the toolbar action and Q shortcut", async () => {
     const { app, root } = await mountApp();
     const lockButton = root.querySelector('[data-tool-action="toggle-tool-lock"]');

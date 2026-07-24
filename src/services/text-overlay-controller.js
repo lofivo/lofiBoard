@@ -51,6 +51,8 @@ export function getTextOverlayDisplayStyle(element, {
   if (element.type === "text") {
     return {
       ...baseStyle,
+      height: "auto",
+      minHeight: "0px",
       color: element.fill ?? "#111827",
       textAlign: element.align ?? "left",
       padding: `0 ${padding}px`,
@@ -69,6 +71,25 @@ export function getTextOverlayDisplayStyle(element, {
   return baseStyle;
 }
 
+export function measureTextOverlayPixelHeight(overlay) {
+  if (!overlay) return 0;
+  const previousTransform = overlay.style.transform;
+  overlay.style.transform = "none";
+  try {
+    const overlayRect = overlay.getBoundingClientRect?.() ?? { top: 0, height: 0 };
+    let contentBottom = Number(overlayRect.height) || 0;
+    overlay.querySelectorAll?.("*").forEach((child) => {
+      const childRect = child.getBoundingClientRect?.();
+      if (!childRect) return;
+      contentBottom = Math.max(contentBottom, (Number(childRect.bottom) || 0) - (Number(overlayRect.top) || 0));
+    });
+    const scrollHeight = Number(overlay.scrollHeight) || 0;
+    return scrollHeight > contentBottom + 1 ? scrollHeight : contentBottom;
+  } finally {
+    overlay.style.transform = previousTransform;
+  }
+}
+
 export function createTextOverlayController({
   container,
   contentLayer,
@@ -78,7 +99,6 @@ export function createTextOverlayController({
   const overlays = new Map();
   let hiddenIds = new Set();
   let renderVersion = 0;
-  let pendingLatex = new Map();
 
   const getOverlayEl = (id) => {
     let overlay = overlays.get(id);
@@ -98,7 +118,6 @@ export function createTextOverlayController({
     const overlay = overlays.get(id);
     if (overlay) overlay.remove();
     overlays.delete(id);
-    pendingLatex.delete(id);
     getKonvaTextNode(id)?.visible?.(true);
   };
 
@@ -122,8 +141,20 @@ export function createTextOverlayController({
     const currentVersion = renderVersion + 1;
     renderVersion = currentVersion;
     const visibleIds = new Set();
+    const measurements = [];
     const stage = getStageState?.() ?? { x: 0, y: 0, scale: 1 };
     const containerRect = getContainerRect?.() ?? { left: 0, top: 0 };
+    const stageScale = Math.max(0.01, Number(stage.scale) || 1);
+
+    const collectTextMeasurement = (overlay, element) => {
+      if (element.type !== "text" || overlay.hidden) return;
+      const pixelHeight = measureTextOverlayPixelHeight(overlay);
+      if (pixelHeight <= 0) return;
+      measurements.push({
+        id: element.id,
+        height: Math.max(1, pixelHeight / stageScale),
+      });
+    };
 
     const textElements = elements.filter((el) => ["text", "sticky"].includes(el.type));
     for (const element of textElements) {
@@ -136,13 +167,15 @@ export function createTextOverlayController({
       const latexSignature = `latex:${element.text}`;
       if (overlay.dataset.renderSignature === latexSignature) {
         getKonvaTextNode(element.id)?.visible?.(overlay.hidden);
+        collectTextMeasurement(overlay, element);
         continue;
       }
 
       const needsLatex = element.type === "text" && containsRenderableLatex(element.text);
       if (needsLatex) {
-        pendingLatex.set(element.id, element);
-        syncLatexContent(overlay, element, latexSignature, currentVersion);
+        getKonvaTextNode(element.id)?.visible?.(overlay.hidden);
+        await syncLatexContent(overlay, element, latexSignature, currentVersion);
+        if (renderVersion !== currentVersion) return [];
       } else {
         if (overlay.textContent !== element.text) {
           overlay.textContent = element.text;
@@ -150,12 +183,14 @@ export function createTextOverlayController({
         overlay.dataset.renderSignature = "";
       }
       getKonvaTextNode(element.id)?.visible?.(overlay.hidden);
+      collectTextMeasurement(overlay, element);
     }
 
     for (const id of [...overlays.keys()]) {
       if (!visibleIds.has(id)) removeOverlay(id);
     }
     contentLayer?.batchDraw?.();
+    return measurements;
   };
 
   return {

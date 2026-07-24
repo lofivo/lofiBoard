@@ -48,6 +48,51 @@ describe("board model", () => {
     });
   });
 
+  it("backfills the editing box for text elements from legacy render dimensions", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [{
+        id: "text_legacy",
+        type: "text",
+        zIndex: 0,
+        width: 180,
+        height: 52,
+      }],
+    });
+
+    expect(board.elements[0]).toMatchObject({
+      type: "text",
+      width: 180,
+      height: 52,
+      editWidth: 180,
+      editHeight: 52,
+    });
+  });
+
+  it("preserves independent render and editing boxes when serializing text", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [{
+        id: "text_1",
+        type: "text",
+        zIndex: 0,
+        width: 180,
+        height: 84,
+        editWidth: 320,
+        editHeight: 96,
+      }],
+    });
+
+    const serialized = serializeBoard(board, { x: 0, y: 0, scale: 1 });
+
+    expect(serialized.elements[0]).toMatchObject({
+      width: 180,
+      height: 84,
+      editWidth: 320,
+      editHeight: 96,
+    });
+  });
+
   it("normalizes invalid viewport values to a usable canvas view", () => {
     const board = normalizeBoard({
       version: 1,

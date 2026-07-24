@@ -32,6 +32,18 @@ describe("element factory", () => {
     expect(element.height).toBe(28 * 1.25);
   });
 
+  it("initializes an independent editing box from the render box", () => {
+    const element = createTextElement({
+      point: { x: 120, y: 80 },
+      zIndex: 1,
+      text: "hello world",
+      measureText: (value) => String(value).length * 10,
+    });
+
+    expect(element.editWidth).toBe(element.width);
+    expect(element.editHeight).toBe(element.height);
+  });
+
   it("creates pasted latex text with enough default width to avoid immediate formula wrapping", () => {
     const text = "$$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}$$";
     const element = createTextElement({

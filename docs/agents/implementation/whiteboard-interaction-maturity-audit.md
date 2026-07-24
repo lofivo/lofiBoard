@@ -23,9 +23,10 @@
 
 - 新建后直接进入编辑；已选中文本再次点击或双击进入编辑。
 - 编辑态输入优先，工具快捷键、拖拽链路、属性栏刷新不能打断输入。
-- 编辑态高度跟随 textarea 真实 `scrollHeight`，退出编辑后选中框尺寸不跳变。
-- 拖拽边框或 Transformer 控制点时，先提交并退出编辑，再处理缩放。
-- LaTeX 作为文本能力的一部分，不能破坏普通文本换行、最小宽度和一行默认高度。
+- 编辑框和渲染框独立保存：编辑态恢复 `editWidth` / `editHeight`，非编辑态保留 `width` 并按最终内容自动贴合 `height`。
+- 编辑态拖拽左右/上下/角锚点时保持编辑，按轴更新编辑框尺寸；自动撑高不得覆盖手动编辑高度。
+- Enter、失焦和外部点击把文字与编辑框尺寸合并提交；Escape 同时恢复两者。
+- LaTeX 作为文本能力的一部分，不能破坏普通文本换行、最小宽度和一行默认高度；退出编辑后边框必须覆盖 KaTeX 实际内容，字体加载完成后允许再次校正。
 
 ### 视口和输入设备
 
@@ -85,7 +86,7 @@
 
 - 压感笔触全链路：已补 `normalize/serialize`、复制粘贴、橡皮切分插值回归测试。
 - 结构内外交互边界：已有图节点拖拽、图框定尺、图透明命中区禁用、树节点点击/双击、线性结构单元格事件等覆盖；已补树空白命中区位于节点下方的回归测试。
-- 文本编辑尺寸一致性：已有 textarea `scrollHeight`、默认一行高度、宽度缩放重排、长无空格换行、LaTeX 最小宽度、Konva/Text/Group 尺寸同步等覆盖。
+- 文本编辑与渲染尺寸分离：已有 `editWidth` / `editHeight` 兼容旧文件、textarea `scrollHeight`、编辑锚点分轴调整、提交/取消事务、DOM/KaTeX 实际高度、字体加载重测、宽度/字号缩放预览，以及真实 Konva Text/Group/hit area 尺寸同步覆盖。
 - 属性栏回灌一致性：已有 legacy input/dataset 到 React context 的桥接覆盖；已补图有向状态从 root dataset 回灌到 React context 的回归测试。
 
 本轮验证命令：
@@ -197,17 +198,19 @@ npm test -- tests/app/App.layer-bridge.test.jsx tests/app/components/LayerPanel.
 - `tests/app/selection/transformer-controller.test.js`
 - `tests/app/shell/stage-pointer-controller.test.js`
 
-### P0: 文本编辑尺寸一致性（已完成）
+### P0: 文本编辑框与渲染框分离（已完成）
 
-目标：文本/便签编辑态和选中态共用尺寸规则，任何输入、失焦、再次选中、宽度缩放都不跳变。
+目标：文字编辑框和最终渲染框独立持久化，编辑框可自由调宽高，退出编辑后渲染高度完整贴合普通文本或 LaTeX 的实际内容。
 
 需要补充或确认：
 
 - 新建空文本默认一行高度。
-- 编辑中按 textarea `scrollHeight` 实时增长。
-- 宽度缩放触发高度重算，长无空格文本逐字符换行。
-- 属性栏改字体/字号/样式后，Konva.Text、Group、hit area 和 DOM overlay 同步。
-- LaTeX 多行换行不把短公式最小宽度撑死。
+- 旧文件缺少编辑框字段时从渲染框尺寸回填。
+- 编辑中按 textarea `scrollHeight` 实时增长，但只保存用户手动编辑尺寸。
+- 左右、上下和角锚点按轴更新编辑框，交互期间不退出编辑。
+- 提交不改渲染宽度，Escape 不写历史；非编辑态宽度缩放不改编辑框尺寸。
+- DOM overlay 在 KaTeX HTML 写入后测量，覆盖公式子节点溢出并排除旋转外接框误差；字体加载后重测。
+- 测量结果同步 Konva.Text、Group 和 hit area；长无空格文本与短公式仍可按既有规则换行。
 
 建议测试入口：
 

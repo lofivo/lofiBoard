@@ -87,7 +87,10 @@ import { createLinearStructurePointerDragController } from "./structures/linear-
 import { createStructureNodeActionController } from "./structures/node-action-controller.js";
 import { createStagePointerController } from "./shell/stage-pointer-controller.js";
 import { createStatusController } from "./shell/status-controller.js";
-import { createTextElementMeasurer } from "./editing/text-element-measure.js";
+import {
+  applyMeasuredTextHeights,
+  createTextElementMeasurer,
+} from "./editing/text-element-measure.js";
 import { createDrawingInteractionController } from "./tools/drawing-interaction-controller.js";
 import { createDraftInteractionController } from "./tools/draft-interaction-controller.js";
 import { createToolCursorController } from "./tools/cursor-controller.js";
@@ -128,6 +131,7 @@ import {
   syncElementNode,
   syncLinearStructureNodeContent,
   syncTextNodeContent,
+  syncTextNodeSize,
 } from "../canvas/konva-elements.js";
 import {
   getImageFileFromDropEvent,
@@ -1505,6 +1509,13 @@ export function createWhiteboardApp(root) {
     schedulePersistCurrentDraft,
     closeZoomMenu: () => setZoomMenuOpen(false),
   });
+  const textFontSet = document.fonts;
+  let shouldMeasureAfterFontLoad = true;
+  const measureTextAfterFontLoad = () => {
+    if (shouldMeasureAfterFontLoad) syncTextOverlays();
+  };
+  textFontSet?.addEventListener?.("loadingdone", measureTextAfterFontLoad);
+  void textFontSet?.ready?.then(measureTextAfterFontLoad);
   stagePointerController = createStagePointerController({
     stage,
     drawingInteractionController,
@@ -1663,6 +1674,8 @@ export function createWhiteboardApp(root) {
       getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
     },
     destroy: () => {
+      shouldMeasureAfterFontLoad = false;
+      textFontSet?.removeEventListener?.("loadingdone", measureTextAfterFontLoad);
       unbindUiEvents?.();
       unbindKeyboard?.();
       boardSession.destroy();
@@ -1793,8 +1806,28 @@ export function createWhiteboardApp(root) {
   }
 
   function syncTextOverlays({ hiddenIds = editController.isEditing ? selectedIds : [], elements = board.elements } = {}) {
+    const measuredElements = elements;
     textOverlayController.setHiddenIds(hiddenIds);
-    textOverlayController.sync(elements);
+    const syncPromise = textOverlayController.sync(elements);
+    void syncPromise.then((measurements) => {
+      if (measuredElements !== board.elements) return;
+      const result = applyMeasuredTextHeights(board.elements, measurements);
+      if (!result.changed) return;
+      board.elements = result.elements;
+      for (const element of board.elements) {
+        const measuredHeight = measurements.find((item) => item.id === element.id)?.height;
+        if (element.type !== "text" || !measuredHeight) continue;
+        syncTextNodeSize(contentLayer.findOne(`#${element.id}`), {
+          width: element.width,
+          height: element.height,
+          padding: element.padding ?? 0,
+        });
+      }
+      transformer.forceUpdate();
+      contentLayer.batchDraw();
+      overlayLayer.batchDraw();
+    });
+    return syncPromise;
   }
 
   function renderBoard() {

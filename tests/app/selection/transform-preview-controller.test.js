@@ -99,6 +99,24 @@ describe("transform-preview-controller", () => {
     });
   });
 
+  it("corrects text width resize previews from rendered overlay measurements", async () => {
+    const { callbacks, controller, node } = createHarness({
+      activeAnchor: "middle-right",
+      callbacks: {
+        syncTextOverlays: vi.fn(() => Promise.resolve([{ id: "text_1", height: 88 }])),
+      },
+    });
+
+    controller.syncTextWidthResize();
+    await Promise.resolve();
+
+    expect(callbacks.syncTextNodeSize).toHaveBeenLastCalledWith(node, {
+      width: 200,
+      height: 88,
+      padding: 4,
+    });
+  });
+
   it("previews text scaling without resetting node scale during corner transforms", () => {
     const { callbacks, contentLayer, controller, node } = createHarness({
       activeAnchor: "bottom-right",
@@ -122,6 +140,29 @@ describe("transform-preview-controller", () => {
     expect(callbacks.syncTextOverlays).toHaveBeenCalledWith({
       elements: [expect.objectContaining({ id: "text_1", fontSize: 40 })],
     });
+  });
+
+  it("corrects corner scale previews from rendered overlay measurements", async () => {
+    const { callbacks, controller, node } = createHarness({
+      activeAnchor: "bottom-right",
+      callbacks: {
+        syncTextOverlays: vi.fn(() => Promise.resolve([{ id: "text_1", height: 88 }])),
+      },
+    });
+
+    controller.syncTextTransformPreview();
+    await Promise.resolve();
+
+    expect(callbacks.syncTextNodeSize).toHaveBeenLastCalledWith(node, {
+      width: 100,
+      height: 88 / 1.5,
+      padding: 4,
+    });
+    expect(callbacks.syncTextNodeScalePreview).toHaveBeenLastCalledWith(
+      node,
+      expect.objectContaining({ id: "text_1", height: 88, fontSize: 40 }),
+      { scaleX: 2, scaleY: 1.5 },
+    );
   });
 
   it("rerenders coordinate plane resize previews and clears transient scale", () => {
