@@ -10,7 +10,7 @@ export function createPropertyControlsDomController({
   propertyControlsController,
   getCurrentTool,
   getSelectedIds,
-  isToolPropertyPanelAvailable,
+  canPersistToolPropertyControls,
   onApplyCoordinateStyleToSelection = () => {},
   onApplyStyleToSelection = () => {},
   onBrushCursorStyleChange,
@@ -165,7 +165,15 @@ export function createPropertyControlsDomController({
       });
     });
     root.querySelectorAll("[data-text-style]").forEach((button) => {
-      button.addEventListener("click", () => onToggleTextStyle(button.dataset.textStyle));
+      button.addEventListener("click", () => {
+        const style = button.dataset.textStyle;
+        onToggleTextStyle(style);
+        if (getSelectedIds().length === 0) {
+          toggleToolTextStyle(style);
+          saveToolPropertyControlsForCurrentTool();
+          return;
+        }
+      });
     });
   }
 
@@ -189,8 +197,7 @@ export function createPropertyControlsDomController({
       coordinateLabelColor: coordinateLabelColorInput.value,
       fontSize: fontSizeInput.value,
       fontFamily: fontFamilyInput.value,
-      fontStyle: "normal",
-      textDecoration: "",
+      ...getToolTextStyleSnapshot(),
     };
   }
 
@@ -228,8 +235,36 @@ export function createPropertyControlsDomController({
   function saveToolPropertyControlsForCurrentTool() {
     if (getSelectedIds().length > 0) return;
     const currentTool = getCurrentTool();
-    if (!isToolPropertyPanelAvailable(currentTool)) return;
+    if (!canPersistToolPropertyControls(currentTool)) return;
     propertyControlsController.saveToolControls(currentTool, capturePropertyControls());
+  }
+
+  function toggleToolTextStyle(style) {
+    const buttons = Array.from(root.querySelectorAll("[data-text-style]"))
+      .filter((button) => button.dataset.textStyle === style);
+    if (buttons.length === 0) return;
+    const active = buttons.some((button) => isTextStyleButtonActive(button));
+    buttons.forEach((button) => setTextStyleButtonActive(button, !active));
+  }
+
+  function getToolTextStyleSnapshot() {
+    const isActive = (style) => Array.from(root.querySelectorAll(`[data-text-style="${style}"]`))
+      .some((button) => isTextStyleButtonActive(button));
+    return {
+      fontStyle: ["bold", "italic"].filter(isActive).join(" ") || "normal",
+      textDecoration: ["underline", "strike"].filter(isActive)
+        .map((style) => style === "strike" ? "line-through" : style)
+        .join(" "),
+    };
+  }
+
+  function isTextStyleButtonActive(button) {
+    return Boolean(button.classList?.contains?.("active") || button.getAttribute?.("aria-pressed") === "true");
+  }
+
+  function setTextStyleButtonActive(button, active) {
+    button.classList?.toggle?.("active", active);
+    button.setAttribute?.("aria-pressed", active ? "true" : "false");
   }
 
   function restorePropertyControlsForTool(tool) {

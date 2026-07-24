@@ -102,6 +102,12 @@ export function isToolPropertyPanelAvailable(currentTool) {
   return new Set([TOOLS.PEN, TOOLS.SHAPE, ...SHAPE_TOOLS]).has(currentTool);
 }
 
+export function canPersistToolPropertyControls(currentTool) {
+  return isToolPropertyPanelAvailable(currentTool)
+    || currentTool === TOOLS.TEXT
+    || currentTool === TOOLS.STICKY;
+}
+
 export function getSelectionInspectorCapabilities(elements) {
   return {
     text: elements.some((el) => el.type === "text"),

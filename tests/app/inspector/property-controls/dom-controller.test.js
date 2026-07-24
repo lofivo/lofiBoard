@@ -4,6 +4,7 @@ import {
   createPropertyControlsController,
 } from "../../../../src/app/inspector/property-controls/controller.js";
 import { createPropertyControlsDomController } from "../../../../src/app/inspector/property-controls/dom-controller.js";
+import { canPersistToolPropertyControls } from "../../../../src/app/inspector/model.js";
 import { TOOLS } from "../../../../src/ui/config.js";
 
 function createInput(value = "", checked = false) {
@@ -23,14 +24,23 @@ function createInput(value = "", checked = false) {
 
 function createButton(dataset = {}) {
   const listeners = new Map();
+  const activeClasses = new Set();
+  const attributes = {};
   return {
     dataset,
     addEventListener: vi.fn((type, listener) => listeners.set(type, listener)),
-    classList: { toggle: vi.fn() },
+    classList: {
+      toggle: vi.fn((name, active) => {
+        if (active) activeClasses.add(name);
+        else activeClasses.delete(name);
+      }),
+      contains: vi.fn((name) => activeClasses.has(name)),
+    },
     click() {
       listeners.get("click")?.();
     },
-    setAttribute: vi.fn(),
+    getAttribute: vi.fn((name) => attributes[name] ?? null),
+    setAttribute: vi.fn((name, value) => { attributes[name] = String(value); }),
   };
 }
 
@@ -96,6 +106,8 @@ function createRoot() {
       if (selector === "[data-ui-control='fill']") return nodes.fillInputs;
       if (selector === "[data-ui-control^='coordinate-']") return nodes.coordinateInputs;
       if (selector === "[data-text-style]") return nodes.textStyleButtons;
+      const textStyleMatch = selector.match(/^\[data-text-style="(.+)"\]$/);
+      if (textStyleMatch) return nodes.textStyleButtons.filter((button) => button.dataset.textStyle === textStyleMatch[1]);
       if (selector === "[data-ui-control]") return nodes.uiControls;
       if (selector === "[data-brush-text-color]") return nodes.textColorButtons;
       if (selector === "[data-shape-fill-color]") return nodes.shapeFillButtons;
@@ -154,7 +166,7 @@ function createController(overrides = {}) {
     propertyControlsController,
     getCurrentTool: overrides.getCurrentTool ?? (() => TOOLS.PEN),
     getSelectedIds: overrides.getSelectedIds ?? (() => []),
-    isToolPropertyPanelAvailable: overrides.isToolPropertyPanelAvailable ?? (() => true),
+    canPersistToolPropertyControls: overrides.canPersistToolPropertyControls ?? (() => true),
     ...callbacks,
   });
   return {
@@ -210,6 +222,49 @@ describe("app inspector property-controls dom-controller", () => {
     blocked.refs.colorInput.value = "#22c55e";
     blocked.controller.saveToolPropertyControlsForCurrentTool();
     expect(blocked.propertyControlsController.getToolControls(TOOLS.PEN)).toBeNull();
+  });
+
+  it("preserves text tool controls when switching away and back", () => {
+    let currentTool = TOOLS.TEXT;
+    const { controller, refs } = createController({
+      getCurrentTool: () => currentTool,
+      canPersistToolPropertyControls,
+    });
+
+    refs.colorInput.value = "#2563eb";
+    refs.fontSizeInput.value = "42";
+    refs.fontFamilyInput.value = "Georgia, serif";
+    controller.saveToolPropertyControlsForCurrentTool();
+
+    currentTool = TOOLS.PEN;
+    controller.restorePropertyControlsForTool(currentTool);
+    currentTool = TOOLS.TEXT;
+    controller.restorePropertyControlsForTool(currentTool);
+
+    expect(refs.colorInput.value).toBe("#2563eb");
+    expect(refs.fontSizeInput.value).toBe("42");
+    expect(refs.fontFamilyInput.value).toBe("Georgia, serif");
+  });
+
+  it("preserves text style presets when switching away and back", () => {
+    let currentTool = TOOLS.TEXT;
+    const { controller, nodes } = createController({
+      getCurrentTool: () => currentTool,
+      canPersistToolPropertyControls,
+    });
+
+    controller.bindPropertyControlEvents();
+    nodes.textStyleButtons[0].click();
+
+    expect(nodes.textStyleButtons[0].classList.contains("active")).toBe(true);
+
+    currentTool = TOOLS.PEN;
+    controller.restorePropertyControlsForTool(currentTool);
+    currentTool = TOOLS.TEXT;
+    controller.restorePropertyControlsForTool(currentTool);
+
+    expect(controller.capturePropertyControls().fontStyle).toBe("bold");
+    expect(nodes.textStyleButtons[0].classList.contains("active")).toBe(true);
   });
 
   it("syncs brush preview, preset buttons, and numeric display values", () => {

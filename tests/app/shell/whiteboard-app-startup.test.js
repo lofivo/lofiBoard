@@ -373,6 +373,55 @@ describe("whiteboard app startup", () => {
     app.destroy();
   }, 15_000);
 
+  it("keeps text and sticky tool presets after switching tools", async () => {
+    const { app, root } = await mountApp();
+    const textTool = root.querySelector(`[data-tool="text"]`);
+    const stickyTool = root.querySelector(`[data-tool="sticky"]`);
+    const penTool = root.querySelector(`[data-tool="pen"]`);
+    const colorInput = root.querySelector(`[data-control="color"]`);
+    const fillInput = root.querySelector(`[data-control="fill"]`);
+    const fontFamilyInput = root.querySelector(`[data-control="font-family"]`);
+    const fontSizeInput = root.querySelector(`[data-control="font-size"]`);
+    const boldButton = root.querySelector(`[data-text-style="bold"]`);
+
+    textTool.click();
+    colorInput.value = "#2563eb";
+    colorInput.dispatchEvent(new Event("input", { bubbles: true }));
+    fontFamilyInput.value = "Georgia, serif";
+    fontFamilyInput.dispatchEvent(new Event("change", { bubbles: true }));
+    fontSizeInput.value = "42";
+    fontSizeInput.dispatchEvent(new Event("input", { bubbles: true }));
+    boldButton.click();
+
+    penTool.click();
+    textTool.click();
+
+    expect(colorInput.value).toBe("#2563eb");
+    expect(fontFamilyInput.value).toBe("Georgia, serif");
+    expect(fontSizeInput.value).toBe("42");
+    expect(boldButton.classList.contains("active")).toBe(true);
+
+    stickyTool.click();
+    fillInput.value = "#bbf7d0";
+    fillInput.dispatchEvent(new Event("input", { bubbles: true }));
+    colorInput.value = "#7c3aed";
+    colorInput.dispatchEvent(new Event("input", { bubbles: true }));
+    fontFamilyInput.value = "Arial, sans-serif";
+    fontFamilyInput.dispatchEvent(new Event("change", { bubbles: true }));
+    fontSizeInput.value = "30";
+    fontSizeInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    penTool.click();
+    stickyTool.click();
+
+    expect(fillInput.value).toBe("#bbf7d0");
+    expect(colorInput.value).toBe("#7c3aed");
+    expect(fontFamilyInput.value).toBe("Arial, sans-serif");
+    expect(fontSizeInput.value).toBe("30");
+
+    app.destroy();
+  }, 15_000);
+
   it("removes app-level window and document listeners when destroyed", async () => {
     const { createWhiteboardApp } = await import("../../../src/app/whiteboard-app.js");
     const removeWindowListener = vi.spyOn(window, "removeEventListener");

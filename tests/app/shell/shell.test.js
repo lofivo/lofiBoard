@@ -1119,7 +1119,7 @@ describe("app shell", () => {
 
     expect(propertyControlsSource).toContain("const toolPropertyControlSnapshots = new Map()");
     expect(appSource).toContain("getSelectedIds: () => selectedIds");
-    expect(propertyDomSource).toMatch(/function saveToolPropertyControlsForCurrentTool\(\) \{[\s\S]*?if \(getSelectedIds\(\)\.length > 0\) return;[\s\S]*?propertyControlsController\.saveToolControls\(currentTool, capturePropertyControls\(\)\);/);
+    expect(propertyDomSource).toMatch(/function saveToolPropertyControlsForCurrentTool\(\) \{[\s\S]*?if \(getSelectedIds\(\)\.length > 0\) return;[\s\S]*?canPersistToolPropertyControls\(currentTool\)[\s\S]*?propertyControlsController\.saveToolControls\(currentTool, capturePropertyControls\(\)\);/);
     expect(propertyDomSource).toMatch(/function restorePropertyControlsForTool\(tool\) \{[\s\S]*?propertyControlsController\.getToolControls\(tool\)[\s\S]*?resetPropertyControlsForTool\(tool\);/);
     expect(selectionStyleActionSource).toMatch(/if \(getSelectedIds\(\)\.length === 0\) \{[\s\S]*?saveToolPropertyControlsForCurrentTool\(\);[\s\S]*?updateContextPanel\(\);[\s\S]*?return;/);
   });

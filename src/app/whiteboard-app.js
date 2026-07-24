@@ -46,7 +46,7 @@ import { createViewportActionController } from "./viewport/action-controller.js"
 import { createViewportController } from "./viewport/controller.js";
 import { createInteractionStateMachine, SM } from "../tools/interaction-state-machine.js";
 import { queryWhiteboardRefs } from "./shell/dom-refs.js";
-import { isToolPropertyPanelAvailable } from "./inspector/model.js";
+import { canPersistToolPropertyControls } from "./inspector/model.js";
 import { renderLayerItemsMarkup, getElementLabel } from "./panels/layer/markup.js";
 import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
@@ -826,7 +826,7 @@ export function createWhiteboardApp(root) {
     propertyControlsController,
     getCurrentTool: () => currentTool,
     getSelectedIds: () => selectedIds,
-    isToolPropertyPanelAvailable,
+    canPersistToolPropertyControls,
     onApplyCoordinateStyleToSelection: applyCoordinateStyleToSelection,
     onApplyStyleToSelection: applyStyleToSelection,
     onBrushCursorStyleChange: updateBrushCursorStyle,

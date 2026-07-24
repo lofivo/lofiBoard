@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canPersistToolPropertyControls,
   getPropertyPanelTitle,
   getSelectionHydrateSource,
   getSelectionInspectorCapabilities,
@@ -7,6 +8,7 @@ import {
   getShapeToolTitle,
   getToolInspectorCapabilities,
   getToolPanelMode,
+  isToolPropertyPanelAvailable,
 } from "../../../src/app/inspector/model.js";
 import { TOOLS } from "../../../src/ui/config.js";
 
@@ -54,5 +56,12 @@ describe("inspector model", () => {
     expect(getToolPanelMode(TOOLS.PEN, TOOLS.RECT)).toBe("brush");
     expect(getToolPanelMode(TOOLS.SHAPE, TOOLS.ARROW)).toBe("linear-tool");
     expect(getShapeToolTitle(TOOLS.COORDINATE_PLANE)).toBe("坐标系");
+  });
+
+  it("persists text presets without exposing the legacy tool panel", () => {
+    expect(isToolPropertyPanelAvailable(TOOLS.TEXT)).toBe(false);
+    expect(isToolPropertyPanelAvailable(TOOLS.STICKY)).toBe(false);
+    expect(canPersistToolPropertyControls(TOOLS.TEXT)).toBe(true);
+    expect(canPersistToolPropertyControls(TOOLS.STICKY)).toBe(true);
   });
 });
