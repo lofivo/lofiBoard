@@ -52,6 +52,7 @@ import {
   DEFAULT_ARRAY_ALGORITHM_PANEL_STATE,
   clearArrayAlgorithmRuntimeMarkers,
 } from "./algorithms/array/model.js";
+import { hasFontStyle, hasTextDecoration } from "./inspector/text-style-tokens.js";
 import { createAppActionController } from "./shell/action-controller.js";
 import { createAppChromeController } from "./shell/chrome-controller.js";
 import { createAppPanelController } from "./shell/panel-controller.js";
@@ -773,6 +774,7 @@ export function createWhiteboardApp(root) {
   });
   const {
     bindPropertyControlEvents,
+    capturePropertyControls,
     getBrushInputSmoothingValue,
     getBrushOpacityValue,
     getControlValues,
@@ -1670,8 +1672,45 @@ export function createWhiteboardApp(root) {
     zoomBy: (multiplier) => viewportController.zoomBy(multiplier),
   };
 
+  // React 读状态的唯一入口。此前是每 100ms 扫一遍遗留 DOM 取二十多个字段。
+  function getUiState() {
+    const controls = capturePropertyControls();
+    return {
+      tool: currentTool,
+      keepToolActive: toolController.keepToolActive,
+      zoom: stage.scaleX(),
+      backgroundMode: board.canvas.backgroundMode,
+      fileName: activeFileLabel.textContent,
+      status: status.textContent,
+      stylePanelTitle: stylePanelTitle.textContent,
+      panelMode: root.dataset.panelMode || "hidden",
+      activeShape: root.dataset.activeShape || "rect",
+      structureSelection: root.dataset.structureSelection || "none",
+      graphDirected: root.dataset.graphDirected === "true",
+      selectionCaps: {
+        text: root.dataset.selectionHasText === "true",
+        sticky: root.dataset.selectionHasSticky === "true",
+        drawing: root.dataset.selectionHasDrawing === "true",
+        stroke: root.dataset.selectionHasStroke === "true",
+        fillShape: root.dataset.selectionHasFillShape === "true",
+        arrow: root.dataset.selectionHasArrow === "true",
+        coordinate: root.dataset.selectionHasCoordinate === "true",
+      },
+      properties: {
+        ...controls,
+        textBold: hasFontStyle(controls.fontStyle, "bold"),
+        textItalic: hasFontStyle(controls.fontStyle, "italic"),
+        textUnderline: hasTextDecoration(controls.textDecoration, "underline"),
+        textStrike: hasTextDecoration(controls.textDecoration, "line-through"),
+      },
+      layers: root._getLayersData(),
+      selectedIds: [...selectedIds],
+    };
+  }
+
   return {
     getBoard: () => serializeCurrentBoard(),
+    getUiState,
     commands,
     __debug: {
       getSelectedIds: () => [...selectedIds],

@@ -9,18 +9,27 @@ const layerBridgeState = vi.hoisted(() => ({
   selectedIds: [],
 }));
 
-vi.mock("../../src/app/whiteboard-app.js", () => ({
-  createWhiteboardApp: vi.fn((root) => {
-    const stageContainer = document.createElement("div");
-    stageContainer.id = "stage-container";
-    root.append(stageContainer);
-    root._getContextMenuActionStates = () => ({});
-    root._getLayersData = () => layerBridgeState.layers.map((layer) => ({ ...layer }));
-    root._getSelectedIds = () => [...layerBridgeState.selectedIds];
-    root._commitActiveTextEditor = vi.fn();
-    return { destroy: vi.fn() };
-  }),
-}));
+vi.mock("../../src/app/whiteboard-app.js", async () => {
+  const { createFakeUiState } = await import("./fake-ui-state.js");
+  return {
+    createWhiteboardApp: vi.fn((root) => {
+      const stageContainer = document.createElement("div");
+      stageContainer.id = "stage-container";
+      root.append(stageContainer);
+      root._getContextMenuActionStates = () => ({});
+      root._getLayersData = () => layerBridgeState.layers.map((layer) => ({ ...layer }));
+      root._getSelectedIds = () => [...layerBridgeState.selectedIds];
+      root._commitActiveTextEditor = vi.fn();
+      return {
+        destroy: vi.fn(),
+        getUiState: () => createFakeUiState({
+          layers: layerBridgeState.layers.map((layer) => ({ ...layer })),
+          selectedIds: [...layerBridgeState.selectedIds],
+        }),
+      };
+    }),
+  };
+});
 
 vi.mock("../../src/app/components/Topbar", () => ({ default: () => null }));
 vi.mock("../../src/app/components/ToolDock", () => ({ default: () => null }));

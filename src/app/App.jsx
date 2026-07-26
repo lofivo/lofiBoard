@@ -144,175 +144,101 @@ export default function App() {
     // 这些容器是 shell 模板一次性生成的,不会重建,所以不需要 MutationObserver 反复补隐藏。
     legacyRoot.classList.add('legacy-chrome-hidden');
 
-    // Sync state from whiteboard to React
+    // Sync state from whiteboard to React：一次 getUiState() 取全量,逐字段 diff 后再 setState。
     const syncState = () => {
-      try {
-        const readControl = (name) => legacyRoot.querySelector(`[data-control="${name}"]`);
-        const syncStringState = (setter, value) => {
-          if (value === undefined || value === null) return;
-          setter((prev) => (prev !== value ? value : prev));
-        };
-        const syncNumberState = (setter, value) => {
-          const next = Number(value);
-          if (!Number.isFinite(next)) return;
-          setter((prev) => (prev !== next ? next : prev));
-        };
-        const syncBooleanState = (setter, value) => {
-          setter((prev) => (prev !== value ? value : prev));
-        };
-        const isTextStyleActive = (style) => {
-          const button = legacyRoot.querySelector(`[data-text-style="${style}"]`);
-          return Boolean(button?.classList?.contains("active") || button?.getAttribute?.("aria-pressed") === "true");
-        };
+      const state = legacyApp?.getUiState?.();
+      if (!state) return;
 
-        const zoomEl = legacyRoot.querySelector('[data-zoom]');
-        if (zoomEl) {
-          const text = zoomEl.textContent || '100%';
-          const zoom = parseFloat(text) / 100 || 1;
-          setCurrentZoom((prev) => (Math.abs(prev - zoom) > 0.001 ? zoom : prev));
+      const syncValue = (setter, value) => {
+        if (value === undefined || value === null) return;
+        setter((prev) => (prev !== value ? value : prev));
+      };
+
+      syncValue(setCurrentTool, state.tool);
+      syncValue(setKeepToolActive, state.keepToolActive);
+      setCurrentZoom((prev) => (Math.abs(prev - state.zoom) > 0.001 ? state.zoom : prev));
+      syncValue(setBackgroundModeState, state.backgroundMode);
+      syncValue(setFileName, state.fileName);
+      syncValue(setStylePanelTitle, state.stylePanelTitle);
+      syncValue(setPanelMode, state.panelMode);
+      syncValue(setActiveShape, state.activeShape);
+      syncValue(setStructureSelection, state.structureSelection);
+      syncValue(setGraphDirected, state.graphDirected);
+
+      setSelectionCaps((prev) => {
+        for (const key of Object.keys(state.selectionCaps)) {
+          if (prev[key] !== state.selectionCaps[key]) return state.selectionCaps;
         }
-        const fileLabel = legacyRoot.querySelector('[data-file-name]');
-        if (fileLabel) {
-          const name = fileLabel.textContent || '未命名白板';
-          setFileName((prev) => (prev !== name ? name : prev));
+        for (const key of Object.keys(prev)) {
+          if (state.selectionCaps[key] === undefined) return state.selectionCaps;
         }
-        const styleTitle = legacyRoot.querySelector('[data-style-panel-title]');
-        if (styleTitle) {
-          const title = styleTitle.textContent || '属性';
-          setStylePanelTitle((prev) => (prev !== title ? title : prev));
+        return prev;
+      });
+
+      const p = state.properties;
+      syncValue(setBrushColor, p.color);
+      syncValue(setTextColor, p.color);
+      syncValue(setStickyTextColor, p.color);
+      syncValue(setBrushWidth, Number(p.width));
+      syncValue(setBrushOpacity, Number(p.brushOpacity));
+      syncValue(setBrushCap, p.brushCap);
+      syncValue(setBrushStyle, p.brushStyle);
+      syncValue(setArrowDoubleEnded, p.arrowDoubleEnded);
+      syncValue(setFillColor, p.fill);
+      syncValue(setStickyBgColor, p.fill);
+      syncValue(setFillTransparent, p.fillTransparent);
+      syncValue(setFontFamily, p.fontFamily);
+      syncValue(setStickyFontFamily, p.fontFamily);
+      syncValue(setFontSize, Number(p.fontSize));
+      syncValue(setStickyFontSize, Number(p.fontSize));
+      syncValue(setCoordinateUnitSize, Number(p.coordinateUnitSize));
+      syncValue(setCoordinateShowGrid, p.coordinateShowGrid);
+      syncValue(setCoordinateShowTicks, p.coordinateShowTicks);
+      syncValue(setCoordinateShowLabels, p.coordinateShowLabels);
+      syncValue(setCoordinateGridColor, p.coordinateGridColor);
+      syncValue(setCoordinateAxisColor, p.coordinateAxisColor);
+      syncValue(setCoordinateLabelColor, p.coordinateLabelColor);
+      syncValue(setTextBold, p.textBold);
+      syncValue(setTextItalic, p.textItalic);
+      syncValue(setTextUnderline, p.textUnderline);
+      syncValue(setTextStrike, p.textStrike);
+
+      setLayers((prev) => {
+        if (prev.length !== state.layers.length) return state.layers;
+        for (let i = 0; i < state.layers.length; i++) {
+          const prevLayer = prev[i];
+          const nextLayer = state.layers[i];
+          if (
+            prevLayer?.id !== nextLayer.id
+            || prevLayer?.name !== nextLayer.name
+            || prevLayer?.level !== nextLayer.level
+            || prevLayer?.type !== nextLayer.type
+            || Boolean(prevLayer?.locked) !== Boolean(nextLayer.locked)
+            || (prevLayer?.groupId ?? null) !== (nextLayer.groupId ?? null)
+          ) return state.layers;
         }
-        // Panel mode is set on root.dataset.panelMode by the whiteboard inspector controller
-        const mode = legacyRoot.dataset.panelMode || 'hidden';
-        setPanelMode((prev) => (prev !== mode ? mode : prev));
-        const shape = legacyRoot.dataset.activeShape || 'rect';
-        setActiveShape((prev) => (prev !== shape ? shape : prev));
-        const caps = {
-          text: legacyRoot.dataset.selectionHasText === 'true',
-          sticky: legacyRoot.dataset.selectionHasSticky === 'true',
-          drawing: legacyRoot.dataset.selectionHasDrawing === 'true',
-          stroke: legacyRoot.dataset.selectionHasStroke === 'true',
-          fillShape: legacyRoot.dataset.selectionHasFillShape === 'true',
-          arrow: legacyRoot.dataset.selectionHasArrow === 'true',
-          coordinate: legacyRoot.dataset.selectionHasCoordinate === 'true',
-        };
-        setSelectionCaps((prev) => {
-          const keys = Object.keys(caps);
-          for (const k of keys) { if (prev[k] !== caps[k]) return caps; }
-          for (const k of Object.keys(prev)) { if (caps[k] === undefined) return caps; }
-          return prev;
-        });
-        const colorInput = readControl("color");
-        if (colorInput) {
-          const nextColor = colorInput.value || '#111827';
-          syncStringState(setBrushColor, nextColor);
-          syncStringState(setTextColor, nextColor);
-          syncStringState(setStickyTextColor, nextColor);
+        return prev;
+      });
+
+      setSelectedLayerIds((prev) => {
+        if (prev.length !== state.selectedIds.length) return state.selectedIds;
+        for (let i = 0; i < state.selectedIds.length; i++) {
+          if (prev[i] !== state.selectedIds[i]) return state.selectedIds;
         }
-        const widthInput = readControl("width");
-        if (widthInput) syncNumberState(setBrushWidth, widthInput.value);
-        const brushOpacityInput = readControl("brush-opacity");
-        if (brushOpacityInput) syncNumberState(setBrushOpacity, brushOpacityInput.value);
-        const brushCapInput = readControl("brush-cap");
-        if (brushCapInput) syncStringState(setBrushCap, brushCapInput.value || 'round');
-        const brushStyleInput = readControl("brush-style");
-        if (brushStyleInput) syncStringState(setBrushStyle, brushStyleInput.value || 'solid');
-        const arrowDoubleEndedInput = readControl("arrow-double-ended");
-        if (arrowDoubleEndedInput) syncBooleanState(setArrowDoubleEnded, Boolean(arrowDoubleEndedInput.checked));
-        const fillInput = readControl("fill");
-        if (fillInput) {
-          const nextFillColor = fillInput.value || '#ffffff';
-          syncStringState(setFillColor, nextFillColor);
-          syncStringState(setStickyBgColor, nextFillColor);
+        return prev;
+      });
+
+      if (state.status !== lastStatusRef.current) {
+        lastStatusRef.current = state.status;
+        setStatusMessage(state.status);
+        clearTimeout(statusClearTimerRef.current);
+        if (state.status !== '' && state.status !== '就绪') {
+          statusClearTimerRef.current = setTimeout(() => {
+            lastStatusRef.current = state.status;
+            setStatusMessage('');
+          }, 3000);
         }
-        const fillTransparentInput = readControl("fill-transparent");
-        if (fillTransparentInput) syncBooleanState(setFillTransparent, Boolean(fillTransparentInput.checked));
-        const fontFamilyInput = readControl("font-family");
-        if (fontFamilyInput) {
-          const nextFontFamily = fontFamilyInput.value || 'Inter, system-ui, sans-serif';
-          syncStringState(setFontFamily, nextFontFamily);
-          syncStringState(setStickyFontFamily, nextFontFamily);
-        }
-        const fontSizeInput = readControl("font-size");
-        if (fontSizeInput) {
-          syncNumberState(setFontSize, fontSizeInput.value);
-          syncNumberState(setStickyFontSize, fontSizeInput.value);
-        }
-        const coordinateUnitSizeInput = readControl("coordinate-unit-size");
-        if (coordinateUnitSizeInput) syncNumberState(setCoordinateUnitSize, coordinateUnitSizeInput.value);
-        const coordinateShowGridInput = readControl("coordinate-show-grid");
-        if (coordinateShowGridInput) syncBooleanState(setCoordinateShowGrid, Boolean(coordinateShowGridInput.checked));
-        const coordinateShowTicksInput = readControl("coordinate-show-ticks");
-        if (coordinateShowTicksInput) syncBooleanState(setCoordinateShowTicks, Boolean(coordinateShowTicksInput.checked));
-        const coordinateShowLabelsInput = readControl("coordinate-show-labels");
-        if (coordinateShowLabelsInput) syncBooleanState(setCoordinateShowLabels, Boolean(coordinateShowLabelsInput.checked));
-        const coordinateGridColorInput = readControl("coordinate-grid-color");
-        if (coordinateGridColorInput) syncStringState(setCoordinateGridColor, coordinateGridColorInput.value || '#e5e7eb');
-        const coordinateAxisColorInput = readControl("coordinate-axis-color");
-        if (coordinateAxisColorInput) syncStringState(setCoordinateAxisColor, coordinateAxisColorInput.value || '#111827');
-        const coordinateLabelColorInput = readControl("coordinate-label-color");
-        if (coordinateLabelColorInput) syncStringState(setCoordinateLabelColor, coordinateLabelColorInput.value || '#64748b');
-        syncBooleanState(setTextBold, isTextStyleActive("bold"));
-        syncBooleanState(setTextItalic, isTextStyleActive("italic"));
-        syncBooleanState(setTextUnderline, isTextStyleActive("underline"));
-        syncBooleanState(setTextStrike, isTextStyleActive("strike"));
-        const structure = legacyRoot.dataset.structureSelection || 'none';
-        setStructureSelection((prev) => (prev !== structure ? structure : prev));
-        const directed = legacyRoot.dataset.graphDirected === 'true';
-        setGraphDirected((prev) => (prev !== directed ? directed : prev));
-        const nextKeepToolActive = legacyRoot.dataset.keepToolActive === 'true';
-        setKeepToolActive((prev) => (prev !== nextKeepToolActive ? nextKeepToolActive : prev));
-        const container = legacyRoot.querySelector('#stage-container');
-        if (container) {
-          const bg = container.dataset.background || 'plain';
-          setBackgroundModeState((prev) => (prev !== bg ? bg : prev));
-          const tool = container.dataset.tool;
-          if (tool) setCurrentTool((prev) => (prev !== tool ? tool : prev));
-        }
-        const layersData = legacyRoot._getLayersData?.();
-        if (layersData) {
-          setLayers((prev) => {
-            if (prev.length !== layersData.length) return layersData;
-            for (let i = 0; i < layersData.length; i++) {
-              const prevLayer = prev[i];
-              const nextLayer = layersData[i];
-              if (
-                prevLayer?.id !== nextLayer.id
-                || prevLayer?.name !== nextLayer.name
-                || prevLayer?.level !== nextLayer.level
-                || prevLayer?.type !== nextLayer.type
-                || Boolean(prevLayer?.locked) !== Boolean(nextLayer.locked)
-                || (prevLayer?.groupId ?? null) !== (nextLayer.groupId ?? null)
-              ) return layersData;
-            }
-            return prev;
-          });
-        }
-        const selectedIds = legacyRoot._getSelectedIds?.();
-        if (selectedIds) {
-          setSelectedLayerIds((prev) => {
-            if (prev.length !== selectedIds.length) return selectedIds;
-            for (let i = 0; i < selectedIds.length; i++) {
-              if (prev[i] !== selectedIds[i]) return selectedIds;
-            }
-            return prev;
-          });
-        }
-        const statusEl = legacyRoot.querySelector('[data-status]');
-        if (statusEl) {
-          const msg = statusEl.textContent || '';
-          if (msg !== lastStatusRef.current) {
-            lastStatusRef.current = msg;
-            setStatusMessage(msg);
-            clearTimeout(statusClearTimerRef.current);
-            if (msg !== '' && msg !== '就绪') {
-              statusClearTimerRef.current = setTimeout(() => {
-                lastStatusRef.current = msg;
-                setStatusMessage('');
-              }, 3000);
-            }
-          }
-        }
-      } catch (_) {}
+      }
     };
     const interval = setInterval(syncState, 100);
 

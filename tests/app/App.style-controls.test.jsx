@@ -5,9 +5,11 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const appDestroyMock = vi.hoisted(() => vi.fn());
+const uiStateHelper = vi.hoisted(() => ({ createFakeUiState: null }));
 const toggleTextStyleMock = vi.hoisted(() => vi.fn());
 const propertyWrites = vi.hoisted(() => []);
 const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
+  // 保留这批 fake input：测试用它们模拟“引擎属性变化”，getUiState 从中组装。
   const colorInput = document.createElement("input");
   colorInput.dataset.control = "color";
   colorInput.type = "color";
@@ -109,6 +111,23 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   propertyWrites.length = 0;
   return {
     destroy: appDestroyMock,
+    getUiState: () => uiStateHelper.createFakeUiState({
+      graphDirected: root.dataset.graphDirected === "true",
+      properties: {
+        ...uiStateHelper.createFakeUiState().properties,
+        color: colorInput.value,
+        width: widthInput.value,
+        fill: fillInput.value,
+        fillTransparent: fillTransparentInput.checked,
+        fontFamily: fontFamilyInput.value,
+        fontSize: fontSizeInput.value,
+        coordinateUnitSize: coordinateUnitSizeInput.value,
+        coordinateShowGrid: coordinateShowGridInput.checked,
+        coordinateGridColor: coordinateGridColorInput.value,
+        coordinateAxisColor: coordinateAxisColorInput.value,
+        coordinateLabelColor: coordinateLabelColorInput.value,
+      },
+    }),
     commands: {
       setProperty: vi.fn((name, value, { checked, silent = false } = {}) => {
         const input = masters[name];
@@ -122,9 +141,10 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   };
 }));
 
-vi.mock("../../src/app/whiteboard-app.js", () => ({
-  createWhiteboardApp: createWhiteboardAppMock,
-}));
+vi.mock("../../src/app/whiteboard-app.js", async () => {
+  uiStateHelper.createFakeUiState = (await import("./fake-ui-state.js")).createFakeUiState;
+  return { createWhiteboardApp: createWhiteboardAppMock };
+});
 
 vi.mock("../../src/app/components/Topbar", () => ({ default: () => null }));
 vi.mock("../../src/app/components/ToolDock", () => ({ default: () => null }));

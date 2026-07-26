@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const bridgeState = vi.hoisted(() => ({ legacyRoot: null }));
 
-vi.mock("../../src/app/whiteboard-app.js", () => ({
-  createWhiteboardApp: vi.fn((root) => {
+vi.mock("../../src/app/whiteboard-app.js", async () => {
+  const { createFakeUiState } = await import("./fake-ui-state.js");
+  return { createWhiteboardApp: vi.fn((root) => {
     bridgeState.legacyRoot = root;
     const stageContainer = document.createElement("div");
     stageContainer.id = "stage-container";
@@ -18,6 +19,9 @@ vi.mock("../../src/app/whiteboard-app.js", () => ({
     root._getSelectedIds = () => [];
     return {
       destroy: vi.fn(),
+      getUiState: () => createFakeUiState({
+        keepToolActive: root.dataset.keepToolActive === "true",
+      }),
       commands: {
         runToolAction: vi.fn((action) => {
           if (action !== "toggle-tool-lock") return;
@@ -25,8 +29,8 @@ vi.mock("../../src/app/whiteboard-app.js", () => ({
         }),
       },
     };
-  }),
-}));
+  }) };
+});
 
 vi.mock("../../src/app/components/Topbar", () => ({ default: () => null }));
 vi.mock("../../src/app/components/StatusBar", () => ({ default: () => null }));

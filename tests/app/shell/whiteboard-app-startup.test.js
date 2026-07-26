@@ -742,6 +742,63 @@ describe("whiteboard app startup", () => {
       app.destroy();
     }, 15_000);
 
+    // React 不该每 100ms 扫一遍遗留 DOM 取状态,一次调用拿全量。
+    it("getUiState 一次给出 React 需要的全部状态", async () => {
+      seedDraft([
+        { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
+      ]);
+      const { app, root } = await mountApp();
+
+      const state = app.getUiState();
+      expect(Object.keys(state).sort()).toEqual([
+        "activeShape",
+        "backgroundMode",
+        "fileName",
+        "graphDirected",
+        "keepToolActive",
+        "layers",
+        "panelMode",
+        "properties",
+        "selectedIds",
+        "selectionCaps",
+        "status",
+        "structureSelection",
+        "stylePanelTitle",
+        "tool",
+        "zoom",
+      ]);
+
+      // 每个字段都对照它替代的那次 DOM 读取
+      expect(state.tool).toBe(root.querySelector("#stage-container").dataset.tool);
+      expect(state.zoom).toBeCloseTo(parseFloat(root.querySelector("[data-zoom]").textContent) / 100);
+      expect(state.fileName).toBe(root.querySelector("[data-file-name]").textContent);
+      expect(state.stylePanelTitle).toBe(root.querySelector("[data-style-panel-title]").textContent);
+      expect(state.panelMode).toBe(root.dataset.panelMode);
+      expect(state.keepToolActive).toBe(root.dataset.keepToolActive === "true");
+      expect(state.layers).toEqual(root._getLayersData());
+      expect(state.selectedIds).toEqual(root._getSelectedIds());
+      expect(state.properties.color).toBe(root.querySelector('[data-control="color"]').value);
+
+      app.destroy();
+    }, 15_000);
+
+    it("getUiState 的属性随命令写入更新,文字样式展开成布尔", async () => {
+      const { app } = await mountApp();
+
+      app.commands.setProperty("color", "#ef4444");
+      app.commands.setProperty("fill-transparent", null, { checked: false });
+      expect(app.getUiState().properties).toMatchObject({
+        color: "#ef4444",
+        fillTransparent: false,
+        textBold: false,
+      });
+
+      app.commands.toggleTextStyle("bold");
+      expect(app.getUiState().properties.textBold).toBe(true);
+
+      app.destroy();
+    }, 15_000);
+
     it("toggleTextStyle 与点击文字样式按钮等效", async () => {
       const { app, root } = await mountApp();
       const boldButton = root.querySelector('[data-text-style="bold"]');
