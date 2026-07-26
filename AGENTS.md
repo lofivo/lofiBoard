@@ -41,6 +41,10 @@
 36. 浮层 chrome（Topbar/ToolDock/StylePanel/LayerPanel/StatusBar/ContextMenu）的边框、底色、模糊、阴影、圆角一律从 `src/ui/tokens.js` 取（`GLASS`/`GLASS_EDGE`/`RADIUS`/`TEXT`/`ACCENT`），不要在组件里再写 `rgba(255,255,255,0.94)`、`0 18px 50px ...`、`borderRadius: 7` 这类字面量。半透明底色由 `styles.css` 的 `--board-surface` / `--board-stroke` 提供，两处必须同步。强调色只有一个（Semi primary），不要引入第二套 indigo。回归测试见 `tests/app/components/chrome-tokens.test.jsx`。
 37. jsdom 的 cssstyle 解析不了带 `var()` 的 border 简写：`border: '1px solid var(--x)'` 一旦叠加 `borderRight: 0` 就整条丢失，`borderLeft: '1px solid var(--x)'` 读 `borderLeftWidth` 会拿到空串。需要被测试断言的边框请写长写（`borderLeftWidth/Style/Color`），真实浏览器两种写法都正常。
 38. 编辑框持久保存的是用户手动设置的宽高；输入导致的实时自动撑高只属于当前编辑会话，不能覆盖持久编辑框尺寸。提交文字与编辑框调整应合并为一条历史，Escape 必须同时恢复两者。
+39. React 与引擎之间只走两个门面：写用 `app.commands.*`（`setTool`/`setProperty`/`runAction`/`runContextAction`/`toggleTextStyle`…），读用 `app.getUiState()`。不要在 React 里 `querySelector` 遗留 DOM 再 `.click()` 或 `dispatchEvent(new Event('input'))`，也不要轮询扫 `[data-control]`/`dataset`。新增属性时在 `property-controls/dom-controller.js` 的 `MASTER_CONTROLS` 表里加一行（名字、store key、副作用），`getUiState().properties` 会自动带上。
+40. 属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store，不是 DOM。历史上它们存在隐藏的 `[data-control]` input 上，那批 input 和整个遗留属性面板已经删除。不要再引入"用 DOM 节点存状态"的写法（`input.value`、按钮的 `class="active"`/`aria-pressed` 当布尔量）。
+41. 删除引擎读取的 DOM 前，必须 `grep` 出**所有**引用，不能只看解构行。引擎里有一批 getter（`getBrushCap`/`getFillColor`/`getStrokeWidth` 等）直接读 input，删掉 input 后模型层单测照样全绿——因为 jsdom 测试里 Konva 是 fake，`startStroke`/`draft` 这些绘制路径根本不执行，只有真画一笔才会报 `ReferenceError`（AGENTS #16/#31 的同一类问题）。这类改动要补一条真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的测试，并**验证它在把代码改回旧写法时会红**，否则可能是假绿。
+42. 用 Playwright 验证 React 侧行为时，先确认点到的是 React 控件而不是同名的遗留 DOM 按钮——遗留按钮当时被 `display:none` 隐藏但仍可 `.click()`，会让"React → 引擎"的验证变成"遗留 DOM → 引擎"。React 的颜色预设是 `.color-preset-btn`（无 `aria-label`），笔帽用 `title`，线型按钮没有可访问名称；按 `aria-label` 找中文标签的多半是遗留节点。
 
 ## Agent skills
 
