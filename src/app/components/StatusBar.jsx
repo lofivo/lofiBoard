@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Dropdown } from '@douyinfe/semi-ui';
 import { IconMinus, IconPlus } from '@douyinfe/semi-icons';
 import { useWhiteboardContext } from '../WhiteboardContext';
+import { GLASS, RADIUS, TEXT } from '../../ui/tokens.js';
 
 const ZOOM_LEVELS = [
   { value: 4, label: '400%' },
@@ -20,14 +21,18 @@ export default function StatusBar() {
       position: 'fixed', bottom: 12, left: 0, right: 0, zIndex: 27,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '2px 16px', height: 36,
-      fontSize: 12, color: 'var(--semi-color-text-2)',
+      fontSize: 12, color: TEXT.secondary,
       pointerEvents: 'none',
     }}>
       <span>{ctx.statusMessage}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, pointerEvents: 'auto' }}>
+      {/* 缩放是可点控件，给它和工具栏同一层毛玻璃底座，别裸在画布上 */}
+      <div style={{
+        ...GLASS, borderRadius: RADIUS.md, padding: 2,
+        display: 'flex', alignItems: 'center', gap: 0, pointerEvents: 'auto',
+      }}>
         <Button theme="borderless" type="tertiary" size="small" icon={<IconMinus />}
           onClick={() => ctx.zoomBy?.(-1)} aria-label="缩小"
-          style={{ width: 30, height: 30, minWidth: 30, borderRadius: 4 }} />
+          style={{ width: 30, height: 30, minWidth: 30, borderRadius: RADIUS.sm }} />
         <Dropdown
           trigger="click" position="top" visible={zoomMenuVisible} onVisibleChange={setZoomMenuVisible}
           render={
@@ -42,13 +47,13 @@ export default function StatusBar() {
           }>
           <Button theme="borderless" type="tertiary" size="small"
             aria-haspopup="true" aria-expanded={zoomMenuVisible}
-            style={{ minWidth: 58, height: 30, fontSize: 12, borderRadius: 4 }}>
+            style={{ minWidth: 58, height: 30, fontSize: 12, borderRadius: RADIUS.sm }}>
             {ctx.zoomPercent || 100}%
           </Button>
         </Dropdown>
         <Button theme="borderless" type="tertiary" size="small" icon={<IconPlus />}
           onClick={() => ctx.zoomBy?.(1)} aria-label="放大"
-          style={{ width: 30, height: 30, minWidth: 30, borderRadius: 4 }} />
+          style={{ width: 30, height: 30, minWidth: 30, borderRadius: RADIUS.sm }} />
       </div>
     </footer>
   );
