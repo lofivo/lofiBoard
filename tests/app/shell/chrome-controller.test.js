@@ -42,7 +42,6 @@ function createController(overrides = {}) {
   const callbacks = {
     renderLayerPanel: vi.fn(),
     syncArrayAlgorithmPanelState: vi.fn(),
-    syncBrushPresetButtons: vi.fn(),
     syncGraphStructurePanelState: vi.fn(),
     syncInspectorPanelState: vi.fn(),
     syncLinearPanelState: vi.fn(),
@@ -136,7 +135,6 @@ describe("app shell chrome-controller", () => {
     expect(callbacks.syncGraphStructurePanelState).toHaveBeenCalled();
     expect(callbacks.syncTreeStructurePanelState).toHaveBeenCalled();
     expect(callbacks.syncInspectorPanelState).toHaveBeenCalled();
-    expect(callbacks.syncBrushPresetButtons).toHaveBeenCalled();
     expect(callbacks.updateLayerPanelAvailability).toHaveBeenCalled();
     expect(callbacks.renderLayerPanel).toHaveBeenCalled();
     expect(callbacks.updateContextPanel).toHaveBeenCalled();

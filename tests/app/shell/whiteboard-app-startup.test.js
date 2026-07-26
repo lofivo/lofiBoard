@@ -242,10 +242,13 @@ class FakeKonvaNode {
   }
 }
 
+let lastStage = null;
+
 class FakeStage extends FakeKonvaNode {
   constructor({ container, width, height } = {}) {
     super({ width, height, x: 0, y: 0, scaleX: 1, scaleY: 1 });
     this.containerElement = container;
+    lastStage = this;
   }
 
   container() {
@@ -295,6 +298,7 @@ class FakeText extends FakeKonvaNode {}
 class FakeGroup extends FakeKonvaNode {}
 class FakeImage extends FakeKonvaNode {}
 class FakePath extends FakeKonvaNode {}
+class FakeShape extends FakeKonvaNode {}
 
 vi.mock("konva", () => ({
   default: {
@@ -307,6 +311,7 @@ vi.mock("konva", () => ({
     Line: FakeLine,
     Path: FakePath,
     Rect: FakeRect,
+    Shape: FakeShape,
     Stage: FakeStage,
     Text: FakeText,
     Transformer: FakeTransformer,
@@ -338,7 +343,7 @@ describe("whiteboard app startup", () => {
     root.id = "app";
     document.body.append(root);
     const app = createWhiteboardApp(root);
-    return { app, root };
+    return { app, root, stage: lastStage };
   }
 
   it("initializes the board session without boot-time reference errors", async () => {
@@ -483,50 +488,40 @@ describe("whiteboard app startup", () => {
   }, 15_000);
 
   it("keeps text and sticky tool presets after switching tools", async () => {
-    const { app, root } = await mountApp();
-    const textTool = root.querySelector(`[data-tool="text"]`);
-    const stickyTool = root.querySelector(`[data-tool="sticky"]`);
-    const penTool = root.querySelector(`[data-tool="pen"]`);
-    const colorInput = root.querySelector(`[data-control="color"]`);
-    const fillInput = root.querySelector(`[data-control="fill"]`);
-    const fontFamilyInput = root.querySelector(`[data-control="font-family"]`);
-    const fontSizeInput = root.querySelector(`[data-control="font-size"]`);
-    const boldButton = root.querySelector(`[data-text-style="bold"]`);
+    const { app } = await mountApp();
+    const properties = () => app.getUiState().properties;
 
-    textTool.click();
-    colorInput.value = "#2563eb";
-    colorInput.dispatchEvent(new Event("input", { bubbles: true }));
-    fontFamilyInput.value = "Georgia, serif";
-    fontFamilyInput.dispatchEvent(new Event("change", { bubbles: true }));
-    fontSizeInput.value = "42";
-    fontSizeInput.dispatchEvent(new Event("input", { bubbles: true }));
-    boldButton.click();
+    app.commands.setTool("text");
+    app.commands.setProperty("color", "#2563eb");
+    app.commands.setProperty("font-family", "Georgia, serif");
+    app.commands.setProperty("font-size", "42");
+    app.commands.toggleTextStyle("bold");
 
-    penTool.click();
-    textTool.click();
+    app.commands.setTool("pen");
+    app.commands.setTool("text");
 
-    expect(colorInput.value).toBe("#2563eb");
-    expect(fontFamilyInput.value).toBe("Georgia, serif");
-    expect(fontSizeInput.value).toBe("42");
-    expect(boldButton.classList.contains("active")).toBe(true);
+    expect(properties()).toMatchObject({
+      color: "#2563eb",
+      fontFamily: "Georgia, serif",
+      fontSize: "42",
+      textBold: true,
+    });
 
-    stickyTool.click();
-    fillInput.value = "#bbf7d0";
-    fillInput.dispatchEvent(new Event("input", { bubbles: true }));
-    colorInput.value = "#7c3aed";
-    colorInput.dispatchEvent(new Event("input", { bubbles: true }));
-    fontFamilyInput.value = "Arial, sans-serif";
-    fontFamilyInput.dispatchEvent(new Event("change", { bubbles: true }));
-    fontSizeInput.value = "30";
-    fontSizeInput.dispatchEvent(new Event("input", { bubbles: true }));
+    app.commands.setTool("sticky");
+    app.commands.setProperty("fill", "#bbf7d0");
+    app.commands.setProperty("color", "#7c3aed");
+    app.commands.setProperty("font-family", "Arial, sans-serif");
+    app.commands.setProperty("font-size", "30");
 
-    penTool.click();
-    stickyTool.click();
+    app.commands.setTool("pen");
+    app.commands.setTool("sticky");
 
-    expect(fillInput.value).toBe("#bbf7d0");
-    expect(colorInput.value).toBe("#7c3aed");
-    expect(fontFamilyInput.value).toBe("Arial, sans-serif");
-    expect(fontSizeInput.value).toBe("30");
+    expect(properties()).toMatchObject({
+      fill: "#bbf7d0",
+      color: "#7c3aed",
+      fontFamily: "Arial, sans-serif",
+      fontSize: "30",
+    });
 
     app.destroy();
   }, 15_000);
@@ -701,48 +696,72 @@ describe("whiteboard app startup", () => {
       app.destroy();
     }, 15_000);
 
-    it("setProperty 与直接写主控件再派发事件等效", async () => {
+    it("setProperty 把样式落到选中元素上", async () => {
       seedDraft([
         { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0, stroke: "#111827", strokeWidth: 6 },
       ]);
       const { app, root } = await mountApp();
-      const colorInput = root.querySelector('[data-control="color"]');
-      const widthInput = root.querySelector('[data-control="width"]');
-
-      // 旧路径:写 value 再合成事件
-      root._selectLayerItemById("rect_a", "none");
-      colorInput.value = "#ef4444";
-      colorInput.dispatchEvent(new Event("input", { bubbles: true }));
       const findRect = () => app.getBoard().elements.find((element) => element.id === "rect_a");
-      expect(findRect().stroke).toBe("#ef4444");
 
-      // 新路径:同样落到元素上
+      root._selectLayerItemById("rect_a", "none");
+
       app.commands.setProperty("color", "#2563eb");
-      expect(colorInput.value).toBe("#2563eb");
+      expect(app.getUiState().properties.color).toBe("#2563eb");
       expect(findRect().stroke).toBe("#2563eb");
 
       app.commands.setProperty("width", 14);
-      expect(widthInput.value).toBe("14");
+      expect(app.getUiState().properties.width).toBe("14");
       expect(findRect().strokeWidth).toBe(14);
 
       app.destroy();
     }, 15_000);
 
-    it("setProperty 写 checkbox 控件并同步可见镜像控件", async () => {
-      const { app, root } = await mountApp();
-      const fillTransparentInput = root.querySelector('[data-control="fill-transparent"]');
+    it("setProperty 写 checkbox 控件时按 checked 取值", async () => {
+      const { app } = await mountApp();
 
       app.commands.setProperty("fill-transparent", null, { checked: false });
+      expect(app.getUiState().properties.fillTransparent).toBe(false);
 
-      expect(fillTransparentInput.checked).toBe(false);
-      root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
-        expect(input.checked).toBe(false);
-      });
+      app.commands.setProperty("fill-transparent", null, { checked: true });
+      expect(app.getUiState().properties.fillTransparent).toBe(true);
 
       app.destroy();
     }, 15_000);
 
     // React 不该每 100ms 扫一遍遗留 DOM 取状态,一次调用拿全量。
+    // 画笔真正下笔时走的是 getBrushCap/getFillColor 这类 getter,它们曾经直接读隐藏
+    // input。input 删掉后模型层单测照样全绿(Konva 是 fake,不走 startStroke),
+    // 只有真画一笔才会暴露。见 AGENTS #31。
+    it("新笔迹用的是命令写入的样式,不依赖任何隐藏 input", async () => {
+      const { app, stage } = await mountApp();
+
+      app.commands.setTool("pen");
+      app.commands.setProperty("color", "#ef4444");
+      app.commands.setProperty("width", "9");
+      app.commands.setProperty("brush-cap", "square");
+      app.commands.setProperty("brush-style", "dash");
+
+      stage.attrs.pointerPosition = { x: 40, y: 40 };
+      stage.getPointerPosition = () => stage.attrs.pointerPosition;
+      stage.eventHandlers.pointerdown({ target: stage, evt: { pointerId: 1, button: 0 } });
+      for (let i = 1; i <= 5; i++) {
+        stage.attrs.pointerPosition = { x: 40 + i * 10, y: 60 };
+        stage.eventHandlers.pointermove({ target: stage, evt: { pointerId: 1 } });
+      }
+      stage.eventHandlers["pointerup pointercancel"]({ target: stage, evt: { pointerId: 1 } });
+
+      const stroke = app.getBoard().elements.find((element) => element.type === "stroke");
+      expect(stroke).toBeDefined();
+      expect(stroke).toMatchObject({
+        stroke: "#ef4444",
+        strokeWidth: 9,
+        lineCap: "square",
+        brushStyle: "dash",
+      });
+
+      app.destroy();
+    }, 15_000);
+
     it("getUiState 一次给出 React 需要的全部状态", async () => {
       seedDraft([
         { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
@@ -777,7 +796,7 @@ describe("whiteboard app startup", () => {
       expect(state.keepToolActive).toBe(root.dataset.keepToolActive === "true");
       expect(state.layers).toEqual(root._getLayersData());
       expect(state.selectedIds).toEqual(root._getSelectedIds());
-      expect(state.properties.color).toBe(root.querySelector('[data-control="color"]').value);
+      expect(state.properties.color).toBe("#111827");
 
       app.destroy();
     }, 15_000);
@@ -799,15 +818,17 @@ describe("whiteboard app startup", () => {
       app.destroy();
     }, 15_000);
 
-    it("toggleTextStyle 与点击文字样式按钮等效", async () => {
-      const { app, root } = await mountApp();
-      const boldButton = root.querySelector('[data-text-style="bold"]');
+    it("toggleTextStyle 在无选中时翻转当前工具的默认文字样式", async () => {
+      const { app } = await mountApp();
 
-      boldButton.click();
-      expect(boldButton.getAttribute("aria-pressed")).toBe("true");
+      app.commands.setTool("text");
+      expect(app.getUiState().properties.textBold).toBe(false);
 
       app.commands.toggleTextStyle("bold");
-      expect(boldButton.getAttribute("aria-pressed")).toBe("false");
+      expect(app.getUiState().properties.textBold).toBe(true);
+
+      app.commands.toggleTextStyle("bold");
+      expect(app.getUiState().properties.textBold).toBe(false);
 
       app.destroy();
     }, 15_000);

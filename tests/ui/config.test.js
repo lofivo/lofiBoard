@@ -73,20 +73,6 @@ describe("ui config", () => {
     expect(getStructureItem("binary-tree").defaultInput).toBe("1->2, 1->3, 2->4, 2->5, 3->6, 3->7");
   });
 
-  it("renders brush-specific controls in the property panel", () => {
-    const markup = renderShell();
-
-    expect(markup).toContain("data-control=\"brush-opacity\"");
-    expect(markup).toContain("data-control=\"brush-smoothing\"");
-    expect(markup).toContain("data-control=\"brush-cap\"");
-    expect(markup).toContain("data-control=\"brush-style\"");
-    expect(markup).toContain("data-brush-color=\"#111827\"");
-    expect(markup).toContain("data-brush-custom-color");
-    expect(markup).toContain("data-brush-width-slider");
-    expect(markup).toContain("data-brush-style-option=\"dash\"");
-    expect(markup).toContain("data-brush-cap-option=\"round\"");
-  });
-
   it("renders layer ordering controls in the context menu only", () => {
     const shell = renderShell();
     const contextMenu = contextMenuMarkup();

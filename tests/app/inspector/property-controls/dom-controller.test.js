@@ -203,9 +203,11 @@ describe("app inspector property-controls dom-controller", () => {
       width: "10",
       brushOpacity: "80",
     });
-    expect(refs.colorInput.value).toBe("#2563eb");
-    expect(refs.widthInput.value).toBe("10");
-    expect(refs.brushOpacityValue.textContent).toBe("80");
+    expect(controller.getControlValues()).toMatchObject({
+      color: "#2563eb",
+      width: "10",
+      brushOpacity: "80",
+    });
   });
 
   it("saves and restores tool property controls only without active selection", () => {
@@ -216,7 +218,6 @@ describe("app inspector property-controls dom-controller", () => {
     controller.setControl("color", "#111827", { silent: true });
     controller.restorePropertyControlsForTool(TOOLS.PEN);
     expect(controller.getControlValues().color).toBe("#ef4444");
-    expect(refs.colorInput.value).toBe("#ef4444");
     expect(propertyControlsController.getToolControls(TOOLS.PEN).color).toBe("#ef4444");
 
     const blocked = createController({ getSelectedIds: () => ["element_1"] });
@@ -247,71 +248,26 @@ describe("app inspector property-controls dom-controller", () => {
       fontSize: "42",
       fontFamily: "Georgia, serif",
     });
-    expect(refs.colorInput.value).toBe("#2563eb");
   });
 
   it("preserves text style presets when switching away and back", () => {
     let currentTool = TOOLS.TEXT;
-    const { controller, nodes } = createController({
+    const { controller } = createController({
       getCurrentTool: () => currentTool,
       canPersistToolPropertyControls,
     });
 
-    controller.bindPropertyControlEvents();
-    nodes.textStyleButtons[0].click();
-
-    expect(nodes.textStyleButtons[0].classList.contains("active")).toBe(true);
+    controller.toggleTextStyle("bold");
+    expect(controller.capturePropertyControls().fontStyle).toBe("bold");
 
     currentTool = TOOLS.PEN;
     controller.restorePropertyControlsForTool(currentTool);
+    expect(controller.capturePropertyControls().fontStyle).toBe("normal");
+
     currentTool = TOOLS.TEXT;
     controller.restorePropertyControlsForTool(currentTool);
 
     expect(controller.capturePropertyControls().fontStyle).toBe("bold");
-    expect(nodes.textStyleButtons[0].classList.contains("active")).toBe(true);
-  });
-
-  it("syncs brush preview, preset buttons, and numeric display values", () => {
-    const { brushPreviewPath, controller, nodes, refs } = createController();
-    controller.setControl("color", "#ef4444", { silent: true });
-    controller.setControl("width", "9", { silent: true });
-    controller.setControl("brush-opacity", "70", { silent: true });
-    controller.setControl("brush-style", "dash", { silent: true });
-
-    controller.syncBrushWidthControl();
-    controller.syncBrushPresetButtons();
-
-    expect(refs.brushWidthValue.textContent).toBe("9");
-    expect(refs.brushOpacityValue.textContent).toBe("70");
-    expect(brushPreviewPath.setAttribute).toHaveBeenCalledWith("stroke", "#ef4444");
-    expect(brushPreviewPath.setAttribute).toHaveBeenCalledWith("stroke-opacity", "0.7");
-    expect(brushPreviewPath.setAttribute).toHaveBeenCalledWith("stroke-dasharray", "27,18");
-    expect(nodes.brushColors[1].classList.toggle).toHaveBeenCalledWith("active", true);
-    expect(nodes.styleOptions[1].classList.toggle).toHaveBeenCalledWith("active", true);
-  });
-
-  it("syncs visible inspector controls from master controls", () => {
-    const { controller, nodes } = createController();
-    controller.setControl("arrow-double-ended", null, { checked: true, silent: true });
-    controller.setControl("fill", "#fef08a", { silent: true });
-    controller.setControl("font-size", "32", { silent: true });
-    controller.setControl("font-family", "Inter", { silent: true });
-    controller.setControl("color", "#111827", { silent: true });
-    controller.setControl("coordinate-unit-size", "48", { silent: true });
-
-    controller.syncShapeEndpointControls();
-    controller.syncFillTransparentControls(false);
-    controller.syncTextInspectorControls({ type: "sticky", fill: "#fef08a" });
-    controller.syncCoordinateControls();
-
-    expect(nodes.arrowInputs[0].checked).toBe(true);
-    expect(nodes.fillTransparentInputs[0].checked).toBe(false);
-    expect(nodes.fontSizeInputs[0].value).toBe("32");
-    expect(nodes.fontFamilyInputs[0].value).toBe("Inter");
-    expect(nodes.textColorInputs[0].value).toBe("#111827");
-    expect(nodes.fillInputs[0].value).toBe("#fef08a");
-    expect(nodes.coordinateInputs[0].value).toBe("48");
-    expect(nodes.coordinateInputs[1].checked).toBe(true);
   });
 
   it("hydrates brush controls and exposes stroke style values", () => {
@@ -324,10 +280,12 @@ describe("app inspector property-controls dom-controller", () => {
       brushStyle: "dot",
     });
 
-    expect(refs.brushOpacityInput.value).toBe("42");
-    expect(refs.brushSmoothingInput.value).toBe("20");
-    expect(refs.brushCapInput.value).toBe("square");
-    expect(refs.brushStyleInput.value).toBe("dot");
+    expect(controller.getControlValues()).toMatchObject({
+      brushOpacity: "42",
+      brushSmoothing: "20",
+      brushCap: "square",
+      brushStyle: "dot",
+    });
     expect(controller.getStrokeStyleFromControls()).toMatchObject({
       stroke: "#111827",
       strokeWidth: 6,
@@ -340,7 +298,7 @@ describe("app inspector property-controls dom-controller", () => {
   });
 
   it("hydrates shared controls from the selected element", () => {
-    const { controller, nodes, refs } = createController();
+    const { controller } = createController();
 
     controller.hydrateControlsFromElement({
       type: "arrow",
@@ -358,22 +316,26 @@ describe("app inspector property-controls dom-controller", () => {
       textDecoration: "underline",
     });
 
-    expect(refs.colorInput.value).toBe("#2563eb");
-    expect(refs.fillTransparentInput.checked).toBe(true);
-    expect(refs.widthInput.value).toBe("5");
-    expect(refs.brushOpacityInput.value).toBe("65");
-    expect(refs.brushSmoothingInput.value).toBe("30");
-    expect(refs.brushCapInput.value).toBe("square");
-    expect(refs.brushStyleInput.value).toBe("dash");
-    expect(refs.arrowDoubleEndedInput.checked).toBe(true);
-    expect(refs.fontSizeInput.value).toBe("24");
-    expect(refs.fontFamilyInput.value).toBe("Inter");
-    expect(nodes.arrowInputs[0].checked).toBe(true);
-    expect(nodes.fontSizeInputs[0].value).toBe("24");
+    expect(controller.getControlValues()).toMatchObject({
+      color: "#2563eb",
+      fillTransparent: true,
+      width: "5",
+      brushOpacity: "65",
+      brushSmoothing: "30",
+      brushCap: "square",
+      brushStyle: "dash",
+      arrowDoubleEnded: true,
+      fontSize: "24",
+      fontFamily: "Inter",
+    });
+    expect(controller.capturePropertyControls()).toMatchObject({
+      fontStyle: "bold",
+      textDecoration: "underline",
+    });
   });
 
   it("hydrates coordinate controls from the selected coordinate plane", () => {
-    const { controller, refs } = createController();
+    const { controller } = createController();
 
     controller.hydrateControlsFromElement({
       type: "coordinate-plane",
@@ -390,41 +352,19 @@ describe("app inspector property-controls dom-controller", () => {
       },
     });
 
-    expect(refs.coordinateUnitSizeInput.value).toBe("8");
-    expect(refs.coordinateShowGridInput.checked).toBe(false);
-    expect(refs.coordinateShowTicksInput.checked).toBe(true);
-    expect(refs.coordinateShowLabelsInput.checked).toBe(false);
-    expect(refs.coordinateGridColorInput.value).toBe("#94a3b8");
-    expect(refs.coordinateAxisColorInput.value).toBe("#0f172a");
-    expect(refs.coordinateLabelColorInput.value).toBe("#475569");
+    expect(controller.getControlValues()).toMatchObject({
+      coordinateUnitSize: "8",
+      coordinateShowGrid: false,
+      coordinateShowTicks: true,
+      coordinateShowLabels: false,
+      coordinateGridColor: "#94a3b8",
+      coordinateAxisColor: "#0f172a",
+      coordinateLabelColor: "#475569",
+    });
   });
 
   // 属性值的真相在 JS store 里,不在隐藏 input 上。绕过 setControl 直接改 DOM
   // 不应影响引擎读到的值 —— 这条守住以后才能把那批 input 从模板里删掉。
-  it("属性值以 store 为准,不从隐藏 input 反向读取", () => {
-    const { controller, refs } = createController();
-
-    refs.colorInput.value = "#000000";
-    refs.widthInput.value = "999";
-    refs.fillTransparentInput.checked = false;
-
-    expect(controller.capturePropertyControls().color).toBe("#111827");
-    expect(controller.getStrokeStyleFromControls().strokeWidth).toBe(6);
-    expect(controller.capturePropertyControls().fillTransparent).toBe(true);
-  });
-
-  it("setControl 写入的值同时反映在 store 和主控件上", () => {
-    const { controller, refs } = createController();
-
-    controller.setControl("color", "#ef4444", { silent: true });
-    controller.setControl("fill-transparent", null, { checked: false, silent: true });
-
-    expect(controller.capturePropertyControls().color).toBe("#ef4444");
-    expect(controller.capturePropertyControls().fillTransparent).toBe(false);
-    expect(refs.colorInput.value).toBe("#ef4444");
-    expect(refs.fillTransparentInput.checked).toBe(false);
-  });
-
   // setControl 是 React 写属性的入口。它和 bindPropertyControlEvents 共用同一张
   // 副作用表,所以两条路径行为必须一致,不能靠 React 侧再合成 input/change 事件。
   it("setControl 写主控件并跑与 DOM 事件相同的副作用", () => {
@@ -433,11 +373,9 @@ describe("app inspector property-controls dom-controller", () => {
 
     controller.setControl("color", "#ef4444");
 
-    expect(refs.colorInput.value).toBe("#ef4444");
+    expect(controller.getControlValues().color).toBe("#ef4444");
     expect(callbacks.onApplyStyleToSelection).toHaveBeenCalled();
     expect(callbacks.onBrushCursorStyleChange).toHaveBeenCalled();
-    // 不再派发合成事件,否则副作用会跑两遍
-    expect(refs.colorInput.dispatchEvent).not.toHaveBeenCalled();
   });
 
   it("setControl 写 checkbox 主控件并同步镜像控件", () => {
@@ -446,8 +384,7 @@ describe("app inspector property-controls dom-controller", () => {
 
     controller.setControl("fill-transparent", null, { checked: false });
 
-    expect(refs.fillTransparentInput.checked).toBe(false);
-    expect(nodes.fillTransparentInputs[0].checked).toBe(false);
+    expect(controller.getControlValues().fillTransparent).toBe(false);
     expect(callbacks.onApplyStyleToSelection).toHaveBeenCalled();
   });
 
@@ -457,7 +394,7 @@ describe("app inspector property-controls dom-controller", () => {
 
     controller.setControl("fill", "#22c55e", { silent: true });
 
-    expect(refs.fillInput.value).toBe("#22c55e");
+    expect(controller.getControlValues().fill).toBe("#22c55e");
     expect(callbacks.onApplyStyleToSelection).not.toHaveBeenCalled();
   });
 
@@ -468,28 +405,4 @@ describe("app inspector property-controls dom-controller", () => {
     expect(() => controller.setControl("not-a-control", "x")).not.toThrow();
   });
 
-  it("binds property control events to master controls and app callbacks", () => {
-    const { callbacks, controller, nodes, refs, root } = createController();
-    root.dataset.panelMode = "brush";
-
-    controller.bindPropertyControlEvents();
-    refs.colorInput.dispatch("input");
-    refs.widthInput.dispatch("input");
-    refs.fillTransparentInput.checked = false;
-    refs.fillTransparentInput.dispatch("change");
-    nodes.uiControls[0].dispatch("input");
-    nodes.uiControls[1].dispatch("input");
-    nodes.brushColors[1].click();
-    nodes.shapeFillButtons[0].click();
-    nodes.widthStepButtons[0].click();
-    nodes.textStyleButtons[0].click();
-
-    expect(callbacks.onApplyStyleToSelection).toHaveBeenCalled();
-    expect(callbacks.onBrushCursorStyleChange).toHaveBeenCalled();
-    expect(refs.fillTransparentInput.checked).toBe(false);
-    expect(refs.fillInput.value).toBe("#fef08a");
-    expect(refs.colorInput.value).toBe("#ef4444");
-    expect(refs.widthInput.value).toBe("20");
-    expect(callbacks.onToggleTextStyle).toHaveBeenCalledWith("bold");
-  });
 });

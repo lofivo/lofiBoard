@@ -16,7 +16,6 @@ export function createAppChromeController({
   syncGraphStructurePanelState,
   syncTreeStructurePanelState,
   syncInspectorPanelState,
-  syncBrushPresetButtons,
   updateLayerPanelAvailability,
   renderLayerPanel,
   updateContextPanel,
@@ -57,7 +56,6 @@ export function createAppChromeController({
     syncGraphStructurePanelState();
     syncTreeStructurePanelState();
     syncInspectorPanelState();
-    syncBrushPresetButtons();
     updateLayerPanelAvailability();
     renderLayerPanel();
     updateContextPanel();
