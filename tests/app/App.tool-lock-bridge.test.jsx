@@ -13,16 +13,18 @@ vi.mock("../../src/app/whiteboard-app.js", () => ({
     stageContainer.id = "stage-container";
     stageContainer.dataset.tool = "pen";
     root.append(stageContainer);
-    const lockButton = document.createElement("button");
-    lockButton.dataset.toolAction = "toggle-tool-lock";
-    lockButton.addEventListener("click", () => {
-      root.dataset.keepToolActive = String(root.dataset.keepToolActive !== "true");
-    });
     root.dataset.keepToolActive = "false";
-    root.append(lockButton);
     root._getContextMenuActionStates = () => ({});
     root._getSelectedIds = () => [];
-    return { destroy: vi.fn() };
+    return {
+      destroy: vi.fn(),
+      commands: {
+        runToolAction: vi.fn((action) => {
+          if (action !== "toggle-tool-lock") return;
+          root.dataset.keepToolActive = String(root.dataset.keepToolActive !== "true");
+        }),
+      },
+    };
   }),
 }));
 

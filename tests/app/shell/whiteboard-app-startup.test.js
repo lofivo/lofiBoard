@@ -601,4 +601,102 @@ describe("whiteboard app startup", () => {
 
     app.destroy();
   }, 15_000);
+
+  // React 侧不应再靠 querySelector 隐藏按钮再 .click() 驱动引擎。
+  // 每条命令都对照「点击对应遗留 DOM」的既有行为断言，确认是等价替换。
+  describe("commands 门面", () => {
+    it("暴露 React 需要的命令，不再依赖隐藏 DOM 点击", async () => {
+      const { app } = await mountApp();
+
+      expect(Object.keys(app.commands).sort()).toEqual([
+        "runAction",
+        "runContextAction",
+        "runToolAction",
+        "selectShapeTool",
+        "setBackgroundMode",
+        "setTool",
+        "setZoomAtCenter",
+        "zoomBy",
+      ]);
+
+      app.destroy();
+    }, 15_000);
+
+    it("setTool 与点击工具按钮等效", async () => {
+      const { app, root } = await mountApp();
+      const container = root.querySelector("#stage-container");
+
+      root.querySelector('[data-tool="pen"]').click();
+      const viaClick = container.dataset.tool;
+
+      app.commands.setTool("sticky");
+      expect(container.dataset.tool).toBe("sticky");
+      expect(viaClick).toBe("pen");
+
+      app.commands.setTool("pen");
+      expect(container.dataset.tool).toBe(viaClick);
+
+      app.destroy();
+    }, 15_000);
+
+    it("selectShapeTool 同时切到图形工具并记住形状", async () => {
+      const { app, root } = await mountApp();
+      const container = root.querySelector("#stage-container");
+
+      app.commands.selectShapeTool("ellipse");
+
+      expect(root.dataset.activeShape).toBe("ellipse");
+      expect(container.dataset.tool).toBe("shape");
+      expect(root.querySelector("[data-shape-popover]").hidden).toBe(true);
+
+      app.destroy();
+    }, 15_000);
+
+    it("runToolAction 切换工具锁，与点击锁按钮等效", async () => {
+      const { app, root } = await mountApp();
+
+      expect(root.dataset.keepToolActive).toBe("false");
+      app.commands.runToolAction("toggle-tool-lock");
+      expect(root.dataset.keepToolActive).toBe("true");
+      app.commands.runToolAction("toggle-tool-lock");
+      expect(root.dataset.keepToolActive).toBe("false");
+
+      app.destroy();
+    }, 15_000);
+
+    it("setBackgroundMode 与 zoom 命令直接改引擎状态", async () => {
+      const { app, root } = await mountApp();
+      const container = root.querySelector("#stage-container");
+      const zoomLabel = root.querySelector("[data-zoom]");
+
+      app.commands.setBackgroundMode("dots");
+      expect(container.dataset.background).toBe("dots");
+
+      app.commands.setZoomAtCenter(2);
+      expect(zoomLabel.textContent).toBe("200%");
+
+      app.commands.zoomBy(1 / 1.25);
+      expect(zoomLabel.textContent).toBe("160%");
+
+      app.destroy();
+    }, 15_000);
+
+    it("runAction 与 runContextAction 走引擎动作表", async () => {
+      seedDraft([
+        { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0 },
+        { id: "rect_b", type: "rect", x: 40, y: 40, width: 100, height: 60, zIndex: 1, locked: true },
+      ]);
+      const { app, root } = await mountApp();
+
+      root._selectLayerItemById("rect_b", "none");
+      app.commands.runContextAction("toggle-lock");
+      expect(root._getLayersData().find((layer) => layer.id === "rect_b").locked).toBe(false);
+      expect(root.querySelector("[data-context-menu]").hidden).toBe(true);
+
+      app.commands.runAction("undo");
+      expect(root._getLayersData().find((layer) => layer.id === "rect_b").locked).toBe(true);
+
+      app.destroy();
+    }, 15_000);
+  });
 });

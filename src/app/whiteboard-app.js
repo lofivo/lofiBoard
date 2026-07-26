@@ -972,6 +972,7 @@ export function createWhiteboardApp(root) {
     bindContextMenuActions,
     getLastContextMenuTargetId,
     hideContextMenu,
+    runContextAction,
     showContextMenu,
     updateContextMenuActions,
   } = createContextMenuDomController({
@@ -1413,7 +1414,7 @@ export function createWhiteboardApp(root) {
     setStructurePanelOpen,
     setBackgroundMode: (backgroundMode) => viewportActions.setBackgroundMode(backgroundMode),
     setZoomAtCenter: (requestedScale) => viewportController.setZoomAtCenter(requestedScale),
-    setActiveShapeTool,
+    selectShapeTool,
     setActiveStructureType,
     setArrayInitMode: (mode) => structurePanelController.setActiveArrayInitMode(mode),
     hydrateStructurePanel,
@@ -1667,8 +1668,21 @@ export function createWhiteboardApp(root) {
 
   root._showShapePopover = () => setShapePopoverOpen(true);
 
+  // React 侧驱动引擎的唯一入口:直接调命令,不再 querySelector 隐藏 DOM 再 .click()
+  const commands = {
+    runAction,
+    runContextAction,
+    runToolAction,
+    selectShapeTool,
+    setBackgroundMode: (backgroundMode) => viewportActions.setBackgroundMode(backgroundMode),
+    setTool,
+    setZoomAtCenter: (requestedScale) => viewportController.setZoomAtCenter(requestedScale),
+    zoomBy: (multiplier) => viewportController.zoomBy(multiplier),
+  };
+
   return {
     getBoard: () => serializeCurrentBoard(),
+    commands,
     __debug: {
       getSelectedIds: () => [...selectedIds],
       getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
@@ -1959,6 +1973,12 @@ export function createWhiteboardApp(root) {
     const activeTreeNode = structureInteraction.getActiveTreeNode();
     if (activeTreeNode?.elementId === element.id) return activeTreeNode.nodeId;
     return element.settings?.rootId ?? element.nodes?.[0]?.id ?? null;
+  }
+
+  function selectShapeTool(shapeTool) {
+    setActiveShapeTool(shapeTool);
+    setTool(TOOLS.SHAPE);
+    setShapePopoverOpen(false);
   }
 
   function applyViewport(viewport) {

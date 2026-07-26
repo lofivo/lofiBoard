@@ -17,9 +17,14 @@ import { LayerPanelToggle } from './components/LayerPanel';
 import ContextMenu from './components/ContextMenu';
 import StructurePanel from './components/StructurePanel';
 
+const TOOL_IDS = new Set(Object.values(TOOLS));
+const ZOOM_STEP = 1.25;
+
 export default function App() {
   const appShellRef = useRef(null);
   const legacyRootRef = useRef(null);
+  const legacyAppRef = useRef(null);
+
   const initializedRef = useRef(false);
   const contextMenuVisibleRef = useRef(false);
   const statusClearTimerRef = useRef(null);
@@ -142,6 +147,7 @@ export default function App() {
 
     const legacyRoot = legacyRootRef.current;
     const legacyApp = createWhiteboardApp(legacyRoot);
+    legacyAppRef.current = legacyApp;
 
     // Hide original UI elements that React replaces
     const hideSelectors = [
@@ -403,72 +409,51 @@ export default function App() {
     };
   }, []);
 
-  // Bridge: trigger clicks on legacy DOM elements
+  // Bridge: 直接调引擎命令,不经过遗留 DOM
+  const getCommands = useCallback(() => legacyAppRef.current?.commands, []);
+
   const runAction = useCallback((action) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const btn = root.querySelector(`[data-action="${action}"]`);
-    if (btn) btn.click();
-  }, [getLegacyRoot]);
+    getCommands()?.runAction(action);
+  }, [getCommands]);
 
   const setTool = useCallback((tool) => {
-    const root = getLegacyRoot();
-    if (!root) return;
+    const commands = getCommands();
+    if (!commands) return;
     setCurrentTool(tool);
     if (tool !== 'shape') setShapePopoverVisible(false);
     if (tool !== 'structure') setStructurePanelVisible(false);
-    const btn = root.querySelector(`[data-tool="${tool}"]`);
-    if (btn) {
-      btn.click();
-      return;
-    }
-    const actionBtn = root.querySelector(`[data-tool-action="${tool}"]`);
-    if (actionBtn) actionBtn.click();
-  }, [getLegacyRoot]);
+    // 工具栏里 import-image / toggle-tool-lock 不是工具而是动作
+    if (TOOL_IDS.has(tool)) commands.setTool(tool);
+    else commands.runToolAction(tool);
+  }, [getCommands]);
 
   const toggleKeepToolActive = useCallback(() => {
     const root = getLegacyRoot();
-    if (!root) return;
-    root.querySelector('[data-tool-action="toggle-tool-lock"]')?.click();
-    setKeepToolActive(root.dataset.keepToolActive === 'true');
-  }, [getLegacyRoot]);
+    getCommands()?.runToolAction('toggle-tool-lock');
+    setKeepToolActive(root?.dataset.keepToolActive === 'true');
+  }, [getCommands, getLegacyRoot]);
 
   const selectShape = useCallback((shapeTool) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const btn = root.querySelector(`[data-shape-tool="${shapeTool}"]`);
-    if (btn) btn.click();
+    getCommands()?.selectShapeTool(shapeTool);
     setShapePopoverVisible(false);
-  }, [getLegacyRoot]);
+  }, [getCommands]);
 
   const zoomBy = useCallback((dir) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const sel = dir < 0 ? '[data-zoom-out]' : '[data-zoom-in]';
-    root.querySelector(sel)?.click();
-  }, [getLegacyRoot]);
+    getCommands()?.zoomBy(dir < 0 ? 1 / ZOOM_STEP : ZOOM_STEP);
+  }, [getCommands]);
 
   const setZoomAtCenter = useCallback((level) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const btn = root.querySelector(`[data-zoom-level="${level}"]`);
-    if (btn) btn.click();
-  }, [getLegacyRoot]);
+    getCommands()?.setZoomAtCenter(level);
+  }, [getCommands]);
 
   const handleSetBackgroundMode = useCallback((mode) => {
-    const root = getLegacyRoot();
-    if (!root) return;
     setBackgroundModeState(mode);
-    const btn = root.querySelector(`[data-background-mode="${mode}"]`);
-    if (btn) btn.click();
-  }, [getLegacyRoot]);
+    getCommands()?.setBackgroundMode(mode);
+  }, [getCommands]);
 
   const runContextAction = useCallback((action) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const btn = root.querySelector(`[data-context-action="${action}"]`);
-    if (btn) btn.click();
-  }, [getLegacyRoot]);
+    getCommands()?.runContextAction(action);
+  }, [getCommands]);
 
   const hideContextMenu = useCallback(() => {
     setContextMenuVisible(false);

@@ -16,7 +16,7 @@ export function createControlsBindingController({
   setStructurePanelOpen,
   setBackgroundMode,
   setZoomAtCenter,
-  setActiveShapeTool,
+  selectShapeTool,
   setActiveStructureType,
   setArrayInitMode,
   hydrateStructurePanel,
@@ -114,11 +114,7 @@ export function createControlsBindingController({
     }
 
     for (const button of root.querySelectorAll("[data-shape-tool]")) {
-      button.addEventListener("click", () => {
-        setActiveShapeTool(button.dataset.shapeTool);
-        setTool(TOOLS.SHAPE);
-        setShapePopoverOpen(false);
-      });
+      button.addEventListener("click", () => selectShapeTool(button.dataset.shapeTool));
     }
 
     for (const button of root.querySelectorAll("[data-structure-type]")) {
