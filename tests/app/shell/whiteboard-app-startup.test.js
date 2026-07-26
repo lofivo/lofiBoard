@@ -614,8 +614,10 @@ describe("whiteboard app startup", () => {
         "runToolAction",
         "selectShapeTool",
         "setBackgroundMode",
+        "setProperty",
         "setTool",
         "setZoomAtCenter",
+        "toggleTextStyle",
         "zoomBy",
       ]);
 
@@ -695,6 +697,60 @@ describe("whiteboard app startup", () => {
 
       app.commands.runAction("undo");
       expect(root._getLayersData().find((layer) => layer.id === "rect_b").locked).toBe(true);
+
+      app.destroy();
+    }, 15_000);
+
+    it("setProperty 与直接写主控件再派发事件等效", async () => {
+      seedDraft([
+        { id: "rect_a", type: "rect", x: 0, y: 0, width: 100, height: 60, zIndex: 0, stroke: "#111827", strokeWidth: 6 },
+      ]);
+      const { app, root } = await mountApp();
+      const colorInput = root.querySelector('[data-control="color"]');
+      const widthInput = root.querySelector('[data-control="width"]');
+
+      // 旧路径:写 value 再合成事件
+      root._selectLayerItemById("rect_a", "none");
+      colorInput.value = "#ef4444";
+      colorInput.dispatchEvent(new Event("input", { bubbles: true }));
+      const findRect = () => app.getBoard().elements.find((element) => element.id === "rect_a");
+      expect(findRect().stroke).toBe("#ef4444");
+
+      // 新路径:同样落到元素上
+      app.commands.setProperty("color", "#2563eb");
+      expect(colorInput.value).toBe("#2563eb");
+      expect(findRect().stroke).toBe("#2563eb");
+
+      app.commands.setProperty("width", 14);
+      expect(widthInput.value).toBe("14");
+      expect(findRect().strokeWidth).toBe(14);
+
+      app.destroy();
+    }, 15_000);
+
+    it("setProperty 写 checkbox 控件并同步可见镜像控件", async () => {
+      const { app, root } = await mountApp();
+      const fillTransparentInput = root.querySelector('[data-control="fill-transparent"]');
+
+      app.commands.setProperty("fill-transparent", null, { checked: false });
+
+      expect(fillTransparentInput.checked).toBe(false);
+      root.querySelectorAll("[data-ui-control='fill-transparent']").forEach((input) => {
+        expect(input.checked).toBe(false);
+      });
+
+      app.destroy();
+    }, 15_000);
+
+    it("toggleTextStyle 与点击文字样式按钮等效", async () => {
+      const { app, root } = await mountApp();
+      const boldButton = root.querySelector('[data-text-style="bold"]');
+
+      boldButton.click();
+      expect(boldButton.getAttribute("aria-pressed")).toBe("true");
+
+      app.commands.toggleTextStyle("bold");
+      expect(boldButton.getAttribute("aria-pressed")).toBe("false");
 
       app.destroy();
     }, 15_000);

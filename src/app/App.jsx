@@ -83,21 +83,13 @@ export default function App() {
   const [layerPanelCollapsed, setLayerPanelCollapsed] = useState(true);
   const getLegacyRoot = useCallback(() => legacyRootRef.current, []);
 
-  // Sync a property value to the corresponding hidden input in the whiteboard's property storage
+  // Bridge: 直接调引擎命令,不经过遗留 DOM
+  const getCommands = useCallback(() => legacyAppRef.current?.commands, []);
+
+  // 属性写入走引擎的 setProperty,由它跑与 DOM 事件相同的副作用
   const syncPropertyToInput = useCallback((controlName, value, isChecked, { dispatch = true } = {}) => {
-    const root = getLegacyRoot();
-    if (!root) return;
-    const input = root.querySelector(`[data-control="${controlName}"]`);
-    if (!input) return;
-    if (input.type === 'checkbox') {
-      input.checked = Boolean(isChecked ?? value);
-    } else {
-      input.value = String(value);
-    }
-    if (!dispatch) return;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, [getLegacyRoot]);
+    getCommands()?.setProperty(controlName, value, { checked: isChecked, silent: !dispatch });
+  }, [getCommands]);
 
   // Wrapped setters that also sync to hidden inputs
   const setBrushColorSynced = useCallback((v) => { setBrushColor(v); syncPropertyToInput('color', v); }, [syncPropertyToInput]);
@@ -133,13 +125,12 @@ export default function App() {
   const setCoordinateAxisColorSynced = useCallback((v) => { setCoordinateAxisColor(v); syncPropertyToInput('coordinate-axis-color', v); }, [syncPropertyToInput]);
   const setCoordinateLabelColorSynced = useCallback((v) => { setCoordinateLabelColor(v); syncPropertyToInput('coordinate-label-color', v); }, [syncPropertyToInput]);
   const setTextStyleSynced = useCallback((style) => {
-    const root = getLegacyRoot();
-    root?.querySelector(`[data-text-style="${style}"]`)?.click();
+    getCommands()?.toggleTextStyle(style);
     if (style === 'bold') setTextBold(b => !b);
     if (style === 'italic') setTextItalic(i => !i);
     if (style === 'underline') setTextUnderline(u => !u);
     if (style === 'strike') setTextStrike(s => !s);
-  }, [getLegacyRoot]);
+  }, [getCommands]);
 
   useEffect(() => {
     if (!legacyRootRef.current || initializedRef.current) return;
@@ -386,9 +377,6 @@ export default function App() {
       legacyApp?.destroy?.();
     };
   }, []);
-
-  // Bridge: 直接调引擎命令,不经过遗留 DOM
-  const getCommands = useCallback(() => legacyAppRef.current?.commands, []);
 
   const runAction = useCallback((action) => {
     getCommands()?.runAction(action);

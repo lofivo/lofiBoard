@@ -796,10 +796,12 @@ export function createWhiteboardApp(root) {
     restorePropertyControlsForTool,
     saveToolPropertyControlsForCurrentTool,
     setBrushControlValue,
+    setControl,
     syncBrushPresetButtons,
     syncBrushPreview,
     syncBrushWidthControl,
     syncFillTransparentControls,
+    toggleTextStyle: toggleTextStyleControl,
   } = createPropertyControlsDomController({
     root,
     refs: {
@@ -1675,8 +1677,10 @@ export function createWhiteboardApp(root) {
     runToolAction,
     selectShapeTool,
     setBackgroundMode: (backgroundMode) => viewportActions.setBackgroundMode(backgroundMode),
+    setProperty: setControl,
     setTool,
     setZoomAtCenter: (requestedScale) => viewportController.setZoomAtCenter(requestedScale),
+    toggleTextStyle: toggleTextStyleControl,
     zoomBy: (multiplier) => viewportController.zoomBy(multiplier),
   };
 

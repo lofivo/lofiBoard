@@ -394,6 +394,49 @@ describe("app inspector property-controls dom-controller", () => {
     expect(refs.coordinateLabelColorInput.value).toBe("#475569");
   });
 
+  // setControl 是 React 写属性的入口。它和 bindPropertyControlEvents 共用同一张
+  // 副作用表,所以两条路径行为必须一致,不能靠 React 侧再合成 input/change 事件。
+  it("setControl 写主控件并跑与 DOM 事件相同的副作用", () => {
+    const { callbacks, controller, refs } = createController();
+    controller.bindPropertyControlEvents();
+
+    controller.setControl("color", "#ef4444");
+
+    expect(refs.colorInput.value).toBe("#ef4444");
+    expect(callbacks.onApplyStyleToSelection).toHaveBeenCalled();
+    expect(callbacks.onBrushCursorStyleChange).toHaveBeenCalled();
+    // 不再派发合成事件,否则副作用会跑两遍
+    expect(refs.colorInput.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it("setControl 写 checkbox 主控件并同步镜像控件", () => {
+    const { callbacks, controller, nodes, refs } = createController();
+    controller.bindPropertyControlEvents();
+
+    controller.setControl("fill-transparent", null, { checked: false });
+
+    expect(refs.fillTransparentInput.checked).toBe(false);
+    expect(nodes.fillTransparentInputs[0].checked).toBe(false);
+    expect(callbacks.onApplyStyleToSelection).toHaveBeenCalled();
+  });
+
+  it("setControl 的 silent 只写值不跑副作用", () => {
+    const { callbacks, controller, refs } = createController();
+    controller.bindPropertyControlEvents();
+
+    controller.setControl("fill", "#22c55e", { silent: true });
+
+    expect(refs.fillInput.value).toBe("#22c55e");
+    expect(callbacks.onApplyStyleToSelection).not.toHaveBeenCalled();
+  });
+
+  it("setControl 忽略未知控件名", () => {
+    const { controller } = createController();
+    controller.bindPropertyControlEvents();
+
+    expect(() => controller.setControl("not-a-control", "x")).not.toThrow();
+  });
+
   it("binds property control events to master controls and app callbacks", () => {
     const { callbacks, controller, nodes, refs, root } = createController();
     root.dataset.panelMode = "brush";

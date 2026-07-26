@@ -42,47 +42,46 @@ export function createPropertyControlsDomController({
     fontFamilyInput,
   } = refs;
 
+  // 每个主控件的事件类型和副作用只写一遍:bindPropertyControlEvents 从这里生成
+  // 监听器,setControl 从这里直接跑副作用。两条路径共用一张表才不会行为漂移。
+  const MASTER_CONTROLS = [
+    { name: "color", input: colorInput, events: ["input"], effects: [onApplyStyleToSelection, onBrushCursorStyleChange, syncBrushPresetButtons] },
+    { name: "fill", input: fillInput, events: ["input"], effects: [onApplyStyleToSelection] },
+    { name: "fill-transparent", checkbox: true, input: fillTransparentInput, events: ["change"], effects: [() => syncFillTransparentControls(fillTransparentInput.checked), onApplyStyleToSelection] },
+    { name: "width", input: widthInput, events: ["input"], effects: [onApplyStyleToSelection, onBrushCursorStyleChange, syncBrushWidthControl, syncBrushPresetButtons] },
+    { name: "brush-opacity", input: brushOpacityInput, events: ["input"], effects: [onApplyStyleToSelection, syncBrushWidthControl, syncBrushPreview] },
+    { name: "brush-smoothing", input: brushSmoothingInput, events: ["input"], effects: [onApplyStyleToSelection, syncBrushPresetButtons, syncBrushPreview] },
+    { name: "brush-cap", input: brushCapInput, events: ["change"], effects: [onApplyStyleToSelection, syncBrushPresetButtons, syncBrushPreview] },
+    { name: "brush-style", input: brushStyleInput, events: ["change"], effects: [onApplyStyleToSelection, syncBrushPresetButtons, syncBrushPreview] },
+    { name: "arrow-double-ended", checkbox: true, input: arrowDoubleEndedInput, events: ["change"], effects: [onApplyStyleToSelection, syncShapeEndpointControls] },
+    { name: "coordinate-unit-size", input: coordinateUnitSizeInput, events: ["input"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-show-grid", checkbox: true, input: coordinateShowGridInput, events: ["input", "change"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-show-ticks", checkbox: true, input: coordinateShowTicksInput, events: ["input", "change"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-show-labels", checkbox: true, input: coordinateShowLabelsInput, events: ["input", "change"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-grid-color", input: coordinateGridColorInput, events: ["input"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-axis-color", input: coordinateAxisColorInput, events: ["input"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "coordinate-label-color", input: coordinateLabelColorInput, events: ["input"], effects: [onApplyCoordinateStyleToSelection] },
+    { name: "font-size", input: fontSizeInput, events: ["input"], effects: [onApplyStyleToSelection] },
+    { name: "font-family", input: fontFamilyInput, events: ["change"], effects: [onApplyStyleToSelection] },
+  ];
+  const MASTER_CONTROLS_BY_NAME = new Map(MASTER_CONTROLS.map((control) => [control.name, control]));
+
+  // React 侧写属性的入口:直接写主控件并跑副作用,不合成 input/change 事件。
+  function setControl(name, value, { checked, silent = false } = {}) {
+    const control = MASTER_CONTROLS_BY_NAME.get(name);
+    if (!control) return;
+    if (control.checkbox) control.input.checked = Boolean(checked ?? value);
+    else control.input.value = String(value);
+    if (silent) return;
+    control.effects.forEach((effect) => effect());
+  }
+
   function bindPropertyControlEvents() {
-    colorInput.addEventListener("input", onApplyStyleToSelection);
-    colorInput.addEventListener("input", onBrushCursorStyleChange);
-    colorInput.addEventListener("input", syncBrushPresetButtons);
-    fillInput.addEventListener("input", onApplyStyleToSelection);
-    fillTransparentInput.addEventListener("change", () => syncFillTransparentControls(fillTransparentInput.checked));
-    fillTransparentInput.addEventListener("change", onApplyStyleToSelection);
-    widthInput.addEventListener("input", onApplyStyleToSelection);
-    widthInput.addEventListener("input", onBrushCursorStyleChange);
-    widthInput.addEventListener("input", syncBrushWidthControl);
-    widthInput.addEventListener("input", syncBrushPresetButtons);
-    brushOpacityInput.addEventListener("input", onApplyStyleToSelection);
-    brushOpacityInput.addEventListener("input", syncBrushWidthControl);
-    brushOpacityInput.addEventListener("input", syncBrushPreview);
-    brushSmoothingInput.addEventListener("input", onApplyStyleToSelection);
-    brushSmoothingInput.addEventListener("input", syncBrushPresetButtons);
-    brushSmoothingInput.addEventListener("input", syncBrushPreview);
-    brushCapInput.addEventListener("change", onApplyStyleToSelection);
-    brushCapInput.addEventListener("change", syncBrushPresetButtons);
-    brushCapInput.addEventListener("change", syncBrushPreview);
-    brushStyleInput.addEventListener("change", onApplyStyleToSelection);
-    brushStyleInput.addEventListener("change", syncBrushPresetButtons);
-    brushStyleInput.addEventListener("change", syncBrushPreview);
-    arrowDoubleEndedInput.addEventListener("change", onApplyStyleToSelection);
-    arrowDoubleEndedInput.addEventListener("change", syncShapeEndpointControls);
-    [
-      coordinateUnitSizeInput,
-      coordinateShowGridInput,
-      coordinateShowTicksInput,
-      coordinateShowLabelsInput,
-      coordinateGridColorInput,
-      coordinateAxisColorInput,
-      coordinateLabelColorInput,
-    ].forEach((input) => input.addEventListener("input", onApplyCoordinateStyleToSelection));
-    [
-      coordinateShowGridInput,
-      coordinateShowTicksInput,
-      coordinateShowLabelsInput,
-    ].forEach((input) => input.addEventListener("change", onApplyCoordinateStyleToSelection));
-    fontSizeInput.addEventListener("input", onApplyStyleToSelection);
-    fontFamilyInput.addEventListener("change", onApplyStyleToSelection);
+    for (const { input, events, effects } of MASTER_CONTROLS) {
+      for (const event of events) {
+        effects.forEach((effect) => input.addEventListener(event, effect));
+      }
+    }
 
     root.querySelectorAll("[data-ui-control]").forEach((uiInput) => {
       const controlName = uiInput.dataset.uiControl;
@@ -165,16 +164,16 @@ export function createPropertyControlsDomController({
       });
     });
     root.querySelectorAll("[data-text-style]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const style = button.dataset.textStyle;
-        onToggleTextStyle(style);
-        if (getSelectedIds().length === 0) {
-          toggleToolTextStyle(style);
-          saveToolPropertyControlsForCurrentTool();
-          return;
-        }
-      });
+      button.addEventListener("click", () => toggleTextStyle(button.dataset.textStyle));
     });
+  }
+
+  // 无选中时改的是当前工具的默认文字样式,有选中时交给 onToggleTextStyle 改元素。
+  function toggleTextStyle(style) {
+    onToggleTextStyle(style);
+    if (getSelectedIds().length > 0) return;
+    toggleToolTextStyle(style);
+    saveToolPropertyControlsForCurrentTool();
   }
 
   function capturePropertyControls() {
@@ -483,6 +482,7 @@ export function createPropertyControlsDomController({
     restorePropertyControlsForTool,
     saveToolPropertyControlsForCurrentTool,
     setBrushControlValue,
+    setControl,
     syncBrushPresetButtons,
     syncBrushPreview,
     syncBrushWidthControl,
@@ -490,6 +490,7 @@ export function createPropertyControlsDomController({
     syncFillTransparentControls,
     syncShapeEndpointControls,
     syncTextInspectorControls,
+    toggleTextStyle,
     updateTextStyleButtons,
   };
 }

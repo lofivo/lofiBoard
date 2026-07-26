@@ -5,6 +5,8 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const appDestroyMock = vi.hoisted(() => vi.fn());
+const toggleTextStyleMock = vi.hoisted(() => vi.fn());
+const propertyWrites = vi.hoisted(() => []);
 const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   const colorInput = document.createElement("input");
   colorInput.dataset.control = "color";
@@ -89,7 +91,35 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   root._getLayersData = () => [];
   root._getSelectedIds = () => [];
   root._commitActiveTextEditor = vi.fn();
-  return { destroy: appDestroyMock };
+
+  // 引擎的 setProperty 直接写主控件并跑副作用,不再派发合成事件。
+  const masters = {
+    color: colorInput,
+    width: widthInput,
+    fill: fillInput,
+    "fill-transparent": fillTransparentInput,
+    "font-family": fontFamilyInput,
+    "font-size": fontSizeInput,
+    "coordinate-unit-size": coordinateUnitSizeInput,
+    "coordinate-show-grid": coordinateShowGridInput,
+    "coordinate-grid-color": coordinateGridColorInput,
+    "coordinate-axis-color": coordinateAxisColorInput,
+    "coordinate-label-color": coordinateLabelColorInput,
+  };
+  propertyWrites.length = 0;
+  return {
+    destroy: appDestroyMock,
+    commands: {
+      setProperty: vi.fn((name, value, { checked, silent = false } = {}) => {
+        const input = masters[name];
+        if (!input) return;
+        if (input.type === "checkbox") input.checked = Boolean(checked ?? value);
+        else input.value = String(value);
+        propertyWrites.push({ name, value, checked, silent });
+      }),
+      toggleTextStyle: toggleTextStyleMock,
+    },
+  };
 }));
 
 vi.mock("../../src/app/whiteboard-app.js", () => ({
@@ -296,10 +326,6 @@ describe("App style control bridge", () => {
 
   it("clears transparent fill before applying a React fill color change", () => {
     const { fillInput, fillTransparentInput, host } = mountApp();
-    const transparentAtFillInput = [];
-    fillInput.addEventListener("input", () => {
-      transparentAtFillInput.push(fillTransparentInput.checked);
-    });
 
     act(() => {
       host.querySelector('[data-testid="set-fill"]').click();
@@ -307,17 +333,21 @@ describe("App style control bridge", () => {
 
     expect(fillInput.value).toBe("#22c55e");
     expect(fillTransparentInput.checked).toBe(false);
-    expect(transparentAtFillInput).toEqual([false]);
+    // 顺序要紧:先静默清掉透明填充,再写颜色,否则颜色会被透明态覆盖
+    expect(propertyWrites.map(({ name, silent }) => [name, silent])).toEqual([
+      ["fill-transparent", true],
+      ["fill", false],
+    ]);
   });
 
-  it("routes React text style toggles through the legacy text style button", () => {
-    const { boldTextStyleButton, host } = mountApp();
+  it("routes React text style toggles through the engine command", () => {
+    const { host } = mountApp();
 
     act(() => {
       host.querySelector('[data-testid="toggle-bold"]').click();
     });
 
-    expect(boldTextStyleButton.dataset.clickCount).toBe("1");
+    expect(toggleTextStyleMock).toHaveBeenCalledWith("bold");
   });
 
   it("syncs React sticky style controls to the legacy property inputs", () => {
