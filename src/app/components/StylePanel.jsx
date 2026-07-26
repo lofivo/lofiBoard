@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox, Switch } from '@douyinfe/semi-ui';
-import { Bold, Italic, Underline, Strikethrough, PanelTop } from 'lucide-static';
+import { Bold, Italic, Underline, Strikethrough, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
+import { GLASS, GLASS_EDGE, RADIUS, TEXT, PANEL_MOTION } from '../../ui/tokens.js';
 
 const ICON_BOLD = icon(Bold);
 const ICON_ITALIC = icon(Italic);
 const ICON_UNDERLINE = icon(Underline);
 const ICON_STRIKE = icon(Strikethrough);
-const ICON_PANEL = icon(PanelTop);
+const ICON_PANEL = icon(SlidersHorizontal);
 
 const COLORS = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed'];
 const FILLS  = ['#ffffff', '#dbeafe', '#fee2e2', '#dcfce7', '#fef3c7', '#ede9fe'];
@@ -31,7 +32,7 @@ const fieldGap = { display: 'flex', flexDirection: 'column', gap: 6 };
 const cardGroupStyle = {
   background: 'var(--semi-color-fill-0)',
   border: '1px solid var(--semi-color-border)',
-  borderRadius: '12px',
+  borderRadius: RADIUS.md,
   padding: '12px',
   display: 'flex',
   flexDirection: 'column',
@@ -56,7 +57,7 @@ function ColorField({ label, colors, value, set }) {
       <div role="group" style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         {colors.map(c => (
           <button key={c} onClick={() => set?.(c)} title={c}
-            className="color-preset-btn" style={{ width: 24, height: 24, padding: 0, cursor: 'pointer', border: 'none', borderRadius: 6,
+            className="color-preset-btn" style={{ width: 24, height: 24, padding: 0, cursor: 'pointer', border: 'none', borderRadius: RADIUS.xs,
               backgroundColor: c, boxShadow: value === c ? `0 0 0 2px var(--semi-color-primary)` : `inset 0 0 0 1px rgba(0,0,0,0.15)` }} />
         ))}
         <div style={{ width: 1, height: 20, backgroundColor: 'var(--semi-color-border)', margin: '0 3px', flex: 'none' }} />
@@ -111,7 +112,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
           <button onClick={() => onCap('round')} title="圆头"
             style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
               border: cap==='round' ? activeBorder : idleBorder,
-              borderRadius:8, background: cap==='round' ? activeBg : idleBg }}>
+              borderRadius:RADIUS.sm, background: cap==='round' ? activeBg : idleBg }}>
             <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
               <rect x="4" y="2" width="20" height="8" rx="4" fill={capColor} />
             </svg>
@@ -119,7 +120,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
           <button onClick={() => onCap('square')} title="平头"
             style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:32, padding:0, cursor:'pointer',
               border: cap==='square' ? activeBorder : idleBorder,
-              borderRadius:8, background: cap==='square' ? activeBg : idleBg }}>
+              borderRadius:RADIUS.sm, background: cap==='square' ? activeBg : idleBg }}>
             <svg width="28" height="12" viewBox="0 0 28 12" style={{ display: 'block' }}>
               <rect x="4" y="1" width="20" height="10" rx="1" fill={capColor} />
             </svg>
@@ -133,7 +134,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
             <button key={v} onClick={()=>onStyle(v)}
               style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:28, padding:0, cursor:'pointer',
                 border: style===v ? '2px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
-                borderRadius:8, background: style===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
+                borderRadius:RADIUS.sm, background: style===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
               <span style={{ width:18, height:0, borderTop:`2px ${t} currentColor`, color:'var(--semi-color-text-0)' }} />
             </button>
           ))}
@@ -145,7 +146,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
 
 function Preview({ color, width, cap }) {
   return (
-    <div style={{ borderRadius: 10, background: 'var(--semi-color-fill-0)', padding: 6, overflow: 'hidden' }}>
+    <div style={{ borderRadius: RADIUS.sm, background: 'var(--semi-color-fill-0)', padding: 6, overflow: 'hidden' }}>
       <svg viewBox="0 0 280 48" style={{ width: '100%', height: 40, display: 'block' }}>
         <path d="M 14,24 C 72,10 132,38 266,24" fill="none" stroke={color||'#111827'} strokeWidth={width||6} strokeLinecap={cap||'round'} />
       </svg>
@@ -162,10 +163,10 @@ function FormatBtns({ bold, italic, underline, strike, onToggle }) {
   ];
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 4, padding: 4,
-      border: '1px solid var(--semi-color-border)', borderRadius: 12, background: 'var(--semi-color-fill-0)' }}>
+      border: '1px solid var(--semi-color-border)', borderRadius: RADIUS.md, background: 'var(--semi-color-fill-0)' }}>
       {btns.map(b => (
         <button key={b.k} title={b.t} onClick={() => onToggle(b.k)}
-          style={{ display:'grid', placeItems:'center', height:28, border:'none', borderRadius:8, cursor:'pointer',
+          style={{ display:'grid', placeItems:'center', height:28, border:'none', borderRadius:RADIUS.sm, cursor:'pointer',
             background: b.v ? 'var(--semi-color-primary-light-default)' : 'transparent',
             color: b.v ? 'var(--semi-color-primary)' : 'var(--semi-color-text-2)' }}
           dangerouslySetInnerHTML={{ __html: b.h }} />
@@ -269,7 +270,7 @@ function CoordinateCore({ ctx }) {
 }
 
 const colorTriggerBase = {
-  width: 26, height: 26, borderRadius: 6, cursor: 'pointer',
+  width: 26, height: 26, borderRadius: RADIUS.xs, cursor: 'pointer',
   border: '1px solid var(--semi-color-border)',
   transition: 'transform 180ms cubic-bezier(0.33,0,0.2,1)',
   transform: 'scale(1)',
@@ -321,7 +322,7 @@ const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-str
 
 const textAreaStyle = {
   width: '100%', boxSizing: 'border-box',
-  border: '1px solid var(--semi-color-border)', borderRadius: 6,
+  border: '1px solid var(--semi-color-border)', borderRadius: RADIUS.xs,
   background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
 };
 
@@ -332,7 +333,7 @@ const textAreaInner = {
 
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', height: 28, padding: '0 8px', fontSize: 12,
-  border: '1px solid var(--semi-color-border)', borderRadius: 6,
+  border: '1px solid var(--semi-color-border)', borderRadius: RADIUS.xs,
   background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
   outline: 'none', fontFamily: 'inherit',
 };
@@ -464,7 +465,7 @@ function LinearStructureInspector({ ctx }) {
         <div style={fieldGap}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={labelStyle}>{valuesTitle}</span>
-            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('linear-apply-values')}>应用结构</Button>
           </div>
           <TextArea value={values} onChange={v => handleValuesChange(v)} rows={2}
@@ -493,9 +494,9 @@ function LinearStructureInspector({ ctx }) {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 4 }}>
-          <Button size="small" theme="light" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: 600 }}
+          <Button size="small" theme="light" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: 600 }}
             onClick={() => ctx.runAction?.('array-highlight')}>应用高亮</Button>
-          <Button size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+          <Button size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm }}
             onClick={() => ctx.runAction?.('array-clear-highlight')}>清除高亮</Button>
         </div>
       </div>
@@ -512,7 +513,7 @@ function LinearStructureInspector({ ctx }) {
             { action: 'linear-pointer-show', label: '显示指针' },
             { action: 'linear-pointer-hide', label: '隐藏指针' },
           ].map(a => (
-            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, padding: 0, borderRadius: 6 }}
+            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, padding: 0, borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
@@ -534,7 +535,7 @@ function LinearStructureInspector({ ctx }) {
         <div style={{
           background: 'var(--semi-color-fill-1)',
           border: '1px solid var(--semi-color-border)',
-          borderRadius: '8px',
+          borderRadius: RADIUS.sm,
           padding: '8px 10px',
           color: 'var(--semi-color-text-1)',
           fontSize: '11px',
@@ -561,7 +562,7 @@ function LinearStructureInspector({ ctx }) {
               theme={a.main ? "light" : "outline"}
               type="tertiary"
               disabled={a.disabled}
-              style={{ height: 28, fontSize: 12, borderRadius: 8, fontWeight: a.main ? 600 : 400 }}
+              style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: a.main ? 600 : 400 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
@@ -620,7 +621,7 @@ function GraphStructureInspector({ ctx }) {
         <div style={fieldGap}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={labelStyle}>顶点与边关系</span>
-            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('graph-apply-structure')}>应用结构</Button>
           </div>
           <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
@@ -703,7 +704,7 @@ function TreeStructureInspector({ ctx }) {
         <div style={fieldGap}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={labelStyle}>父子节点关系</span>
-            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: 6 }}
+            <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('tree-apply-structure')}>应用结构</Button>
           </div>
           <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
@@ -721,7 +722,7 @@ function TreeStructureInspector({ ctx }) {
               <Button key={a.action} size="small"
                 theme={isClear ? "outline" : "light"}
                 type="tertiary"
-                style={{ height: 28, fontSize: 12, borderRadius: 8 }}
+                style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm }}
                 onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
             );
           })}
@@ -784,10 +785,9 @@ function resolveInspector(mode, shape, ctx) {
 /* ---- Main Panel ---- */
 
 const PANEL_STYLE = {
+  ...GLASS,
   position: 'fixed', zIndex: 26, top: '50%', transform: 'translateY(-50%)',
-  border: '1px solid var(--fluent-stroke)', background: 'rgba(255,255,255,0.96)',
-  boxShadow: '0 18px 46px rgba(15,23,42,0.1)', backdropFilter: 'blur(24px)',
-  transition: 'opacity 180ms cubic-bezier(0.33,0,0.2,1), transform 220ms cubic-bezier(0.33,0,0.2,1)',
+  transition: PANEL_MOTION,
   overflow: 'hidden',
 };
 
@@ -811,15 +811,16 @@ export default function StylePanel() {
   return (
     <>
       <aside style={{ ...PANEL_STYLE, left: 0, width: 260, maxHeight: 'calc(100vh - 64px)', padding: 18,
-        borderRadius: '0 24px 24px 0', borderLeft: 0, transform: panelTransform,
+        borderRadius: `0 ${RADIUS.lg}px ${RADIUS.lg}px 0`, borderLeft: 0, transform: panelTransform,
         opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-          <span style={{ display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13, color:'var(--semi-color-text-0)' }}
+          <span style={{ display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13, color:TEXT.primary }}
             dangerouslySetInnerHTML={{ __html: ICON_PANEL + panelTitle }} />
           <button type="button" onClick={() => ctx.setStylePanelCollapsed?.(true)}
-            style={{ fontSize:22, width:32, height:32, padding:0, border:'none', borderRadius:8, cursor:'pointer',
-              background:'transparent', color:'var(--semi-color-text-2)', display:'flex', alignItems:'center', justifyContent:'center' }}
-            aria-label="收起属性">‹</button>
+            style={{ width:32, height:32, padding:0, border:'none', borderRadius:RADIUS.sm, cursor:'pointer',
+              background:'transparent', color:TEXT.tertiary, display:'flex', alignItems:'center', justifyContent:'center' }}
+            aria-label="收起属性"
+            dangerouslySetInnerHTML={{ __html: icon(ChevronLeft) }} />
         </div>
         {inspector}
       </aside>
@@ -832,17 +833,17 @@ export function StylePanelToggle({ collapsed, onClick }) {
   return (
     <button type="button" onClick={onClick}
       style={{
+        ...GLASS_EDGE,
         position: 'fixed', zIndex: 26, top: '50%', left: 0, transform: 'translateY(-50%)',
         width: 32, height: 56, padding: 0,
-        border: '1px solid rgba(148,163,184,0.28)', borderLeft: 0, borderRadius: '0 8px 8px 0',
-        background: 'rgba(255,255,255,0.94)', boxShadow: '0 18px 50px rgba(15,23,42,0.08)',
-        backdropFilter: 'blur(16px)', cursor: 'pointer',
-        fontSize: 22, lineHeight: '56px', color: '#64748b',
-        display: collapsed ? 'block' : 'none', opacity: collapsed ? 1 : 0,
-        transition: 'opacity 180ms cubic-bezier(0.33,0,0.2,1)',
+        borderLeft: 0, borderRadius: `0 ${RADIUS.sm}px ${RADIUS.sm}px 0`,
+        cursor: 'pointer', color: TEXT.secondary,
+        display: collapsed ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center',
+        opacity: collapsed ? 1 : 0,
+        transition: 'opacity 180ms cubic-bezier(0.33, 0, 0.2, 1)',
       }}
-      aria-label="展开属性" title="展开属性">
-      <span aria-hidden="true">›</span>
-    </button>
+      aria-label="展开属性" title="展开属性"
+      dangerouslySetInnerHTML={{ __html: icon(ChevronRight) }}
+    />
   );
 }

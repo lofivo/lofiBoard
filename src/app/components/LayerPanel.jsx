@@ -1,7 +1,8 @@
 import React from 'react';
 import { useWhiteboardContext } from '../WhiteboardContext';
-import { PanelTop } from 'lucide-static';
+import { Layers, ChevronRight, ChevronLeft, SquareDashed } from 'lucide-static';
 import { icon } from '../../ui/config.js';
+import { GLASS, GLASS_EDGE, RADIUS, TEXT, ACCENT, ACCENT_SOFT, PANEL_MOTION } from '../../ui/tokens.js';
 
 const TYPE_DOT = {
   stroke: '#2563eb',
@@ -22,15 +23,12 @@ const TYPE_DOT = {
 };
 
 const PANEL_STYLE = {
+  ...GLASS,
   position: 'fixed',
   zIndex: 25,
   top: '50%',
   transform: 'translateY(-50%)',
-  border: '1px solid rgba(148,163,184,0.16)',
-  background: 'rgba(255,255,255,0.94)',
-  boxShadow: '0 8px 32px rgba(15,23,42,0.06)',
-  backdropFilter: 'blur(20px)',
-  transition: 'opacity 180ms cubic-bezier(0.33,0,0.2,1), transform 220ms cubic-bezier(0.33,0,0.2,1)',
+  transition: PANEL_MOTION,
   overflow: 'hidden',
   display: 'flex',
   flexDirection: 'column',
@@ -43,25 +41,25 @@ const dotStyle = (color) => ({
 
 const levelBadgeStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  minWidth: 20, height: 18, padding: '0 5px', borderRadius: 5,
-  background: 'rgba(148,163,184,0.12)', color: '#64748b',
+  minWidth: 20, height: 18, padding: '0 5px', borderRadius: RADIUS.xs,
+  background: 'var(--semi-color-fill-0)', color: TEXT.secondary,
   fontSize: 10, fontWeight: 600, letterSpacing: '0.03em',
   flex: 'none',
 };
 
 const stateBadgeStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  width: 18, height: 18, borderRadius: 5,
-  background: 'rgba(148,163,184,0.12)', color: '#64748b',
+  width: 18, height: 18, borderRadius: RADIUS.xs,
+  background: 'var(--semi-color-fill-0)', color: TEXT.secondary,
   fontSize: 10, fontWeight: 700,
   flex: 'none',
 };
 
 const itemBase = {
   display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-  borderRadius: 10, cursor: 'pointer', fontSize: 12,
+  borderRadius: RADIUS.sm, cursor: 'pointer', fontSize: 12,
   transition: 'background 120ms cubic-bezier(0.33,0,0.2,1)',
-  color: '#334155', minHeight: 36,
+  color: TEXT.primary, minHeight: 36,
 };
 
 export default function LayerPanel() {
@@ -81,7 +79,7 @@ export default function LayerPanel() {
       width: 232,
       maxHeight: 'calc(100vh - 168px)',
       padding: '16px 10px',
-      borderRadius: '20px 0 0 20px',
+      borderRadius: `${RADIUS.lg}px 0 0 ${RADIUS.lg}px`,
       borderRight: 0,
       transform: panelTransform,
       opacity: collapsed ? 0 : 1,
@@ -93,33 +91,34 @@ export default function LayerPanel() {
       }}>
         <span style={{
           display: 'flex', alignItems: 'center', gap: 7,
-          fontWeight: 600, fontSize: 13, color: '#1e293b',
+          fontWeight: 600, fontSize: 13, color: TEXT.primary,
         }}
-          dangerouslySetInnerHTML={{ __html: icon(PanelTop) + '图层' }} />
+          dangerouslySetInnerHTML={{ __html: icon(Layers) + '图层' }} />
         <button type="button"
           onClick={() => ctx.setLayerPanelCollapsed?.(true)}
           style={{
-            width: 28, height: 28, padding: 0, border: 'none', borderRadius: 8,
-            cursor: 'pointer', background: 'transparent', color: '#94a3b8',
-            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, padding: 0, border: 'none', borderRadius: RADIUS.sm,
+            cursor: 'pointer', background: 'transparent', color: TEXT.tertiary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
-          aria-label="收起图层">›</button>
+          aria-label="收起图层"
+          dangerouslySetInnerHTML={{ __html: icon(ChevronRight) }} />
       </div>
 
       {layers.length === 0
         ? <div style={{
-            padding: '32px 8px', color: '#94a3b8', fontSize: 12,
+            padding: '32px 8px', color: TEXT.tertiary, fontSize: 12,
             textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ opacity: 0.4, fontSize: 24 }}>⊞</span>
-              <span>暂无元素</span>
+            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <span style={{ opacity: 0.45 }} dangerouslySetInnerHTML={{ __html: icon(SquareDashed) }} />
+              <span>暂无元素，先在画布上画点什么</span>
             </span>
           </div>
         : <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {layers.map((item) => {
               const isSelected = selectedIds.includes(item.id);
-              const dotColor = TYPE_DOT[item.type] || '#94a3b8';
+              const dotColor = TYPE_DOT[item.type] || 'var(--semi-color-text-3)';
               const stateLabel = [
                 item.locked ? '锁定' : null,
                 item.groupId ? '分组' : null,
@@ -140,12 +139,12 @@ export default function LayerPanel() {
                   }}
                   style={{
                     ...itemBase,
-                    background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
-                    color: isSelected ? '#4338ca' : '#334155',
+                    background: isSelected ? ACCENT_SOFT : 'transparent',
+                    color: isSelected ? ACCENT : TEXT.primary,
                     fontWeight: isSelected ? 600 : 400,
                   }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'rgba(148,163,184,0.06)';
+                    if (!isSelected) e.currentTarget.style.background = 'var(--semi-color-fill-0)';
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -173,24 +172,22 @@ export function LayerPanelToggle({ collapsed, onClick }) {
       type="button"
       onClick={onClick}
       style={{
+        ...GLASS_EDGE,
         position: 'fixed', zIndex: 25, top: '50%', right: 0,
         transform: 'translateY(-50%)',
         width: 32, height: 56, padding: 0,
-        border: '1px solid rgba(148,163,184,0.28)', borderRight: 0,
-        borderRadius: '8px 0 0 8px',
-        background: 'rgba(255,255,255,0.94)',
-        boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
-        backdropFilter: 'blur(16px)',
+        borderRight: 0,
+        borderRadius: `${RADIUS.sm}px 0 0 ${RADIUS.sm}px`,
         cursor: 'pointer',
-        fontSize: 22, lineHeight: '56px', color: '#64748b',
-        display: collapsed ? 'block' : 'none',
+        color: TEXT.secondary,
+        display: collapsed ? 'flex' : 'none',
+        alignItems: 'center', justifyContent: 'center',
         opacity: collapsed ? 1 : 0,
-        transition: 'opacity 180ms cubic-bezier(0.33,0,0.2,1)',
+        transition: 'opacity 180ms cubic-bezier(0.33, 0, 0.2, 1)',
       }}
       aria-label="展开图层"
       title="展开图层"
-    >
-      <span aria-hidden="true">‹</span>
-    </button>
+      dangerouslySetInnerHTML={{ __html: icon(ChevronLeft) }}
+    />
   );
 }
