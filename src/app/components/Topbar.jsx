@@ -7,6 +7,7 @@ import {
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
+import { GLASS, RADIUS, TEXT, ACCENT } from '../../ui/tokens.js';
 
 const menuItems = [
   { action: 'new', label: '新建白板', svg: FilePlus },
@@ -39,36 +40,32 @@ export default function Topbar() {
         <Dropdown.Item key={item.action}
           icon={item.svg ? <SvgIcon svg={item.svg} /> : undefined}
           onClick={() => { ctx.runAction?.(item.action); setMenuVisible(false); }}
-          style={{ height: 36, borderRadius: 7, padding: '0 10px', fontSize: 13, color: '#334155' }}>
+          style={{ height: 36, borderRadius: RADIUS.sm, padding: '0 10px', fontSize: 13, color: TEXT.primary }}>
           {item.label}
         </Dropdown.Item>
       ))}
       <Dropdown.Divider style={{ margin: '4px 0' }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 36, padding: '0 10px', color: '#64748b', fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 36, padding: '0 10px', color: TEXT.secondary, fontSize: 13 }}>
         <IconGridStroked />
         <span>画布背景</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: 4, marginTop: 4, borderRadius: 8, background: 'var(--semi-color-fill-0)' }}>
-        <button type="button"
-          onClick={() => { ctx.setBackgroundMode?.('plain'); setMenuVisible(false); }}
-          style={{
-            height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-            background: ctx.backgroundMode === 'plain' ? 'var(--semi-color-bg-3)' : 'transparent',
-            color: ctx.backgroundMode === 'plain' ? 'var(--semi-color-text-0)' : 'var(--semi-color-text-2)',
-            fontWeight: ctx.backgroundMode === 'plain' ? 600 : 400,
-          }}>
-          纯白
-        </button>
-        <button type="button"
-          onClick={() => { ctx.setBackgroundMode?.('dots'); setMenuVisible(false); }}
-          style={{
-            height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-            background: ctx.backgroundMode === 'dots' ? 'var(--semi-color-bg-3)' : 'transparent',
-            color: ctx.backgroundMode === 'dots' ? 'var(--semi-color-text-0)' : 'var(--semi-color-text-2)',
-            fontWeight: ctx.backgroundMode === 'dots' ? 600 : 400,
-          }}>
-          点阵
-        </button>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: 4, marginTop: 4, borderRadius: RADIUS.sm, background: 'var(--semi-color-fill-0)' }}>
+        {[{ id: 'plain', label: '纯白' }, { id: 'dots', label: '点阵' }].map((mode) => {
+          const active = ctx.backgroundMode === mode.id;
+          return (
+            <button key={mode.id} type="button"
+              onClick={() => { ctx.setBackgroundMode?.(mode.id); setMenuVisible(false); }}
+              style={{
+                height: 32, borderRadius: RADIUS.xs, border: 'none', cursor: 'pointer', fontSize: 13,
+                background: active ? 'var(--semi-color-bg-3)' : 'transparent',
+                color: active ? TEXT.primary : TEXT.secondary,
+                fontWeight: active ? 600 : 400,
+                boxShadow: active ? '0 1px 2px rgba(15, 23, 42, 0.06)' : 'none',
+              }}>
+              {mode.label}
+            </button>
+          );
+        })}
       </div>
     </Dropdown.Menu>
   );
@@ -79,24 +76,23 @@ export default function Topbar() {
         <button type="button"
           onClick={() => setMenuVisible(!menuVisible)}
           style={{
+            ...GLASS,
             display: 'flex', alignItems: 'center', gap: 10,
             minWidth: 188, maxWidth: 'min(360px, calc(100vw - 112px))', height: 44,
             padding: '0 12px', cursor: 'pointer',
-            border: '1px solid rgba(148,163,184,0.28)', borderRadius: 8,
-            background: 'rgba(255,255,255,0.94)', boxShadow: '0 18px 50px rgba(15,23,42,0.08)',
-            backdropFilter: 'blur(16px)',
+            borderRadius: RADIUS.md,
           }}>
           <span style={{
-            width: 23, height: 23, flex: '0 0 auto', borderRadius: 7,
-            background: 'var(--semi-color-primary)', boxShadow: 'inset -6px -6px 0 rgba(255,255,255,0.2)',
+            width: 24, height: 24, flex: '0 0 auto', borderRadius: RADIUS.xs,
+            background: ACCENT, boxShadow: 'inset -6px -6px 0 rgba(255,255,255,0.2)',
           }} />
           <span style={{ flex: '1 1 auto', minWidth: 0, textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-            <strong style={{ fontSize: 14, lineHeight: '17px', color: '#1f2937', fontWeight: 600 }}>lofiBoard</strong>
-            <span style={{ fontSize: 12, lineHeight: '16px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: 14, lineHeight: '17px', color: TEXT.primary, fontWeight: 600 }}>lofiBoard</strong>
+            <span style={{ fontSize: 12, lineHeight: '16px', color: TEXT.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {ctx.fileName || '未命名白板'}
             </span>
           </span>
-          <IconChevronDown style={{ flex: '0 0 auto', color: '#64748b', fontSize: 18, transition: 'transform 140ms ease', transform: menuVisible ? 'rotate(180deg)' : 'none' }} />
+          <IconChevronDown style={{ flex: '0 0 auto', color: TEXT.tertiary, fontSize: 18, transition: 'transform 140ms ease', transform: menuVisible ? 'rotate(180deg)' : 'none' }} />
         </button>
       </Dropdown>
     </div>

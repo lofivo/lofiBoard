@@ -5,6 +5,7 @@ import {
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { icon } from '../../ui/config.js';
+import { GLASS, RADIUS, TEXT } from '../../ui/tokens.js';
 import { getContextMenuItemsForScope } from '../context-menu/controller.js';
 
 function SvgIcon({ svg }) {
@@ -40,7 +41,7 @@ const menuItemStyle = {
   width: '100%',
   height: 34,
   border: 'none',
-  borderRadius: 7,
+  borderRadius: RADIUS.sm,
   padding: '0 10px',
   background: 'transparent',
   display: 'flex',
@@ -94,12 +95,9 @@ export default function ContextMenu() {
       zIndex: 42,
       width: 168,
       overflow: 'hidden',
-      borderRadius: 8,
+      ...GLASS,
+      borderRadius: RADIUS.md,
       padding: 6,
-      background: 'rgba(255,255,255,0.98)',
-      boxShadow: '0 18px 50px rgba(15,23,42,0.12)',
-      backdropFilter: 'blur(16px)',
-      border: '1px solid rgba(148,163,184,0.28)',
     }}>
       <ul role="menu" style={menuListStyle}>
         {items.map(item => {
@@ -115,7 +113,7 @@ export default function ContextMenu() {
               onClick={() => runClickAction(item.action, disabled)}
               style={{
                 ...menuItemStyle,
-                color: disabled ? '#94a3b8' : '#334155',
+                color: disabled ? TEXT.tertiary : TEXT.primary,
                 opacity: disabled ? 0.58 : 1,
                 cursor: disabled ? 'not-allowed' : 'pointer',
               }}
