@@ -38,7 +38,9 @@
 33. 图结构属性栏“应用结构”(`updateGraphFromInput`)重建顶点/边时必须沿用当前 `style.nodeRadius` 调 `createGraphStructureElement`/`getGraphMinSize`，并把保留的旧节点位置钳进 `[r,width-r]`/`[r,height-r]`。不能按默认半径 26 生成新边框，否则调过节点大小后点击应用会让模型宽高过小或节点初始在框外，随后 Konva `dragBoundFunc` 表现为拖不到边界或拖出边界。此类修复要同时补模型测试和真实 Konva 同步/拖拽边界测试。
 34. 右键（及其他指针）目标解析不能只依赖 `stage.getIntersection` 像素命中：元素选中后 Transformer `shouldOverdrawWholeArea` 背板盖在最上层，`getIntersection` 命中背板找不到 `.element` 祖先返回 null，导致右键菜单被误判为 canvas scope（只剩撤销/重做/粘贴）；未填充图形内部也命中不到。应与左键选中共用 `getSelectableElementIdAtWorldPoint(worldPoint, { fallbackNode: intersection })` 包围盒命中。
 35. React 工具栏这类包含 SVG 图标的固定浮层不要用 `left: 50%` + `translateX(-50%)` 居中；新增奇数宽度按钮或 1px 分隔线后，整个浮层和内部 SVG 会落在半像素并被变换层栅格化，表现为所有图标一起发虚，调 SVG 大小也无效。应使用 `left/right: 0` + `width: max-content` + `margin: 0 auto` 的非 transform 居中，并让 1px 分隔线放在偶数宽度的布局盒内；此类问题要用真实浏览器检查 `getBoundingClientRect()` 坐标是否为整数。
-36. 编辑框持久保存的是用户手动设置的宽高；输入导致的实时自动撑高只属于当前编辑会话，不能覆盖持久编辑框尺寸。提交文字与编辑框调整应合并为一条历史，Escape 必须同时恢复两者。
+36. 浮层 chrome（Topbar/ToolDock/StylePanel/LayerPanel/StatusBar/ContextMenu）的边框、底色、模糊、阴影、圆角一律从 `src/ui/tokens.js` 取（`GLASS`/`GLASS_EDGE`/`RADIUS`/`TEXT`/`ACCENT`），不要在组件里再写 `rgba(255,255,255,0.94)`、`0 18px 50px ...`、`borderRadius: 7` 这类字面量。半透明底色由 `styles.css` 的 `--board-surface` / `--board-stroke` 提供，两处必须同步。强调色只有一个（Semi primary），不要引入第二套 indigo。回归测试见 `tests/app/components/chrome-tokens.test.jsx`。
+37. jsdom 的 cssstyle 解析不了带 `var()` 的 border 简写：`border: '1px solid var(--x)'` 一旦叠加 `borderRight: 0` 就整条丢失，`borderLeft: '1px solid var(--x)'` 读 `borderLeftWidth` 会拿到空串。需要被测试断言的边框请写长写（`borderLeftWidth/Style/Color`），真实浏览器两种写法都正常。
+38. 编辑框持久保存的是用户手动设置的宽高；输入导致的实时自动撑高只属于当前编辑会话，不能覆盖持久编辑框尺寸。提交文字与编辑框调整应合并为一条历史，Escape 必须同时恢复两者。
 
 ## Agent skills
 
