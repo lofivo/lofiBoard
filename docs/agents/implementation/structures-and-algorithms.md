@@ -49,12 +49,12 @@
 
 图结构的节点 id 和 label 要区分。用户看到的是 label，边内部连接用节点 id。
 
-图结构属性栏横跨 React 外壳和遗留 controller：
+图结构属性栏横跨 React 外壳和引擎 controller：
 
 - React `StylePanel.jsx` 展示图输入、有向图 Switch、节点大小 Slider。
-- 图输入和节点大小仍写遗留 DOM：`[data-graph-structure-input]`、`[data-graph-node-scale]`。
-- “应用结构”“有向图”“节点大小提交”通过 `ctx.runAction()` 点击遗留 `[data-action]`，由 `src/app/shell/action-controller.js` 和结构 controller 更新模型、历史和渲染。
-- `syncGraphStructurePanelState()` 是回灌入口，负责把当前选中图导出到输入框、把 `root.dataset.graphDirected` 写给 React Switch、把当前节点半径换算成 Slider 百分比。
+- 图输入和节点大小是尚未迁移到门面的例外，仍直接读写遗留 DOM：`[data-graph-structure-input]`、`[data-graph-node-scale]`（新代码不要模仿）。
+- “应用结构”“有向图”“节点大小提交”通过 `ctx.runAction()` → `app.commands.runAction()` 直接调 `src/app/shell/action-controller.js`，由结构 controller 更新模型、历史和渲染。
+- `syncGraphStructurePanelState()` 是回灌入口，负责把当前选中图导出到输入框、把有向状态写进 `root.dataset.graphDirected`（经 `getUiState().graphDirected` 到 React Switch）、把当前节点半径换算成 Slider 百分比。
 
 关键约束：
 

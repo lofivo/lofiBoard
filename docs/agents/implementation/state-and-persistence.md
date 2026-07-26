@@ -83,4 +83,4 @@
 
 保存前如果结构元素带有数组算法 marker，应清理运行时 marker，保持文件只包含稳定画板内容。
 
-工具属性快照由 `src/app/inspector/property-controls/controller.js` 按工具分别保存，切换工具时先保存旧工具、再恢复新工具。文字和便签虽不进入遗留工具属性面板模式，仍需要保留各自快照；有元素选中时只同步元素样式，不能覆盖工具预设。
+工具属性快照由 `src/app/inspector/property-controls/controller.js` 按工具分别保存，切换工具时先保存旧工具、再恢复新工具。属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store（不是 DOM），快照从它捕获。文字和便签也要保留各自快照；有元素选中时只同步元素样式，不能覆盖工具预设。

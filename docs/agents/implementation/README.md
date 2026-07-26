@@ -4,7 +4,7 @@
 
 ## 推荐读取顺序
 
-1. 先读根目录 `AGENTS.md`，确认项目约束、测试优先和禁止 Playwright。
+1. 先读根目录 `AGENTS.md`，确认项目约束、测试优先和测试套件禁止 Playwright。
 2. 再读根目录 `CONTEXT.md`，统一领域词。
 3. 读 `docs/adr/`，确认已经记录的架构决策。
 4. 根据任务读取本目录专题：
@@ -25,7 +25,7 @@
 - `src/<domain>/`：领域和纯逻辑模块，例如画板模型、结构规则、几何计算、工具规则、算法步骤。
 - `src/app/<domain>/`：应用 controller，负责 DOM、Konva、画板会话、选区、历史和 controller 协作。
 
-当前 UI 还有一层 React 外壳：`src/app/main.jsx` 渲染 `src/app/App.jsx`，再由 `App.jsx` 在 `legacyRootRef` 中调用 `createWhiteboardApp()`。React 组件替换了部分遗留 DOM 面板，但真实画板状态、历史和 Konva 运行时仍由遗留白板 controller 管理。
+当前 UI 还有一层 React 外壳：`src/app/main.jsx` 渲染 `src/app/App.jsx`，再由 `App.jsx` 在 `legacyRootRef` 中调用 `createWhiteboardApp()`。React 组件已替换全部可见 chrome（遗留属性面板等已删除），真实画板状态、历史和 Konva 运行时仍由引擎 controller 管理。React 与引擎之间只走两个门面：写用 `app.commands.*`，读用 `app.getUiState()`（AGENTS.md 第 39/40 条），详见 `code-map.md` 的 React 外壳桥接。
 
 测试目录基本镜像源码目录。改已有功能时先用 `rg` 搜对应测试；没有覆盖就先补测试，再改实现。
 

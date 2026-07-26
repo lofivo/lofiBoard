@@ -21,23 +21,23 @@
 
 同一个工具可能进入多个状态。例如选择工具可进入框选、拖拽、缩放、结构交互；画笔工具可进入绘制；文本元素可从选择工具进入编辑态。
 
-工具栏最左侧的锁按钮控制“放置后保持当前工具”，也可用 `Q` 切换。状态由遗留工具 controller 持有，通过 `root.dataset.keepToolActive` 回灌 React 工具栏。关闭时，文字、便签、图形和结构放置完成后切回选择工具；开启时保留当前工具。画笔和橡皮本身就是连续工具，不受该回退规则影响。
+工具栏最左侧的锁按钮控制“放置后保持当前工具”，也可用 `Q` 切换。状态由引擎工具 controller 持有，经 `getUiState().keepToolActive` 回灌 React 工具栏。关闭时，文字、便签、图形和结构放置完成后切回选择工具；开启时保留当前工具。画笔和橡皮本身就是连续工具，不受该回退规则影响。
 
-锁按钮后用竖向分隔线与常用工具隔开。矩形、椭圆、直线和箭头直接显示在主工具栏；“更多工具”弹层只保留坐标系。React 按钮仍通过遗留 DOM 的 `[data-shape-tool]` 入口切换活动图形。
+锁按钮后用竖向分隔线与常用工具隔开。矩形、椭圆、直线和箭头直接显示在主工具栏；“更多工具”弹层只保留坐标系。React 按钮通过 `commands.selectShapeTool()` 切换活动图形。
 
 ## React 面板交互
 
 React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。
 
-典型流程：
+典型流程（AGENTS.md 第 39/40 条的双门面闭环）：
 
-1. 遗留 controller 更新 DOM 文本、隐藏 input、`root.dataset.*` 或 root 暴露方法。
-2. `App.jsx` 轮询这些状态，写入 React context。
+1. 引擎 controller 更新模型、Konva node 和内部状态。
+2. `App.jsx` 每 100ms 调一次 `app.getUiState()` 取全量快照，逐字段 diff 后写入 React context。
 3. React 组件显示受控控件。
-4. 用户操作 React 控件后，组件通过 `ctx.runAction()`、`ctx.setTool()`、`ctx.runContextAction()` 或属性同步 setter 触发遗留 DOM action/input。
-5. 遗留 controller 修改画板模型、历史、Konva node 和 DOM 回灌状态。
+4. 用户操作 React 控件后，组件通过 `ctx.runAction()`、`ctx.setTool()`、`ctx.runContextAction()`、`ctx.setProperty()` 等调用 `app.commands.*`。
+5. 引擎 controller 修改画板模型、历史和 Konva node，下一次 `getUiState()` 把新状态带回 React。
 
-改 React 控件时要沿着这条闭环验证：显示值必须能从遗留 controller 回灌，用户输入必须最终进入遗留 controller。只改 React state 会导致控件回弹或画板模型没有变化。
+改 React 控件时要沿着这条闭环验证：显示值必须能从 `getUiState()` 回灌，用户输入必须经 `commands.*` 进入引擎。只改 React state 会导致控件回弹或画板模型没有变化。不要在 React 里 `querySelector` 遗留 DOM 再 `.click()` 或派发合成事件。
 
 ## 渲染同步
 

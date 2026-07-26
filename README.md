@@ -127,7 +127,7 @@ sudo systemctl reload nginx
 
 ## 目录结构
 
-- `src/app/`：应用入口、工作台 HTML 和 Konva 事件编排。
+- `src/app/`：React 外壳（`App.jsx`、`components/`）、白板装配入口（`whiteboard-app.js`）和各应用 controller。
 - `src/algorithms/`：数组排序算法步骤生成与校验。
 - `src/board/`：白板数据模型、元素工厂、历史记录和 ID 生成。
 - `src/canvas/`：Konva 节点适配、几何计算、视图缩放和平移、PNG 导出背景。

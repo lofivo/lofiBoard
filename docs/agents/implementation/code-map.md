@@ -3,7 +3,7 @@
 ## 顶层目录
 
 - `src/app/main.jsx`：React 浏览器入口，导入样式并渲染 `App`。
-- `src/app/App.jsx`：React 外壳。创建 `legacyRootRef`，在其中调用 `createWhiteboardApp(root)`，隐藏被 React 替换的遗留 DOM，并把遗留白板状态桥接到 React context。
+- `src/app/App.jsx`：React 外壳。创建 `legacyRootRef`，在其中调用 `createWhiteboardApp(root)`，用 `.legacy-chrome-hidden` CSS 类隐藏被 React 替换的遗留 chrome，并通过 `getUiState()` / `commands.*` 门面桥接引擎状态。
 - `src/app/whiteboard-app.js`：应用装配入口。这里创建 Stage/Layer、状态变量、所有 controller，并把跨模块回调接起来。
 - `src/board/`：画板数据模型、元素工厂、历史栈、ID。
 - `src/canvas/`：Konva 形状创建/同步、几何计算、视口适配、导出背景。
@@ -18,17 +18,19 @@
 
 React 组件位于 `src/app/components/*`。它们主要负责展示和用户输入，不直接拥有画板模型。真实状态仍在 `createWhiteboardApp()` 创建的遗留 controller、Konva node 和 board session 中。
 
-桥接方向分三类：
+React 与引擎之间只走两个门面（AGENTS.md 第 39/40 条）：
 
-- 遗留白板到 React：`App.jsx` 定时读取 `legacyRoot.dataset.*`、`[data-*]` 文本和 `legacyRoot._getLayersData()` / `_getSelectedIds()`，写入 `WhiteboardContext`。属性栏模式、选区能力、结构类型、图有向状态、当前工具、背景、缩放、文件名和状态栏都走这个方向。
-- React 到遗留白板 action：工具切换、菜单命令、缩放、背景、结构属性栏按钮等通过点击遗留 DOM 上的 `[data-action]`、`[data-tool]`、`[data-context-action]` 等入口触发，最终仍由 controller 改模型和历史。
-- React 到属性控件：颜色、线宽、字体、坐标系等连续属性通过 `syncPropertyToInput()` 写 `[data-control]` 隐藏 input，并派发 `input` / `change` 事件，让已有属性栏 controller 处理选区样式和历史。
+- 读：`app.getUiState()`。`App.jsx` 每 100ms 调一次取全量快照（工具、缩放、背景、面板模式、选区能力、属性值、图层、选中 id 等），逐字段 diff 后写入 `WhiteboardContext`。React 不再自己扫遗留 DOM / dataset。
+- 写：`app.commands.*`，包括 `setTool` / `runAction` / `runToolAction` / `runContextAction` / `selectShapeTool` / `setProperty` / `toggleTextStyle` / `zoomBy` / `setZoomAtCenter` / `setBackgroundMode`。属性写入走 `setProperty(name, value, { checked, silent })`，由 `property-controls/dom-controller.js` 的副作用表处理选区样式和历史，不再合成 DOM `input` / `change` 事件。
+- 属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store（`MASTER_CONTROLS` 表）。新增属性时在该表加一行（名字、store key、副作用），`getUiState().properties` 会自动带上。
+
+尚未迁移的例外（新代码不要模仿）：`StylePanel.jsx` 的图结构输入 `[data-graph-structure-input]`、节点大小 `[data-graph-node-scale]` 和数组算法按钮 `[data-action='array-algorithm-*']` 仍直接读写遗留 DOM。
 
 维护约束：
 
-- 不要把 React state 当成画板事实来源。React 受控控件必须能从遗留 controller 回灌，例如 `root.dataset.graphDirected` 经 `App.jsx` 同步到 `ctx.graphDirected` 后驱动 Switch。
+- 不要把 React state 当成画板事实来源。React 受控控件的显示值必须能从 `getUiState()` 回灌，例如 `graphDirected` 驱动 Switch。
 - `legacyRootRef` 的容器必须保持 `zIndex: "auto"`，避免创建层叠上下文把遗留 `position: fixed` 弹窗压到 React 面板下。
-- 新增 React 面板控件时，优先复用已有 `data-action` / `data-control` 桥接；只有确实没有遗留入口时，再在对应 controller 暴露窄方法。
+- 不要在 React 里 `querySelector` 遗留 DOM 再 `.click()` / `dispatchEvent`，也不要用 DOM 节点存状态；缺入口时在 `commands` 门面上加窄方法。
 
 ## `src/app/` 分区
 

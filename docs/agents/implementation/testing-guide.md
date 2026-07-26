@@ -6,7 +6,7 @@
 
 - 全量测试：`npm test`
 - 单个测试文件：`npm test -- tests/path/to/file.test.js`
-- 禁止使用 Playwright。
+- 测试套件禁止使用 Playwright（测试栈是 Vitest）。需要真实浏览器人工验证时按 AGENTS.md 第 42 条：确认点到的是 React 控件而不是同名的遗留 DOM 按钮。
 
 ## 按改动选择测试
 
@@ -19,7 +19,7 @@
 - 修改结构：运行 `tests/structures/*` 和 `tests/app/structures/*`。
 - 修改图结构属性栏、有向图开关、节点大小或结构输入桥接：运行 `tests/structures/templates.test.js`、`tests/app/structures/inspector-sync-controller.test.js`，并按涉及组件运行 `tests/app/components/*`。
 - 修改数组算法：运行 `tests/algorithms/array.test.js` 和 `tests/app/algorithms/array/*`。
-- 修改 React 外壳、React 面板、右键菜单或 React/遗留 DOM 桥接：运行对应 `tests/app/App.*.test.jsx`、`tests/app/components/*`，必要时补 `tests/app/inspector/*` 或 `tests/app/structures/*`。
+- 修改 React 外壳、React 面板、右键菜单或 `commands` / `getUiState` 门面桥接：运行对应 `tests/app/App.*.test.jsx`、`tests/app/components/*`，必要时补 `tests/app/inspector/*` 或 `tests/app/structures/*`。
 - 修改属性栏/面板/图层：运行 `tests/app/inspector/*`、`tests/app/panels/*`、`tests/app/components/*`、`tests/ui/panel-state.test.js`。
 - 修改导入导出/剪贴板/草稿：运行 `tests/app/import-export/*`、`tests/app/clipboard/*`、`tests/services/clipboard.test.js`、`tests/services/draft-storage.test.js`、`tests/services/image-import.test.js`。
 - 修改视口：运行 `tests/canvas/viewport.test.js`、`tests/app/viewport/*`。
@@ -50,4 +50,5 @@ rg "关键词|函数名|用户可见文案" tests src
 - `pointerdown` 到首次 `dragmove` 之间不要重建正在拖拽的 Konva node。
 - 数组算法运行中不能允许线性结构内容被同时编辑。
 - 保存画板前不能把结构运行时投影、算法 marker、选区或工具状态写入文件。
-- React 受控控件必须能从遗留 DOM/dataset 回灌，并通过 `data-action` 或 `data-control` 闭环进入 controller。
+- React 受控控件必须能从 `getUiState()` 回灌，并经 `commands.*` 门面闭环进入引擎 controller；不要恢复 `querySelector` + `.click()` / 合成事件的旧桥接。
+- 删除引擎读取的 DOM 或改属性 store 时，必须补一条真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的绘制路径测试，并验证改回旧写法时测试会红（AGENTS.md 第 41 条）。
