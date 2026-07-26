@@ -64,7 +64,7 @@ React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolD
 
 ## 文本和便签编辑
 
-文本/便签编辑由 `src/app/editing/controller.js` 控制。编辑态会隐藏 Konva 文本显示，创建 DOM textarea overlay，并同步 Transformer。
+文本/便签编辑由 `src/app/editing/controller.js` 控制。编辑态会创建 DOM textarea overlay，并以 textarea 作为可见文字、光标和选区的唯一视觉真值；内部 Konva.Text 在编辑期间隐藏，只保留外层 Group/命中区供 Transformer 调整编辑框。
 
 文本尺寸规则集中在：
 
@@ -80,6 +80,7 @@ React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolD
 - 仅 `text` 元素分离编辑框与渲染框：`editWidth` / `editHeight` 保存编辑框手动尺寸，`width` / `height` 保存渲染框尺寸；两者共用元素左上角。
 - 编辑态左右锚点只调整编辑宽度，上下锚点只调整编辑高度，角锚点可自由调整两轴；调整期间保持编辑态且禁用旋转。
 - 编辑框实际高度取“手动编辑高度”和 textarea 真实 `scrollHeight` 的较大值；内容自动撑高不能覆盖持久化的 `editHeight`。
+- 编辑态不得用透明 textarea 叠加可见 Konva 文本；长文本、多行换行和浏览器选区都必须按 textarea 的真实排版显示，提交或取消后再恢复 Konva/overlay 渲染。
 - Enter、失焦或外部点击提交文字与编辑框尺寸为一条历史；Escape 同时恢复两者。
 - 非编辑态 `height` 由 DOM overlay 的实际内容高度校正。LaTeX 必须等待 KaTeX HTML 写入后测量，并覆盖超出父行盒的子节点；浏览器字体加载完成后再次测量。
 - 文本元素是 Konva Group 包 Text，宽高变化要同步外层 Group、hit area 和内部 Text。

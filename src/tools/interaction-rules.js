@@ -476,10 +476,13 @@ export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 
 
 export function getTextEditorStyle({ element, scale = 1, horizontalPadding = 0, lineHeight = 1.25 }) {
   const fontStyle = String(element?.fontStyle ?? "");
+  const color = element?.type === "sticky"
+    ? (element?.textFill ?? "#1f2937")
+    : (element?.fill ?? "#111827");
   return {
     fontSize: `${(Number(element?.fontSize) || 0) * scale}px`,
     padding: `0 ${horizontalPadding}px`,
-    color: "transparent",
+    color,
     fontFamily: element?.fontFamily,
     fontStyle: fontStyle.includes("italic") ? "italic" : "normal",
     fontWeight: fontStyle.includes("bold") ? "700" : "400",

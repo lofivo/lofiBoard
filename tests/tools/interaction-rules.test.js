@@ -371,7 +371,7 @@ describe("interaction rules", () => {
     expect(getSingleLineTextEditorHeight(28, 2)).toBe(70);
   });
 
-  it("keeps text visually rendered by Konva while the textarea edits input", () => {
+  it("uses the textarea as the visual source of truth while editing text", () => {
     expect(getTextEditorStyle({
       element: {
         type: "text",
@@ -386,7 +386,7 @@ describe("interaction rules", () => {
     })).toEqual({
       fontSize: "42px",
       padding: "0 9px",
-      color: "transparent",
+      color: "#111827",
       fontFamily: "Inter, system-ui, sans-serif",
       fontStyle: "italic",
       fontWeight: "700",
@@ -406,7 +406,7 @@ describe("interaction rules", () => {
       },
       scale: 2,
       horizontalPadding: 12,
-    }).color).toBe("transparent");
+    }).color).toBe("#1f2937");
   });
 
   it("commits sticky note scaling into size before editing", () => {

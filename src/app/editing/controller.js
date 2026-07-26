@@ -93,6 +93,13 @@ export function createEditController({
     let manualEditorHeight = editorHeight;
     let preserveEditorOnNextBlur = false;
     let editorTransforming = false;
+    const getVisualTextNode = () => node.findOne?.("Text") ?? null;
+    const hideVisualTextNode = () => {
+      getVisualTextNode()?.hide?.();
+    };
+    const showVisualTextNode = () => {
+      getVisualTextNode()?.show?.();
+    };
 
     const getEditorWidth = () => Math.max(
       minEditorWidth,
@@ -171,6 +178,7 @@ export function createEditController({
           width: getEditorWidth() / scale,
           height: getEditorHeight() / scale,
         }, { renderLatex: false });
+        hideVisualTextNode();
       }
       transformer.forceUpdate();
       overlayLayer.batchDraw();
@@ -214,6 +222,7 @@ export function createEditController({
         width: getEditorWidth() / scale,
         height: getEditorHeight() / scale,
       }, { renderLatex: false });
+      hideVisualTextNode();
       transformer.forceUpdate();
       contentLayer.batchDraw();
       overlayLayer.batchDraw();
@@ -239,6 +248,7 @@ export function createEditController({
       width: getEditorWidth() / scale,
       height: getEditorHeight() / scale,
     }, { renderLatex: false });
+    hideVisualTextNode();
     transformer.nodes([node]);
     transformer.visible(true);
     transformer.resizeEnabled(true);
@@ -339,6 +349,7 @@ export function createEditController({
       onStateChange(false);
       editorCommitRef = null;
       textOverlayController.setHiddenIds([]);
+      showVisualTextNode();
       const nextText = textarea.value.trim();
       const committedWidth = getEditorWidth();
       const committedHeight = getEditorHeight();
@@ -403,6 +414,7 @@ export function createEditController({
       onStateChange(false);
       if (editorCommitRef) editorCommitRef = null;
       textOverlayController.setHiddenIds([]);
+      showVisualTextNode();
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();

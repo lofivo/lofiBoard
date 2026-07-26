@@ -258,6 +258,40 @@ describe("app editing controller", () => {
     expect(textarea?.value).toBe(element.text);
   });
 
+  it("uses the textarea as the visible editing surface and hides the Konva text", () => {
+    const deps = createDeps();
+    const element = textElement({ fill: "#0f172a" });
+    const textNode = {
+      hide: vi.fn(),
+      show: vi.fn(),
+      x: vi.fn(),
+      y: vi.fn(),
+      width: vi.fn(),
+      height: vi.fn(),
+      setAttrs: vi.fn(),
+      visible: vi.fn(),
+    };
+    const node = makeNode({
+      findOne: vi.fn((selector) => (selector === "Text" ? textNode : null)),
+      getAttr: vi.fn(() => 0),
+      setAttr: vi.fn(),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
+    expect(textarea.style.color).toBe("rgb(15, 23, 42)");
+    expect(textNode.hide).toHaveBeenCalled();
+
+    textarea.dispatchEvent(kEvent("Escape"));
+
+    expect(textNode.show).toHaveBeenCalled();
+    expect(controller.isEditing).toBe(false);
+  });
+
   it("opens with the persisted editing box instead of the render box", () => {
     const deps = createDeps();
     const element = textElement({

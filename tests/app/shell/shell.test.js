@@ -1202,12 +1202,14 @@ describe("app shell", () => {
     expect(textMeasureSource).toContain("verticalGap: 2");
   });
 
-  it("keeps the Konva text visible while the textarea only edits input", () => {
+  it("uses the textarea as the visible editing surface instead of Konva text", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("getTextEditorStyle");
     expect(editSource).toContain("Object.assign(textarea.style, getTextEditorStyle");
+    expect(editSource).toContain("hideVisualTextNode();");
+    expect(editSource).toContain("showVisualTextNode();");
     expect(editSource).toContain("syncTextNodeContent(node, {");
     expect(editSource).toContain("text: textarea.value");
     expect(editSource).toContain("}, { renderLatex: false });");
@@ -1260,7 +1262,7 @@ describe("app shell", () => {
     expect(transformerSource).toContain("stageScale: getStageScale()");
   });
 
-  it("keeps text editor backgrounds transparent while Konva renders text and sticky fill", () => {
+  it("keeps text editor backgrounds transparent while the textarea renders text and sticky fill", () => {
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
     const styleSource = readFileSync(new URL("../../../src/app/inspector/selection-style/controller.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
