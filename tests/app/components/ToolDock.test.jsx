@@ -72,7 +72,7 @@ describe("ToolDock", () => {
     expect(context.toggleKeepToolActive).toHaveBeenCalledTimes(1);
   });
 
-  it("separates the lock and exposes common shape tools in the compact toolbar", () => {
+  it("groups tools by purpose with separators between groups", () => {
     const { host } = renderDock({ currentTool: "shape", activeShape: "line" });
     const toolbar = host.querySelector('[role="toolbar"][aria-label="白板工具"]');
     const items = [...toolbar.querySelectorAll('button, [role="separator"]')].map((item) => (
@@ -84,13 +84,16 @@ describe("ToolDock", () => {
       "separator",
       "选择 (V)",
       "平移 (H)",
+      "separator",
       "画笔 (B)",
       "片段橡皮 (E)",
       "对象橡皮 (O)",
+      "separator",
       "文字 (T)",
       "便签 (N)",
       "图片",
       "结构 (S)",
+      "separator",
       "矩形 (R)",
       "椭圆",
       "直线 (L)",
@@ -115,6 +118,7 @@ describe("ToolDock", () => {
     expect(toolbar.style.right).toBe("0px");
     expect(toolbar.style.width).toBe("max-content");
     expect(toolbar.style.margin).toBe("0px auto");
+    expect(toolbar.querySelectorAll('[role="separator"]')).toHaveLength(4);
     expect(separator.style.width).toBe("2px");
     expect(separator.style.boxSizing).toBe("border-box");
     expect(separator.style.borderLeftWidth).toBe("1px");
