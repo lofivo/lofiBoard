@@ -2523,3 +2523,22 @@ button {
   margin-top: 5px;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.15) !important;
 }
+
+/* React 已取代的遗留 chrome：静态隐藏，不需要 MutationObserver 反复补 inline style */
+.legacy-chrome-hidden .topbar,
+.legacy-chrome-hidden .tool-dock,
+.legacy-chrome-hidden .style-panel,
+.legacy-chrome-hidden .layer-panel,
+.legacy-chrome-hidden .context-menu,
+.legacy-chrome-hidden .shape-popover,
+.legacy-chrome-hidden .structure-panel,
+.legacy-chrome-hidden .edge-panel-toggle-left,
+.legacy-chrome-hidden .edge-panel-toggle-right {
+  display: none;
+}
+
+/* 状态栏保留布局，React 侧仍从里面读缩放/文件名 */
+.legacy-chrome-hidden .statusbar {
+  opacity: 0;
+  pointer-events: none;
+}

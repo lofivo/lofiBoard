@@ -149,30 +149,9 @@ export default function App() {
     const legacyApp = createWhiteboardApp(legacyRoot);
     legacyAppRef.current = legacyApp;
 
-    // Hide original UI elements that React replaces
-    const hideSelectors = [
-      '.topbar', '.tool-dock',
-      '.style-panel', '.layer-panel',
-      '.context-menu',
-      '.shape-popover', '.structure-panel',
-      '.edge-panel-toggle-left', '.edge-panel-toggle-right',
-    ];
-    const applyHide = () => {
-      hideSelectors.forEach((sel) => {
-        const el = legacyRoot.querySelector(sel);
-        if (el) el.style.display = 'none';
-      });
-      // Statusbar: hide visually but keep layout so zoom buttons/labels still work
-      const statusbar = legacyRoot.querySelector('.statusbar');
-      if (statusbar) {
-        statusbar.style.opacity = '0';
-        statusbar.style.pointerEvents = 'none';
-      }
-    };
-    // Apply immediately and keep applying on DOM changes
-    applyHide();
-    const observer = new MutationObserver(() => applyHide());
-    observer.observe(legacyRoot, { childList: true, subtree: true });
+    // 被 React 取代的遗留 chrome 由 styles.css 的 .legacy-chrome-hidden 规则隐藏。
+    // 这些容器是 shell 模板一次性生成的,不会重建,所以不需要 MutationObserver 反复补隐藏。
+    legacyRoot.classList.add('legacy-chrome-hidden');
 
     // Sync state from whiteboard to React
     const syncState = () => {
@@ -400,7 +379,6 @@ export default function App() {
     return () => {
       clearInterval(interval);
       clearTimeout(statusClearTimerRef.current);
-      observer.disconnect();
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);

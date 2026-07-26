@@ -69,6 +69,24 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+describe("App 遗留 DOM 隐藏", () => {
+  // 隐藏是静态的:遗留容器由 shell 模板一次生成,不会重建。
+  // 用 class + CSS 隐藏,不要 MutationObserver —— 画一笔就有几十次 mutation,
+  // 每次都跑一遍 querySelector 是纯浪费。
+  it("用 class 而不是 MutationObserver 隐藏被 React 取代的遗留容器", () => {
+    const observeSpy = vi.spyOn(MutationObserver.prototype, "observe");
+    const host = document.createElement("div");
+    document.body.append(host);
+    mountedRoot = createRoot(host);
+
+    act(() => mountedRoot.render(<App />));
+
+    expect(bridgeState.legacyRoot.classList.contains("legacy-chrome-hidden")).toBe(true);
+    expect(observeSpy).not.toHaveBeenCalled();
+    observeSpy.mockRestore();
+  });
+});
+
 describe("App placement tool lock bridge", () => {
   it("round-trips the legacy lock state through React context", () => {
     const host = document.createElement("div");
