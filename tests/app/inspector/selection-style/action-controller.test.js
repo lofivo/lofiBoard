@@ -25,22 +25,22 @@ function createController({
     updateContextPanel: vi.fn(),
   };
   const controller = createSelectionStyleActionController({
-    controls: {
-      arrowDoubleEndedInput: createInput("", true),
-      colorInput: createInput("#111827"),
-      coordinateAxisColorInput: createInput("#0f172a"),
-      coordinateGridColorInput: createInput("#94a3b8"),
-      coordinateLabelColorInput: createInput("#475569"),
-      coordinateShowGridInput: createInput("", true),
-      coordinateShowLabelsInput: createInput("", true),
-      coordinateShowTicksInput: createInput("", false),
-      coordinateUnitSizeInput: createInput("40"),
-      fillInput: createInput("#ffffff"),
-      fillTransparentInput: createInput("", false),
-      fontFamilyInput: createInput("Inter"),
-      fontSizeInput: createInput("24"),
-      widthInput: createInput("2"),
-    },
+    getControlValues: () => ({
+      arrowDoubleEnded: true,
+      color: "#111827",
+      coordinateAxisColor: "#0f172a",
+      coordinateGridColor: "#94a3b8",
+      coordinateLabelColor: "#475569",
+      coordinateShowGrid: true,
+      coordinateShowLabels: true,
+      coordinateShowTicks: false,
+      coordinateUnitSize: "40",
+      fill: "#ffffff",
+      fillTransparent: false,
+      fontFamily: "Inter",
+      fontSize: "24",
+      width: "2",
+    }),
     getSelectedIds: () => selectedIds,
     selectionStyleController,
     ...callbacks,
@@ -116,7 +116,6 @@ describe("app inspector selection-style action-controller", () => {
       setStatus: vi.fn(),
     };
     const controller = createSelectionStyleActionController({
-      controls: {},
       getElements: () => [
         { id: "rect_1" },
         { id: "locked_1", locked: true },

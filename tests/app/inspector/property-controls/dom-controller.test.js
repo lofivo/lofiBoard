@@ -184,9 +184,9 @@ function createController(overrides = {}) {
 describe("app inspector property-controls dom-controller", () => {
   it("captures and reapplies property control snapshots", () => {
     const { controller, refs } = createController();
-    refs.colorInput.value = "#ef4444";
-    refs.widthInput.value = "12";
-    refs.fillTransparentInput.checked = false;
+    controller.setControl("color", "#ef4444", { silent: true });
+    controller.setControl("width", "12", { silent: true });
+    controller.setControl("fill-transparent", null, { checked: false, silent: true });
 
     const snapshot = controller.capturePropertyControls();
     expect(snapshot).toMatchObject({
@@ -210,16 +210,17 @@ describe("app inspector property-controls dom-controller", () => {
 
   it("saves and restores tool property controls only without active selection", () => {
     const { controller, propertyControlsController, refs } = createController();
-    refs.colorInput.value = "#ef4444";
+    controller.setControl("color", "#ef4444", { silent: true });
     controller.saveToolPropertyControlsForCurrentTool();
 
-    refs.colorInput.value = "#111827";
+    controller.setControl("color", "#111827", { silent: true });
     controller.restorePropertyControlsForTool(TOOLS.PEN);
+    expect(controller.getControlValues().color).toBe("#ef4444");
     expect(refs.colorInput.value).toBe("#ef4444");
     expect(propertyControlsController.getToolControls(TOOLS.PEN).color).toBe("#ef4444");
 
     const blocked = createController({ getSelectedIds: () => ["element_1"] });
-    blocked.refs.colorInput.value = "#22c55e";
+    blocked.controller.setControl("color", "#22c55e", { silent: true });
     blocked.controller.saveToolPropertyControlsForCurrentTool();
     expect(blocked.propertyControlsController.getToolControls(TOOLS.PEN)).toBeNull();
   });
@@ -231,9 +232,9 @@ describe("app inspector property-controls dom-controller", () => {
       canPersistToolPropertyControls,
     });
 
-    refs.colorInput.value = "#2563eb";
-    refs.fontSizeInput.value = "42";
-    refs.fontFamilyInput.value = "Georgia, serif";
+    controller.setControl("color", "#2563eb", { silent: true });
+    controller.setControl("font-size", "42", { silent: true });
+    controller.setControl("font-family", "Georgia, serif", { silent: true });
     controller.saveToolPropertyControlsForCurrentTool();
 
     currentTool = TOOLS.PEN;
@@ -241,9 +242,12 @@ describe("app inspector property-controls dom-controller", () => {
     currentTool = TOOLS.TEXT;
     controller.restorePropertyControlsForTool(currentTool);
 
+    expect(controller.getControlValues()).toMatchObject({
+      color: "#2563eb",
+      fontSize: "42",
+      fontFamily: "Georgia, serif",
+    });
     expect(refs.colorInput.value).toBe("#2563eb");
-    expect(refs.fontSizeInput.value).toBe("42");
-    expect(refs.fontFamilyInput.value).toBe("Georgia, serif");
   });
 
   it("preserves text style presets when switching away and back", () => {
@@ -269,10 +273,10 @@ describe("app inspector property-controls dom-controller", () => {
 
   it("syncs brush preview, preset buttons, and numeric display values", () => {
     const { brushPreviewPath, controller, nodes, refs } = createController();
-    refs.colorInput.value = "#ef4444";
-    refs.widthInput.value = "9";
-    refs.brushOpacityInput.value = "70";
-    refs.brushStyleInput.value = "dash";
+    controller.setControl("color", "#ef4444", { silent: true });
+    controller.setControl("width", "9", { silent: true });
+    controller.setControl("brush-opacity", "70", { silent: true });
+    controller.setControl("brush-style", "dash", { silent: true });
 
     controller.syncBrushWidthControl();
     controller.syncBrushPresetButtons();
@@ -287,12 +291,13 @@ describe("app inspector property-controls dom-controller", () => {
   });
 
   it("syncs visible inspector controls from master controls", () => {
-    const { controller, masters, nodes, refs } = createController();
-    refs.arrowDoubleEndedInput.checked = true;
-    refs.fillInput.value = "#fef08a";
-    refs.fontSizeInput.value = "32";
-    refs.fontFamilyInput.value = "Inter";
-    refs.colorInput.value = "#111827";
+    const { controller, nodes } = createController();
+    controller.setControl("arrow-double-ended", null, { checked: true, silent: true });
+    controller.setControl("fill", "#fef08a", { silent: true });
+    controller.setControl("font-size", "32", { silent: true });
+    controller.setControl("font-family", "Inter", { silent: true });
+    controller.setControl("color", "#111827", { silent: true });
+    controller.setControl("coordinate-unit-size", "48", { silent: true });
 
     controller.syncShapeEndpointControls();
     controller.syncFillTransparentControls(false);
@@ -305,7 +310,7 @@ describe("app inspector property-controls dom-controller", () => {
     expect(nodes.fontFamilyInputs[0].value).toBe("Inter");
     expect(nodes.textColorInputs[0].value).toBe("#111827");
     expect(nodes.fillInputs[0].value).toBe("#fef08a");
-    expect(nodes.coordinateInputs[0].value).toBe(masters["coordinate-unit-size"].value);
+    expect(nodes.coordinateInputs[0].value).toBe("48");
     expect(nodes.coordinateInputs[1].checked).toBe(true);
   });
 
@@ -392,6 +397,32 @@ describe("app inspector property-controls dom-controller", () => {
     expect(refs.coordinateGridColorInput.value).toBe("#94a3b8");
     expect(refs.coordinateAxisColorInput.value).toBe("#0f172a");
     expect(refs.coordinateLabelColorInput.value).toBe("#475569");
+  });
+
+  // 属性值的真相在 JS store 里,不在隐藏 input 上。绕过 setControl 直接改 DOM
+  // 不应影响引擎读到的值 —— 这条守住以后才能把那批 input 从模板里删掉。
+  it("属性值以 store 为准,不从隐藏 input 反向读取", () => {
+    const { controller, refs } = createController();
+
+    refs.colorInput.value = "#000000";
+    refs.widthInput.value = "999";
+    refs.fillTransparentInput.checked = false;
+
+    expect(controller.capturePropertyControls().color).toBe("#111827");
+    expect(controller.getStrokeStyleFromControls().strokeWidth).toBe(6);
+    expect(controller.capturePropertyControls().fillTransparent).toBe(true);
+  });
+
+  it("setControl 写入的值同时反映在 store 和主控件上", () => {
+    const { controller, refs } = createController();
+
+    controller.setControl("color", "#ef4444", { silent: true });
+    controller.setControl("fill-transparent", null, { checked: false, silent: true });
+
+    expect(controller.capturePropertyControls().color).toBe("#ef4444");
+    expect(controller.capturePropertyControls().fillTransparent).toBe(false);
+    expect(refs.colorInput.value).toBe("#ef4444");
+    expect(refs.fillTransparentInput.checked).toBe(false);
   });
 
   // setControl 是 React 写属性的入口。它和 bindPropertyControlEvents 共用同一张

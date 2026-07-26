@@ -1,5 +1,5 @@
 export function createSelectionStyleActionController({
-  controls = {},
+  getControlValues = () => ({}),
   getElements = () => [],
   getSelectedIds = () => [],
   getStrokeStyleFromControls = () => ({}),
@@ -18,15 +18,16 @@ export function createSelectionStyleActionController({
       return;
     }
 
+    const controls = getControlValues();
     const didApply = selectionStyleController.applyStyleToSelection({
-      arrowDoubleEnded: controls.arrowDoubleEndedInput?.checked,
-      color: controls.colorInput?.value,
-      fillColor: controls.fillInput?.value,
-      fillTransparent: controls.fillTransparentInput?.checked,
-      fontFamily: controls.fontFamilyInput?.value,
-      fontSize: controls.fontSizeInput?.value,
+      arrowDoubleEnded: controls.arrowDoubleEnded,
+      color: controls.color,
+      fillColor: controls.fill,
+      fillTransparent: controls.fillTransparent,
+      fontFamily: controls.fontFamily,
+      fontSize: controls.fontSize,
       strokeStyle: getStrokeStyleFromControls(),
-      width: controls.widthInput?.value,
+      width: controls.width,
     });
     if (!didApply) return;
 
@@ -35,14 +36,15 @@ export function createSelectionStyleActionController({
   }
 
   function applyCoordinateStyleToSelection() {
+    const controls = getControlValues();
     const didApply = selectionStyleController.applyCoordinateStyleToSelection({
-      axisStroke: controls.coordinateAxisColorInput?.value,
-      gridStroke: controls.coordinateGridColorInput?.value,
-      labelFill: controls.coordinateLabelColorInput?.value,
-      showGrid: controls.coordinateShowGridInput?.checked,
-      showLabels: controls.coordinateShowLabelsInput?.checked,
-      showTicks: controls.coordinateShowTicksInput?.checked,
-      unitSize: controls.coordinateUnitSizeInput?.value,
+      axisStroke: controls.coordinateAxisColor,
+      gridStroke: controls.coordinateGridColor,
+      labelFill: controls.coordinateLabelColor,
+      showGrid: controls.coordinateShowGrid,
+      showLabels: controls.coordinateShowLabels,
+      showTicks: controls.coordinateShowTicks,
+      unitSize: controls.coordinateUnitSize,
     });
     if (!didApply) return;
 

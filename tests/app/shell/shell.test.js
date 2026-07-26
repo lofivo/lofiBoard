@@ -1091,8 +1091,8 @@ describe("app shell", () => {
     expect(propertyDomSource).toContain('if (controlName === "fill") syncFillTransparentControls(false);');
     expect(propertyDomSource).toContain('function syncFillTransparentControls(checked)');
     expect(inspectorPanelSource).toContain('const hydrateSource = getSelectionHydrateSource(selectedElements) ?? first;');
-    expect(propertyDomSource).toContain('setBrushControlValue(fillInput, button.dataset.shapeFillColor, "input");');
-    expect(propertyDomSource).not.toMatch(/setBrushControlValue\(fillInput, button\.dataset\.shapeFillColor, "input"\);\s*onApplyStyleToSelection\(\);/);
+    expect(propertyDomSource).toContain("setBrushControlValue(fillInput, button.dataset.shapeFillColor);");
+    expect(propertyDomSource).not.toMatch(/setBrushControlValue\(fillInput, button\.dataset\.shapeFillColor\);\s*onApplyStyleToSelection\(\);/);
   });
 
   it("restores saved tool property controls and section state when switching tools", () => {
