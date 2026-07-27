@@ -184,6 +184,12 @@ export function createEditController({
       overlayLayer.batchDraw();
     };
 
+    const syncEditorFramePosition = () => {
+      const absolutePosition = node.getAbsolutePosition();
+      editorFrame.style.left = `${box.left + absolutePosition.x}px`;
+      editorFrame.style.top = `${box.top + absolutePosition.y}px`;
+    };
+
     const syncEditorTransform = () => {
       const stageScale = Math.max(0.01, Number(stage.scaleX()) || 1);
       const nodeScaleX = Math.abs(Number(node.scaleX?.()) || 1);
@@ -213,8 +219,7 @@ export function createEditController({
       setEditorSize(requestedWidth, visibleHeight);
       node.scaleX?.(1);
       node.scaleY?.(1);
-      node.x?.(element.x);
-      node.y?.(element.y);
+      syncEditorFramePosition();
       applyNodeSizeFromEditor();
       syncTextNodeContent(node, {
         ...element,
@@ -254,6 +259,9 @@ export function createEditController({
     transformer.resizeEnabled(true);
     transformer.rotateEnabled(false);
     transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
+    const previousKeepRatio = transformer.keepRatio?.();
+    // 编辑态四角/上下边自由改宽高，不做等比缩放（AGENTS #11）
+    transformer.keepRatio?.(false);
     const previousBoundBoxFunc = transformer.boundBoxFunc();
     const previousAnchorDragBoundFunc = transformer.anchorDragBoundFunc();
     transformer.anchorDragBoundFunc((oldAbsPos, newAbsPos) => {
@@ -340,6 +348,7 @@ export function createEditController({
       transformer.off(".editor");
       transformer.boundBoxFunc(previousBoundBoxFunc);
       transformer.anchorDragBoundFunc(previousAnchorDragBoundFunc);
+      transformer.keepRatio?.(previousKeepRatio);
     };
 
     const doCommit = ({ preserveEmptyText = false } = {}) => {
@@ -353,6 +362,7 @@ export function createEditController({
       const nextText = textarea.value.trim();
       const committedWidth = getEditorWidth();
       const committedHeight = getEditorHeight();
+      const committedPosition = { x: node.x?.() ?? element.x, y: node.y?.() ?? element.y };
       editorFrame.remove();
       measureTextarea.remove();
       cleanupEditorTransformer();
@@ -376,6 +386,8 @@ export function createEditController({
           ...item,
           text: nextText,
           fontSize: nextFontSize,
+          x: committedPosition.x,
+          y: committedPosition.y,
           scaleX: 1,
           scaleY: 1,
         };
@@ -431,6 +443,8 @@ export function createEditController({
       }
 
       node.show();
+      node.x?.(element.x);
+      node.y?.(element.y);
       transformer.show();
       onRender();
     };

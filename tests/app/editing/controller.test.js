@@ -5,12 +5,22 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createEditController } from "../../../src/app/editing/controller.js";
 
 function makeNode(overrides = {}) {
+  let nodeX = 100;
+  let nodeY = 80;
   return {
     width: vi.fn(() => 200),
     height: vi.fn(() => 60),
     scaleX: vi.fn(() => 1),
     scaleY: vi.fn(() => 1),
-    getAbsolutePosition: vi.fn(() => ({ x: 100, y: 80 })),
+    x: vi.fn(function setX(value) {
+      if (arguments.length > 0) nodeX = value;
+      return nodeX;
+    }),
+    y: vi.fn(function setY(value) {
+      if (arguments.length > 0) nodeY = value;
+      return nodeY;
+    }),
+    getAbsolutePosition: vi.fn(() => ({ x: nodeX, y: nodeY })),
     getAbsoluteRotation: vi.fn(() => 0),
     findOne: vi.fn(() => null),
     show: vi.fn(),
@@ -46,6 +56,7 @@ function makeTransformer() {
     resizeEnabled: vi.fn(),
     rotateEnabled: vi.fn(),
     enabledAnchors: vi.fn(),
+    keepRatio: vi.fn(() => true),
     boundBoxFunc: vi.fn(() => vi.fn()),
     anchorDragBoundFunc: vi.fn(() => vi.fn()),
     getActiveAnchor: vi.fn(() => null),
@@ -422,6 +433,73 @@ describe("app editing controller", () => {
 
     expect(deps.transformer.resizeEnabled).toHaveBeenCalledWith(true);
     expect(deps.transformer.rotateEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("unlocks the aspect ratio while editing and restores it on commit", () => {
+    const deps = createDeps();
+    const element = textElement();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(makeNode());
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    expect(deps.transformer.keepRatio).toHaveBeenCalledWith(false);
+
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+    expect(deps.transformer.keepRatio).toHaveBeenLastCalledWith(true);
+  });
+
+  it("follows the transformer origin at top anchors instead of snapping it back", () => {
+    let nodeHeight = 60;
+    const deps = createDeps();
+    const element = textElement({ editWidth: 200, editHeight: 60 });
+    const node = makeNode({
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("top-center");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    // Konva grows the box upwards: origin moves up, height grows by the same amount.
+    node.y(50);
+    nodeHeight = 90;
+    deps.transformer.trigger("transform.editor");
+
+    expect(node.y()).toBe(50);
+    const frame = document.querySelector(".text-editor-frame");
+    expect(Number.parseFloat(frame.style.top)).toBe(50);
+    expect(Number.parseFloat(frame.style.height)).toBe(90);
+
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+    expect(deps.setBoardElements.mock.calls[0][0][0]).toMatchObject({ x: 100, y: 50 });
+  });
+
+  it("restores the original origin when editing is cancelled", () => {
+    const deps = createDeps();
+    const element = textElement({ editWidth: 200, editHeight: 60 });
+    const node = makeNode();
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("top-left");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    node.x(40);
+    node.y(50);
+    deps.transformer.trigger("transform.editor");
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Escape"));
+
+    expect(node.x()).toBe(element.x);
+    expect(node.y()).toBe(element.y);
+    expect(deps.setBoardElements).not.toHaveBeenCalled();
   });
 
   it("persists manually resized editing dimensions while keeping render dimensions", () => {

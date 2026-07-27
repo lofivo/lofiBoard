@@ -52,6 +52,10 @@
 
 45. Konva 的 hit context 里 `_fill` 是**无条件**按 colorKey 填的，只看 `fillEnabled`，不看 `fill` 的值。所以"透明填充"绝不能靠 `fill: "transparent"` / `"rgba(0,0,0,0)"` / `undefined` 表达——必须 `fillEnabled: false`（见 `getFillAttrs`）。写成透明色值时模型层单测照样全绿，但真实画布上整块内部都在命中区，表现为矩形/椭圆内部拖不出选框、点内部就选中外框。判断这类问题用 `stage.getIntersection(点)` 看返回值，不要只看 `fill()`/`hasFill()`。
 
+46. Konva `Transformer` 的 `keepRatio` 默认 `true`，`enabledAnchors` 全开 ≠ 能自由改宽高。文本编辑态必须显式 `transformer.keepRatio(false)`（退出时还原），否则拖四角和上下边走的是等比缩放，表现为"拖高度时高度只按宽度比例变"。选中态的等比另有 `getUniformScaledBoxForResize` 负责，两者不要混。
+
+47. 编辑态 `transform` 回调里绝不能把 `node.x/y` 复位到 `element.x/y`。Konva 在 top/left 侧锚点会同时改 box 的原点和尺寸，复位原点等于每帧告诉它"还没拖到位"，下一帧再补一次 → 拖 60px 涨 330px 的指数失控。正确做法是让原点跟着 Konva 走，用 `syncEditorFramePosition()` 把 DOM 编辑框贴到 `node.getAbsolutePosition()`，提交时把新原点写回 `element.x/y`，`cancel()` 里再复位回原值。此类问题只有真实浏览器拖 8 个锚点逐个比对 `getBoundingClientRect()` 才看得出来，mock transformer 的单测发现不了。
+
 ## Agent skills
 
 ### Issue tracker
