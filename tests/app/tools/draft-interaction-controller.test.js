@@ -167,4 +167,17 @@ describe("draft-interaction-controller", () => {
     controller.moveSelectionRectToTop();
     expect(selectionRect.moveToTop).toHaveBeenCalled();
   });
+
+  it("ignores a container whose bounds merely swallow the marquee", () => {
+    // 手绘正方形(大包围盒) + 画在它里面的一笔
+    const square = createNode("square_1", { x: 0, y: 0, width: 200, height: 200 });
+    const inner = createNode("inner_1", { x: 60, y: 60, width: 20, height: 20 });
+    const { callbacks, controller } = createHarness({ selectableNodes: [square, inner] });
+
+    controller.startSelectionDraft({ x: 50, y: 50 });
+    controller.updateSelectionDraft({ x: 100, y: 100 });
+    controller.finishSelectionDraft();
+
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["inner_1"]);
+  });
 });

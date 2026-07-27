@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { areStrokeFragmentsEquivalent, getEraserPathSamples, splitStrokeByEraser } from "../../src/canvas/geometry.js";
+import {
+  areStrokeFragmentsEquivalent,
+  getEraserPathSamples,
+  marqueeHitsRect,
+  splitStrokeByEraser,
+} from "../../src/canvas/geometry.js";
 
 describe("geometry", () => {
+  it("keeps a marquee drawn inside a larger element from selecting that element", () => {
+    const square = { x: 0, y: 0, width: 200, height: 200 };
+
+    // 在手绘正方形内部拉的小选框:碰不到任何笔迹,不应该选中外框
+    expect(marqueeHitsRect({ x: 60, y: 60, width: 40, height: 30 }, square)).toBe(false);
+    // 碰到边就算选中
+    expect(marqueeHitsRect({ x: -10, y: 60, width: 40, height: 30 }, square)).toBe(true);
+    expect(marqueeHitsRect({ x: 60, y: 60, width: 40, height: 200 }, square)).toBe(true);
+    // 完全包住元素
+    expect(marqueeHitsRect({ x: -20, y: -20, width: 260, height: 260 }, square)).toBe(true);
+    // 完全在外面
+    expect(marqueeHitsRect({ x: 300, y: 300, width: 20, height: 20 }, square)).toBe(false);
+    // 小元素:选框包住它
+    expect(marqueeHitsRect({ x: 60, y: 60, width: 40, height: 30 }, { x: 70, y: 70, width: 10, height: 8 })).toBe(true);
+  });
+
   it("splits a stroke into editable fragments when the eraser crosses it", () => {
     const stroke = {
       id: "stroke_1",

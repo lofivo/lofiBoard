@@ -2,7 +2,7 @@ import {
   createShapeElement as buildShapeElement,
   isTinyElement,
 } from "../../board/element-factory.js";
-import { normalizeRect, rectsIntersect } from "../../canvas/geometry.js";
+import { marqueeHitsRect, normalizeRect } from "../../canvas/geometry.js";
 import { resolveActiveDrawingTool } from "../../tools/behavior.js";
 import { nextToolAfterPlacement } from "../../tools/interaction-rules.js";
 import { TOOLS } from "../../ui/config.js";
@@ -121,7 +121,7 @@ export function createDraftInteractionController({
     const selectionBox = selectionRect.getClientRect({ relativeTo: contentLayer });
     const ids = contentLayer
       .find(".element")
-      .filter((node) => rectsIntersect(selectionBox, node.getClientRect({ relativeTo: contentLayer })))
+      .filter((node) => marqueeHitsRect(selectionBox, node.getClientRect({ relativeTo: contentLayer })))
       .map((node) => getElementIdFromNode(node))
       .filter(Boolean);
 

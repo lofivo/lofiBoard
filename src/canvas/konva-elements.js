@@ -488,7 +488,7 @@ export function createElementNode(element, {
       height: element.height,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      fill: resolveFill(element.fill),
+      ...getFillAttrs(element.fill),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 8, 14),
     });
   } else if (element.type === "ellipse") {
@@ -500,7 +500,7 @@ export function createElementNode(element, {
       radiusY: element.radiusY,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      fill: resolveFill(element.fill),
+      ...getFillAttrs(element.fill),
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 8, 14),
     });
   } else if (element.type === "line") {
@@ -656,7 +656,7 @@ export function createNodeAttrs(element) {
       height: element.height,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      fill: resolveFill(element.fill),
+      ...getFillAttrs(element.fill),
     };
   }
   if (element.type === "sticky") {
@@ -691,7 +691,7 @@ export function createNodeAttrs(element) {
       radiusY: element.radiusY,
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
-      fill: resolveFill(element.fill),
+      ...getFillAttrs(element.fill),
     };
   }
   if (element.type === "stroke") {
@@ -1338,11 +1338,14 @@ function addCoordinatePlaneContent(group, element, width, height) {
     labelFill: "#64748b",
     ...(element.style ?? {}),
   };
+  // 定尺隐形边框矩形:把 group 的包围盒锚定到 element.width×height。
+  // 不能给 fill(哪怕全透明),否则整块内部都会进命中画布,吞掉框选起手和
+  // 画在坐标系上的元素点击(AGENTS.md #24)。空白选中/拖动靠包围盒 fallback。
   group.add(new Konva.Rect({
+    name: "coordinate-plane-frame",
     width,
     height,
-    fill: "rgba(255,255,255,0)",
-    listening: true,
+    listening: false,
   }));
 
   const startX = origin.x % unitSize;
@@ -2030,8 +2033,13 @@ function getBrushDash(element) {
   return [];
 }
 
-function resolveFill(fill) {
-  return fill === "transparent" ? "rgba(0,0,0,0)" : fill;
+// 透明填充必须用 fillEnabled:false 关掉填充。Konva 的 hit context 里 _fill 是
+// 无条件按 colorKey 填的(只看 fillEnabled,不看 fill 值),给 "transparent" /
+// "rgba(0,0,0,0)" 这类值,整块内部照样进命中画布,于是未填充图形的内部空白会吞掉
+// 框选起手,点里面的元素也会先命中外框(AGENTS.md #24 / #43)。
+function getFillAttrs(fill) {
+  const solid = Boolean(fill) && fill !== "transparent";
+  return { fill: solid ? fill : undefined, fillEnabled: solid };
 }
 
 function attachCachedImage(node, src, callbacks = {}) {

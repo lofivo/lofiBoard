@@ -778,6 +778,15 @@ export function pointHitsSelectionBounds(point, boxes, padding = 0) {
   );
 }
 
+function pointIsDeepInsideBox(point, box, padding) {
+  return (
+    point.x > box.x + padding &&
+    point.x < box.x + box.width - padding &&
+    point.y > box.y + padding &&
+    point.y < box.y + box.height - padding
+  );
+}
+
 export function pickElementIdAtPoint({
   point,
   candidates = [],
@@ -792,7 +801,11 @@ export function pickElementIdAtPoint({
   const hits = candidates
     .filter((candidate) => {
       if (!candidate?.id || !candidate.box) return false;
-      return pointHitsSelectionBounds(point, [candidate.box], hitPadding);
+      if (!pointHitsSelectionBounds(point, [candidate.box], hitPadding)) return false;
+      // 已选中元素整块包围盒都可拖；未选中元素只认真实图形命中（fallbackId）或边框附近，
+      // 否则大元素（结构 / 未填充图形）的内部空白会吞掉框选起手和内部元素的点击。
+      if (selected.has(candidate.id) || candidate.id === fallbackId) return true;
+      return !pointIsDeepInsideBox(point, candidate.box, hitPadding);
     })
     .sort((a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0));
 

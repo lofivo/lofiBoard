@@ -1015,6 +1015,39 @@ describe("interaction rules", () => {
     })).toBeNull();
   });
 
+  it("ignores the deep interior of unselected elements so a marquee can start inside them", () => {
+    const candidates = [
+      { id: "plane", zIndex: 0, box: { x: 100, y: 100, width: 300, height: 240 } },
+    ];
+
+    expect(pickElementIdAtPoint({ point: { x: 250, y: 220 }, padding: 12, candidates })).toBeNull();
+    expect(pickElementIdAtPoint({ point: { x: 104, y: 220 }, padding: 12, candidates })).toBe("plane");
+    expect(pickElementIdAtPoint({
+      point: { x: 250, y: 220 },
+      padding: 12,
+      fallbackId: "plane",
+      candidates,
+    })).toBe("plane");
+    expect(pickElementIdAtPoint({
+      point: { x: 250, y: 220 },
+      padding: 12,
+      selectedIds: ["plane"],
+      candidates,
+    })).toBe("plane");
+  });
+
+  it("selects an element drawn inside an unselected container instead of the container", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 210, y: 208 },
+      padding: 12,
+      fallbackId: "stroke",
+      candidates: [
+        { id: "plane", zIndex: 5, box: { x: 100, y: 100, width: 300, height: 240 } },
+        { id: "stroke", zIndex: 1, box: { x: 200, y: 200, width: 30, height: 20 } },
+      ],
+    })).toBe("stroke");
+  });
+
   it("prevents browser page zoom gestures globally", () => {
     expect(shouldPreventBrowserZoom({ ctrlKey: true, metaKey: false })).toBe(true);
     expect(shouldPreventBrowserZoom({ ctrlKey: false, metaKey: true })).toBe(true);

@@ -46,6 +46,12 @@
 41. 删除引擎读取的 DOM 前，必须 `grep` 出**所有**引用，不能只看解构行。引擎里有一批 getter（`getBrushCap`/`getFillColor`/`getStrokeWidth` 等）直接读 input，删掉 input 后模型层单测照样全绿——因为 jsdom 测试里 Konva 是 fake，`startStroke`/`draft` 这些绘制路径根本不执行，只有真画一笔才会报 `ReferenceError`（AGENTS #16/#31 的同一类问题）。这类改动要补一条真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的测试，并**验证它在把代码改回旧写法时会红**，否则可能是假绿。
 42. 用 Playwright 验证 React 侧行为时，先确认点到的是 React 控件而不是同名的遗留 DOM 按钮——遗留按钮当时被 `display:none` 隐藏但仍可 `.click()`，会让"React → 引擎"的验证变成"遗留 DOM → 引擎"。React 的颜色预设是 `.color-preset-btn`（无 `aria-label`），笔帽用 `title`，线型按钮没有可访问名称；按 `aria-label` 找中文标签的多半是遗留节点。
 
+43. 选择命中分两层，别混：① Konva 真实图形命中（`event.target`/`getIntersection`）；② `pickElementIdAtPoint` 的包围盒近似命中。包围盒命中对**未选中**元素只在"点靠近边框（padding 带内）或本来就是真实命中"时才算数，深处内部一律不算，否则大元素（坐标系/结构/未填充图形）的内部空白会吞掉框选起手，用户在元素里面既拖不出选择框也点不到下层元素；**已选中**元素仍整块包围盒可命中，用于 AGENTS #24 的空白拖动和文本双击编辑。与之配套：结构元素内部不要放 `fill: "rgba(...,0)"` + `listening:true` 的透明命中矩形（AGENTS #24 已对图结构说过，坐标系那块也已改成 `.coordinate-plane-frame`：无 fill、`listening:false`，只用来把 `getClientRect` 锚定到 `width×height`）。树结构的 `tree-blank-hit` 是 AGENTS #17 明确要的整树拖拽入口，保留。改这类判定必须用真实浏览器验四件事：内部空白能起手框选、内部画的元素能点中、点边框能选中、选中后内部空白能整体拖动。
+
+44. 框选（marquee）判定用 `marqueeHitsRect`，不是裸 `rectsIntersect`：选框整个陷在某元素包围盒内部（一条边都没碰到）时不算选中该元素，否则在手绘正方形 / 坐标系 / 未填充图形里面拉小框会把外面那个大元素一起选走。
+
+45. Konva 的 hit context 里 `_fill` 是**无条件**按 colorKey 填的，只看 `fillEnabled`，不看 `fill` 的值。所以"透明填充"绝不能靠 `fill: "transparent"` / `"rgba(0,0,0,0)"` / `undefined` 表达——必须 `fillEnabled: false`（见 `getFillAttrs`）。写成透明色值时模型层单测照样全绿，但真实画布上整块内部都在命中区，表现为矩形/椭圆内部拖不出选框、点内部就选中外框。判断这类问题用 `stage.getIntersection(点)` 看返回值，不要只看 `fill()`/`hasFill()`。
+
 ## Agent skills
 
 ### Issue tracker

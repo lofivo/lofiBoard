@@ -231,8 +231,68 @@ describe("konva elements", () => {
     expect(textNode.fill()).toBe("#2563eb");
   });
 
-  it("syncs ordinary element nodes in place without recreating them", () => {
+  it("keeps transparent-filled shapes off the hit canvas so only their stroke is clickable", () => {
+    // 透明填充 = 只有描边可命中,内部空白留给框选(AGENTS.md #24 / #43)
     const rect = createElementNode({
+      id: "rect_t",
+      type: "rect",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 160,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "transparent",
+    }, baseHandlers);
+    expect(rect.fillEnabled()).toBe(false);
+    expect(rect.hasFill()).toBe(false);
+
+    const ellipse = createElementNode({
+      id: "ellipse_t",
+      type: "ellipse",
+      x: 100,
+      y: 80,
+      radiusX: 100,
+      radiusY: 80,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "transparent",
+    }, baseHandlers);
+    expect(ellipse.fillEnabled()).toBe(false);
+    expect(ellipse.hasFill()).toBe(false);
+
+    // 实心填充的图形内部照旧可点
+    const solid = createElementNode({
+      id: "rect_s",
+      type: "rect",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 160,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "#ffffff",
+    }, baseHandlers);
+    expect(solid.fillEnabled()).toBe(true);
+    expect(solid.hasFill()).toBe(true);
+
+    // 属性栏把填充改回透明时也要清掉 fill
+    syncElementNode(solid, {
+      id: "rect_s",
+      type: "rect",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 160,
+      stroke: "#111827",
+      strokeWidth: 2,
+      fill: "transparent",
+    }, baseHandlers);
+    expect(solid.fillEnabled()).toBe(false);
+    expect(solid.hasFill()).toBe(false);
+  });
+
+  it("syncs ordinary element nodes in place without recreating them", () => {    const rect = createElementNode({
       id: "rect_1",
       type: "rect",
       x: 10,
@@ -1383,6 +1443,32 @@ describe("konva elements", () => {
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "y")).toBe(true);
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "1")).toBe(true);
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "-1")).toBe(true);
+  });
+
+  it("keeps the coordinate plane interior off the hit canvas but anchors its bounds", () => {
+    const node = createElementNode({
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 240,
+      height: 160,
+      unitSize: 40,
+      origin: { x: 120, y: 80 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
+      rotation: 0,
+    }, baseHandlers);
+
+    // 内部空白不能进命中画布,否则框选起手会被整块坐标系吞掉(AGENTS.md #24)
+    expect(node.getChildren().filter((child) => child.listening() && child.fill?.())).toHaveLength(0);
+
+    const frame = node.findOne(".coordinate-plane-frame");
+    expect(frame).toBeTruthy();
+    expect(frame.listening()).toBe(false);
+    const box = node.getClientRect({ skipTransform: true });
+    expect(box.width).toBeGreaterThanOrEqual(240);
+    expect(box.height).toBeGreaterThanOrEqual(160);
   });
 
   it("applies coordinate plane style and visibility settings", () => {

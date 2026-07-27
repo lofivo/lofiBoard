@@ -290,3 +290,15 @@ export function rectsIntersect(rectA, rectB) {
     rectB.y + rectB.height < rectA.y
   );
 }
+
+// 框选命中:包围盒相交,但整个选框陷在元素包围盒内部(一条边都没碰到)时不算命中。
+// 否则在手绘正方形 / 坐标系 / 未填充图形里面拉小选框,会把外面那个大元素一起选走。
+export function marqueeHitsRect(marquee, rect) {
+  if (!marquee || !rect || !rectsIntersect(marquee, rect)) return false;
+  return !(
+    marquee.x > rect.x &&
+    marquee.y > rect.y &&
+    marquee.x + marquee.width < rect.x + rect.width &&
+    marquee.y + marquee.height < rect.y + rect.height
+  );
+}
