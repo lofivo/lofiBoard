@@ -25,12 +25,13 @@
 
 新增字段要判断是否写入 `.lofibrd`。纯会话状态不要放进持久化元素字段。
 
-`text` 元素有两套独立持久尺寸：
+`text` 元素有两套尺寸数据：
 
 - `width` / `height`：渲染框尺寸；`width` 是用户调整后的渲染宽度，`height` 是 DOM/KaTeX 实际排版高度缓存。
-- `editWidth` / `editHeight`：用户手动设置的编辑框宽高；旧文件缺少字段时由 `normalizeElement()` 回退到现有 `width` / `height`。
+- `editWidth`：LaTeX 源码编辑框的持久宽度；旧文件缺少字段时由 `normalizeElement()` 回退到现有 `width`。
+- `editHeight`：最后一次自动贴合的编辑高度兼容缓存；进入编辑态时必须忽略旧值，并按当前 `editWidth`、字号和源码重新测量。
 
-输入导致编辑框临时自动撑高时不能覆盖 `editHeight`。提交文字与编辑框调整共用一条历史；Escape 同时恢复文字和编辑框尺寸。渲染高度校正属于可重建缓存，不单独写历史，打开旧文件、LaTeX 完成渲染和字体加载完成后都会重新测量。
+提交文字与编辑框调整共用一条历史；Escape 同时恢复文字和编辑框尺寸。编辑高度和渲染高度都是可重建缓存：前者在每次进入编辑态后由 textarea 重测，后者在打开旧文件、LaTeX 完成渲染和字体加载完成后由 DOM/KaTeX 重测。
 
 ## 画板会话
 

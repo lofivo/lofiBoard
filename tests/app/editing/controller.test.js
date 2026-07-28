@@ -303,7 +303,7 @@ describe("app editing controller", () => {
     expect(controller.isEditing).toBe(false);
   });
 
-  it("opens with the persisted editing box instead of the render box for latex text", () => {
+  it("opens latex with the persisted editing width and a content-fitted height", () => {
     const deps = createDeps();
     const element = textElement({
       text: "$x^2 + y^2$",
@@ -324,7 +324,40 @@ describe("app editing controller", () => {
 
     const frame = document.querySelector(".text-editor-frame");
     expect(Number.parseFloat(frame.style.width)).toBe(320);
-    expect(Number.parseFloat(frame.style.height)).toBe(96);
+    expect(Number.parseFloat(frame.style.height)).toBe(30);
+  });
+
+  it("fits latex editor height to the current font size and persisted width on open", () => {
+    const restoreScrollHeight = installTextareaScrollHeight((target) => (
+      target.classList?.contains("text-editor-measure") ? 35 : 0
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({
+        text: "$x^2 + y^2$",
+        fontSize: 16,
+        width: 180,
+        height: 28,
+        editWidth: 320,
+        // Simulates the stale editing height left by a larger previous font size.
+        editHeight: 96,
+      });
+      const node = makeNode({
+        width: vi.fn(() => 180),
+        height: vi.fn(() => 28),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.contentLayer.findOne.mockReturnValue(node);
+
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+
+      const frame = document.querySelector(".text-editor-frame");
+      expect(Number.parseFloat(frame.style.width)).toBe(320);
+      expect(Number.parseFloat(frame.style.height)).toBe(35);
+    } finally {
+      restoreScrollHeight();
+    }
   });
 
   it("opens plain text with the render box so editing matches rendering", () => {
@@ -350,7 +383,7 @@ describe("app editing controller", () => {
     expect(Number.parseFloat(frame.style.height)).toBe(40);
   });
 
-  it("commits manual editing dimensions without changing the render box for latex text", () => {
+  it("commits fitted editing dimensions without changing the render box for latex text", () => {
     const deps = createDeps();
     const element = textElement({
       text: "$x^2 + y^2$",
@@ -376,7 +409,7 @@ describe("app editing controller", () => {
       width: 180,
       height: 40,
       editWidth: 320,
-      editHeight: 96,
+      editHeight: 30,
     });
   });
 
@@ -652,7 +685,7 @@ describe("app editing controller", () => {
     expect(deps.setBoardElements).not.toHaveBeenCalled();
   });
 
-  it("persists manually resized editing dimensions while keeping latex render dimensions", () => {
+  it("persists resized latex width and fitted height while keeping render dimensions", () => {
     let nodeWidth = 200;
     let nodeHeight = 60;
     const deps = createDeps();
@@ -690,13 +723,13 @@ describe("app editing controller", () => {
       width: 180,
       height: 40,
       editWidth: 260,
-      editHeight: 92,
+      editHeight: 39,
     });
     expect(deps.onHistory).toHaveBeenCalledTimes(1);
     expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
   });
 
-  it("does not persist content-driven editor height growth for latex text", () => {
+  it("persists the fitted content height for latex text", () => {
     const restoreScrollHeight = installTextareaScrollHeight((target) => (
       target.classList?.contains("text-editor-measure") ? 112 : 35
     ));
@@ -720,16 +753,16 @@ describe("app editing controller", () => {
       const controller = createEditController(deps);
       controller.editElement(element.id);
       const frame = document.querySelector(".text-editor-frame");
-      expect(Number.parseFloat(frame.style.height)).toBeGreaterThan(112);
+      expect(Number.parseFloat(frame.style.height)).toBe(112);
       frame.querySelector("textarea.text-editor").dispatchEvent(kEvent("Enter"));
 
-      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(35);
+      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(112);
     } finally {
       restoreScrollHeight();
     }
   });
 
-  it("does not persist content-driven height when only the latex editing width is resized", () => {
+  it("refits latex editor height when only its width is resized", () => {
     let nodeWidth = 200;
     let nodeHeight = 114;
     const restoreScrollHeight = installTextareaScrollHeight((target) => {
@@ -764,7 +797,7 @@ describe("app editing controller", () => {
       controller.editElement(element.id);
       nodeWidth = 260;
       deps.transformer.trigger("transform.editor");
-      expect(Number.parseFloat(document.querySelector(".text-editor-frame").style.height)).toBe(37);
+      expect(Number.parseFloat(document.querySelector(".text-editor-frame").style.height)).toBe(35);
       document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
 
       expect(deps.setBoardElements.mock.calls[0][0][0]).toMatchObject({
@@ -776,7 +809,7 @@ describe("app editing controller", () => {
     }
   });
 
-  it("keeps the persisted latex editing height as the live minimum when content becomes shorter", () => {
+  it("ignores stale latex editing height and shrinks when content becomes shorter", () => {
     let measuredHeight = 112;
     const restoreScrollHeight = installTextareaScrollHeight((target) => (
       target.classList?.contains("text-editor-measure") ? measuredHeight : 35
@@ -802,15 +835,15 @@ describe("app editing controller", () => {
       controller.editElement(element.id);
       const frame = document.querySelector(".text-editor-frame");
       const textarea = frame.querySelector("textarea.text-editor");
-      expect(Number.parseFloat(frame.style.height)).toBeGreaterThan(112);
+      expect(Number.parseFloat(frame.style.height)).toBe(112);
 
       measuredHeight = 35;
       textarea.value = "short";
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
 
-      expect(Number.parseFloat(frame.style.height)).toBe(80);
+      expect(Number.parseFloat(frame.style.height)).toBe(35);
       textarea.dispatchEvent(kEvent("Enter"));
-      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(80);
+      expect(deps.setBoardElements.mock.calls[0][0][0].editHeight).toBe(35);
     } finally {
       restoreScrollHeight();
     }
@@ -840,9 +873,9 @@ describe("app editing controller", () => {
       controller.editElement(element.id);
 
       const frame = document.querySelector(".text-editor-frame");
-      expect(Number.parseFloat(frame.style.height)).toBeGreaterThanOrEqual(114);
+      expect(Number.parseFloat(frame.style.height)).toBe(112);
       expect(node.height).toHaveBeenLastCalledWith(expect.any(Number));
-      expect(node.height.mock.calls.at(-1)[0]).toBeGreaterThanOrEqual(114);
+      expect(node.height.mock.calls.at(-1)[0]).toBe(112);
       expect(deps.transformer.forceUpdate).toHaveBeenCalled();
     } finally {
       restoreScrollHeight();
@@ -875,7 +908,7 @@ describe("app editing controller", () => {
       controller.editElement(element.id);
 
       const frame = document.querySelector(".text-editor-frame");
-      expect(Number.parseFloat(frame.style.height)).toBeGreaterThanOrEqual(114);
+      expect(Number.parseFloat(frame.style.height)).toBe(112);
 
       const textarea = frame.querySelector("textarea.text-editor");
       textarea.dispatchEvent(kEvent("Enter"));

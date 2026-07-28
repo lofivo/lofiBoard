@@ -932,13 +932,13 @@ describe("app shell", () => {
     expect(selectSource).toMatch(/selectElementById\(targetElement, event\.evt\.shiftKey\);[\s\S]*?targetElement !== rawTargetElement[\s\S]*?selectionDragController\.beginSelectionDrag\(worldPoint\);/);
   });
 
-  it("keeps live text editor height aligned with committed text box normalization", () => {
+  it("fits latex editor height while preserving plain text box normalization", () => {
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
     const textMeasureSource = readFileSync(new URL("../../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("const measureTextContentHeight");
     expect(editSource).toContain("return measureTextContentHeight(width) + editorHeightSlack");
-    expect(editSource).toContain("fitEditorToContent({ expandOnly: true });");
+    expect(editSource).toContain("fitEditorToContent({ expandOnly: !usesSeparateEditBox });");
     expect(textMeasureSource).toContain("verticalGap: 2");
   });
 

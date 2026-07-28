@@ -89,11 +89,14 @@ export function createEditController({
     const persistedEditorWidth = usesSeparateEditBox
       ? (Number(element.editWidth) || Number(node.width()) || Number(element.width) || 1)
       : (Number(element.width) || Number(node.width()) || 1);
-    const persistedEditorHeight = usesSeparateEditBox
-      ? (Number(element.editHeight) || Number(node.height?.()) || Number(element.height) || element.fontSize * 1.25)
-      : (Number(element.height) || Number(node.height?.()) || element.fontSize * 1.25);
+    const persistedEditorHeight = Number(element.height)
+      || Number(node.height?.())
+      || element.fontSize * 1.25;
     const editorWidth = Math.max(minEditorWidth, persistedEditorWidth * scale);
-    const editorHeight = Math.max(minEditorHeight, persistedEditorHeight * scale);
+    // LaTeX 源码框只持久化宽度；高度必须按当前字号与宽度下的真实换行重新测量。
+    const editorHeight = usesSeparateEditBox
+      ? minEditorHeight
+      : Math.max(minEditorHeight, persistedEditorHeight * scale);
     const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
     const minLiveEditorHeight = element.type === "sticky" ? editorHeight : minEditorHeight;
     const maxAutoEditorWidth = editorWidth;
@@ -147,9 +150,8 @@ export function createEditController({
       });
     };
 
-    // 纯文本编辑框高度必须等于内容高度本身（渲染 overlay 是 height:auto），不能再留额外余量，
-    // 否则编辑态会比渲染态高几像素。便签和 LaTeX 源码框的渲染框独立，保留原余量。
-    const editorHeightSlack = element.type === "text" && !usesSeparateEditBox ? 0 : 2 * scale;
+    // 文字编辑框高度必须等于 textarea 的真实内容高度；便签保留原有余量。
+    const editorHeightSlack = element.type === "text" ? 0 : 2 * scale;
 
     const measureTextHeight = (width = getEditorWidth()) => {
       return measureTextContentHeight(width) + editorHeightSlack;
@@ -157,7 +159,9 @@ export function createEditController({
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {
       const nextWidth = Math.max(minLiveEditorWidth, width);
-      const nextHeight = Math.max(minLiveEditorHeight, manualEditorHeight, height);
+      const nextHeight = usesSeparateEditBox
+        ? Math.max(minLiveEditorHeight, height)
+        : Math.max(minLiveEditorHeight, manualEditorHeight, height);
       editorFrame.style.width = `${nextWidth}px`;
       editorFrame.style.height = `${nextHeight}px`;
     };
@@ -235,16 +239,16 @@ export function createEditController({
         manualEditorWidth = requestedWidth;
       }
       const contentHeight = measureTextContentHeight(requestedWidth);
-      // 纯文本等比缩放时高度完全由字号+内容决定，不用 Konva 给的 box 高，
-      // 否则编辑框底部会比渲染 overlay 多出一截空白；LaTeX 编辑框尺寸独立持久化，仍记手动值。
+      // 文字高度完全由字号、宽度和内容决定，不使用 Konva 给出的 box 高。
       const tracksRenderBox = element.type === "text" && !usesSeparateEditBox;
+      const autoFitsContentHeight = usesSeparateEditBox || (uniformScale && tracksRenderBox);
       if (uniformScale && tracksRenderBox) {
         manualEditorHeight = contentHeight;
       } else if (resizesHeight || uniformScale) {
         manualEditorHeight = requestedHeight;
       }
-      const visibleHeight = uniformScale && tracksRenderBox
-        ? contentHeight
+      const visibleHeight = autoFitsContentHeight
+        ? contentHeight + editorHeightSlack
         : Math.max(
           resizesHeight || uniformScale ? requestedHeight : manualEditorHeight,
           contentHeight + editorHeightSlack,
@@ -340,7 +344,7 @@ export function createEditController({
       preserveEditorOnNextBlur = false;
       textarea.focus();
     });
-    fitEditorToContent({ expandOnly: true });
+    fitEditorToContent({ expandOnly: !usesSeparateEditBox });
     transformer.forceUpdate();
     overlayLayer.batchDraw();
     textarea.focus();
@@ -456,7 +460,7 @@ export function createEditController({
             // 新建文字首次输入时会自动贴合源码宽度；这次结果就是独立编辑框的初始尺寸。
             // 已有 LaTeX 后续只保存 Transformer 手动调整的宽度，避免输入过程覆盖用户尺寸。
             editWidth: Math.max(1, (originalText ? manualEditorWidth : committedWidth) / scale),
-            editHeight: Math.max(1, manualEditorHeight / scale),
+            editHeight: Math.max(1, committedHeight / scale),
           };
         }
         if (item.type === "sticky") {
