@@ -16,6 +16,8 @@ const COLORS = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed'
 const FILLS  = ['#ffffff', '#dbeafe', '#fee2e2', '#dcfce7', '#fef3c7', '#ede9fe'];
 const BGS    = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa'];
 const TEXT_PANEL_MODES = new Set(['text', 'sticky']);
+const COLOR_PICKER_WIDTH = 220;
+const COLOR_PICKER_HEIGHT = 180;
 
 const FONTS = [
   { value: 'Inter, system-ui, sans-serif', label: 'Inter' },
@@ -51,6 +53,9 @@ const cardGroupTitleStyle = {
 };
 
 function ColorField({ label, colors, value, set }) {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const togglePalette = () => setPaletteOpen(open => !open);
+
   return (
     <div style={fieldGap}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, ...labelStyle }}>
@@ -67,14 +72,30 @@ function ColorField({ label, colors, value, set }) {
           value={ColorPicker.colorStringToValue(value || '#111827')}
           onChange={(v) => set?.(v.hex)}
           usePopover={true}
-          popoverProps={{ trigger: 'click' }}
+          popoverProps={{
+            trigger: 'custom',
+            visible: paletteOpen,
+            onVisibleChange: setPaletteOpen,
+          }}
+          width={COLOR_PICKER_WIDTH}
+          height={COLOR_PICKER_HEIGHT}
           alpha={false}
           eyeDropper={false}
         >
           <div
+            role="button"
+            tabIndex={0}
+            aria-label={`${label}调色板`}
+            aria-expanded={paletteOpen}
             style={{ ...colorTriggerBase, backgroundColor: value || '#111827', width: 26, height: 26 }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            onClick={(e) => { e.stopPropagation(); togglePalette(); }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              togglePalette();
+            }}
           />
         </ColorPicker>
       </div>
@@ -285,15 +306,26 @@ function LabeledColor({ label, value, set, open, onToggle, onClose }) {
       onChange={(v) => { set?.(v.hex); }}
       usePopover={true}
       popoverProps={{ trigger: 'custom', visible: open, onVisibleChange: (v) => { if (!v) onClose?.(); } }}
+      width={COLOR_PICKER_WIDTH}
+      height={COLOR_PICKER_HEIGHT}
       alpha={false}
       eyeDropper={false}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={`${label}调色板`}
+          aria-expanded={open}
           style={{ ...colorTriggerBase, backgroundColor: value }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.2)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
           onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            onToggle?.();
+          }}
         />
         <span style={{ color: 'var(--semi-color-text-2)', fontSize: 12, whiteSpace: 'nowrap' }}>{label}</span>
       </div>

@@ -8,7 +8,12 @@ vi.mock("@douyinfe/semi-ui", async () => {
   const ReactModule = await import("react");
   const h = ReactModule.createElement;
   const ColorPicker = Object.assign(
-    ({ children }) => h("div", null, children),
+    ({ children, popoverProps, width, height }) => h("div", {
+      "data-color-picker": "true",
+      "data-popover-visible": String(Boolean(popoverProps?.visible)),
+      "data-picker-width": String(width ?? ""),
+      "data-picker-height": String(height ?? ""),
+    }, children),
     { colorStringToValue: (value) => ({ hex: value }) },
   );
 
@@ -122,6 +127,39 @@ describe("StylePanel", () => {
     });
 
     expect(host.querySelector('path[d^="M 14,24"]')).not.toBeNull();
+  });
+
+  it("closes the palette when its trigger is clicked again", () => {
+    const host = renderPanel({
+      brushColor: "#111827",
+      currentTool: "pen",
+      panelMode: "brush",
+      stylePanelTitle: "画笔",
+    });
+    const trigger = host.querySelector('[aria-label="颜色调色板"]');
+    const picker = trigger?.closest('[data-color-picker="true"]');
+
+    expect(trigger).toBeTruthy();
+    expect(picker?.dataset.popoverVisible).toBe("false");
+
+    act(() => trigger.click());
+    expect(picker?.dataset.popoverVisible).toBe("true");
+
+    act(() => trigger.click());
+    expect(picker?.dataset.popoverVisible).toBe("false");
+  });
+
+  it("uses a compact palette area", () => {
+    const host = renderPanel({
+      brushColor: "#111827",
+      currentTool: "pen",
+      panelMode: "brush",
+      stylePanelTitle: "画笔",
+    });
+    const picker = host.querySelector('[data-color-picker="true"]');
+
+    expect(picker?.dataset.pickerWidth).toBe("220");
+    expect(picker?.dataset.pickerHeight).toBe("180");
   });
 
 });
