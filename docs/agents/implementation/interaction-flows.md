@@ -111,4 +111,4 @@ React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolD
 
 `src/app/viewport/controller.js` 负责缩放、滚轮、网格 CSS 变量、光标和 overlay 同步。`src/app/viewport/action-controller.js` 管适配内容、确保选区可见、重置视图和背景切换。
 
-视口改变要同步文本 overlay、结构浮动控件和本地草稿。
+视口改变要同步文本 overlay、结构浮动控件和本地草稿。连续滚轮、触控板平移和程序化视口更新会即时修改 Stage 与网格，但文字 overlay 同步通过动画帧合并，同一帧最多执行一次；不要在 `updateGrid()` 的调用方再次重复同步。

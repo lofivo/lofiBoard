@@ -37,6 +37,7 @@ describe("text-element-measure", () => {
       ...elements[0],
       height: 84,
     });
+    expect(result.heightById.get("text_1")).toBe(84);
   });
 
   it("sets the canvas font from text style tokens before measuring", () => {

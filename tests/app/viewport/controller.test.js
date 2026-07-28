@@ -25,6 +25,7 @@ function createFakeStage({ width = 800, height = 600, x = 0, y = 0, scale = 1, p
 }
 
 function createController(options = {}) {
+  const scheduledFrames = [];
   const styleValues = new Map();
   const buttons = [
     { dataset: { zoomLevel: "1" }, classList: { toggle: vi.fn() } },
@@ -39,6 +40,11 @@ function createController(options = {}) {
     updateContextPanel: vi.fn(),
     schedulePersistCurrentDraft: vi.fn(),
     closeZoomMenu: vi.fn(),
+    requestAnimationFrame: vi.fn((callback) => {
+      scheduledFrames.push(callback);
+      return scheduledFrames.length;
+    }),
+    cancelAnimationFrame: vi.fn(),
     ...options.callbacks,
   };
   const controller = createViewportController({
@@ -52,13 +58,16 @@ function createController(options = {}) {
     getZoomLevelButtons: () => buttons,
     ...callbacks,
   });
-  return { controller, callbacks, styleValues, buttons };
+  return {
+    controller, callbacks, styleValues, buttons,
+    flushFrame: () => scheduledFrames.splice(0).forEach((callback) => callback()),
+  };
 }
 
 describe("controller", () => {
   it("applies a viewport and updates grid/cursor overlays", () => {
     const stage = createFakeStage();
-    const { controller, callbacks, styleValues } = createController({ stage });
+    const { controller, callbacks, flushFrame, styleValues } = createController({ stage });
 
     controller.applyViewport({ x: 10, y: 20, scale: 2 });
 
@@ -69,12 +78,14 @@ describe("controller", () => {
     expect(styleValues.get("--grid-y")).toBe("20px");
     expect(callbacks.updateBrushCursorStyle).toHaveBeenCalled();
     expect(callbacks.updateEraserCursorStyle).toHaveBeenCalled();
-    expect(callbacks.syncTextOverlays).toHaveBeenCalled();
+    expect(callbacks.syncTextOverlays).not.toHaveBeenCalled();
+    flushFrame();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalledTimes(1);
   });
 
   it("zooms around the stage center and updates zoom chrome", () => {
     const stage = createFakeStage({ width: 800, height: 600, x: -100, y: -50, scale: 1 });
-    const { controller, callbacks, buttons } = createController({ stage });
+    const { controller, callbacks, buttons, flushFrame } = createController({ stage });
 
     controller.setZoomAtCenter(2);
 
@@ -85,12 +96,14 @@ describe("controller", () => {
     expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalled();
     expect(controller.getZoomLabelText()).toBe("200%");
     expect(buttons[1].classList.toggle).toHaveBeenCalledWith("active", true);
+    flushFrame();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalledTimes(1);
   });
 
   it("zooms wheel events around the pointer position", () => {
     const preventDefault = vi.fn();
     const stage = createFakeStage({ x: -100, y: -50, scale: 1, pointer: { x: 200, y: 150 } });
-    const { controller, callbacks } = createController({ stage });
+    const { controller, callbacks, flushFrame } = createController({ stage });
 
     controller.handleWheel({ evt: { preventDefault, deltaY: -1 } });
 
@@ -98,6 +111,32 @@ describe("controller", () => {
     expect(stage.scale).toHaveBeenCalledWith({ x: 1.05, y: 1.05 });
     expect(stage.position).toHaveBeenCalledWith({ x: -115, y: -60 });
     expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalled();
+    flushFrame();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces repeated wheel overlay syncs into one animation frame", () => {
+    const stage = createFakeStage({ scale: 1, pointer: { x: 200, y: 150 } });
+    const { controller, callbacks, flushFrame } = createController({ stage });
+    const createEvent = () => ({ evt: { preventDefault: vi.fn(), deltaY: -120, deltaMode: 0 } });
+
+    controller.handleWheel(createEvent());
+    controller.handleWheel(createEvent());
+    controller.handleWheel(createEvent());
+
+    expect(callbacks.requestAnimationFrame).toHaveBeenCalledTimes(1);
+    expect(callbacks.syncTextOverlays).not.toHaveBeenCalled();
+    flushFrame();
+    expect(callbacks.syncTextOverlays).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending overlay sync when destroyed", () => {
+    const { controller, callbacks } = createController();
+
+    controller.updateGrid();
+    controller.destroy();
+
+    expect(callbacks.cancelAnimationFrame).toHaveBeenCalledWith(1);
   });
 
   it("zooms touchpad pinch wheel events around the pointer position", () => {
@@ -115,7 +154,7 @@ describe("controller", () => {
   it("pans fine-grained touchpad wheel events without changing zoom", () => {
     const preventDefault = vi.fn();
     const stage = createFakeStage({ x: -100, y: -50, scale: 1.5, pointer: { x: 200, y: 150 } });
-    const { controller, callbacks, styleValues } = createController({ stage });
+    const { controller, callbacks, flushFrame, styleValues } = createController({ stage });
 
     controller.handleWheel({ evt: { preventDefault, deltaX: 12, deltaY: -8, deltaMode: 0 } });
 
@@ -126,6 +165,7 @@ describe("controller", () => {
     expect(styleValues.get("--grid-y")).toBe("-42px");
     expect(controller.getZoomLabelText()).toBe("150%");
     expect(callbacks.updateContextPanel).toHaveBeenCalled();
+    flushFrame();
     expect(callbacks.syncTextOverlays).toHaveBeenCalled();
     expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalled();
   });

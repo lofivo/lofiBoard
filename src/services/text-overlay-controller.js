@@ -216,7 +216,10 @@ export function createTextOverlayController({
     },
 
     setHiddenIds(ids = []) {
-      hiddenIds = new Set(ids);
+      const nextHiddenIds = new Set(ids);
+      if (nextHiddenIds.size === hiddenIds.size
+        && [...nextHiddenIds].every((id) => hiddenIds.has(id))) return;
+      hiddenIds = nextHiddenIds;
       for (const [id, overlay] of overlays) {
         overlay.hidden = hiddenIds.has(id);
         getKonvaTextNode(id)?.visible?.(overlay.hidden);

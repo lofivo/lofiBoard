@@ -11,7 +11,19 @@ export function createViewportController({
   updateContextPanel = () => {},
   schedulePersistCurrentDraft = () => {},
   closeZoomMenu = () => {},
+  requestAnimationFrame: scheduleFrame = globalThis.requestAnimationFrame?.bind(globalThis) ?? ((callback) => callback()),
+  cancelAnimationFrame: cancelFrame = globalThis.cancelAnimationFrame?.bind(globalThis) ?? (() => {}),
 }) {
+  let textOverlayFrame = null;
+
+  function scheduleTextOverlaySync() {
+    if (textOverlayFrame !== null) return;
+    textOverlayFrame = scheduleFrame(() => {
+      textOverlayFrame = null;
+      syncTextOverlays();
+    });
+  }
+
   function getViewport() {
     return {
       x: stage.x(),
@@ -28,7 +40,7 @@ export function createViewportController({
     container.style.setProperty("--grid-y", `${stage.y()}px`);
     updateLinearItemControlsPosition();
     syncActiveCellEditor();
-    syncTextOverlays();
+    scheduleTextOverlaySync();
   }
 
   function getZoomLabelText() {
@@ -52,7 +64,6 @@ export function createViewportController({
     updateGrid();
     updateBrushCursorStyle();
     updateEraserCursorStyle();
-    syncTextOverlays();
   }
 
   function setZoomAtCenter(requestedScale) {
@@ -77,7 +88,6 @@ export function createViewportController({
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateViewportChrome();
-    syncTextOverlays();
     schedulePersistCurrentDraft();
   }
 
@@ -118,7 +128,6 @@ export function createViewportController({
     updateBrushCursorStyle();
     updateEraserCursorStyle();
     updateViewportChrome();
-    syncTextOverlays();
     schedulePersistCurrentDraft();
   }
 
@@ -136,6 +145,12 @@ export function createViewportController({
     schedulePersistCurrentDraft();
   }
 
+  function destroy() {
+    if (textOverlayFrame === null) return;
+    cancelFrame(textOverlayFrame);
+    textOverlayFrame = null;
+  }
+
   return {
     getViewport,
     getZoomLabelText,
@@ -145,6 +160,7 @@ export function createViewportController({
     setZoomAtCenter,
     zoomBy,
     handleWheel,
+    destroy,
   };
 }
 

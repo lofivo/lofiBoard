@@ -389,6 +389,26 @@ describe("text-overlay-controller", () => {
     expect(overlay.hidden).toBe(true);
   });
 
+  it("does not revisit overlays when the hidden id set is unchanged", async () => {
+    const textNode = { visible: vi.fn() };
+    contentLayer.findOne.mockReturnValue({ findOne: vi.fn(() => textNode) });
+    const ctrl = createTextOverlayController({
+      container,
+      contentLayer,
+      getContainerRect: () => ({ left: 0, top: 0 }),
+      getStageState: () => ({ x: 0, y: 0, scale: 1 }),
+    });
+    await ctrl.sync([textElement]);
+    ctrl.setHiddenIds(["text_1"]);
+    contentLayer.findOne.mockClear();
+    contentLayer.batchDraw.mockClear();
+
+    ctrl.setHiddenIds(["text_1"]);
+
+    expect(contentLayer.findOne).not.toHaveBeenCalled();
+    expect(contentLayer.batchDraw).not.toHaveBeenCalled();
+  });
+
   it("enters and exits edit mode on overlay", async () => {
     const ctrl = createTextOverlayController({
       container,

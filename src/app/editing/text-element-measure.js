@@ -21,6 +21,7 @@ export function applyMeasuredTextHeights(elements = [], measurements = []) {
   return {
     elements: changed ? nextElements : elements,
     changed,
+    heightById,
   };
 }
 

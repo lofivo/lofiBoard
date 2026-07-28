@@ -67,6 +67,7 @@ import { createSelectionStyleController } from "./inspector/selection-style/cont
 import { createKeyboardController } from "./shell/keyboard-controller.js";
 import { createPromptController } from "./shell/prompt-controller.js";
 import { createLayerPanelController } from "./panels/layer/controller.js";
+import { createLayerSnapshotQuery } from "./panels/layer/snapshot-query.js";
 import { createPanelDomController } from "./panels/dom-controller.js";
 import { createAlignmentSnapController } from "./selection/alignment-snap-controller.js";
 import { createSelectionActionController } from "./selection/action-controller.js";
@@ -268,6 +269,7 @@ export function createWhiteboardApp(root) {
   const contextMenuController = createContextMenuController();
   const menuStateController = createMenuStateController();
   const panelStateController = createPanelStateController();
+  const layerSnapshotQuery = createLayerSnapshotQuery({ reorderElements, getElementLabel });
   const propertyControlsController = createPropertyControlsController();
   const structureInspectorController = createStructureInspectorController();
   const structurePanelController = createStructurePanelController();
@@ -1574,18 +1576,7 @@ export function createWhiteboardApp(root) {
   const unbindUiEvents = bindUiEvents();
   const unbindKeyboard = bindKeyboard();
 
-  root._getLayersData = () => {
-    const ordered = reorderElements(board.elements);
-    const layerLevels = new Map(ordered.map((element, index) => [element.id, index]));
-    return ordered.slice().reverse().map((element) => ({
-      id: element.id,
-      name: getElementLabel(element),
-      level: layerLevels.get(element.id) ?? 0,
-      type: element.type,
-      locked: element.locked ?? false,
-      groupId: element.groupId,
-    }));
-  };
+  root._getLayersData = () => layerSnapshotQuery.getSnapshot(board.elements);
 
   root._getSelectedIds = () => [...selectedIds];
 
@@ -1708,6 +1699,7 @@ export function createWhiteboardApp(root) {
       unbindKeyboard?.();
       boardSession.destroy();
       destroyArrayAlgorithmSessionController();
+      viewportController.destroy();
       textOverlayController.clear();
       shapeRenderController.clear();
       stage.destroy();
@@ -1843,7 +1835,7 @@ export function createWhiteboardApp(root) {
       if (!result.changed) return;
       board.elements = result.elements;
       for (const element of board.elements) {
-        const measuredHeight = measurements.find((item) => item.id === element.id)?.height;
+        const measuredHeight = result.heightById.get(element.id);
         if (element.type !== "text" || !measuredHeight) continue;
         syncTextNodeSize(contentLayer.findOne(`#${element.id}`), {
           width: element.width,

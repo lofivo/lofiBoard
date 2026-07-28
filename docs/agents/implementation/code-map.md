@@ -44,6 +44,7 @@ React 与引擎之间只走两个门面（AGENTS.md 第 39/40 条）：
 - `algorithms/array/`：数组算法面板状态、播放会话、动画和步骤应用。
 - `inspector/`：属性栏模式、属性控件 DOM、选中元素样式 action。
 - `panels/`：侧边面板、图层面板、菜单展开状态。
+- `panels/layer/snapshot-query.js`：按 `board.elements` 数组版本缓存 React 图层快照，避免静止画板的 UI 状态轮询重复排序和分配。
 - `viewport/`：缩放、平移、适配内容、背景模式。
 - `clipboard/`、`context-menu/`、`import-export/`：对应应用功能 controller。
 
