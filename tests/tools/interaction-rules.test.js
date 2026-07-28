@@ -380,6 +380,7 @@ describe("interaction rules", () => {
         fontFamily: "Inter, system-ui, sans-serif",
         fontStyle: "bold italic",
         textDecoration: "underline",
+        align: "center",
       },
       scale: 1.5,
       horizontalPadding: 9,
@@ -393,6 +394,10 @@ describe("interaction rules", () => {
       textDecoration: "underline",
       lineHeight: "1.25",
       letterSpacing: "0px",
+      textAlign: "center",
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      wordBreak: "break-word",
     });
 
     expect(getTextEditorStyle({

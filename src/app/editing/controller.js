@@ -7,6 +7,8 @@ import {
   shouldPreserveTextEditorOnPointerDown,
   clampTransformerAnchorDragBySize,
   isTransformerTarget,
+  isTextWidthResizeAnchor,
+  getUniformScaledBoxForResize,
   getStickyEditorCommitBox,
   getStickyTextInsets,
   getPreferredTextBoxWidth,
@@ -17,6 +19,9 @@ import {
   getStickyBorderColor,
 } from "../../canvas/konva-elements.js";
 import { removeElementsById } from "../../services/clipboard.js";
+import { containsRenderableLatex } from "../../services/latex.js";
+
+const MIN_TEXT_FONT_SIZE = 8;
 
 export function createEditController({
   findElement,
@@ -79,11 +84,15 @@ export function createEditController({
     const horizontalPadding = editorPadding * scale;
     const minEditorWidth = getMinimumTextResizeWidth(element.fontSize) * scale + horizontalPadding * 2;
     const minEditorHeight = getSingleLineTextEditorHeight(element.fontSize, scale);
-    const persistedEditorWidth = Number(element.editWidth) || Number(node.width()) || Number(element.width) || 1;
-    const persistedEditorHeight = Number(element.editHeight)
-      || Number(node.height?.())
-      || Number(element.height)
-      || element.fontSize * 1.25;
+    // 只有 LaTeX 文本的编辑框（源码）与渲染框（公式）尺寸天然不同，才需要独立保存的编辑框尺寸；
+    // 纯文本必须编辑态 = 渲染态，所见即所得。
+    const usesSeparateEditBox = element.type === "text" && containsRenderableLatex(element.text);
+    const persistedEditorWidth = usesSeparateEditBox
+      ? (Number(element.editWidth) || Number(node.width()) || Number(element.width) || 1)
+      : (Number(element.width) || Number(node.width()) || 1);
+    const persistedEditorHeight = usesSeparateEditBox
+      ? (Number(element.editHeight) || Number(node.height?.()) || Number(element.height) || element.fontSize * 1.25)
+      : (Number(element.height) || Number(node.height?.()) || element.fontSize * 1.25);
     const editorWidth = Math.max(minEditorWidth, persistedEditorWidth * scale);
     const editorHeight = Math.max(minEditorHeight, persistedEditorHeight * scale);
     const minLiveEditorWidth = element.type === "sticky" ? editorWidth : minEditorWidth;
@@ -91,6 +100,10 @@ export function createEditController({
     const maxAutoEditorWidth = editorWidth;
     let manualEditorWidth = editorWidth;
     let manualEditorHeight = editorHeight;
+    // 编辑态四角/上下边 = 等比放大（同选中态：改字号），左右边 = 只改宽度重排换行
+    const baseFontSize = Math.max(1, Number(element.fontSize) || 1);
+    const baseEditorWidth = editorWidth;
+    let currentFontSize = baseFontSize;
     let preserveEditorOnNextBlur = false;
     let editorTransforming = false;
     const getVisualTextNode = () => node.findOne?.("Text") ?? null;
@@ -190,10 +203,24 @@ export function createEditController({
       editorFrame.style.top = `${box.top + absolutePosition.y}px`;
     };
 
+    const isUniformScaleAnchor = (anchor) => (
+      element.type === "text" && Boolean(anchor) && !isTextWidthResizeAnchor(anchor)
+    );
+
+    // 等比锚点把编辑框尺寸的变化同步成字号变化，编辑态所见即是提交后的渲染结果
+    const applyEditorFontSize = (nextFontSize) => {
+      currentFontSize = Math.max(MIN_TEXT_FONT_SIZE, nextFontSize);
+      const scaledFontSize = currentFontSize * scale;
+      textarea.style.fontSize = `${scaledFontSize}px`;
+      return currentFontSize;
+    };
+
     const syncEditorTransform = () => {
       const stageScale = Math.max(0.01, Number(stage.scaleX()) || 1);
       const nodeScaleX = Math.abs(Number(node.scaleX?.()) || 1);
       const nodeScaleY = Math.abs(Number(node.scaleY?.()) || 1);
+      const activeAnchor = transformer.getActiveAnchor?.() ?? "";
+      const uniformScale = isUniformScaleAnchor(activeAnchor);
       const requestedWidth = Math.max(
         minLiveEditorWidth,
         (Number(node.width?.()) || 1) * nodeScaleX * stageScale,
@@ -202,18 +229,20 @@ export function createEditController({
         minLiveEditorHeight,
         (Number(node.height?.()) || 1) * nodeScaleY * stageScale,
       );
-      const activeAnchor = transformer.getActiveAnchor?.() ?? "";
       const resizesWidth = activeAnchor.includes("left") || activeAnchor.includes("right");
       const resizesHeight = activeAnchor.includes("top") || activeAnchor.includes("bottom");
-      if (resizesWidth) {
+      if (uniformScale) {
+        applyEditorFontSize(baseFontSize * (requestedWidth / Math.max(1, baseEditorWidth)));
+      }
+      if (resizesWidth || uniformScale) {
         manualEditorWidth = requestedWidth;
       }
-      if (resizesHeight) {
+      if (resizesHeight || uniformScale) {
         manualEditorHeight = requestedHeight;
       }
       const contentHeight = measureTextContentHeight(requestedWidth);
       const visibleHeight = Math.max(
-        resizesHeight ? requestedHeight : manualEditorHeight,
+        resizesHeight || uniformScale ? requestedHeight : manualEditorHeight,
         contentHeight + 2 * stageScale,
       );
       setEditorSize(requestedWidth, visibleHeight);
@@ -224,6 +253,7 @@ export function createEditController({
       syncTextNodeContent(node, {
         ...element,
         text: textarea.value,
+        fontSize: currentFontSize,
         width: getEditorWidth() / scale,
         height: getEditorHeight() / scale,
       }, { renderLatex: false });
@@ -260,7 +290,8 @@ export function createEditController({
     transformer.rotateEnabled(false);
     transformer.enabledAnchors(getTransformerAnchorsForSelection([element], true));
     const previousKeepRatio = transformer.keepRatio?.();
-    // 编辑态四角/上下边自由改宽高，不做等比缩放（AGENTS #11）
+    // 等比由 getUniformScaledBoxForResize 统一裁决（与选中态同一套规则），
+    // 所以关掉 Konva 自带的 keepRatio，避免两套等比逻辑打架。
     transformer.keepRatio?.(false);
     const previousBoundBoxFunc = transformer.boundBoxFunc();
     const previousAnchorDragBoundFunc = transformer.anchorDragBoundFunc();
@@ -276,7 +307,15 @@ export function createEditController({
     transformer.boundBoxFunc((oldBox, newBox) => {
       if (!Number.isFinite(newBox.width) || !Number.isFinite(newBox.height)) return oldBox;
       const anchor = transformer.getActiveAnchor?.();
-      const nextBox = { ...newBox };
+      // 文字四角/上下边 = 等比放大（改字号），左右边 = 只改宽度；便签编辑框沿用自由调整
+      const nextBox = { ...getUniformScaledBoxForResize({
+        elements: element.type === "text" ? [element] : [],
+        anchor,
+        oldBox,
+        newBox,
+        minWidth: minEditorWidth,
+        minHeight: minEditorHeight,
+      }) };
       if (nextBox.width < minEditorWidth) {
         if (anchor?.includes("left")) nextBox.x = oldBox.x + oldBox.width - minEditorWidth;
         nextBox.width = minEditorWidth;
@@ -381,7 +420,8 @@ export function createEditController({
       const boardElements = getBoardElements();
       setBoardElements(boardElements.map((item) => {
         if (item.id !== id) return item;
-        const nextFontSize = item.fontSize;
+        // 编辑态等比缩放（四角/上下边）已经把字号改到 currentFontSize，提交时写回
+        const nextFontSize = item.type === "text" ? currentFontSize : item.fontSize;
         const nextElement = {
           ...item,
           text: nextText,
@@ -392,6 +432,19 @@ export function createEditController({
           scaleY: 1,
         };
         if (item.type === "text") {
+          // 纯文本：渲染框直接采用编辑框尺寸，退出编辑时不发生换行/尺寸跳变；
+          // 含 LaTeX 的文本仍保留独立的编辑框尺寸，渲染框由公式排版决定。
+          if (!containsRenderableLatex(nextText)) {
+            const committedBoxWidth = Math.max(1, committedWidth / scale);
+            const committedBoxHeight = Math.max(1, committedHeight / scale);
+            return {
+              ...nextElement,
+              width: committedBoxWidth,
+              height: committedBoxHeight,
+              editWidth: committedBoxWidth,
+              editHeight: committedBoxHeight,
+            };
+          }
           return {
             ...nextElement,
             width: Math.max(1, Number(item.width) || 1),

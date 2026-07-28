@@ -303,9 +303,10 @@ describe("app editing controller", () => {
     expect(controller.isEditing).toBe(false);
   });
 
-  it("opens with the persisted editing box instead of the render box", () => {
+  it("opens with the persisted editing box instead of the render box for latex text", () => {
     const deps = createDeps();
     const element = textElement({
+      text: "$x^2 + y^2$",
       width: 180,
       height: 40,
       editWidth: 320,
@@ -326,9 +327,33 @@ describe("app editing controller", () => {
     expect(Number.parseFloat(frame.style.height)).toBe(96);
   });
 
-  it("commits manual editing dimensions without changing the render box", () => {
+  it("opens plain text with the render box so editing matches rendering", () => {
     const deps = createDeps();
     const element = textElement({
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    });
+    const node = makeNode({
+      width: vi.fn(() => 180),
+      height: vi.fn(() => 40),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+
+    const frame = document.querySelector(".text-editor-frame");
+    expect(Number.parseFloat(frame.style.width)).toBe(180);
+    expect(Number.parseFloat(frame.style.height)).toBe(40);
+  });
+
+  it("commits manual editing dimensions without changing the render box for latex text", () => {
+    const deps = createDeps();
+    const element = textElement({
+      text: "$x^2 + y^2$",
       width: 180,
       height: 40,
       editWidth: 320,
@@ -352,6 +377,38 @@ describe("app editing controller", () => {
       height: 40,
       editWidth: 320,
       editHeight: 96,
+    });
+  });
+
+  it("commits the editing box as the render box for plain text", () => {
+    const deps = createDeps();
+    const element = textElement({
+      width: 180,
+      height: 40,
+      editWidth: 320,
+      editHeight: 96,
+    });
+    const node = makeNode({
+      width: vi.fn(() => 180),
+      height: vi.fn(() => 40),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    const frame = document.querySelector(".text-editor-frame");
+    const editorWidth = Number.parseFloat(frame.style.width);
+    const editorHeight = Number.parseFloat(frame.style.height);
+    frame.querySelector("textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+    const updated = deps.setBoardElements.mock.calls[0][0][0];
+    expect(updated).toMatchObject({
+      width: editorWidth,
+      height: editorHeight,
+      editWidth: editorWidth,
+      editHeight: editorHeight,
     });
   });
 
@@ -403,7 +460,7 @@ describe("app editing controller", () => {
     expect(deps.setBoardElements).not.toHaveBeenCalled();
   });
 
-  it("resizes editing width and height independently at corner anchors", () => {
+  it("scales editing box uniformly at corner anchors so text grows like selection resize", () => {
     const deps = createDeps();
     const element = textElement({ editWidth: 200, editHeight: 60 });
     const node = makeNode();
@@ -419,7 +476,40 @@ describe("app editing controller", () => {
       { x: 0, y: 0, width: 260, height: 80 },
     );
 
-    expect(result).toMatchObject({ width: 260, height: 80 });
+    expect(result.width / result.height).toBeCloseTo(200 / 60, 5);
+    expect(result.height).toBeCloseTo(80, 5);
+  });
+
+  it("commits the font size scaled by a corner anchor drag", () => {
+    let nodeWidth = 200;
+    let nodeHeight = 60;
+    const deps = createDeps();
+    const element = textElement({ width: 200, height: 60, fontSize: 24 });
+    const node = makeNode({
+      width: vi.fn(function setWidth(value) {
+        if (arguments.length > 0) nodeWidth = value;
+        return nodeWidth;
+      }),
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+    deps.transformer.getActiveAnchor.mockReturnValue("bottom-right");
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    nodeWidth = 400;
+    nodeHeight = 120;
+    deps.transformer.trigger("transform.editor");
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+    const updated = deps.setBoardElements.mock.calls[0][0][0];
+    expect(updated.fontSize).toBeCloseTo(48, 5);
+    expect(updated.width).toBeCloseTo(400, 5);
   });
 
   it("limits edit-mode transformer actions to editing box resizing", () => {
@@ -502,11 +592,12 @@ describe("app editing controller", () => {
     expect(deps.setBoardElements).not.toHaveBeenCalled();
   });
 
-  it("persists manually resized editing dimensions while keeping render dimensions", () => {
+  it("persists manually resized editing dimensions while keeping latex render dimensions", () => {
     let nodeWidth = 200;
     let nodeHeight = 60;
     const deps = createDeps();
     const element = textElement({
+      text: "$x^2 + y^2$",
       width: 180,
       height: 40,
       editWidth: 200,
@@ -545,13 +636,14 @@ describe("app editing controller", () => {
     expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
   });
 
-  it("does not persist content-driven editor height growth", () => {
+  it("does not persist content-driven editor height growth for latex text", () => {
     const restoreScrollHeight = installTextareaScrollHeight((target) => (
       target.classList?.contains("text-editor-measure") ? 112 : 35
     ));
     try {
       const deps = createDeps();
       const element = textElement({
+        text: "$x^2 + y^2$",
         width: 180,
         height: 40,
         editWidth: 200,
@@ -577,7 +669,7 @@ describe("app editing controller", () => {
     }
   });
 
-  it("does not persist content-driven height when only the editing width is resized", () => {
+  it("does not persist content-driven height when only the latex editing width is resized", () => {
     let nodeWidth = 200;
     let nodeHeight = 114;
     const restoreScrollHeight = installTextareaScrollHeight((target) => {
@@ -587,6 +679,7 @@ describe("app editing controller", () => {
     try {
       const deps = createDeps();
       const element = textElement({
+        text: "$x^2 + y^2$",
         width: 180,
         height: 40,
         editWidth: 200,
@@ -623,7 +716,7 @@ describe("app editing controller", () => {
     }
   });
 
-  it("keeps the persisted editing height as the live minimum when content becomes shorter", () => {
+  it("keeps the persisted latex editing height as the live minimum when content becomes shorter", () => {
     let measuredHeight = 112;
     const restoreScrollHeight = installTextareaScrollHeight((target) => (
       target.classList?.contains("text-editor-measure") ? measuredHeight : 35
@@ -631,6 +724,7 @@ describe("app editing controller", () => {
     try {
       const deps = createDeps();
       const element = textElement({
+        text: "$x^2 + y^2$",
         width: 180,
         height: 40,
         editWidth: 200,

@@ -1,19 +1,15 @@
 ## AI本项目开发注意事项
-1. 本项目使用中文，对话请使用中文，内容尽量言简意赅，避免无用的上下文冗余
+1. 本项目使用中文，对话请使用中文，内容尽量言简意赅
 2. 在对话过程中你重复出现问题，然后我给你指明了正确方向后，你应该记录到AGENTS.md里，避免后续犯相同错误
-3. 每次要实现某个功能或者修复某个问题前，先实现对应的测试用例，然后再实现功能代码，最后确保测试通过；如果没有对应测试用例，就先写一个测试用例来覆盖这个功能，再实现功能代码，最后确保测试通过；如果已经有对应测试用例了，就直接实现功能代码，最后确保测试通过。
-4. 每修改一个已有功能，就搜索一下对应测试，看看是否需要更新，如果需要就更新对应测试代码
-5. 禁止面向测试用例编程来试图绕过测试！
-6. 每次修复BUG时，都应该先补充测试用例覆盖这个BUG，然后再修复，直到测试通过, 确保以后不会再犯同样的错误。
-7. 当我使用/grill-me技能，你必须遵守这个技能，不断问我问题确认好边界，对齐需求上下文。
+3. 每修改一个已有功能，就搜索一下对应测试，看看是否需要更新，如果需要就更新对应测试代码
 
 ## 本项目易犯错误
-6. 文本输入框相关交互要特别注意：默认高度必须是一行；点击文本应进入编辑，只有拖拽才进入选中/移动；文字的编辑框与渲染框尺寸独立保存，进入/退出编辑时必须恢复各自尺寸，不能相互覆盖。
+6. 文本输入框相关交互要特别注意：默认高度必须是一行；点击文本应进入编辑，只有拖拽才进入选中/移动；**只有含 LaTeX 的文本**才用独立保存的 `editWidth/editHeight`（源码框 ≠ 公式渲染框），纯文本编辑框与渲染框必须是同一套 `width/height`（见 #48）。
 7. 文本输入框编辑态实际高度必须至少覆盖 textarea 的真实 `scrollHeight`，不能用 canvas 文本宽度估算换行行数；内容自动撑高只属于当前编辑会话，不能覆盖用户手动保存的 `editHeight`。
 8. 文本元素是 Konva Group 包 Text，调整宽高时必须同步外层 Group 和内部 Text 的尺寸；只改 Group 会导致 Transformer 边框仍按旧的子节点尺寸显示。
 9. 文本框左右调整宽度时必须同步重算换行后的高度；缩到最小尺寸要夹住 box 尺寸，不能简单返回旧 box 或使用负 scale/abs scale，否则会闪烁或拖过最小后反向放大。
 10. Konva Transformer 在宽高拖成负值时会先切换活动锚点，再进入 `boundBoxFunc`；防止文本框拖过最小后反向放大必须用 `anchorDragBoundFunc` 在锚点位置阶段钳住。
-11. 文本编辑态允许输入和调整编辑框；拖拽编辑框边框或控制点时必须保持编辑态，不能提交文字或切换到选中态，并且只能更新编辑框尺寸，不能改动独立保存的渲染框尺寸。编辑态角控制点自由调整宽高，不得等比缩放字号或改变文字样式。
+11. 文本编辑态允许输入和调整编辑框；拖拽编辑框边框或控制点时必须保持编辑态，不能提交文字或切换到选中态。编辑态控制点语义必须与选中态**完全一致**：四角 + 上下边 = 等比放大（改 `fontSize`，走 `getUniformScaledBoxForResize`），左右边 = 只改宽度重排换行、字号不变。编辑态不再有"自由改宽高不缩放字号"的角控制点（旧规则已作废）。
 12. 属性栏修改文本字号/字体/样式后，必须同步内部 Konva.Text 的内容、字体和尺寸，并在归一化高度时保留少量垂直余量，避免字体测量误差导致最后一行被裁切。
 13. 文本框高度计算遇到无空格长文本时必须逐字符累计换行，不能用整段 token 宽度除以内容宽度粗算，否则最窄宽度和大字号下会少算行数。
 14. 线性结构属性栏不要保留“语义快捷操作”和“更多操作”分类；如果需求说去掉分类，应直接移除整个分组及相关 action，不要只按数组类型隐藏。
@@ -40,7 +36,7 @@
 35. React 工具栏这类包含 SVG 图标的固定浮层不要用 `left: 50%` + `translateX(-50%)` 居中；新增奇数宽度按钮或 1px 分隔线后，整个浮层和内部 SVG 会落在半像素并被变换层栅格化，表现为所有图标一起发虚，调 SVG 大小也无效。应使用 `left/right: 0` + `width: max-content` + `margin: 0 auto` 的非 transform 居中，并让 1px 分隔线放在偶数宽度的布局盒内；此类问题要用真实浏览器检查 `getBoundingClientRect()` 坐标是否为整数。
 36. 浮层 chrome（Topbar/ToolDock/StylePanel/LayerPanel/StatusBar/ContextMenu）的边框、底色、模糊、阴影、圆角一律从 `src/ui/tokens.js` 取（`GLASS`/`GLASS_EDGE`/`RADIUS`/`TEXT`/`ACCENT`），不要在组件里再写 `rgba(255,255,255,0.94)`、`0 18px 50px ...`、`borderRadius: 7` 这类字面量。半透明底色由 `styles.css` 的 `--board-surface` / `--board-stroke` 提供，两处必须同步。强调色只有一个（Semi primary），不要引入第二套 indigo。回归测试见 `tests/app/components/chrome-tokens.test.jsx`。
 37. jsdom 的 cssstyle 解析不了带 `var()` 的 border 简写：`border: '1px solid var(--x)'` 一旦叠加 `borderRight: 0` 就整条丢失，`borderLeft: '1px solid var(--x)'` 读 `borderLeftWidth` 会拿到空串。需要被测试断言的边框请写长写（`borderLeftWidth/Style/Color`），真实浏览器两种写法都正常。
-38. 编辑框持久保存的是用户手动设置的宽高；输入导致的实时自动撑高只属于当前编辑会话，不能覆盖持久编辑框尺寸。提交文字与编辑框调整应合并为一条历史，Escape 必须同时恢复两者。
+38. 编辑框持久保存的是用户手动设置的宽高；输入导致的实时自动撑高只属于当前编辑会话，不能覆盖持久编辑框尺寸。提交文字与编辑框调整应合并为一条历史，Escape 必须同时恢复两者。（该条只适用于 LaTeX 文本的独立编辑框，纯文本见 #48。）
 39. React 与引擎之间只走两个门面：写用 `app.commands.*`（`setTool`/`setProperty`/`runAction`/`runContextAction`/`toggleTextStyle`…），读用 `app.getUiState()`。不要在 React 里 `querySelector` 遗留 DOM 再 `.click()` 或 `dispatchEvent(new Event('input'))`，也不要轮询扫 `[data-control]`/`dataset`。新增属性时在 `property-controls/dom-controller.js` 的 `MASTER_CONTROLS` 表里加一行（名字、store key、副作用），`getUiState().properties` 会自动带上。
 40. 属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store，不是 DOM。历史上它们存在隐藏的 `[data-control]` input 上，那批 input 和整个遗留属性面板已经删除。不要再引入"用 DOM 节点存状态"的写法（`input.value`、按钮的 `class="active"`/`aria-pressed` 当布尔量）。
 41. 删除引擎读取的 DOM 前，必须 `grep` 出**所有**引用，不能只看解构行。引擎里有一批 getter（`getBrushCap`/`getFillColor`/`getStrokeWidth` 等）直接读 input，删掉 input 后模型层单测照样全绿——因为 jsdom 测试里 Konva 是 fake，`startStroke`/`draft` 这些绘制路径根本不执行，只有真画一笔才会报 `ReferenceError`（AGENTS #16/#31 的同一类问题）。这类改动要补一条真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的测试，并**验证它在把代码改回旧写法时会红**，否则可能是假绿。
@@ -55,6 +51,11 @@
 46. Konva `Transformer` 的 `keepRatio` 默认 `true`，`enabledAnchors` 全开 ≠ 能自由改宽高。文本编辑态必须显式 `transformer.keepRatio(false)`（退出时还原），否则拖四角和上下边走的是等比缩放，表现为"拖高度时高度只按宽度比例变"。选中态的等比另有 `getUniformScaledBoxForResize` 负责，两者不要混。
 
 47. 编辑态 `transform` 回调里绝不能把 `node.x/y` 复位到 `element.x/y`。Konva 在 top/left 侧锚点会同时改 box 的原点和尺寸，复位原点等于每帧告诉它"还没拖到位"，下一帧再补一次 → 拖 60px 涨 330px 的指数失控。正确做法是让原点跟着 Konva 走，用 `syncEditorFramePosition()` 把 DOM 编辑框贴到 `node.getAbsolutePosition()`，提交时把新原点写回 `element.x/y`，`cancel()` 里再复位回原值。此类问题只有真实浏览器拖 8 个锚点逐个比对 `getBoundingClientRect()` 才看得出来，mock transformer 的单测发现不了。
+
+48. **不含 LaTeX 的文本，编辑态与渲染态必须像素级一致（所见即所得）**。渲染态其实是 DOM overlay（`.text-dom-overlay`，`text-overlay-controller.js`）而不是 Konva.Text（Konva 文本节点在有 overlay 时被 `visible(false)`），编辑态是 `textarea.text-editor`；两者都是 DOM，所以必须共用同一套排版属性和同一套尺寸：
+    - 排版：`getTextEditorStyle()` 与 `getTextOverlayDisplayStyle()` 的 `textAlign`/`whiteSpace: pre-wrap`/`overflowWrap: anywhere`/`wordBreak: break-word`/`lineHeight: 1.25`/padding 必须成对同步，少一个就会出现"编辑时换行位置和渲染不一样"。`measureTextareaContentHeight` 里的隐藏测量 textarea 也要复制这几项，否则测出的高度是另一套换行。
+    - 尺寸：进入编辑用 `element.width/height`（不是 `editWidth/editHeight`），提交时把编辑框尺寸写回 `width/height` 并同步 `editWidth/editHeight`。只有 `containsRenderableLatex(text)` 为真时才走独立编辑框那条老路。
+    - 这类问题模型层单测抓不到（jsdom 里没有真实排版），必须用真实浏览器对比"渲染 overlay 的 `getBoundingClientRect()` + 换行截图"与"编辑框的同一组数据"。
 
 ## Agent skills
 

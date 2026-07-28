@@ -489,6 +489,11 @@ export function getTextEditorStyle({ element, scale = 1, horizontalPadding = 0, 
     textDecoration: element?.textDecoration || "none",
     lineHeight: String(lineHeight),
     letterSpacing: "0px",
+    // 与渲染态 DOM overlay 的排版属性保持一致，保证换行位置所见即所得
+    textAlign: element?.type === "sticky" ? "left" : (element?.align ?? "left"),
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   };
 }
 
@@ -519,6 +524,9 @@ export function measureTextareaContentHeight({ sourceTextarea, measureTextarea, 
   measureTextarea.style.textDecoration = sourceTextarea.style.textDecoration;
   measureTextarea.style.lineHeight = sourceTextarea.style.lineHeight || "1.25";
   measureTextarea.style.letterSpacing = sourceTextarea.style.letterSpacing;
+  measureTextarea.style.whiteSpace = sourceTextarea.style.whiteSpace || "pre-wrap";
+  measureTextarea.style.overflowWrap = sourceTextarea.style.overflowWrap || "anywhere";
+  measureTextarea.style.wordBreak = sourceTextarea.style.wordBreak || "break-word";
   return Math.max(minimumHeight, Math.ceil(Number(measureTextarea.scrollHeight) || 0));
 }
 
