@@ -12,6 +12,7 @@ export function createSelectionTransformPreviewController({
   getMinimumTextElementWidth = () => 0,
   getTextElementWrappedHeight = () => 0,
   isTextWidthResizeAnchor = defaultIsTextWidthResizeAnchor,
+  onTextFontSizePreview = () => {},
   overlayLayer,
   rerenderCoordinatePlaneNode = () => {},
   syncTextNodeScalePreview = defaultSyncTextNodeScalePreview,
@@ -98,6 +99,7 @@ export function createSelectionTransformPreviewController({
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     if (previewElement) {
+      onTextFontSizePreview(previewElement.fontSize);
       syncTextNodeScalePreview(node, previewElement, {
         scaleX,
         scaleY,

@@ -246,6 +246,7 @@ export function createWhiteboardApp(root) {
   let selectionTransformCommitController = null;
   let selectionTransformPreviewController = null;
   let selectionTransformerController = null;
+  let previewTextFontSize = () => {};
   let linearGestureController = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
@@ -604,6 +605,7 @@ export function createWhiteboardApp(root) {
     getElementIdFromNode,
     getMinimumTextElementWidth,
     getTextElementWrappedHeight,
+    onTextFontSizePreview: (fontSize) => previewTextFontSize(fontSize),
     rerenderCoordinatePlaneNode,
     syncTextOverlays,
   });
@@ -780,6 +782,7 @@ export function createWhiteboardApp(root) {
     onToggleTextStyle: toggleTextStyle,
   });
   readControlValues = getControlValues;
+  previewTextFontSize = (fontSize) => setControl("font-size", fontSize, { silent: true });
   const {
     setActiveShapeTool,
     setTool,

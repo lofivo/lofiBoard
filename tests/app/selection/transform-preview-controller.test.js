@@ -46,6 +46,7 @@ function createHarness(overrides = {}) {
   const callbacks = {
     getMinimumTextElementWidth: vi.fn(() => 120),
     getTextElementWrappedHeight: vi.fn(() => 64),
+    onTextFontSizePreview: vi.fn(),
     rerenderCoordinatePlaneNode: vi.fn(),
     syncTextNodeScalePreview: vi.fn(),
     syncTextNodeSize: vi.fn((targetNode, size) => {
@@ -65,6 +66,7 @@ function createHarness(overrides = {}) {
     getElementIdFromNode: (targetNode) => targetNode?.id ?? null,
     getMinimumTextElementWidth: callbacks.getMinimumTextElementWidth,
     getTextElementWrappedHeight: callbacks.getTextElementWrappedHeight,
+    onTextFontSizePreview: callbacks.onTextFontSizePreview,
     rerenderCoordinatePlaneNode: callbacks.rerenderCoordinatePlaneNode,
     syncTextNodeScalePreview: callbacks.syncTextNodeScalePreview,
     syncTextNodeSize: callbacks.syncTextNodeSize,
@@ -140,6 +142,7 @@ describe("transform-preview-controller", () => {
     expect(callbacks.syncTextOverlays).toHaveBeenCalledWith({
       elements: [expect.objectContaining({ id: "text_1", fontSize: 40 })],
     });
+    expect(callbacks.onTextFontSizePreview).toHaveBeenCalledWith(40);
   });
 
   it("corrects corner scale previews from rendered overlay measurements", async () => {
