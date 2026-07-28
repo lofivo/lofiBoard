@@ -470,6 +470,118 @@ export function getPreferredTextBoxWidth({
   );
 }
 
+export function getAutoFitLatexTextBoxWidth({
+  text = "",
+  fontSize,
+  padding = 0,
+  measureText,
+  maxWidth = 960,
+} = {}) {
+  const size = Math.max(1, Number(fontSize) || 1);
+  const horizontalPadding = Math.max(0, Number(padding) || 0);
+  const measure = typeof measureText === "function"
+    ? measureText
+    : (value) => String(value).length * size * 0.55;
+  if (!containsRenderableLatex(text) || !canRenderLatexText(text)) {
+    return Math.ceil(measure(text || " ") + horizontalPadding * 2 + 1);
+  }
+
+  const tokens = tokenizeLatexText(text);
+  const contentWidth = tokens.reduce((width, token) => {
+    if (token.type === "text") return width + measure(token.value || " ");
+    return width + getLatexExpressionRenderedWidth(token.value, { measure, fontSize: size });
+  }, 0);
+  const minimumWidth = getMinimumLatexTextBoxWidth({
+    text,
+    fontSize: size,
+    padding: horizontalPadding,
+    measureText: measure,
+  });
+  return Math.min(
+    Math.max(1, Number(maxWidth) || 1),
+    Math.max(minimumWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1)),
+  );
+}
+
+function getLatexExpressionRenderedWidth(expression, { measure, fontSize }) {
+  const source = String(expression ?? "");
+  let width = 0;
+  let index = 0;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (character === "{") {
+      const group = readLatexGroup(source, index);
+      if (group) {
+        width += getLatexExpressionRenderedWidth(group.value, { measure, fontSize });
+        index = group.end;
+        continue;
+      }
+    }
+    if (character === "^" || character === "_") {
+      const groupStart = skipLatexWhitespace(source, index + 1);
+      const group = readLatexGroup(source, groupStart);
+      const script = group?.value ?? source[groupStart] ?? "";
+      width += getLatexExpressionRenderedWidth(script, { measure, fontSize: fontSize * 0.7 }) * 0.7;
+      index = group ? group.end : groupStart + 1;
+      continue;
+    }
+    if (character === "\\") {
+      const commandMatch = /^\\([a-zA-Z]+)/.exec(source.slice(index));
+      if (!commandMatch) {
+        width += measure(source[index + 1] || " ");
+        index += 2;
+        continue;
+      }
+      const command = commandMatch[1];
+      let cursor = skipLatexWhitespace(source, index + commandMatch[0].length);
+      if (["left", "right"].includes(command)) {
+        index = cursor;
+        continue;
+      }
+      if (["frac", "dfrac", "tfrac", "binom"].includes(command)) {
+        const numerator = readLatexGroup(source, cursor);
+        const denominator = numerator ? readLatexGroup(source, skipLatexWhitespace(source, numerator.end)) : null;
+        if (numerator && denominator) {
+          width += Math.max(
+            getLatexExpressionRenderedWidth(numerator.value, { measure, fontSize }),
+            getLatexExpressionRenderedWidth(denominator.value, { measure, fontSize }),
+          ) + fontSize * 1.2;
+          index = denominator.end;
+          continue;
+        }
+      }
+      if (command === "sqrt") {
+        if (source[cursor] === "[") {
+          const optionalEnd = source.indexOf("]", cursor + 1);
+          if (optionalEnd !== -1) cursor = skipLatexWhitespace(source, optionalEnd + 1);
+        }
+        const group = readLatexGroup(source, cursor);
+        if (group) {
+          width += getLatexExpressionRenderedWidth(group.value, { measure, fontSize }) + fontSize * 0.8;
+          index = group.end;
+          continue;
+        }
+      }
+      const visibleOperators = new Set([
+        "arccos", "arcsin", "arctan", "cos", "cosh", "cot", "coth", "csc",
+        "deg", "det", "dim", "exp", "gcd", "hom", "inf", "ker", "lg", "lim",
+        "ln", "log", "max", "min", "Pr", "sec", "sin", "sinh", "sup", "tan", "tanh",
+      ]);
+      width += visibleOperators.has(command) ? measure(command) : fontSize * 0.65;
+      index += commandMatch[0].length;
+      continue;
+    }
+
+    let end = index + 1;
+    while (end < source.length && !/[{}_^\\]/.test(source[end])) end += 1;
+    width += measure(source.slice(index, end));
+    index = end;
+  }
+
+  return width;
+}
+
 export function getSingleLineTextEditorHeight(fontSize, scale = 1, lineHeight = 1.25) {
   return (Number(fontSize) || 0) * scale * lineHeight;
 }

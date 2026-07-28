@@ -976,7 +976,9 @@ describe("app shell", () => {
     expect(editSource).not.toContain("latexDefaultWidth: 520 * scale");
     expect(editSource).not.toContain("preferredTextWidth > maxAutoEditorWidth");
     expect(editSource).toContain("Math.min(maxAutoEditorWidth, measuredAutoWidth)");
-    expect(editSource).toContain("width: Math.max(1, Number(item.width) || 1)");
+    expect(editSource).toContain("const renderWidth = hadRenderableLatex");
+    expect(editSource).toContain("width: renderWidth");
+    expect(editSource).toContain("getAutoFitTextElementWidth");
     expect(editSource).toContain("(originalText ? manualEditorWidth : committedWidth) / scale");
   });
 

@@ -69,6 +69,25 @@ describe("text-element-measure", () => {
     expect(measurer.getPreferredTextElementWidth(element, 20)).toBeGreaterThan(20);
   });
 
+  it("auto-fits latex width from rendered tokens instead of source commands", () => {
+    const { measurer } = createMeasurer();
+    const shortFormula = {
+      type: "text",
+      text: "$\\log n$",
+      width: 220,
+      fontSize: 28,
+      fontFamily: "Inter",
+      fontStyle: "normal",
+      padding: 6,
+    };
+    const longerFormula = { ...shortFormula, text: "$\\log n + a + b$" };
+
+    expect(measurer.getAutoFitTextElementWidth(shortFormula)).toBeLessThan(120);
+    expect(measurer.getAutoFitTextElementWidth(longerFormula)).toBeGreaterThan(
+      measurer.getAutoFitTextElementWidth(shortFormula),
+    );
+  });
+
   it("normalizes text element dimensions while preserving non-text elements", () => {
     const { measurer } = createMeasurer();
     const textElement = {

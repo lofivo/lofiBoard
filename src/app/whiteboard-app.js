@@ -573,6 +573,7 @@ export function createWhiteboardApp(root) {
     getTextElementWrappedHeight,
     getMinimumTextElementWidth,
     getPreferredTextElementWidth,
+    getAutoFitTextElementWidth,
     getNormalizedTextElementBox,
     normalizeTextElementBox,
   } = createTextElementMeasurer();
@@ -652,6 +653,7 @@ export function createWhiteboardApp(root) {
     },
     onRender: () => renderBoard(),
     onHistory: (msg) => pushHistory(msg),
+    getAutoFitTextElementWidth,
     measureTextValue: (element, value, fontSize) => measureTextElementValue(element, value, fontSize),
   });
 

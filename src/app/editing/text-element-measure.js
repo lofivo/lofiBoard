@@ -1,4 +1,5 @@
 import {
+  getAutoFitLatexTextBoxWidth,
   getMinimumTextBoxWidth,
   getNormalizedTextBox,
   getPreferredTextBoxWidth,
@@ -69,6 +70,16 @@ export function createTextElementMeasurer({
     });
   }
 
+  function getAutoFitTextElementWidth(element, fontSize = element.fontSize) {
+    const padding = Number(element.padding ?? 0);
+    return getAutoFitLatexTextBoxWidth({
+      text: element.text,
+      fontSize,
+      padding,
+      measureText: (value) => measureTextElementValue(element, value, fontSize),
+    });
+  }
+
   function getNormalizedTextElementBox(element, width = element.width) {
     const padding = Number(element.padding ?? 0);
     return getNormalizedTextBox({
@@ -101,6 +112,7 @@ export function createTextElementMeasurer({
     getTextElementWrappedHeight,
     getMinimumTextElementWidth,
     getPreferredTextElementWidth,
+    getAutoFitTextElementWidth,
     getNormalizedTextElementBox,
     normalizeTextElementBox,
   };

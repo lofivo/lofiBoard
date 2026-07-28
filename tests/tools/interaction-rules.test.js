@@ -3,6 +3,7 @@ import {
   clampResizeAnchorPosition,
   clampTransformerAnchorDragBySize,
   getTextTransformMinimumSize,
+  getAutoFitLatexTextBoxWidth,
   getTextScaleCommitBox,
   getTextEditorStyle,
   getStickyEditorCommitBox,
@@ -649,6 +650,26 @@ describe("interaction rules", () => {
       contentWidth: 700,
       padding: 6,
     })).toBe(713);
+  });
+
+  it("auto-fits short latex render boxes to visible formula content", () => {
+    const measureText = (value) => String(value).length * 10;
+    const shortWidth = getAutoFitLatexTextBoxWidth({
+      text: "$\\log n$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    });
+    const longerWidth = getAutoFitLatexTextBoxWidth({
+      text: "$\\log n + a + b$",
+      fontSize: 28,
+      padding: 6,
+      measureText,
+    });
+
+    expect(shortWidth).toBeLessThan(120);
+    expect(longerWidth).toBeGreaterThan(shortWidth);
+    expect(longerWidth).toBeLessThan(220);
   });
 
   it("does not allow a latex text box to resize narrower than the formula can render", () => {

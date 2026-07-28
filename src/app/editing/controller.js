@@ -36,6 +36,7 @@ export function createEditController({
   onStateChange,
   onRender,
   onHistory,
+  getAutoFitTextElementWidth = (element) => Math.max(1, Number(element?.width) || 1),
   measureTextValue,
 }) {
   let isEditing = false;
@@ -426,7 +427,7 @@ export function createEditController({
       }
 
       const boardElements = getBoardElements();
-      setBoardElements(boardElements.map((item) => {
+      const nextBoardElements = boardElements.map((item) => {
         if (item.id !== id) return item;
         // 编辑态等比缩放（四角/上下边）已经把字号改到 currentFontSize，提交时写回
         const nextFontSize = item.type === "text" ? currentFontSize : item.fontSize;
@@ -453,9 +454,17 @@ export function createEditController({
               editHeight: committedBoxHeight,
             };
           }
+          const hadRenderableLatex = containsRenderableLatex(originalText);
+          const autoFitRenderWidth = getAutoFitTextElementWidth({
+            ...nextElement,
+            text: nextText,
+          }, nextFontSize);
+          const renderWidth = hadRenderableLatex
+            ? Math.max(1, Number(item.width) || 1)
+            : Math.max(1, autoFitRenderWidth);
           return {
             ...nextElement,
-            width: Math.max(1, Number(item.width) || 1),
+            width: renderWidth,
             height: Math.max(1, Number(item.height) || nextFontSize * 1.25),
             // 新建文字首次输入时会自动贴合源码宽度；这次结果就是独立编辑框的初始尺寸。
             // 已有 LaTeX 后续只保存 Transformer 手动调整的宽度，避免输入过程覆盖用户尺寸。
@@ -473,7 +482,19 @@ export function createEditController({
           nextElement.height = Math.max(element.height, stickyBox.height);
         }
         return nextElement;
-      }));
+      });
+      setBoardElements(nextBoardElements);
+      const committedElement = nextBoardElements.find((item) => item.id === id);
+      if (committedElement && ["text", "sticky"].includes(committedElement.type)) {
+        if (committedElement.type === "text") {
+          syncTextNodeSize(node, {
+            width: committedElement.width,
+            height: committedElement.height,
+            padding: committedElement.padding ?? 0,
+          });
+        }
+        syncTextNodeContent(node, committedElement);
+      }
       transformer.show();
       onRender();
       onHistory("已编辑文字");
@@ -508,6 +529,16 @@ export function createEditController({
       node.show();
       node.x?.(element.x);
       node.y?.(element.y);
+      if (["text", "sticky"].includes(element.type)) {
+        if (element.type === "text") {
+          syncTextNodeSize(node, {
+            width: element.width,
+            height: element.height,
+            padding: element.padding ?? 0,
+          });
+        }
+        syncTextNodeContent(node, element);
+      }
       transformer.show();
       onRender();
     };

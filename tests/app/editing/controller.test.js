@@ -102,6 +102,7 @@ function createDeps(overrides = {}) {
     onStateChange: vi.fn(),
     onRender: vi.fn(),
     onHistory: vi.fn(),
+    getAutoFitTextElementWidth: vi.fn((element) => Math.max(1, Number(element?.width) || 1)),
     measureTextValue: vi.fn(() => 10),
     ...overrides,
   };
@@ -411,6 +412,41 @@ describe("app editing controller", () => {
       editWidth: 320,
       editHeight: 30,
     });
+  });
+
+  it("restores the latex render box after reopening and committing without changes", () => {
+    let nodeWidth = 120;
+    let nodeHeight = 48;
+    const deps = createDeps();
+    const element = textElement({
+      text: "$\\log n + a + b$",
+      width: 120,
+      height: 48,
+      editWidth: 220,
+      editHeight: 70,
+    });
+    const node = makeNode({
+      width: vi.fn(function setWidth(value) {
+        if (arguments.length > 0) nodeWidth = value;
+        return nodeWidth;
+      }),
+      height: vi.fn(function setHeight(value) {
+        if (arguments.length > 0) nodeHeight = value;
+        return nodeHeight;
+      }),
+    });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(node);
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    expect(nodeWidth).toBe(220);
+
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+
+    expect(nodeWidth).toBe(120);
+    expect(nodeHeight).toBe(48);
   });
 
   it("reopens newly entered latex with the same source editor width", () => {
@@ -1176,8 +1212,10 @@ describe("app editing controller", () => {
     expect(deps.onHistory).toHaveBeenCalledWith("已编辑文字");
   });
 
-  it("does not widen short latex text to the latex default width on commit", () => {
-    const deps = createDeps();
+  it("fits a newly entered short latex formula instead of keeping the default width", () => {
+    const deps = createDeps({
+      getAutoFitTextElementWidth: vi.fn(() => 93),
+    });
     const element = textElement({ text: "", width: 220, height: 35 });
     const node = makeNode({
       width: vi.fn(() => 220),
@@ -1193,14 +1231,14 @@ describe("app editing controller", () => {
     controller.editElement(element.id);
 
     const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
-    textarea.value = "$x$";
+    textarea.value = "$\\log n$";
     textarea.dispatchEvent(kEvent("Enter"));
 
     const updatedElements = deps.setBoardElements.mock.calls[0][0];
     const updated = updatedElements.find((el) => el.id === element.id);
-    expect(updated.text).toBe("$x$");
-    expect(updated.width).toBe(220);
-    expect(updated.width).toBeLessThan(520);
+    expect(updated.text).toBe("$\\log n$");
+    expect(updated.width).toBe(93);
+    expect(updated.width).toBeLessThan(220);
   });
 
   it("commits sticky element with correct size calculation", () => {
