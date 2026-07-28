@@ -542,33 +542,40 @@ describe("app editing controller", () => {
 
   it("follows the transformer origin at top anchors instead of snapping it back", () => {
     let nodeHeight = 60;
-    const deps = createDeps();
-    const element = textElement({ editWidth: 200, editHeight: 60 });
-    const node = makeNode({
-      height: vi.fn(function setHeight(value) {
-        if (arguments.length > 0) nodeHeight = value;
-        return nodeHeight;
-      }),
-    });
-    deps.findElement.mockReturnValue(element);
-    deps.getBoardElements.mockReturnValue([element]);
-    deps.contentLayer.findOne.mockReturnValue(node);
-    deps.transformer.getActiveAnchor.mockReturnValue("top-center");
+    const restoreScrollHeight = installTextareaScrollHeight((target) => (
+      target.classList?.contains("text-editor-measure") ? 90 : 30
+    ));
+    try {
+      const deps = createDeps();
+      const element = textElement({ editWidth: 200, editHeight: 60 });
+      const node = makeNode({
+        height: vi.fn(function setHeight(value) {
+          if (arguments.length > 0) nodeHeight = value;
+          return nodeHeight;
+        }),
+      });
+      deps.findElement.mockReturnValue(element);
+      deps.getBoardElements.mockReturnValue([element]);
+      deps.contentLayer.findOne.mockReturnValue(node);
+      deps.transformer.getActiveAnchor.mockReturnValue("top-center");
 
-    const controller = createEditController(deps);
-    controller.editElement(element.id);
-    // Konva grows the box upwards: origin moves up, height grows by the same amount.
-    node.y(50);
-    nodeHeight = 90;
-    deps.transformer.trigger("transform.editor");
+      const controller = createEditController(deps);
+      controller.editElement(element.id);
+      // Konva grows the box upwards: origin moves up, height grows by the same amount.
+      node.y(50);
+      nodeHeight = 90;
+      deps.transformer.trigger("transform.editor");
 
-    expect(node.y()).toBe(50);
-    const frame = document.querySelector(".text-editor-frame");
-    expect(Number.parseFloat(frame.style.top)).toBe(50);
-    expect(Number.parseFloat(frame.style.height)).toBe(90);
+      expect(node.y()).toBe(50);
+      const frame = document.querySelector(".text-editor-frame");
+      expect(Number.parseFloat(frame.style.top)).toBe(50);
+      expect(Number.parseFloat(frame.style.height)).toBe(90);
 
-    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
-    expect(deps.setBoardElements.mock.calls[0][0][0]).toMatchObject({ x: 100, y: 50 });
+      document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Enter"));
+      expect(deps.setBoardElements.mock.calls[0][0][0]).toMatchObject({ x: 100, y: 50 });
+    } finally {
+      restoreScrollHeight();
+    }
   });
 
   it("restores the original origin when editing is cancelled", () => {

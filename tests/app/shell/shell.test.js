@@ -937,7 +937,7 @@ describe("app shell", () => {
     const textMeasureSource = readFileSync(new URL("../../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
 
     expect(editSource).toContain("const measureTextContentHeight");
-    expect(editSource).toContain("return measureTextContentHeight(width) + 2 * scale");
+    expect(editSource).toContain("return measureTextContentHeight(width) + editorHeightSlack");
     expect(editSource).toContain("fitEditorToContent({ expandOnly: true });");
     expect(textMeasureSource).toContain("verticalGap: 2");
   });

@@ -114,13 +114,14 @@ export function createEditController({
       getVisualTextNode()?.show?.();
     };
 
+    // 编辑框尺寸以 style 上的浮点值为准（offsetWidth/Height 会取整，和渲染 overlay 差零点几像素）
     const getEditorWidth = () => Math.max(
       minEditorWidth,
-      editorFrame.offsetWidth || Number.parseFloat(editorFrame.style.width) || editorWidth,
+      Number.parseFloat(editorFrame.style.width) || editorFrame.offsetWidth || editorWidth,
     );
     const getEditorHeight = () => Math.max(
       minEditorHeight,
-      editorFrame.offsetHeight || Number.parseFloat(editorFrame.style.height) || editorHeight,
+      Number.parseFloat(editorFrame.style.height) || editorFrame.offsetHeight || editorHeight,
     );
     const applyNodeSizeFromEditor = () => {
       const nextWidth = getEditorWidth() / scale;
@@ -147,8 +148,12 @@ export function createEditController({
       });
     };
 
+    // 纯文本编辑框高度必须等于内容高度本身（渲染 overlay 是 height:auto），不能再留额外余量，
+    // 否则编辑态会比渲染态高几像素。便签和 LaTeX 源码框的渲染框独立，保留原余量。
+    const editorHeightSlack = element.type === "text" && !usesSeparateEditBox ? 0 : 2 * scale;
+
     const measureTextHeight = (width = getEditorWidth()) => {
-      return measureTextContentHeight(width) + 2 * scale;
+      return measureTextContentHeight(width) + editorHeightSlack;
     };
 
     const setEditorSize = (width, height = measureTextHeight(width)) => {
@@ -181,7 +186,7 @@ export function createEditController({
       const contentHeight = measureTextContentHeight(nextWidth);
       const nextHeight = expandOnly && contentHeight <= currentHeight
         ? currentHeight
-        : contentHeight + 2 * scale;
+        : contentHeight + editorHeightSlack;
       setEditorSize(nextWidth, nextHeight);
       applyNodeSizeFromEditor();
       if (["text", "sticky"].includes(element.type)) {
@@ -237,14 +242,21 @@ export function createEditController({
       if (resizesWidth || uniformScale) {
         manualEditorWidth = requestedWidth;
       }
-      if (resizesHeight || uniformScale) {
+      const contentHeight = measureTextContentHeight(requestedWidth);
+      // 纯文本等比缩放时高度完全由字号+内容决定，不用 Konva 给的 box 高，
+      // 否则编辑框底部会比渲染 overlay 多出一截空白；LaTeX 编辑框尺寸独立持久化，仍记手动值。
+      const tracksRenderBox = element.type === "text" && !usesSeparateEditBox;
+      if (uniformScale && tracksRenderBox) {
+        manualEditorHeight = contentHeight;
+      } else if (resizesHeight || uniformScale) {
         manualEditorHeight = requestedHeight;
       }
-      const contentHeight = measureTextContentHeight(requestedWidth);
-      const visibleHeight = Math.max(
-        resizesHeight || uniformScale ? requestedHeight : manualEditorHeight,
-        contentHeight + 2 * stageScale,
-      );
+      const visibleHeight = uniformScale && tracksRenderBox
+        ? contentHeight
+        : Math.max(
+          resizesHeight || uniformScale ? requestedHeight : manualEditorHeight,
+          contentHeight + editorHeightSlack,
+        );
       setEditorSize(requestedWidth, visibleHeight);
       node.scaleX?.(1);
       node.scaleY?.(1);
