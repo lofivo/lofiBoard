@@ -281,6 +281,43 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.exitInteractionToIdle).toHaveBeenCalled();
   });
 
+  it("temporarily treats the selected bounds as selection while the pen tool stays active", () => {
+    const { callbacks, controller, drawingInteractionController, selectionDragController, stage } = createHarness({
+      currentTool: TOOLS.PEN,
+      selectedIds: ["text_1", "graph_1"],
+      callbacks: {
+        getNearbySelectedElementId: vi.fn(() => "text_1"),
+      },
+    });
+
+    controller.handlePointerMove(createKonvaEvent());
+    controller.handlePointerDown(createKonvaEvent());
+
+    expect(callbacks.hideToolCursors).toHaveBeenCalled();
+    expect(stage.container().classList.add).toHaveBeenCalledWith("is-selection-hover");
+    expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(drawingInteractionController.startStroke).not.toHaveBeenCalled();
+  });
+
+  it("restores the pen cursor after leaving the selected bounds", () => {
+    const getNearbySelectedElementId = vi.fn()
+      .mockReturnValueOnce("text_1")
+      .mockReturnValueOnce(null);
+    const { callbacks, controller, stage } = createHarness({
+      currentTool: TOOLS.PEN,
+      selectedIds: ["text_1", "graph_1"],
+      callbacks: { getNearbySelectedElementId },
+    });
+
+    controller.handlePointerMove(createKonvaEvent());
+    controller.handlePointerMove(createKonvaEvent());
+
+    expect(stage.container().classList.add).toHaveBeenCalledWith("is-selection-hover");
+    expect(stage.container().classList.remove).toHaveBeenCalledWith("is-selection-hover");
+    expect(callbacks.showBrushCursor).toHaveBeenLastCalledWith({ x: 10, y: 20 });
+  });
+
   it("marks an eraser pointer session active before setPointerCapture can synchronously dispatch pointerleave", () => {
     let controller;
     let activeDuringCapture = false;
@@ -515,6 +552,31 @@ describe("stage-pointer-controller", () => {
 
     expect(callbacks.getNearbySelectedElementId).toHaveBeenCalledWith({ x: 10, y: 20 });
     expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
+      targetId: "text_1",
+      selectedIds: ["text_1", "graph_1"],
+    });
+    expect(callbacks.showContextMenu).toHaveBeenCalledWith(100, 120, { targetId: "text_1" });
+  });
+
+  it("keeps object context inside selected bounds while the pen tool is active", () => {
+    const { callbacks, controller, stage } = createHarness({
+      currentTool: TOOLS.PEN,
+      selectedIds: ["text_1", "graph_1"],
+      callbacks: {
+        getElementIdFromNode: vi.fn(() => null),
+        getNearbySelectedElementId: vi.fn(() => "text_1"),
+        getSelectableElementIdAtWorldPoint: vi.fn(() => null),
+      },
+    });
+    stage.getIntersection = vi.fn(() => ({ name: "back" }));
+
+    controller.handleContextMenu({
+      clientX: 100,
+      clientY: 120,
+      preventDefault: vi.fn(),
+    });
+
     expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
       targetId: "text_1",
       selectedIds: ["text_1", "graph_1"],

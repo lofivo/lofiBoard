@@ -91,6 +91,23 @@ export function createStagePointerController({
   let isPanning = false;
   let panStart = null;
   let activeDrawingPointerCapture = null;
+  let isSelectionHoverActive = false;
+
+  function setSelectionHoverActive(active) {
+    const nextActive = Boolean(active);
+    if (isSelectionHoverActive === nextActive) return;
+    isSelectionHoverActive = nextActive;
+    if (nextActive) {
+      stage.container().classList.add("is-selection-hover");
+      hideToolCursors();
+      return;
+    }
+    stage.container().classList.remove("is-selection-hover");
+  }
+
+  function isInsideSelectedBounds(worldPoint) {
+    return getSelectedIds().length > 0 && Boolean(getNearbySelectedElementId(worldPoint));
+  }
 
   function beginDrawingPointerSession(event) {
     const nativeEvent = event?.evt;
@@ -129,6 +146,7 @@ export function createStagePointerController({
 
     const currentTool = getCurrentTool();
     if (getIsSpaceDown() || currentTool === TOOLS.PAN || event.evt.button === 1) {
+      setSelectionHoverActive(false);
       isPanning = true;
       enterInteraction(SM.PANNING);
       stage.container().classList.add("is-panning");
@@ -139,7 +157,9 @@ export function createStagePointerController({
       return true;
     }
 
-    if (currentTool === TOOLS.SELECT) {
+    const shouldUseSelection = currentTool === TOOLS.SELECT || isInsideSelectedBounds(worldPoint);
+    if (shouldUseSelection) {
+      setSelectionHoverActive(currentTool !== TOOLS.SELECT);
       if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
         const passThroughId = getSelectableElementIdAtWorldPoint(worldPoint, {
           preferUnselected: true,
@@ -157,6 +177,7 @@ export function createStagePointerController({
       return handleSelectPointerDown(event, worldPoint);
     }
 
+    setSelectionHoverActive(false);
     clearSelection();
 
     if (currentTool === TOOLS.PEN) {
@@ -236,6 +257,7 @@ export function createStagePointerController({
     updateLastPointerWorldPoint(worldPoint);
 
     if (isTemporaryPanActive() && !isPanning) {
+      setSelectionHoverActive(false);
       hideToolCursors();
       return true;
     }
@@ -276,6 +298,12 @@ export function createStagePointerController({
     }
 
     const currentTool = getCurrentTool();
+    const shouldUseSelection = currentTool !== TOOLS.SELECT
+      && currentTool !== TOOLS.PAN
+      && isInsideSelectedBounds(worldPoint);
+    setSelectionHoverActive(shouldUseSelection);
+    if (shouldUseSelection) return true;
+
     if (currentTool === TOOLS.PEN) {
       showBrushCursor(worldPoint);
       return true;

@@ -1641,6 +1641,10 @@ button {
   cursor: none;
 }
 
+.stage-container.is-selection-hover {
+  cursor: var(--cursor-select);
+}
+
 .stage-container.is-pan-ready {
   cursor: var(--cursor-pan);
 }
