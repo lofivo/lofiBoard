@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canPersistToolPropertyControls,
+  getInspectorTitle,
   getPropertyPanelTitle,
   getSelectionHydrateSource,
   getSelectionInspectorCapabilities,
@@ -15,9 +16,15 @@ import { TOOLS } from "../../../src/ui/config.js";
 describe("inspector model", () => {
   it("returns concrete property panel titles for single selections", () => {
     expect(getPropertyPanelTitle([{ type: "text" }])).toBe("文字");
+    expect(getPropertyPanelTitle([{ type: "sticky" }])).toBe("标签");
     expect(getPropertyPanelTitle([{ type: "tree-structure", settings: { treeKind: "binary" } }])).toBe("二叉树");
     expect(getPropertyPanelTitle([{ type: "tree-structure", settings: { treeKind: "general" } }])).toBe("树");
     expect(getPropertyPanelTitle([{ type: "rect" }, { type: "ellipse" }])).toBe("属性");
+  });
+
+  it("returns concrete titles for text-like tools before placement", () => {
+    expect(getInspectorTitle({ tool: TOOLS.TEXT })).toBe("文字");
+    expect(getInspectorTitle({ tool: TOOLS.STICKY })).toBe("标签");
   });
 
   it("derives selection panel modes from selected element types", () => {

@@ -4,7 +4,7 @@ import { isLinearStructureElement } from "../../structures/linear-structure.js";
 const ELEMENT_SCHEMA = {
   stroke: { title: "画笔", group: "brush" },
   text: { title: "文字", group: "text" },
-  sticky: { title: "便签", group: "sticky" },
+  sticky: { title: "标签", group: "sticky" },
   image: { title: "图片", group: "element" },
   rect: { title: "矩形", group: "element" },
   ellipse: { title: "椭圆", group: "element" },
@@ -21,6 +21,8 @@ const ELEMENT_SCHEMA = {
 
 const TOOL_PANEL_SCHEMA = {
   [TOOLS.PEN]: { title: "画笔", group: "brush" },
+  [TOOLS.TEXT]: { title: "文字", group: "text" },
+  [TOOLS.STICKY]: { title: "标签", group: "sticky" },
   [TOOLS.SHAPE]: { title: "图形", group: "tool" },
   [TOOLS.RECT]: { title: "矩形", group: "tool" },
   [TOOLS.ELLIPSE]: { title: "椭圆", group: "tool" },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox, Switch } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
+import { getInspectorTitle } from '../inspector/model.js';
 import { icon } from '../../ui/config.js';
 import { GLASS, GLASS_EDGE, RADIUS, TEXT, PANEL_MOTION } from '../../ui/tokens.js';
 
@@ -14,6 +15,7 @@ const ICON_PANEL = icon(SlidersHorizontal);
 const COLORS = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed'];
 const FILLS  = ['#ffffff', '#dbeafe', '#fee2e2', '#dcfce7', '#fef3c7', '#ede9fe'];
 const BGS    = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa'];
+const TEXT_PANEL_MODES = new Set(['text', 'sticky']);
 
 const FONTS = [
   { value: 'Inter, system-ui, sans-serif', label: 'Inter' },
@@ -796,7 +798,12 @@ export default function StylePanel() {
   const collapsed = ctx.stylePanelCollapsed ?? false;
   const mode = ctx.panelMode || 'hidden';
   const shape = ctx.activeShape || 'rect';
-  const panelTitle = ctx.stylePanelTitle || '属性';
+  const titleContext = TEXT_PANEL_MODES.has(mode)
+    ? { elements: [{ type: mode }] }
+    : (mode === 'hidden' && TEXT_PANEL_MODES.has(ctx.currentTool)
+      ? { tool: ctx.currentTool }
+      : null);
+  const panelTitle = titleContext ? getInspectorTitle(titleContext) : (ctx.stylePanelTitle || '属性');
 
   // Hide panel entirely when mode is hidden and no tool preset should show
   const shouldShow = mode !== 'hidden' || ctx.currentTool === 'text' || ctx.currentTool === 'sticky';
