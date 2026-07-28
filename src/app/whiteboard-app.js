@@ -11,6 +11,7 @@ import { createMenuStateController } from "./panels/menu-state-controller.js";
 import { createPanelStateController } from "./panels/state-controller.js";
 import { DEFAULT_PROPERTY_CONTROLS, createPropertyControlsController } from "./inspector/property-controls/controller.js";
 import { createPropertyControlsDomController } from "./inspector/property-controls/dom-controller.js";
+import { createSizeShortcutController } from "./inspector/size-shortcut-controller.js";
 import { createContentBoundsQuery } from "./selection/content-bounds-query.js";
 import {
   createSelectionController,
@@ -1379,6 +1380,25 @@ export function createWhiteboardApp(root) {
     },
     setLinearPanelField: (key, value) => structureInspectorController.setLinearPanelField(key, value),
   });
+  const { adjustActiveSize } = createSizeShortcutController({
+    getPanelMode: () => root.dataset.panelMode || "hidden",
+    getCurrentTool: () => currentTool,
+    getStructureSelection: () => root.dataset.structureSelection || "none",
+    getControlValues,
+    setControl,
+    adjustGraphNodeSize: (direction) => {
+      const element = board.elements.find((item) => selectedIds.includes(item.id) && item.type === "graph-structure" && !item.locked);
+      if (!element) return false;
+      const baseRadius = GRAPH_STRUCTURE_STYLE.nodeRadius;
+      const currentPercent = (Number(element.style?.nodeRadius) || baseRadius) / baseRadius * 100;
+      const nextPercent = Math.max(50, Math.min(200, currentPercent + direction * 10));
+      if (nextPercent === currentPercent) return true;
+      const radius = baseRadius * nextPercent / 100;
+      editSelectedStructure("graph-structure", (item) => setGraphNodeRadius(item, radius), "已调整节点大小");
+      syncGraphStructurePanelState();
+      return true;
+    },
+  });
   const { bindKeyboard } = createKeyboardController({
     getCurrentTool: () => currentTool,
     getSelectedIds: () => selectedIds,
@@ -1412,6 +1432,7 @@ export function createWhiteboardApp(root) {
     clearSelection,
     setActiveShapeTool,
     toggleKeepToolActive,
+    adjustActiveSize,
   });
   const { bindUiEvents } = createUiEventsController({
     container,

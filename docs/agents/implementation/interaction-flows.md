@@ -27,6 +27,8 @@
 
 锁按钮后用竖向分隔线与常用工具隔开。矩形、椭圆、直线和箭头直接显示在主工具栏；“更多工具”弹层只保留坐标系。React 按钮通过 `commands.selectShapeTool()` 切换活动图形。
 
+当当前属性栏存在唯一、明确的大小属性时，`+` / `-` 由 `keyboard-controller` 调用 `size-shortcut-controller` 调整该属性：画笔/图形改粗细，文字/便签改字号，坐标系改单位间距，选中的图结构改节点大小。输入控件编辑态和多选混合属性栏不拦截这组按键；所有数值按属性栏现有步进和上下限处理。
+
 ## React 面板交互
 
 React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。

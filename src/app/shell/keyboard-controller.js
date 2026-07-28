@@ -34,6 +34,7 @@ export function createKeyboardController({
   clearSelection,
   setActiveShapeTool,
   toggleKeepToolActive = () => {},
+  adjustActiveSize = () => false,
 }) {
   function bindKeyboard() {
     windowTarget.addEventListener("keydown", handleKeyDown, { capture: true });
@@ -60,6 +61,13 @@ export function createKeyboardController({
     }
 
     if (isTypingInEditableControl(event.target)) return;
+
+    const sizeDirection = getSizeShortcutDirection(event);
+    if (sizeDirection && adjustActiveSize(sizeDirection)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
 
     if (event.code === "Space") {
       setIsSpaceDown(true);
@@ -200,4 +208,11 @@ export function createKeyboardController({
     handleKeyDown,
     handleKeyUp,
   };
+}
+
+function getSizeShortcutDirection(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return 0;
+  if (event.key === "+" || event.code === "NumpadAdd") return 1;
+  if (event.key === "-" || event.code === "NumpadSubtract") return -1;
+  return 0;
 }

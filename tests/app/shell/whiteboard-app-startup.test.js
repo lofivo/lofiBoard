@@ -11,6 +11,7 @@ class FakeKonvaNode {
   }
 
   add(...nodes) {
+    nodes.forEach((node) => { node.parent = this; });
     this.children.push(...nodes);
     return this;
   }
@@ -39,6 +40,17 @@ class FakeKonvaNode {
   }
 
   destroy() {}
+
+  destroyChildren() {
+    this.children.forEach((node) => { node.parent = null; });
+    this.children = [];
+  }
+
+  dragBoundFunc(value) {
+    if (value === undefined) return this.attrs.dragBoundFunc;
+    this.attrs.dragBoundFunc = value;
+    return this;
+  }
 
   draggable(value) {
     if (value === undefined) return Boolean(this.attrs.draggable);
@@ -93,8 +105,16 @@ class FakeKonvaNode {
     };
   }
 
+  getChildren() {
+    return this.children;
+  }
+
   getLayer() {
     return null;
+  }
+
+  getParent() {
+    return this.parent ?? null;
   }
 
   getStage() {
@@ -292,6 +312,7 @@ class FakeTransformer extends FakeKonvaNode {
 class FakeLayer extends FakeKonvaNode {}
 class FakeRect extends FakeKonvaNode {}
 class FakeCircle extends FakeKonvaNode {}
+class FakeEllipse extends FakeKonvaNode {}
 class FakeLine extends FakeKonvaNode {}
 class FakeArrow extends FakeKonvaNode {}
 class FakeText extends FakeKonvaNode {}
@@ -304,6 +325,7 @@ vi.mock("konva", () => ({
   default: {
     Arrow: FakeArrow,
     Circle: FakeCircle,
+    Ellipse: FakeEllipse,
     Easings: { EaseOut: (value) => value },
     Group: FakeGroup,
     Image: FakeImage,
@@ -483,6 +505,50 @@ describe("whiteboard app startup", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "q", bubbles: true }));
     expect(root.dataset.keepToolActive).toBe("false");
     expect(lockButton.classList.contains("active")).toBe(false);
+
+    app.destroy();
+  }, 15_000);
+
+  it("adjusts the visible size property with plus and minus shortcuts", async () => {
+    seedDraft([{
+      id: "graph_1",
+      type: "graph-structure",
+      x: 20,
+      y: 30,
+      width: 240,
+      height: 240,
+      nodes: [{ id: "node_a", label: "A", x: 80, y: 120 }],
+      edges: [],
+      style: { nodeRadius: 26 },
+      settings: {},
+      zIndex: 0,
+    }]);
+    const { app, root } = await mountApp();
+    const key = (value) => window.dispatchEvent(new KeyboardEvent("keydown", {
+      key: value,
+      code: value === "+" ? "Equal" : "Minus",
+      shiftKey: value === "+",
+      bubbles: true,
+    }));
+
+    app.commands.setTool("pen");
+    app.commands.setProperty("width", "6");
+    key("+");
+    expect(app.getUiState().properties.width).toBe("7");
+
+    app.commands.setTool("text");
+    app.commands.setProperty("font-size", "28");
+    key("-");
+    expect(app.getUiState().properties.fontSize).toBe("27");
+
+    app.commands.selectShapeTool("coordinate-plane");
+    app.commands.setProperty("coordinate-unit-size", "40");
+    key("+");
+    expect(app.getUiState().properties.coordinateUnitSize).toBe("41");
+
+    root._selectLayerItemById("graph_1", "none");
+    key("+");
+    expect(app.getBoard().elements[0].style.nodeRadius).toBeCloseTo(28.6, 5);
 
     app.destroy();
   }, 15_000);

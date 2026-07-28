@@ -65,6 +65,7 @@ function createController(overrides = {}) {
     setTool: vi.fn((tool) => { currentTool = tool; }),
     setZoomMenuOpen: vi.fn(),
     toggleKeepToolActive: vi.fn(),
+    adjustActiveSize: overrides.adjustActiveSize ?? vi.fn(() => false),
     undoHistory: vi.fn(),
     updateDraggableState: vi.fn(),
   };
@@ -213,6 +214,49 @@ describe("keyboard-controller", () => {
 
     expect(callbacks.toggleKeepToolActive).toHaveBeenCalledTimes(1);
     expect(callbacks.setTool).not.toHaveBeenCalled();
+  });
+
+  it("adjusts the active size property with plus and minus", () => {
+    const adjustActiveSize = vi.fn(() => true);
+    const { controller, windowTarget } = createController({ adjustActiveSize });
+    controller.bindKeyboard();
+    const plus = createEvent({ key: "+", code: "Equal", shiftKey: true });
+    const minus = createEvent({ key: "-", code: "Minus" });
+
+    windowTarget.dispatch("keydown", plus);
+    windowTarget.dispatch("keydown", minus);
+
+    expect(adjustActiveSize).toHaveBeenNthCalledWith(1, 1);
+    expect(adjustActiveSize).toHaveBeenNthCalledWith(2, -1);
+    expect(plus.preventDefault).toHaveBeenCalled();
+    expect(plus.stopPropagation).toHaveBeenCalled();
+    expect(minus.preventDefault).toHaveBeenCalled();
+  });
+
+  it("keeps plus and minus available when the active panel has no size property", () => {
+    const adjustActiveSize = vi.fn(() => false);
+    const { controller, windowTarget } = createController({ adjustActiveSize });
+    controller.bindKeyboard();
+    const event = createEvent({ key: "+" });
+
+    windowTarget.dispatch("keydown", event);
+
+    expect(adjustActiveSize).toHaveBeenCalledWith(1);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(event.stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it("does not adjust size while typing in an editable control", () => {
+    const adjustActiveSize = vi.fn(() => true);
+    const { controller, windowTarget } = createController({
+      adjustActiveSize,
+      isTypingInEditableControl: () => true,
+    });
+    controller.bindKeyboard();
+
+    windowTarget.dispatch("keydown", createEvent({ key: "+", target: {} }));
+
+    expect(adjustActiveSize).not.toHaveBeenCalled();
   });
 
   it("returns a cleanup function that removes keyboard listeners", () => {
