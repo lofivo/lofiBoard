@@ -85,6 +85,25 @@ describe("app shell action-controller", () => {
     expect(nextElement.items.map((item) => item.value)).toEqual(["1", "2", "3"]);
   });
 
+  it.each([
+    ["linear-index-zero", 0],
+    ["linear-index-one", 1],
+  ])("shows indexes when running %s", (action, indexBase) => {
+    const { callbacks, controller } = createController();
+
+    controller.runAction(action);
+    const edit = callbacks.editSelectedArrayStructure.mock.calls[0][0];
+    const nextElement = edit({
+      type: "stack-structure",
+      height: 44,
+      items: [{ value: "A" }],
+      settings: { indexBase: indexBase === 0 ? 1 : 0, showIndexes: false },
+    });
+
+    expect(nextElement.settings).toMatchObject({ indexBase, showIndexes: true });
+    expect(nextElement.height).toBe(88);
+  });
+
   it("maps graph and tree actions through the structure edit boundary", () => {
     const { callbacks, controller } = createController();
 
