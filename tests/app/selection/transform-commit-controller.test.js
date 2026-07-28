@@ -106,6 +106,48 @@ describe("transform-commit-controller", () => {
     });
   });
 
+  it("keeps latex render dimensions unchanged when committing a move", () => {
+    const textElement = {
+      id: "text_1",
+      type: "text",
+      text: "$$\\frac{a+b+c+d+e}{x+y}$$",
+      x: 1,
+      y: 2,
+      width: 40,
+      height: 60,
+      editWidth: 220,
+      editHeight: 72,
+      fontSize: 28,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    };
+    const { callbacks, controller, state } = createHarness({
+      elements: [textElement],
+      lastTransformAnchor: null,
+    });
+    const node = createNode({
+      id: "text_1",
+      x: 31,
+      y: 42,
+      width: 40,
+      height: 60,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+    });
+
+    controller.syncNodeToElement(node, { positionOnly: true });
+
+    expect(callbacks.getTextScaleCommitBox).not.toHaveBeenCalled();
+    expect(callbacks.normalizeTextElementBox).not.toHaveBeenCalled();
+    expect(state.elements[0]).toEqual({
+      ...textElement,
+      x: 31,
+      y: 42,
+    });
+  });
+
   it("normalizes sticky transforms by committing size and clearing transient scale", () => {
     const stickyElement = {
       id: "sticky_1",

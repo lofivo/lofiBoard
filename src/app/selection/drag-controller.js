@@ -279,7 +279,7 @@ export function createSelectionDragController({
       snapNodeToAlignment(node, {
         excludeIds: dragSelection.originals.map((item) => item.id),
       });
-      syncNodeToElement(node);
+      syncNodeToElement(node, { positionOnly: true });
       setHandledNodeDragEnd(true);
       pushHistory("已移动对象");
       return true;

@@ -187,6 +187,34 @@ describe("drag-controller", () => {
     expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
   });
 
+  it("commits only position when moving rendered latex text", () => {
+    const latexNode = createNode({ id: "text_1", x: 10, y: 20, width: 40, height: 60 });
+    const { callbacks, controller } = createHarness({
+      state: {
+        elements: [{
+          id: "text_1",
+          type: "text",
+          text: "$$\\frac{a+b+c+d+e}{x+y}$$",
+          x: 10,
+          y: 20,
+          width: 40,
+          height: 60,
+          editWidth: 220,
+          editHeight: 72,
+        }],
+        selectedIds: ["text_1"],
+      },
+      nodes: { "#text_1": latexNode },
+    });
+
+    controller.beginNodeDragSelection(latexNode);
+    latexNode.position({ x: 30, y: 40 });
+    controller.updateNodeDragSelection(latexNode);
+    controller.finishNodeDragSelection(latexNode);
+
+    expect(callbacks.syncNodeToElement).toHaveBeenCalledWith(latexNode, { positionOnly: true });
+  });
+
   it("clears alignment guides when a multi-selection node drag finishes", () => {
     const { callbacks, controller, nodes } = createHarness({
       state: {

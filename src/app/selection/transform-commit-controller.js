@@ -17,7 +17,7 @@ export function createSelectionTransformCommitController({
     nodes.forEach(syncNodeToElement);
   }
 
-  function syncNodeToElement(node) {
+  function syncNodeToElement(node, { positionOnly = false } = {}) {
     const id = getElementIdFromNode(node);
     const elements = getElements();
     const index = elements.findIndex((element) => element.id === id);
@@ -25,6 +25,16 @@ export function createSelectionTransformCommitController({
 
     const element = elements[index];
     const nextElements = [...elements];
+    if (positionOnly) {
+      nextElements[index] = {
+        ...element,
+        x: node.x(),
+        y: node.y(),
+      };
+      setElements(nextElements);
+      return true;
+    }
+
     nextElements[index] = {
       ...element,
       x: node.x(),
