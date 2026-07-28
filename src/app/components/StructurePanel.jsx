@@ -123,7 +123,11 @@ export default function StructurePanel() {
 
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0, zIndex: 30 }} onClick={() => ctx.setStructurePanelVisible?.(false)} />
+      <div
+        data-structure-panel-backdrop
+        style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+        onClick={handleCancel}
+      />
       <div
         className="structure-panel-react"
         style={{

@@ -152,6 +152,22 @@ describe("ToolDock", () => {
     expect(setShapePopoverVisible.mock.calls[0][0](false)).toBe(true);
   });
 
+  it("cancels the structure tool when its open panel is toggled closed", () => {
+    const setTool = vi.fn();
+    const setStructurePanelVisible = vi.fn();
+    const { host } = renderDock({
+      currentTool: "structure",
+      structurePanelVisible: true,
+      setTool,
+      setStructurePanelVisible,
+    });
+
+    act(() => host.querySelector('[aria-label="结构 (S)"]').click());
+
+    expect(setStructurePanelVisible).toHaveBeenCalledWith(false);
+    expect(setTool).toHaveBeenCalledWith("select");
+  });
+
   it("highlights more tools and the coordinate plane when that tool is active", () => {
     const { host } = renderDock({
       currentTool: "shape",

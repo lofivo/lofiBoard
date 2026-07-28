@@ -79,7 +79,7 @@ function renderPanel(options) {
     );
   });
 
-  return { host, root };
+  return { host, root, setStructurePanelVisible };
 }
 
 function findButton(host, label) {
@@ -124,5 +124,19 @@ describe("StructurePanel", () => {
 
     expect(input.value).toBe("3");
     expect(legacyInput.value).toBe("3");
+  });
+
+  it("treats clicking the backdrop as cancelling the structure tool", () => {
+    const { host, setStructurePanelVisible } = renderPanel();
+    const legacyCancel = document.querySelector("[data-structure-cancel]");
+    const cancelSpy = vi.fn();
+    legacyCancel.addEventListener("click", cancelSpy);
+
+    act(() => {
+      host.querySelector("[data-structure-panel-backdrop]").click();
+    });
+
+    expect(cancelSpy).toHaveBeenCalledTimes(1);
+    expect(setStructurePanelVisible).toHaveBeenCalledWith(false);
   });
 });

@@ -319,6 +319,27 @@ export default function App() {
     else commands.runToolAction(tool);
   }, [getCommands]);
 
+  // 引擎快捷键也会改变工具；React 弹层必须跟随关闭，不能只依赖工具栏点击路径。
+  useEffect(() => {
+    if (currentTool !== TOOLS.SHAPE || activeShape !== TOOLS.COORDINATE_PLANE) {
+      setShapePopoverVisible(false);
+    }
+    if (currentTool !== TOOLS.STRUCTURE) setStructurePanelVisible(false);
+  }, [activeShape, currentTool]);
+
+  useEffect(() => {
+    const handleToolPopoverEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setShapePopoverVisible(false);
+      if (structurePanelVisible) {
+        setStructurePanelVisible(false);
+        setTool(TOOLS.SELECT);
+      }
+    };
+    document.addEventListener('keydown', handleToolPopoverEscape);
+    return () => document.removeEventListener('keydown', handleToolPopoverEscape);
+  }, [setTool, structurePanelVisible]);
+
   const toggleKeepToolActive = useCallback(() => {
     const root = getLegacyRoot();
     getCommands()?.runToolAction('toggle-tool-lock');

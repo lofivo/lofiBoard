@@ -170,8 +170,12 @@ export default function ToolDock() {
             if (tool.shapeId) return handleShapeClick(tool.shapeId);
             if (tool.id === 'more-tools') return ctx.setShapePopoverVisible?.(v => !v);
             if (tool.id === 'structure') {
+              if (ctx.structurePanelVisible) {
+                ctx.setStructurePanelVisible?.(false);
+                return ctx.setTool?.('select');
+              }
               ctx.setTool?.('structure');
-              return ctx.setStructurePanelVisible?.(v => !v);
+              return ctx.setStructurePanelVisible?.(true);
             }
             if (tool.action) return ctx.runAction?.(tool.action);
             return ctx.setTool?.(tool.id);
