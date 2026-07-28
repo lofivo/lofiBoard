@@ -179,10 +179,10 @@ function FormatBtns({ bold, italic, underline, strike, onToggle }) {
 
 /* ---- inspectors ---- */
 
-function BrushCore({ ctx, showFill, showArrow, showCapStyle }) {
+function BrushCore({ ctx, showFill, showArrow, showCapStyle, showPreview = false }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} />
+      {showPreview && <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} />}
       <ColorField label={showFill ? '边框颜色' : '颜色'} colors={COLORS} value={ctx.brushColor} set={ctx.setBrushColor} />
       {showFill && <ColorField label="填充颜色" colors={FILLS} value={ctx.fillColor} set={ctx.setFillColor} />}
       <div style={fieldGap}>
@@ -309,7 +309,7 @@ function MultiInspector({ ctx }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {(caps.drawing || caps.stroke) && (
-        <BrushCore ctx={ctx} showFill={caps.fillShape} showArrow={caps.arrow} showCapStyle={caps.stroke} />
+        <BrushCore ctx={ctx} showFill={caps.fillShape} showArrow={caps.arrow} showCapStyle={caps.stroke} showPreview={caps.stroke} />
       )}
       {caps.text && <TextCore ctx={ctx} />}
       {caps.sticky && <StickyCore ctx={ctx} />}
@@ -758,7 +758,7 @@ function resolveInspector(mode, shape, ctx) {
   switch (mode) {
     case 'brush':
     case 'stroke':
-      return <BrushCore ctx={ctx} showFill={false} showArrow={false} showCapStyle={true} />;
+      return <BrushCore ctx={ctx} showFill={false} showArrow={false} showCapStyle={true} showPreview={true} />;
     case 'tool':
     case 'linear-tool':
       return <BrushCore ctx={ctx} showFill={showFill} showArrow={showArrowCtrl} showCapStyle={false} />;

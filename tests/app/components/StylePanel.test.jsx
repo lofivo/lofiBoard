@@ -82,4 +82,46 @@ describe("StylePanel", () => {
     expect(getPanelTitle(host)).toBe(title);
   });
 
+  it.each([
+    ["rect", "tool"],
+    ["ellipse", "tool"],
+    ["line", "linear-tool"],
+    ["arrow", "linear-tool"],
+  ])("does not show the stroke preview frame for the %s tool", (activeShape, panelMode) => {
+    const host = renderPanel({
+      activeShape,
+      currentTool: activeShape,
+      panelMode,
+      stylePanelTitle: "图形",
+    });
+
+    expect(host.querySelector('path[d^="M 14,24"]')).toBeNull();
+  });
+
+  it.each([
+    ["rect", "element"],
+    ["ellipse", "element"],
+    ["line", "linear"],
+    ["arrow", "linear"],
+  ])("does not show the stroke preview frame for a selected %s", (activeShape, panelMode) => {
+    const host = renderPanel({
+      activeShape,
+      currentTool: "select",
+      panelMode,
+      stylePanelTitle: "图形",
+    });
+
+    expect(host.querySelector('path[d^="M 14,24"]')).toBeNull();
+  });
+
+  it("keeps the stroke preview frame for the pen tool", () => {
+    const host = renderPanel({
+      currentTool: "pen",
+      panelMode: "brush",
+      stylePanelTitle: "画笔",
+    });
+
+    expect(host.querySelector('path[d^="M 14,24"]')).not.toBeNull();
+  });
+
 });
