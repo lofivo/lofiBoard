@@ -247,6 +247,7 @@ export function createWhiteboardApp(root) {
   let selectionTransformPreviewController = null;
   let selectionTransformerController = null;
   let previewTextFontSize = () => {};
+  const uiStateListeners = new Set();
   let linearGestureController = null;
   let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
@@ -782,7 +783,10 @@ export function createWhiteboardApp(root) {
     onToggleTextStyle: toggleTextStyle,
   });
   readControlValues = getControlValues;
-  previewTextFontSize = (fontSize) => setControl("font-size", fontSize, { silent: true });
+  previewTextFontSize = (fontSize) => {
+    setControl("font-size", fontSize, { silent: true });
+    uiStateListeners.forEach((listener) => listener());
+  };
   const {
     setActiveShapeTool,
     setTool,
@@ -1687,12 +1691,17 @@ export function createWhiteboardApp(root) {
   return {
     getBoard: () => serializeCurrentBoard(),
     getUiState,
+    subscribeUiState: (listener) => {
+      uiStateListeners.add(listener);
+      return () => uiStateListeners.delete(listener);
+    },
     commands,
     __debug: {
       getSelectedIds: () => [...selectedIds],
       getActiveLinearItem: () => structureInteraction.getActiveLinearItem(),
     },
     destroy: () => {
+      uiStateListeners.clear();
       shouldMeasureAfterFontLoad = false;
       textFontSet?.removeEventListener?.("loadingdone", measureTextAfterFontLoad);
       unbindUiEvents?.();

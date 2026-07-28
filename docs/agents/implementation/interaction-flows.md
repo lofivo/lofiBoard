@@ -36,7 +36,7 @@ React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolD
 典型流程（AGENTS.md 第 39/40 条的双门面闭环）：
 
 1. 引擎 controller 更新模型、Konva node 和内部状态。
-2. `App.jsx` 每 100ms 调一次 `app.getUiState()` 取全量快照，逐字段 diff 后写入 React context。
+2. `App.jsx` 每 100ms 调一次 `app.getUiState()` 取全量快照，逐字段 diff 后写入 React context；文本缩放等高频预览状态通过 `app.subscribeUiState()` 主动通知，并在下一动画帧合并同步，避免属性栏出现 100ms 的阶梯式延迟。
 3. React 组件显示受控控件。
 4. 用户操作 React 控件后，组件通过 `ctx.runAction()`、`ctx.setTool()`、`ctx.runContextAction()`、`ctx.setProperty()` 等调用 `app.commands.*`。
 5. 引擎 controller 修改画板模型、历史和 Konva node，下一次 `getUiState()` 把新状态带回 React。

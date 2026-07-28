@@ -20,7 +20,7 @@ React 组件位于 `src/app/components/*`。它们主要负责展示和用户输
 
 React 与引擎之间只走两个门面（AGENTS.md 第 39/40 条）：
 
-- 读：`app.getUiState()`。`App.jsx` 每 100ms 调一次取全量快照（工具、缩放、背景、面板模式、选区能力、属性值、图层、选中 id 等），逐字段 diff 后写入 `WhiteboardContext`。React 不再自己扫遗留 DOM / dataset。
+- 读：`app.getUiState()`。`App.jsx` 每 100ms 调一次取全量快照（工具、缩放、背景、面板模式、选区能力、属性值、图层、选中 id 等），逐字段 diff 后写入 `WhiteboardContext`。文本缩放等高频预览通过 `app.subscribeUiState()` 请求下一动画帧同步，普通状态仍由轮询兜底。React 不再自己扫遗留 DOM / dataset。
 - 写：`app.commands.*`，包括 `setTool` / `runAction` / `runToolAction` / `runContextAction` / `selectShapeTool` / `setProperty` / `toggleTextStyle` / `zoomBy` / `setZoomAtCenter` / `setBackgroundMode`。属性写入走 `setProperty(name, value, { checked, silent })`，由 `property-controls/dom-controller.js` 的副作用表处理选区样式和历史，不再合成 DOM `input` / `change` 事件。
 - 属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store（`MASTER_CONTROLS` 表）。新增属性时在该表加一行（名字、store key、副作用），`getUiState().properties` 会自动带上。
 

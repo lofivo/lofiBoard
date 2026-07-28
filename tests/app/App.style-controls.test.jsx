@@ -9,6 +9,7 @@ const uiStateHelper = vi.hoisted(() => ({ createFakeUiState: null }));
 const toggleTextStyleMock = vi.hoisted(() => vi.fn());
 const propertyWrites = vi.hoisted(() => []);
 const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
+  const uiStateListeners = new Set();
   // 保留这批 fake input：测试用它们模拟“引擎属性变化”，getUiState 从中组装。
   const colorInput = document.createElement("input");
   colorInput.dataset.control = "color";
@@ -93,6 +94,7 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   root._getLayersData = () => [];
   root._getSelectedIds = () => [];
   root._commitActiveTextEditor = vi.fn();
+  root._emitUiStateChange = () => uiStateListeners.forEach((listener) => listener());
 
   // 引擎的 setProperty 直接写主控件并跑副作用,不再派发合成事件。
   const masters = {
@@ -111,6 +113,10 @@ const createWhiteboardAppMock = vi.hoisted(() => vi.fn((root) => {
   propertyWrites.length = 0;
   return {
     destroy: appDestroyMock,
+    subscribeUiState: (listener) => {
+      uiStateListeners.add(listener);
+      return () => uiStateListeners.delete(listener);
+    },
     getUiState: () => uiStateHelper.createFakeUiState({
       graphDirected: root.dataset.graphDirected === "true",
       properties: {
@@ -324,6 +330,18 @@ describe("App style control bridge", () => {
     expect(probe().dataset.coordinateUnitSize).toBe("64");
     expect(probe().dataset.coordinateShowGrid).toBe("false");
     expect(probe().dataset.coordinateGridColor).toBe("#94a3b8");
+  });
+
+  it("syncs preview font size on the next frame instead of waiting for the polling interval", () => {
+    const { fontSizeInput, legacyRoot, probe } = mountApp();
+
+    fontSizeInput.value = "42";
+    act(() => {
+      legacyRoot._emitUiStateChange();
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(probe().dataset.fontSize).toBe("42");
   });
 
   it("syncs graph directed state from the legacy root dataset", () => {

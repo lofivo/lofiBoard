@@ -240,6 +240,15 @@ export default function App() {
         }
       }
     };
+    let syncFrame = null;
+    const scheduleSyncState = () => {
+      if (syncFrame !== null) return;
+      syncFrame = requestAnimationFrame(() => {
+        syncFrame = null;
+        syncState();
+      });
+    };
+    const unsubscribeUiState = legacyApp?.subscribeUiState?.(scheduleSyncState);
     const interval = setInterval(syncState, 100);
 
     const readContextMenuDisabledActions = (options) => legacyRoot._getContextMenuActionStates?.(options) ?? {};
@@ -294,6 +303,8 @@ export default function App() {
     document.addEventListener('keyup', handleKeyUp);
 
     return () => {
+      unsubscribeUiState?.();
+      if (syncFrame !== null) cancelAnimationFrame(syncFrame);
       clearInterval(interval);
       clearTimeout(statusClearTimerRef.current);
       document.removeEventListener('contextmenu', handleContextMenu);
