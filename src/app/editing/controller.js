@@ -11,7 +11,6 @@ import {
   getUniformScaledBoxForResize,
   getStickyEditorCommitBox,
   getStickyTextInsets,
-  getPreferredTextBoxWidth,
 } from "../../tools/interaction-rules.js";
 import {
   syncTextNodeSize,
@@ -172,15 +171,8 @@ export function createEditController({
       const contentWidth = Math.max(...lines.map(getTextLineWidth));
       const canAutoFitWidth = !originalText;
       const measuredAutoWidth = Math.max(minEditorWidth, Math.ceil(contentWidth + horizontalPadding * 2 + 1));
-      const preferredTextWidth = getPreferredTextBoxWidth({
-        text: textarea.value,
-        baseWidth: maxAutoEditorWidth,
-        contentWidth,
-        padding: horizontalPadding,
-        maxWidth: 960 * scale,
-      });
       const nextWidth = element.type !== "sticky" && canAutoFitWidth && textarea.value
-        ? (preferredTextWidth > maxAutoEditorWidth ? preferredTextWidth : Math.min(maxAutoEditorWidth, measuredAutoWidth))
+        ? Math.min(maxAutoEditorWidth, measuredAutoWidth)
         : getEditorWidth();
       const currentHeight = getEditorHeight();
       const contentHeight = measureTextContentHeight(nextWidth);
@@ -461,7 +453,9 @@ export function createEditController({
             ...nextElement,
             width: Math.max(1, Number(item.width) || 1),
             height: Math.max(1, Number(item.height) || nextFontSize * 1.25),
-            editWidth: Math.max(1, manualEditorWidth / scale),
+            // 新建文字首次输入时会自动贴合源码宽度；这次结果就是独立编辑框的初始尺寸。
+            // 已有 LaTeX 后续只保存 Transformer 手动调整的宽度，避免输入过程覆盖用户尺寸。
+            editWidth: Math.max(1, (originalText ? manualEditorWidth : committedWidth) / scale),
             editHeight: Math.max(1, manualEditorHeight / scale),
           };
         }

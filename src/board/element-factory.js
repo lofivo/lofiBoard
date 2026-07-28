@@ -2,6 +2,7 @@ import { normalizeRect } from "../canvas/geometry.js";
 import { createId } from "./ids.js";
 import { getFillValue } from "../tools/behavior.js";
 import { getNormalizedTextBox, getPreferredTextBoxWidth } from "../tools/interaction-rules.js";
+import { containsRenderableLatex } from "../services/latex.js";
 import { TOOLS } from "../ui/config.js";
 
 export const DEFAULT_TEXT_STYLE = Object.freeze({
@@ -43,6 +44,7 @@ export function createTextElement({ point, zIndex, text = "", measureText }) {
       measureText: measure,
     })
     : { width: preferredWidth, height: defaultHeight };
+  const usesSeparateEditBox = containsRenderableLatex(text);
 
   return {
     id: createId("text"),
@@ -52,8 +54,8 @@ export function createTextElement({ point, zIndex, text = "", measureText }) {
     text,
     width: normalizedBox.width,
     height: normalizedBox.height,
-    editWidth: normalizedBox.width,
-    editHeight: normalizedBox.height,
+    editWidth: usesSeparateEditBox ? width : normalizedBox.width,
+    editHeight: usesSeparateEditBox ? defaultHeight : normalizedBox.height,
     fontSize: DEFAULT_TEXT_STYLE.fontSize,
     fontFamily: DEFAULT_TEXT_STYLE.fontFamily,
     fontStyle: DEFAULT_TEXT_STYLE.fontStyle,

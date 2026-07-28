@@ -56,6 +56,8 @@ describe("element factory", () => {
     expect(element.text).toBe(text);
     expect(element.width).toBeGreaterThan(520);
     expect(element.height).toBeGreaterThan(28 * 1.25 + 2);
+    expect(element.editWidth).toBe(220);
+    expect(element.editHeight).toBe(28 * 1.25);
   });
 
   it("can create an image centered on the requested point after display scaling", () => {

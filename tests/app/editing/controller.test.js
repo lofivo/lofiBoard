@@ -380,6 +380,59 @@ describe("app editing controller", () => {
     });
   });
 
+  it("reopens newly entered latex with the same source editor width", () => {
+    let boardElements = [textElement({ text: "", width: 200, height: 30, editWidth: 200, editHeight: 30 })];
+    const deps = createDeps({
+      findElement: vi.fn((id) => boardElements.find((item) => item.id === id)),
+      getBoardElements: vi.fn(() => boardElements),
+      setBoardElements: vi.fn((nextElements) => {
+        boardElements = nextElements;
+      }),
+      measureTextValue: vi.fn((_, value) => String(value).length * 10),
+    });
+    deps.contentLayer.findOne.mockReturnValue(makeNode({
+      width: vi.fn(() => 200),
+      height: vi.fn(() => 30),
+    }));
+
+    const controller = createEditController(deps);
+    controller.editElement("text_1");
+    const firstTextarea = document.querySelector(".text-editor-frame textarea.text-editor");
+    firstTextarea.value = "$x$";
+    firstTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+    const firstWidth = Number.parseFloat(document.querySelector(".text-editor-frame").style.width);
+    expect(firstWidth).toBeLessThan(200);
+
+    firstTextarea.dispatchEvent(kEvent("Enter"));
+    expect(boardElements[0].editWidth).toBe(firstWidth);
+
+    controller.editElement("text_1");
+    expect(Number.parseFloat(document.querySelector(".text-editor-frame").style.width)).toBe(firstWidth);
+    document.querySelector(".text-editor-frame textarea.text-editor").dispatchEvent(kEvent("Escape"));
+  });
+
+  it("wraps newly entered latex source instead of expanding past the initial editor width", () => {
+    const deps = createDeps({
+      measureTextValue: vi.fn((_, value) => String(value).length * 10),
+    });
+    const element = textElement({ text: "", width: 200, height: 30, editWidth: 200, editHeight: 30 });
+    deps.findElement.mockReturnValue(element);
+    deps.getBoardElements.mockReturnValue([element]);
+    deps.contentLayer.findOne.mockReturnValue(makeNode({
+      width: vi.fn(() => 200),
+      height: vi.fn(() => 30),
+    }));
+
+    const controller = createEditController(deps);
+    controller.editElement(element.id);
+    const textarea = document.querySelector(".text-editor-frame textarea.text-editor");
+    textarea.value = "$$\\frac{a+b+c+d+e+f+g+h+i+j+k+l}{m+n+o+p+q+r+s+t+u+v+w+x}$$";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(Number.parseFloat(document.querySelector(".text-editor-frame").style.width)).toBe(200);
+    textarea.dispatchEvent(kEvent("Escape"));
+  });
+
   it("commits the editing box as the render box for plain text", () => {
     const deps = createDeps();
     const element = textElement({

@@ -968,15 +968,16 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.text-latex-overlay[\s\S]*?\.katex \.base \{[\s\S]*?white-space: nowrap;/);
   });
 
-  it("keeps latex auto-growth in the editor without overwriting the render width", () => {
+  it("keeps latex source editor width bounded without overwriting the render width", () => {
     const textMeasureSource = readFileSync(new URL("../../../src/app/editing/text-element-measure.js", import.meta.url), "utf8");
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
 
     expect(textMeasureSource).toContain("getPreferredTextBoxWidth({");
     expect(editSource).not.toContain("latexDefaultWidth: 520 * scale");
-    expect(editSource).toContain("preferredTextWidth > maxAutoEditorWidth");
+    expect(editSource).not.toContain("preferredTextWidth > maxAutoEditorWidth");
+    expect(editSource).toContain("Math.min(maxAutoEditorWidth, measuredAutoWidth)");
     expect(editSource).toContain("width: Math.max(1, Number(item.width) || 1)");
-    expect(editSource).toContain("editWidth: Math.max(1, manualEditorWidth / scale)");
+    expect(editSource).toContain("(originalText ? manualEditorWidth : committedWidth) / scale");
   });
 
   it("keeps text measurement font setup centralized without dead editor resize state", () => {
