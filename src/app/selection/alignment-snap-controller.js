@@ -17,6 +17,15 @@ function getSnapThreshold(stageScale) {
   return Number.isFinite(stageScale) && stageScale > 0 ? 8 / stageScale : 8;
 }
 
+function isValidSnapBox(box) {
+  return Number.isFinite(box?.x)
+    && Number.isFinite(box?.y)
+    && Number.isFinite(box?.width)
+    && Number.isFinite(box?.height)
+    && box.width >= 0
+    && box.height >= 0;
+}
+
 export function createAlignmentSnapController({
   Konva = null,
   contentLayer,
@@ -27,10 +36,13 @@ export function createAlignmentSnapController({
 } = {}) {
   let guideNodes = [];
 
-  function computeAlignmentSnap(node, excludeIds = []) {
+  function computeBoxAlignmentSnap(movingBox, excludeIds = [], { skipNode = null } = {}) {
+    if (!isValidSnapBox(movingBox)) {
+      return { dx: 0, dy: 0, snapX: null, snapY: null };
+    }
+
     const excluded = new Set(excludeIds);
     const threshold = getSnapThreshold(getStageScale());
-    const movingBox = node.getClientRect({ relativeTo: contentLayer });
     const movingGuides = getBoxGuides(movingBox);
     let dx = 0;
     let dy = 0;
@@ -40,7 +52,7 @@ export function createAlignmentSnapController({
     let snapY = null;
 
     contentLayer.find(".element").forEach((other) => {
-      if (other === node) return;
+      if (skipNode && other === skipNode) return;
       if (excluded.has(other.id?.())) return;
       const otherGuides = getBoxGuides(other.getClientRect({ relativeTo: contentLayer }));
 
@@ -70,18 +82,35 @@ export function createAlignmentSnapController({
     return { dx, dy, snapX, snapY };
   }
 
+  function snapBoxToAlignment(movingBox, { excludeIds = [], showGuides = false, skipNode = null } = {}) {
+    if (isSnapDisabled()) {
+      clearAlignmentGuides();
+      return { dx: 0, dy: 0, snapX: null, snapY: null };
+    }
+
+    const snap = computeBoxAlignmentSnap(movingBox, excludeIds, { skipNode });
+    if (showGuides) {
+      drawAlignmentGuides(snap);
+    }
+    return snap;
+  }
+
   function snapNodeToAlignment(node, { excludeIds = [], showGuides = false } = {}) {
     if (isSnapDisabled()) {
       clearAlignmentGuides();
       return { dx: 0, dy: 0, snapX: null, snapY: null };
     }
 
-    const snap = computeAlignmentSnap(node, excludeIds);
+    if (!node) {
+      return { dx: 0, dy: 0, snapX: null, snapY: null };
+    }
+
+    const snap = snapBoxToAlignment(
+      node.getClientRect({ relativeTo: contentLayer }),
+      { excludeIds, showGuides, skipNode: node },
+    );
     if (snap.dx || snap.dy) {
       node.position({ x: node.x() + snap.dx, y: node.y() + snap.dy });
-    }
-    if (showGuides) {
-      drawAlignmentGuides(snap);
     }
     return snap;
   }
@@ -126,6 +155,7 @@ export function createAlignmentSnapController({
 
   return {
     clearAlignmentGuides,
+    snapBoxToAlignment,
     snapNodeToAlignment,
   };
 }

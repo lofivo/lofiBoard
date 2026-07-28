@@ -199,4 +199,38 @@ describe("alignment-snap-controller", () => {
 
     expect(getActiveGuideLines()).toHaveLength(0);
   });
+
+  it("snaps an arbitrary moving box without requiring a node mutation", () => {
+    const otherNode = createNode({ id: "other_1", x: 32, y: 32, width: 20, height: 20 });
+    const { controller } = createHarness({
+      nodes: [otherNode],
+    });
+
+    const snap = controller.snapBoxToAlignment(
+      { x: 10, y: 10, width: 20, height: 20 },
+      { showGuides: true },
+    );
+
+    expect(snap).toMatchObject({ dx: 2, dy: 2, snapX: 32, snapY: 32 });
+  });
+
+  it("excludes ids when snapping a free box and still draws guides", () => {
+    const excludedNode = createNode({ id: "excluded_1", x: 32, y: 32, width: 20, height: 20 });
+    const keptNode = createNode({ id: "kept_1", x: 40, y: 12, width: 20, height: 20 });
+    const { controller, getActiveGuideLines } = createHarness({
+      nodes: [excludedNode, keptNode],
+    });
+
+    const snap = controller.snapBoxToAlignment(
+      { x: 10, y: 10, width: 20, height: 20 },
+      { excludeIds: ["excluded_1"], showGuides: true },
+    );
+
+    // x: left(10)->left(40)=30 too far; right(30)->left(40)=10 too far at threshold 8
+    // y: top(10)->top(12)=2 snaps
+    expect(snap.dy).toBe(2);
+    expect(snap.dx).toBe(0);
+    expect(getActiveGuideLines().length).toBe(1);
+  });
+
 });

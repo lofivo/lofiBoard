@@ -2,10 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { createSelectionDragController } from "../../../src/app/selection/drag-controller.js";
 import { createStructureInteraction } from "../../../src/structures/interaction.js";
 
-function createNode({ id, x = 0, y = 0 } = {}) {
+function createNode({ id, x = 0, y = 0, width = 20, height = 20 } = {}) {
   let position = { x, y };
   return {
     draggable: vi.fn(),
+    getClientRect: vi.fn(() => ({
+      x: position.x,
+      y: position.y,
+      width,
+      height,
+    })),
     getId: () => id,
     position: vi.fn((nextPosition) => {
       position = nextPosition;
@@ -43,6 +49,7 @@ function createHarness(overrides = {}) {
     selectElementById: vi.fn((id) => { state.selectedIds = [id]; }),
     setHandledNodeDragEnd: vi.fn(),
     setSuppressNextSelectionClick: vi.fn(),
+    snapBoxToAlignment: vi.fn(() => ({ dx: 0, dy: 0, snapX: null, snapY: null })),
     snapNodeToAlignment: vi.fn(),
     suppressNextLinearItemSelect: vi.fn(),
     syncNodeToElement: vi.fn(),
@@ -76,6 +83,7 @@ function createHarness(overrides = {}) {
     setElements: (elements) => { state.elements = elements; },
     setHandledNodeDragEnd: callbacks.setHandledNodeDragEnd,
     setSuppressNextSelectionClick: callbacks.setSuppressNextSelectionClick,
+    snapBoxToAlignment: callbacks.snapBoxToAlignment,
     snapNodeToAlignment: callbacks.snapNodeToAlignment,
     structureInteraction,
     suppressNextLinearItemSelect: callbacks.suppressNextLinearItemSelect,
@@ -200,4 +208,47 @@ describe("drag-controller", () => {
 
     expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
   });
+
+  it("snaps selection drag against stationary elements and shows guides", () => {
+    const { callbacks, controller, state } = createHarness({
+      state: {
+        elements: [
+          { id: "shape_1", type: "rectangle", x: 0, y: 0 },
+          { id: "shape_2", type: "ellipse", x: 30, y: 0 },
+        ],
+        selectedIds: ["shape_1"],
+      },
+      nodes: {
+        "#shape_1": createNode({ id: "shape_1", x: 0, y: 0 }),
+        "#shape_2": createNode({ id: "shape_2", x: 30, y: 0 }),
+      },
+      callbacks: {
+        snapBoxToAlignment: vi.fn(() => ({ dx: 2, dy: 0, snapX: 30, snapY: null })),
+      },
+    });
+
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    controller.updateSelectionDrag({ x: 8, y: 0 });
+
+    expect(callbacks.snapBoxToAlignment).toHaveBeenCalledWith(
+      { x: 8, y: 0, width: 20, height: 20 },
+      { excludeIds: ["shape_1"], showGuides: true },
+    );
+    expect(state.elements.find((element) => element.id === "shape_1")).toMatchObject({ x: 10, y: 0 });
+  });
+
+  it("clears alignment guides when selection drag finishes or cancels", () => {
+    const { callbacks, controller } = createHarness();
+
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    controller.updateSelectionDrag({ x: 4, y: 0 });
+    controller.finishSelectionDrag();
+    expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
+
+    callbacks.clearAlignmentGuides.mockClear();
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    controller.cancelSelectionDrag();
+    expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
+  });
+
 });

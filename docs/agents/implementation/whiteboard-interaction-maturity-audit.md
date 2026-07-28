@@ -149,7 +149,7 @@ npm test -- tests/app/App.context-menu.test.jsx tests/app/context-menu tests/app
 - 参考线视觉反馈：吸附命中时在 `overlayLayer` 绘制横/纵虚线参考线，位置即吸附对齐线，跨越当前可视区域；拖拽结束、取消或按下 Alt 时清除。
 - 吸附规则明确化：吸附目标排除所有随拖拽移动的元素（多选/分组展开后的成员）；锁定元素（即使被选中）不随拖拽移动，保持为有效静止参照。
 - 按住 `Alt` 临时禁用吸附，便于精细移动（键盘状态经 `keyboard-controller` 跟踪，接入 `isSnapDisabled`）。
-- 边界说明：选区包围盒指针拖拽路径（`beginSelectionDrag`，如树/结构空白命中区入口）当前不吸附也不显示参考线，行为一致；如需可作为后续轮次扩展。
+- 选区包围盒指针拖拽路径（`beginSelectionDrag`：文本/便签、已选中元素、Transformer 背板、结构空白命中区）同样实时吸附并显示参考线；吸附对象为移动中选区的并集包围盒。
 
 验证命令：
 
@@ -284,7 +284,7 @@ npm test -- tests/app/App.layer-bridge.test.jsx tests/app/components/LayerPanel.
 - 拖动对象时参考线和吸附结果一致。（已覆盖：dragmove 实时吸附 + overlay 参考线）
 - 多选、分组、锁定对象参与吸附规则明确。（已覆盖：随拖拽移动的元素不作吸附目标，锁定元素保持静止参照）
 - 按键临时禁用吸附。（已覆盖：按住 Alt 禁用并清除参考线）
-- 后续可选：选区包围盒指针拖拽路径（结构空白区入口）的吸附与参考线。
+- 选区包围盒指针拖拽路径的吸附与参考线已覆盖（文本/便签/已选形状/结构空白区）。
 
 建议测试入口：
 

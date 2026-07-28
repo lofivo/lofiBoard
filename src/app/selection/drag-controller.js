@@ -17,6 +17,7 @@ export function createSelectionDragController({
   setElements = () => {},
   setHandledNodeDragEnd = () => {},
   setSuppressNextSelectionClick = () => {},
+  snapBoxToAlignment = () => ({ dx: 0, dy: 0, snapX: null, snapY: null }),
   snapNodeToAlignment = () => {},
   structureInteraction,
   suppressNextLinearItemSelect = () => {},
@@ -54,14 +55,58 @@ export function createSelectionDragController({
     return true;
   }
 
+  function getSelectionDragUnionBox(originals, dx, dy) {
+    const boxes = [];
+    for (const original of originals) {
+      const node = contentLayer.findOne(`#${original.id}`);
+      if (!node?.getClientRect) continue;
+      const box = node.getClientRect({ relativeTo: contentLayer });
+      if (!Number.isFinite(box?.x) || !Number.isFinite(box?.y)) continue;
+      const shiftX = (original.x + dx) - node.x();
+      const shiftY = (original.y + dy) - node.y();
+      boxes.push({
+        x: box.x + shiftX,
+        y: box.y + shiftY,
+        width: box.width,
+        height: box.height,
+      });
+    }
+    if (boxes.length === 0) return null;
+
+    const minX = Math.min(...boxes.map((box) => box.x));
+    const minY = Math.min(...boxes.map((box) => box.y));
+    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }
+
   function updateSelectionDrag(worldPoint) {
     if (!selectionDrag) return false;
-    const dx = worldPoint.x - selectionDrag.start.x;
-    const dy = worldPoint.y - selectionDrag.start.y;
+    let dx = worldPoint.x - selectionDrag.start.x;
+    let dy = worldPoint.y - selectionDrag.start.y;
     selectionDrag.moved = selectionDrag.moved || Math.hypot(dx, dy) > 0.5;
-    const originals = new Map(selectionDrag.originals.map((item) => [item.id, item]));
+    const originals = selectionDrag.originals;
+    const excludeIds = originals.map((item) => item.id);
+    const movingBox = getSelectionDragUnionBox(originals, dx, dy);
+    if (movingBox) {
+      const snap = snapBoxToAlignment(movingBox, {
+        excludeIds,
+        showGuides: true,
+      });
+      dx += snap.dx;
+      dy += snap.dy;
+    } else {
+      clearAlignmentGuides();
+    }
+
+    const originalMap = new Map(originals.map((item) => [item.id, item]));
     setElements(getElements().map((element) => {
-      const original = originals.get(element.id);
+      const original = originalMap.get(element.id);
       if (!original) return element;
       return {
         ...element,
@@ -76,6 +121,7 @@ export function createSelectionDragController({
 
   function finishSelectionDrag() {
     if (!selectionDrag) return false;
+    clearAlignmentGuides();
     const didMove = selectionDrag.moved;
     if (didMove) suppressBinaryTreeNodeClickAfterDrag();
     if (didMove) suppressLinearItemSelectAfterSelectionDrag();
@@ -89,6 +135,7 @@ export function createSelectionDragController({
   }
 
   function cancelSelectionDrag() {
+    clearAlignmentGuides();
     setSelectionDragNodeDraggable(true);
     selectionDrag = null;
   }

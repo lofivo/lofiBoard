@@ -557,6 +557,7 @@ export function createWhiteboardApp(root) {
     setElements: (elements) => { board.elements = elements; },
     setHandledNodeDragEnd: selectionTransformEventsController.setHandledNodeDragEnd,
     setSuppressNextSelectionClick: (value) => { suppressNextSelectionClick = value; },
+    snapBoxToAlignment: alignmentSnapController.snapBoxToAlignment,
     snapNodeToAlignment: alignmentSnapController.snapNodeToAlignment,
     structureInteraction,
     suppressNextLinearItemSelect: (elementId) => linearGestureController.suppressNextLinearItemSelect(elementId),
