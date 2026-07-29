@@ -28,6 +28,7 @@ describe("panel-controller", () => {
       activeTypeSupportsRandom: true,
       showStructureInputLabel: true,
       showArrayRandomFields: false,
+      showMatrixRandomFields: false,
     });
 
     controller.setActiveArrayInitMode("random");
@@ -36,6 +37,15 @@ describe("panel-controller", () => {
       activeTypeSupportsRandom: true,
       showStructureInputLabel: false,
       showArrayRandomFields: true,
+      showMatrixRandomFields: false,
+    });
+
+    controller.setActiveStructureType(STRUCTURE_TYPES.MATRIX);
+
+    expect(controller.getHydrateState()).toMatchObject({
+      showStructureInputLabel: false,
+      showArrayRandomFields: false,
+      showMatrixRandomFields: true,
     });
   });
 });

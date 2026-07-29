@@ -53,16 +53,16 @@ export default function StructurePanel() {
   const [initMode, setInitMode] = useState('manual');
   const [input, setInput] = useState('');
   const [count, setCount] = useState('5');
+  const [matrixRows, setMatrixRows] = useState('3');
+  const [matrixColumns, setMatrixColumns] = useState('3');
   const initializedRef = useRef(false);
 
   const supportsRandom = RANDOM_TYPES.has(activeType);
+  const isMatrix = activeType === 'matrix';
   const showInput = !(supportsRandom && initMode === 'random');
-  const randomCountLabel = activeType === 'matrix'
-    ? '矩阵阶数'
-    : ['graph', 'tree', 'binary-tree'].includes(activeType)
-      ? '节点数量'
-      : '元素数量';
-  const randomCountMax = activeType === 'matrix' ? 32 : 64;
+  const randomCountLabel = ['graph', 'tree', 'binary-tree'].includes(activeType)
+    ? '节点数量'
+    : '元素数量';
 
   // Initialize from legacy DOM when panel opens
   useEffect(() => {
@@ -85,6 +85,10 @@ export default function StructurePanel() {
       if (modeBtn) setInitMode(modeBtn.dataset.arrayInitMode || 'manual');
       const randomCountInput = root.querySelector('[data-array-random-count]');
       if (randomCountInput) setCount(randomCountInput.value || '');
+      const matrixRowsInput = root.querySelector('[data-matrix-random-rows]');
+      if (matrixRowsInput) setMatrixRows(matrixRowsInput.value || '');
+      const matrixColumnsInput = root.querySelector('[data-matrix-random-columns]');
+      if (matrixColumnsInput) setMatrixColumns(matrixColumnsInput.value || '');
 
       initializedRef.current = true;
     }
@@ -113,14 +117,28 @@ export default function StructurePanel() {
     writeDomValue(findLegacyRoot(), '[data-array-random-count]', nextCount);
   }, []);
 
+  const handleMatrixRowsChange = useCallback((v) => {
+    const nextRows = String(v ?? '');
+    setMatrixRows(nextRows);
+    writeDomValue(findLegacyRoot(), '[data-matrix-random-rows]', nextRows);
+  }, []);
+
+  const handleMatrixColumnsChange = useCallback((v) => {
+    const nextColumns = String(v ?? '');
+    setMatrixColumns(nextColumns);
+    writeDomValue(findLegacyRoot(), '[data-matrix-random-columns]', nextColumns);
+  }, []);
+
   const handleInsert = useCallback(() => {
     const root = findLegacyRoot();
     if (!root) return;
     writeDomValue(root, '[data-structure-input]', input);
     writeDomValue(root, '[data-array-random-count]', String(count));
+    writeDomValue(root, '[data-matrix-random-rows]', String(matrixRows));
+    writeDomValue(root, '[data-matrix-random-columns]', String(matrixColumns));
     clickLegacyBtn(root, '[data-structure-insert]');
     ctx.setStructurePanelVisible?.(false);
-  }, [input, count, ctx]);
+  }, [input, count, matrixRows, matrixColumns, ctx]);
 
   const handleCancel = useCallback(() => {
     clickLegacyBtn(findLegacyRoot(), '[data-structure-cancel]');
@@ -225,7 +243,7 @@ export default function StructurePanel() {
           )}
 
           {/* Random count input */}
-          {supportsRandom && initMode === 'random' && (
+          {supportsRandom && initMode === 'random' && !isMatrix && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
                 {randomCountLabel}
@@ -233,13 +251,50 @@ export default function StructurePanel() {
               <Input
                 type="number"
                 min={1}
-                max={randomCountMax}
+                max={64}
                 step={1}
                 value={count}
                 onChange={handleCountChange}
                 size="small"
                 style={{ width: '100%' }}
               />
+            </div>
+          )}
+
+          {isMatrix && initMode === 'random' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
+                  行数
+                </Text>
+                <Input
+                  aria-label="行数"
+                  type="number"
+                  min={1}
+                  max={32}
+                  step={1}
+                  value={matrixRows}
+                  onChange={handleMatrixRowsChange}
+                  size="small"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
+                  列数
+                </Text>
+                <Input
+                  aria-label="列数"
+                  type="number"
+                  min={1}
+                  max={32}
+                  step={1}
+                  value={matrixColumns}
+                  onChange={handleMatrixColumnsChange}
+                  size="small"
+                  style={{ width: '100%' }}
+                />
+              </div>
             </div>
           )}
         </Card>

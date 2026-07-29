@@ -200,6 +200,16 @@ export function structurePanelMarkup() {
         元素数量
         <input data-array-random-count type="number" min="1" max="64" step="1" value="5" inputmode="numeric" />
       </label>
+      <div data-matrix-random-fields hidden>
+        <label class="structure-count-label">
+          行数
+          <input data-matrix-random-rows type="number" min="1" max="32" step="1" value="3" inputmode="numeric" />
+        </label>
+        <label class="structure-count-label">
+          列数
+          <input data-matrix-random-columns type="number" min="1" max="32" step="1" value="3" inputmode="numeric" />
+        </label>
+      </div>
     </div>
     <div class="structure-actions">
       <button type="button" data-structure-cancel>取消</button>

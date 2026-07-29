@@ -31,6 +31,8 @@ function createController({
   currentTool = "select",
   keepToolActive = false,
   arrayAlgorithmLocked = false,
+  activeStructureType = "array",
+  activeArrayInitMode = "manual",
   activeLinearItemResult = {
     previousActiveLinearItem: { elementId: "previous_array", index: 0 },
     activeLinearItem: { elementId: "array_1", index: 1 },
@@ -65,13 +67,15 @@ function createController({
     syncTreeStructurePanelState: vi.fn(() => callOrder.push("tree-panel-sync")),
   };
   const structurePanelController = {
-    getActiveArrayInitMode: vi.fn(() => "manual"),
-    getActiveStructureItem: vi.fn(() => ({ label: "数组" })),
-    getActiveStructureType: vi.fn(() => "array"),
+    getActiveArrayInitMode: vi.fn(() => activeArrayInitMode),
+    getActiveStructureItem: vi.fn(() => ({ label: activeStructureType === "matrix" ? "二维数组" : "数组" })),
+    getActiveStructureType: vi.fn(() => activeStructureType),
     isRandomStructureInitSupported: vi.fn(() => true),
   };
   const controller = createStructureBoardActionController({
     getArrayRandomCountValue: () => "5",
+    getMatrixRandomRowsValue: () => "2",
+    getMatrixRandomColumnsValue: () => "3",
     getCurrentTool: () => currentTool,
     getKeepToolActive: () => keepToolActive,
     getElements: () => currentElements,
@@ -126,6 +130,22 @@ describe("board-action-controller", () => {
     expect(callbacks.setStructurePanelOpen).toHaveBeenCalledWith(false);
     expect(callbacks.setTool).not.toHaveBeenCalled();
     expect(callbacks.selectIds).toHaveBeenCalled();
+  });
+
+  it("inserts a random matrix using separate row and column counts", () => {
+    const { controller, getElements } = createController({
+      activeStructureType: "matrix",
+      activeArrayInitMode: "random",
+    });
+
+    controller.insertStructureFromPanel();
+
+    expect(getElements()[0]).toMatchObject({
+      type: "matrix-structure",
+      rows: 2,
+      columns: 3,
+    });
+    expect(getElements()[0].items).toHaveLength(6);
   });
 
   it("edits the selected linear structure unless an array algorithm locks it", () => {

@@ -21,9 +21,9 @@ vi.mock("@douyinfe/semi-ui", async () => {
       children,
       footer,
     ),
-    Input: ({ onChange, value }) => h(
+    Input: ({ onChange, value, "aria-label": ariaLabel }) => h(
       "input",
-      { value, onInput: (event) => onChange?.(event.currentTarget.value) },
+      { "aria-label": ariaLabel, value, onInput: (event) => onChange?.(event.currentTarget.value) },
     ),
     TextArea: ({ onChange, value, ...props }) => h(
       "textarea",
@@ -48,7 +48,12 @@ function setNativeInputValue(input, value) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function setupLegacyStructurePanel({ initMode = "manual", randomCount = "5" } = {}) {
+function setupLegacyStructurePanel({
+  initMode = "manual",
+  randomCount = "5",
+  matrixRows = "3",
+  matrixColumns = "3",
+} = {}) {
   document.body.innerHTML = `
     <div data-legacy-root>
       <div id="stage-container"></div>
@@ -57,6 +62,8 @@ function setupLegacyStructurePanel({ initMode = "manual", randomCount = "5" } = 
       <button type="button" data-array-init-mode="random" class="${initMode === "random" ? "active" : ""}">随机生成</button>
       <textarea data-structure-input>1,2,3,4,5</textarea>
       <input data-array-random-count value="${randomCount}" />
+      <input data-matrix-random-rows value="${matrixRows}" />
+      <input data-matrix-random-columns value="${matrixColumns}" />
       <button type="button" data-structure-insert>插入</button>
       <button type="button" data-structure-cancel>取消</button>
     </div>
@@ -116,8 +123,35 @@ describe("StructurePanel", () => {
       findButton(host, "随机生成").click();
     });
 
-    expect(host.textContent).toContain("矩阵阶数");
-    expect(host.querySelector("input")).toBeTruthy();
+    expect(host.textContent).not.toContain("矩阵阶数");
+    expect(host.textContent).toContain("行数");
+    expect(host.textContent).toContain("列数");
+    expect([...host.querySelectorAll("input")].map((input) => input.value)).toEqual(["3", "3"]);
+  });
+
+  it("syncs random matrix row and column counts to the legacy panel", () => {
+    const { host } = renderPanel({ matrixRows: "2", matrixColumns: "4" });
+    const legacyTypeButton = document.createElement("button");
+    legacyTypeButton.dataset.structureType = "matrix";
+    document.querySelector("[data-legacy-root]").append(legacyTypeButton);
+
+    act(() => {
+      findButton(host, "二维数组").click();
+      findButton(host, "随机生成").click();
+    });
+
+    const rowsInput = host.querySelector('input[aria-label="行数"]');
+    const columnsInput = host.querySelector('input[aria-label="列数"]');
+    expect(rowsInput.value).toBe("2");
+    expect(columnsInput.value).toBe("4");
+
+    act(() => {
+      setNativeInputValue(rowsInput, "5");
+      setNativeInputValue(columnsInput, "7");
+    });
+
+    expect(document.querySelector("[data-matrix-random-rows]").value).toBe("5");
+    expect(document.querySelector("[data-matrix-random-columns]").value).toBe("7");
   });
 
   it("offers random graph generation by node count", () => {

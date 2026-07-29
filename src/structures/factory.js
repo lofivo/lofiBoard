@@ -21,7 +21,17 @@ import {
   parseMatrixInput,
 } from "./matrix-structure.js";
 
-export function createStructureElements({ type, input, point, zIndexStart = 0, initMode = "manual", randomCount, random } = {}) {
+export function createStructureElements({
+  type,
+  input,
+  point,
+  zIndexStart = 0,
+  initMode = "manual",
+  randomCount,
+  randomRows,
+  randomColumns,
+  random,
+} = {}) {
   const normalizedInput = normalizeStructureInput(type, input);
   const linearValues = isLinearStructureType(type) && initMode === "random"
     ? createRandomArrayValues(randomCount, { random })
@@ -48,7 +58,9 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
         )
       : type === STRUCTURE_TYPES.MATRIX
         ? createMatrixStructureElement(
-          initMode === "random" ? createRandomMatrixValues(randomCount, { random }) : parseMatrixInput(normalizedInput),
+          initMode === "random"
+            ? createRandomMatrixValues({ rows: randomRows, columns: randomColumns }, { random })
+            : parseMatrixInput(normalizedInput),
           point,
           zIndexStart,
         )

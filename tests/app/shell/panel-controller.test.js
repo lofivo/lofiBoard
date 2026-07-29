@@ -45,11 +45,13 @@ function createController() {
   const linearInitPanel = { hidden: true };
   const structureInputLabel = { hidden: true };
   const arrayRandomFields = { hidden: true };
+  const matrixRandomFields = { hidden: true };
   const zoomMenu = { hidden: true };
   const zoomButton = {
     setAttribute: vi.fn(),
     classList: createClassList(),
   };
+  const structurePanelController = createStructurePanelController();
   const controller = createAppPanelController({
     root,
     refs: {
@@ -61,22 +63,26 @@ function createController() {
       linearInitPanel,
       structureInputLabel,
       arrayRandomFields,
+      matrixRandomFields,
       zoomMenu,
       zoomButton,
     },
     menuStateController: createMenuStateController(),
-    structurePanelController: createStructurePanelController(),
+    structurePanelController,
     requestAnimationFrame: (callback) => callback(),
   });
   return {
     arrayInitModeButtons,
+    arrayRandomFields,
     controller,
+    matrixRandomFields,
     mainMenu,
     menuButton,
     shapePopover,
     structureInput,
     structurePanel,
     structureTypeButtons,
+    structurePanelController,
     zoomButton,
     zoomMenu,
   };
@@ -130,5 +136,20 @@ describe("app shell panel-controller", () => {
     expect(shapePopover.hidden).toBe(false);
     controller.setShapePopoverOpen(false);
     expect(shapePopover.hidden).toBe(true);
+  });
+
+  it("shows separate matrix dimension fields in random mode", () => {
+    const {
+      arrayRandomFields,
+      controller,
+      matrixRandomFields,
+      structurePanelController,
+    } = createController();
+
+    structurePanelController.setActiveArrayInitMode("random");
+    controller.setActiveStructureType("matrix");
+
+    expect(arrayRandomFields.hidden).toBe(true);
+    expect(matrixRandomFields.hidden).toBe(false);
   });
 });

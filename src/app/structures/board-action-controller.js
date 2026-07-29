@@ -8,6 +8,8 @@ import {
 
 export function createStructureBoardActionController({
   getArrayRandomCountValue,
+  getMatrixRandomRowsValue = () => undefined,
+  getMatrixRandomColumnsValue = () => undefined,
   getCurrentTool,
   getKeepToolActive = () => false,
   getElementIdFromNode,
@@ -62,6 +64,8 @@ export function createStructureBoardActionController({
         ? activeArrayInitMode
         : "manual",
       randomCount: getArrayRandomCountValue(),
+      randomRows: getMatrixRandomRowsValue(),
+      randomColumns: getMatrixRandomColumnsValue(),
       point: getViewportCenterPoint(),
       zIndexStart: readElements().length,
     });

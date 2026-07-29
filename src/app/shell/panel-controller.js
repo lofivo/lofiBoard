@@ -14,6 +14,7 @@ export function createAppPanelController({
     linearInitPanel,
     structureInputLabel,
     arrayRandomFields,
+    matrixRandomFields,
     zoomMenu,
     zoomButton,
   } = refs;
@@ -52,6 +53,7 @@ export function createAppPanelController({
       showLinearInitPanel,
       showStructureInputLabel,
       showArrayRandomFields,
+      showMatrixRandomFields,
     } = structurePanelController.getHydrateState();
     structureInput.placeholder = item.placeholder;
     if (resetInput) {
@@ -60,6 +62,7 @@ export function createAppPanelController({
     linearInitPanel.hidden = !showLinearInitPanel;
     structureInputLabel.hidden = !showStructureInputLabel;
     arrayRandomFields.hidden = !showArrayRandomFields;
+    matrixRandomFields.hidden = !showMatrixRandomFields;
     root.querySelectorAll("[data-structure-type]").forEach((button) => {
       button.classList.toggle("active", button.dataset.structureType === activeStructureType);
     });

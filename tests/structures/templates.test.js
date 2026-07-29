@@ -105,31 +105,34 @@ describe("structure templates", () => {
     ]);
   });
 
-  it("creates a random square matrix from the requested order", () => {
-    const randomValues = Array.from({ length: 9 }, (_, index) => index / 10);
+  it("creates a random matrix from separate row and column counts", () => {
+    const randomValues = Array.from({ length: 6 }, (_, index) => index / 10);
     const [matrix] = createStructureElements({
       type: STRUCTURE_TYPES.MATRIX,
       initMode: "random",
-      randomCount: "3",
+      randomRows: "2",
+      randomColumns: "3",
       random: () => randomValues.shift(),
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
-    expect(matrix).toMatchObject({ rows: 3, columns: 3 });
-    expect(matrix.items.map((item) => item.value)).toEqual(["0", "10", "20", "30", "40", "50", "60", "70", "80"]);
+    expect(matrix).toMatchObject({ rows: 2, columns: 3 });
+    expect(matrix.items.map((item) => item.value)).toEqual(["0", "10", "20", "30", "40", "50"]);
   });
 
-  it("fills every cell when random matrix order reaches its upper bound", () => {
+  it("clamps random matrix row and column counts to their upper bound", () => {
     const [matrix] = createStructureElements({
       type: STRUCTURE_TYPES.MATRIX,
       initMode: "random",
-      randomCount: "32",
+      randomRows: "64",
+      randomColumns: "64",
       random: () => 0.5,
       point: { x: 0, y: 0 },
       zIndexStart: 0,
     });
 
+    expect(matrix).toMatchObject({ rows: 32, columns: 32 });
     expect(matrix.items).toHaveLength(32 * 32);
     expect(matrix.items.every((item) => item.value === "50")).toBe(true);
   });

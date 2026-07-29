@@ -58,6 +58,9 @@ describe("ui config", () => {
     expect(panel).toContain("data-array-init-mode=\"random\"");
     expect(panel).toContain("data-array-random-fields hidden");
     expect(panel).toContain("data-array-random-count");
+    expect(panel).toContain("data-matrix-random-fields hidden");
+    expect(panel).toContain("data-matrix-random-rows");
+    expect(panel).toContain("data-matrix-random-columns");
     expect(panel.indexOf("data-array-init-mode=\"random\"")).toBeLessThan(panel.indexOf("data-structure-input-label"));
     expect(panel.indexOf("data-structure-input-label")).toBeLessThan(panel.indexOf("data-array-random-fields"));
     expect(panel).toContain("data-structure-type=\"array\"");

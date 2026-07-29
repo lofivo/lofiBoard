@@ -12,7 +12,7 @@ export const MATRIX_STRUCTURE_STYLE = Object.freeze({
 });
 
 export const MATRIX_DIMENSION_LIMITS = Object.freeze({ min: 1, max: 32 });
-export const MATRIX_RANDOM_INIT_DEFAULT_ORDER = 3;
+export const MATRIX_RANDOM_INIT_DEFAULT_DIMENSION = 3;
 
 export function parseMatrixInput(input) {
   const normalizedInput = String(input ?? "").trim();
@@ -24,14 +24,15 @@ export function parseMatrixInput(input) {
   return rows.map((row) => Array.from({ length: columns }, (_, column) => row[column] ?? ""));
 }
 
-export function createRandomMatrixValues(order, { random = Math.random } = {}) {
-  const size = normalizeMatrixDimension(order, MATRIX_RANDOM_INIT_DEFAULT_ORDER);
-  const values = Array.from({ length: size * size }, () => {
+export function createRandomMatrixValues({ rows, columns } = {}, { random = Math.random } = {}) {
+  const rowCount = normalizeMatrixDimension(rows, MATRIX_RANDOM_INIT_DEFAULT_DIMENSION);
+  const columnCount = normalizeMatrixDimension(columns, MATRIX_RANDOM_INIT_DEFAULT_DIMENSION);
+  const values = Array.from({ length: rowCount * columnCount }, () => {
     const ratio = Math.min(0.999999999999, Math.max(0, Number(random()) || 0));
     return String(Math.floor(ratio * 100));
   });
-  return Array.from({ length: size }, (_, row) => (
-    values.slice(row * size, (row + 1) * size)
+  return Array.from({ length: rowCount }, (_, row) => (
+    values.slice(row * columnCount, (row + 1) * columnCount)
   ));
 }
 

@@ -57,7 +57,11 @@ export function createStructurePanelController({
       activeTypeSupportsRandom,
       showLinearInitPanel: activeTypeSupportsRandom,
       showStructureInputLabel: !(activeTypeSupportsRandom && activeArrayInitMode === "random"),
-      showArrayRandomFields: activeTypeSupportsRandom && activeArrayInitMode === "random",
+      showArrayRandomFields: activeTypeSupportsRandom
+        && activeStructureType !== STRUCTURE_TYPES.MATRIX
+        && activeArrayInitMode === "random",
+      showMatrixRandomFields: activeStructureType === STRUCTURE_TYPES.MATRIX
+        && activeArrayInitMode === "random",
     };
   }
 
