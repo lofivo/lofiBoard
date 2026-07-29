@@ -6,7 +6,7 @@ function hasFontStyleToken(fontStyle, token) {
 }
 
 function getTextOverlayInnerHtml(element) {
-  if (element.type !== "text" || !containsRenderableLatex(element.text)) {
+  if (!["text", "sticky"].includes(element.type) || !containsRenderableLatex(element.text)) {
     return null;
   }
   return renderLatexMixedToHtml(element.text);
@@ -171,7 +171,7 @@ export function createTextOverlayController({
         continue;
       }
 
-      const needsLatex = element.type === "text" && containsRenderableLatex(element.text);
+      const needsLatex = containsRenderableLatex(element.text);
       if (needsLatex) {
         getKonvaTextNode(element.id)?.visible?.(overlay.hidden);
         await syncLatexContent(overlay, element, latexSignature, currentVersion);

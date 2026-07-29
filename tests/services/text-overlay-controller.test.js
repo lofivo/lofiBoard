@@ -287,6 +287,29 @@ describe("text-overlay-controller", () => {
     expect(overlay.textContent).toBe("Sticky note");
   });
 
+  it("renders latex inside sticky elements and hides the Konva fallback text", async () => {
+    const textNode = { visible: vi.fn() };
+    contentLayer.findOne.mockReturnValue({ findOne: vi.fn(() => textNode) });
+    const ctrl = createTextOverlayController({
+      container,
+      contentLayer,
+      getContainerRect: () => ({ left: 0, top: 0 }),
+      getStageState: () => ({ x: 0, y: 0, scale: 1 }),
+    });
+
+    await ctrl.sync([{
+      ...stickyElement,
+      text: "速度 $v=\\frac{s}{t}$",
+    }]);
+
+    const overlay = container.querySelector('[data-element-id="sticky_1"]');
+    expect(overlay.innerHTML).toContain("latex-text-fragment");
+    expect(overlay.innerHTML).toContain("katex");
+    expect(overlay.style.color).toBe("rgb(31, 41, 55)");
+    expect(overlay.style.padding).toBe("12px 14px");
+    expect(textNode.visible).toHaveBeenLastCalledWith(false);
+  });
+
   it("removes overlays when elements are no longer present", async () => {
     const ctrl = createTextOverlayController({
       container,
