@@ -186,7 +186,7 @@ export function structurePanelMarkup() {
       `).join("")}
     </div>
     <div class="linear-init-panel" data-linear-init-panel>
-      <div class="segmented-control structure-init-mode" role="group" aria-label="线性结构初始化方式">
+      <div class="segmented-control structure-init-mode" role="group" aria-label="结构初始化方式">
         <button type="button" data-array-init-mode="manual">手填结构</button>
         <button type="button" data-array-init-mode="random">随机生成</button>
       </div>

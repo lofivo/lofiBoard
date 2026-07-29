@@ -6,6 +6,7 @@ import {
   parseArrayInput,
 } from "./linear-structure.js";
 import {
+  createRandomGraphData,
   createGraphStructureElement,
   parseGraphInput,
 } from "./graph-structure.js";
@@ -15,6 +16,7 @@ import {
   parseTreeInput,
 } from "./tree-structure.js";
 import {
+  createRandomMatrixValues,
   createMatrixStructureElement,
   parseMatrixInput,
 } from "./matrix-structure.js";
@@ -25,7 +27,11 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
     ? createRandomArrayValues(randomCount, { random })
     : parseArrayInput(normalizedInput);
   const element = type === STRUCTURE_TYPES.GRAPH
-    ? createGraphStructureElement(parseGraphInput(normalizedInput), point, zIndexStart)
+    ? createGraphStructureElement(
+      initMode === "random" ? createRandomGraphData(randomCount, { random }) : parseGraphInput(normalizedInput),
+      point,
+      zIndexStart,
+    )
     : type === STRUCTURE_TYPES.TREE
       ? createTreeStructureElement(
         parseTreeInput(initMode === "random" ? createCompleteTreeInput(randomCount) : normalizedInput),
@@ -41,7 +47,11 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
           { treeKind: "binary" },
         )
       : type === STRUCTURE_TYPES.MATRIX
-        ? createMatrixStructureElement(parseMatrixInput(normalizedInput), point, zIndexStart)
+        ? createMatrixStructureElement(
+          initMode === "random" ? createRandomMatrixValues(randomCount, { random }) : parseMatrixInput(normalizedInput),
+          point,
+          zIndexStart,
+        )
         : createLinearStructureElement(type, linearValues, point, zIndexStart);
   return [element];
 }

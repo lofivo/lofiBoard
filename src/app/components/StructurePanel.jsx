@@ -11,7 +11,7 @@ import { icon } from '../../ui/config.js';
 
 const { Text } = Typography;
 
-const LINEAR_TYPES = new Set(['array', 'stack', 'queue', 'deque', 'tree', 'binary-tree']);
+const RANDOM_TYPES = new Set(['array', 'matrix', 'stack', 'queue', 'deque', 'graph', 'tree', 'binary-tree']);
 
 const STRUCTURE_ICON_MAP = {
   array: BetweenHorizontalEnd,
@@ -55,8 +55,14 @@ export default function StructurePanel() {
   const [count, setCount] = useState('5');
   const initializedRef = useRef(false);
 
-  const supportsRandom = LINEAR_TYPES.has(activeType);
+  const supportsRandom = RANDOM_TYPES.has(activeType);
   const showInput = !(supportsRandom && initMode === 'random');
+  const randomCountLabel = activeType === 'matrix'
+    ? '矩阵阶数'
+    : ['graph', 'tree', 'binary-tree'].includes(activeType)
+      ? '节点数量'
+      : '元素数量';
+  const randomCountMax = activeType === 'matrix' ? 32 : 64;
 
   // Initialize from legacy DOM when panel opens
   useEffect(() => {
@@ -222,9 +228,13 @@ export default function StructurePanel() {
           {supportsRandom && initMode === 'random' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
-                元素数量
+                {randomCountLabel}
               </Text>
               <Input
+                type="number"
+                min={1}
+                max={randomCountMax}
+                step={1}
                 value={count}
                 onChange={handleCountChange}
                 size="small"

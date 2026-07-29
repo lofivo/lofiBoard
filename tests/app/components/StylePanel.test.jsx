@@ -220,4 +220,21 @@ describe("StylePanel", () => {
     expect(picker?.dataset.pickerHeight).toBe("180");
   });
 
+  it("offers inorder traversal for general trees", () => {
+    const runAction = vi.fn();
+    const host = renderPanel({
+      currentTool: "select",
+      panelMode: "structure",
+      stylePanelTitle: "树",
+      structureSelection: "tree-structure",
+      runAction,
+    });
+    const inorder = [...host.querySelectorAll("button")]
+      .find((button) => button.textContent.trim() === "中序遍历");
+
+    expect(inorder).toBeTruthy();
+    act(() => inorder.click());
+    expect(runAction).toHaveBeenCalledWith("tree-highlight-inorder");
+  });
+
 });

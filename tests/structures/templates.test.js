@@ -105,6 +105,35 @@ describe("structure templates", () => {
     ]);
   });
 
+  it("creates a random square matrix from the requested order", () => {
+    const randomValues = Array.from({ length: 9 }, (_, index) => index / 10);
+    const [matrix] = createStructureElements({
+      type: STRUCTURE_TYPES.MATRIX,
+      initMode: "random",
+      randomCount: "3",
+      random: () => randomValues.shift(),
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    expect(matrix).toMatchObject({ rows: 3, columns: 3 });
+    expect(matrix.items.map((item) => item.value)).toEqual(["0", "10", "20", "30", "40", "50", "60", "70", "80"]);
+  });
+
+  it("fills every cell when random matrix order reaches its upper bound", () => {
+    const [matrix] = createStructureElements({
+      type: STRUCTURE_TYPES.MATRIX,
+      initMode: "random",
+      randomCount: "32",
+      random: () => 0.5,
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+
+    expect(matrix.items).toHaveLength(32 * 32);
+    expect(matrix.items.every((item) => item.value === "50")).toBe(true);
+  });
+
   it("updates two-dimensional array values and index options", () => {
     const [matrix] = createStructureElements({
       type: STRUCTURE_TYPES.MATRIX,
@@ -222,6 +251,27 @@ describe("structure templates", () => {
       expect(element.items.map((item) => item.value)).toEqual(["10", "40"]);
       expect(element.items.map((item) => item.index)).toEqual([0, 1]);
     }
+  });
+
+  it("creates a connected random graph from the requested node count", () => {
+    const [graph] = createStructureElements({
+      type: STRUCTURE_TYPES.GRAPH,
+      initMode: "random",
+      randomCount: "5",
+      random: () => 0.999,
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const labelById = new Map(graph.nodes.map((node) => [node.id, node.label]));
+
+    expect(graph.nodes.map((node) => node.label)).toEqual(["1", "2", "3", "4", "5"]);
+    expect(graph.edges.map((edge) => [labelById.get(edge.from), labelById.get(edge.to)])).toEqual([
+      ["1", "2"],
+      ["2", "3"],
+      ["3", "4"],
+      ["4", "5"],
+    ]);
+    expect(graph.edges.every((edge) => edge.directed === false)).toBe(true);
   });
 
   it("stores array values as structure data instead of loose grouped shapes", () => {
@@ -390,7 +440,7 @@ describe("structure templates", () => {
     expect(Math.abs(node("C").x - node("F").x)).toBeCloseTo(Math.abs(node("G").x - node("C").x));
   });
 
-  it("computes general tree traversal orders without binary inorder", () => {
+  it("computes general tree traversal orders including generalized inorder", () => {
     const [tree] = createStructureElements({
       type: STRUCTURE_TYPES.TREE,
       input: "A->B, A->C, B->D, B->E",
@@ -402,7 +452,7 @@ describe("structure templates", () => {
     expect(getTreeTraversalOrder(tree, "level")).toEqual([id("A"), id("B"), id("C"), id("D"), id("E")]);
     expect(getTreeTraversalOrder(tree, "preorder")).toEqual([id("A"), id("B"), id("D"), id("E"), id("C")]);
     expect(getTreeTraversalOrder(tree, "postorder")).toEqual([id("D"), id("E"), id("B"), id("C"), id("A")]);
-    expect(getTreeTraversalOrder(tree, "inorder")).toEqual([]);
+    expect(getTreeTraversalOrder(tree, "inorder")).toEqual([id("D"), id("B"), id("E"), id("A"), id("C")]);
   });
 
   it("computes binary tree inorder traversal from child order", () => {

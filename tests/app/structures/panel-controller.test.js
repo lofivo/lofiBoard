@@ -11,14 +11,14 @@ describe("panel-controller", () => {
     expect(controller.getActiveStructureItem().id).toBe(STRUCTURE_TYPES.BINARY_TREE);
   });
 
-  it("supports random initialization for linear structures and tree structures", () => {
+  it("supports random initialization for every structure template", () => {
     const controller = createStructurePanelController();
 
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.ARRAY)).toBe(true);
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.TREE)).toBe(true);
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.BINARY_TREE)).toBe(true);
-    expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.GRAPH)).toBe(false);
-    expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.MATRIX)).toBe(false);
+    expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.GRAPH)).toBe(true);
+    expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.MATRIX)).toBe(true);
   });
 
   it("returns hydrate state for manual and random init modes", () => {

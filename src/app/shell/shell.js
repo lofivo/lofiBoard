@@ -153,6 +153,7 @@ export function renderShell() {
               <div class="quick-actions quick-actions-tree">
                 <button type="button" data-action="tree-highlight-level">层序遍历</button>
                 <button type="button" data-action="tree-highlight-preorder">前序遍历</button>
+                <button type="button" data-action="tree-highlight-inorder">中序遍历</button>
                 <button type="button" data-action="tree-highlight-postorder">后序遍历</button>
                 <button type="button" data-action="tree-clear-highlight">清除高亮</button>
               </div>

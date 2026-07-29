@@ -1,6 +1,7 @@
 import { createId } from "../board/ids.js";
 import { STRUCTURE_ELEMENT_TYPES, STRUCTURE_TYPES, normalizeStructureInput } from "./types.js";
 import { splitCommaValues } from "./shared.js";
+import { normalizeRandomArrayCount } from "./linear-structure.js";
 
 export const GRAPH_STRUCTURE_STYLE = Object.freeze({
   nodeRadius: 26,
@@ -68,6 +69,46 @@ export function parseGraphInput(input) {
     seenNodes.add(label);
     nodes.push(label);
   }
+}
+
+export function createRandomGraphData(count, { random = Math.random } = {}) {
+  const safeCount = normalizeRandomArrayCount(count);
+  const nodes = Array.from({ length: safeCount }, (_, index) => String(index + 1));
+  const edges = [];
+  const pairs = new Set();
+
+  const addEdge = (sourceIndex, targetIndex) => {
+    const low = Math.min(sourceIndex, targetIndex);
+    const high = Math.max(sourceIndex, targetIndex);
+    const key = `${low}:${high}`;
+    if (low === high || pairs.has(key)) return;
+    pairs.add(key);
+    edges.push({
+      id: createId("edge"),
+      from: nodes[low],
+      to: nodes[high],
+      directed: false,
+      weight: "",
+    });
+  };
+
+  // 先生成随机生成树保证连通，再为未连接的点对随机补边。
+  for (let target = 1; target < safeCount; target += 1) {
+    addEdge(Math.floor(normalizeRandomRatio(random()) * target), target);
+  }
+  const extraEdgeProbability = Math.min(0.3, 2 / Math.max(2, safeCount));
+  for (let source = 0; source < safeCount; source += 1) {
+    for (let target = source + 1; target < safeCount; target += 1) {
+      if (pairs.has(`${source}:${target}`)) continue;
+      if (normalizeRandomRatio(random()) < extraEdgeProbability) addEdge(source, target);
+    }
+  }
+
+  return { nodes, edges };
+}
+
+function normalizeRandomRatio(value) {
+  return Math.min(0.999999999999, Math.max(0, Number(value) || 0));
 }
 
 export function addGraphNode(element, label = null, { position } = {}) {

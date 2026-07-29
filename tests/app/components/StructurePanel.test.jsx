@@ -96,7 +96,7 @@ afterEach(() => {
 });
 
 describe("StructurePanel", () => {
-  it("offers a two-dimensional array template with multiline input", () => {
+  it("offers manual and random modes for the two-dimensional array template", () => {
     const { host } = renderPanel();
     const legacyTypeButton = document.createElement("button");
     legacyTypeButton.dataset.structureType = "matrix";
@@ -110,7 +110,29 @@ describe("StructurePanel", () => {
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(host.querySelector("textarea").value).toBe("1,2,3\n4,5,6\n7,8,9");
-    expect(findButton(host, "随机生成")).toBeUndefined();
+    expect(findButton(host, "随机生成")).toBeTruthy();
+
+    act(() => {
+      findButton(host, "随机生成").click();
+    });
+
+    expect(host.textContent).toContain("矩阵阶数");
+    expect(host.querySelector("input")).toBeTruthy();
+  });
+
+  it("offers random graph generation by node count", () => {
+    const { host } = renderPanel();
+    const legacyTypeButton = document.createElement("button");
+    legacyTypeButton.dataset.structureType = "graph";
+    document.querySelector("[data-legacy-root]").append(legacyTypeButton);
+
+    act(() => {
+      findButton(host, "图").click();
+      findButton(host, "随机生成").click();
+    });
+
+    expect(host.textContent).toContain("节点数量");
+    expect(host.querySelector("input")).toBeTruthy();
   });
 
   it("initializes the random element count from the legacy panel input", () => {

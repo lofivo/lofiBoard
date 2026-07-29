@@ -382,7 +382,6 @@ export function deleteLastTreeNode(element) {
 
 export function getTreeTraversalOrder(element, mode = "level") {
   if (element?.type !== STRUCTURE_ELEMENT_TYPES.TREE) return [];
-  if (mode === "inorder" && !isBinaryTreeStructure(element)) return [];
   const nodeIds = (element.nodes ?? []).map((node) => node.id);
   if (nodeIds.length === 0) return [];
   const rootId = element.settings?.rootId && nodeIds.includes(element.settings.rootId)
@@ -405,10 +404,10 @@ export function getTreeTraversalOrder(element, mode = "level") {
   const order = [];
   const visit = (nodeId) => {
     if (mode === "inorder") {
-      const [left, right] = children.get(nodeId) ?? [];
-      if (left) visit(left);
+      const [firstChild, ...remainingChildren] = children.get(nodeId) ?? [];
+      if (firstChild) visit(firstChild);
       order.push(nodeId);
-      if (right) visit(right);
+      for (const childId of remainingChildren) visit(childId);
       return;
     }
     if (mode === "preorder") order.push(nodeId);

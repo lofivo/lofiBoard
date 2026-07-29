@@ -414,7 +414,8 @@ describe("app shell", () => {
     expect(generalTreeMarkup).toContain("层序遍历");
     expect(generalTreeMarkup).toContain('data-action="tree-highlight-preorder"');
     expect(generalTreeMarkup).toContain("前序遍历");
-    expect(generalTreeMarkup).not.toContain('data-action="tree-highlight-inorder"');
+    expect(generalTreeMarkup).toContain('data-action="tree-highlight-inorder"');
+    expect(generalTreeMarkup).toContain("中序遍历");
     expect(generalTreeMarkup).toContain('data-action="tree-highlight-postorder"');
     expect(generalTreeMarkup).toContain("后序遍历");
     expect(generalTreeMarkup).not.toContain('data-action="tree-step-next"');

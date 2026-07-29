@@ -832,6 +832,7 @@ function GraphStructureInspector({ ctx }) {
 const TREE_TRAVERSAL_ACTIONS = [
   { action: 'tree-highlight-level', label: '层序遍历' },
   { action: 'tree-highlight-preorder', label: '前序遍历' },
+  { action: 'tree-highlight-inorder', label: '中序遍历' },
   { action: 'tree-highlight-postorder', label: '后序遍历' },
   { action: 'tree-clear-highlight', label: '清除高亮' },
 ];

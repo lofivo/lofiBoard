@@ -12,6 +12,7 @@ export const MATRIX_STRUCTURE_STYLE = Object.freeze({
 });
 
 export const MATRIX_DIMENSION_LIMITS = Object.freeze({ min: 1, max: 32 });
+export const MATRIX_RANDOM_INIT_DEFAULT_ORDER = 3;
 
 export function parseMatrixInput(input) {
   const normalizedInput = String(input ?? "").trim();
@@ -21,6 +22,17 @@ export function parseMatrixInput(input) {
     .map((line) => line.split(",").map((value) => value.trim()));
   const columns = Math.max(1, ...rows.map((row) => row.length));
   return rows.map((row) => Array.from({ length: columns }, (_, column) => row[column] ?? ""));
+}
+
+export function createRandomMatrixValues(order, { random = Math.random } = {}) {
+  const size = normalizeMatrixDimension(order, MATRIX_RANDOM_INIT_DEFAULT_ORDER);
+  const values = Array.from({ length: size * size }, () => {
+    const ratio = Math.min(0.999999999999, Math.max(0, Number(random()) || 0));
+    return String(Math.floor(ratio * 100));
+  });
+  return Array.from({ length: size }, (_, row) => (
+    values.slice(row * size, (row + 1) * size)
+  ));
 }
 
 export function createMatrixStructureElement(values, point, zIndex) {
