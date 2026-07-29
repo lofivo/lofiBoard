@@ -172,7 +172,9 @@ function Preview({ color, width, cap, style, opacity }) {
   const strokeColor = color || '#111827';
   const sw = width || 6;
   const linecap = cap || 'round';
-  const dashArray = style === 'dash' ? '14 8' : style === 'dot' ? '2 5' : null;
+  // 与 konva-elements.js 的 getBrushDash 保持一致：dash/gap 随线宽缩放，
+  // 否则 round 线帽在高粗细下会把点连成一片。
+  const dashArray = style === 'dash' ? `${sw * 3} ${sw * 2}` : style === 'dot' ? `0.01 ${sw * 1.8}` : null;
   const fillOpacity = opacity != null ? opacity / 100 : 1;
   return (
     <div style={{ borderRadius: RADIUS.sm, background: 'var(--semi-color-fill-0)', padding: 6, overflow: 'hidden' }}>
