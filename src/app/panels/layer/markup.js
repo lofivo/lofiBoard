@@ -33,6 +33,7 @@ export function getElementLabel(element) {
     arrow: "箭头",
     "coordinate-plane": "坐标系",
     "array-structure": `数组：${element.items?.length ?? 0} 项`,
+    "matrix-structure": `二维数组：${element.rows ?? 0} x ${element.columns ?? 0}`,
     "stack-structure": `栈：${element.items?.length ?? 0} 项`,
     "queue-structure": `队列：${element.items?.length ?? 0} 项`,
     "deque-structure": `双端队列：${element.items?.length ?? 0} 项`,

@@ -18,6 +18,7 @@ describe("panel-controller", () => {
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.TREE)).toBe(true);
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.BINARY_TREE)).toBe(true);
     expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.GRAPH)).toBe(false);
+    expect(controller.isRandomStructureInitSupported(STRUCTURE_TYPES.MATRIX)).toBe(false);
   });
 
   it("returns hydrate state for manual and random init modes", () => {

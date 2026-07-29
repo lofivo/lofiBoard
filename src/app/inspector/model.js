@@ -12,6 +12,7 @@ const ELEMENT_SCHEMA = {
   arrow: { title: "箭头", group: "linear" },
   "coordinate-plane": { title: "坐标系", group: "coordinate" },
   "array-structure": { title: "数组", group: "structure" },
+  "matrix-structure": { title: "二维数组", group: "structure" },
   "stack-structure": { title: "栈", group: "structure" },
   "queue-structure": { title: "队列", group: "structure" },
   "deque-structure": { title: "双端队列", group: "structure" },
@@ -87,7 +88,7 @@ export function getSelectionPanelMode(selectedElements) {
   if (selectedElements.every((el) => ["line", "arrow", "stroke"].includes(el.type))) {
     return "linear";
   }
-  if (selectedElements.every((el) => isLinearStructureElement(el) || ["graph-structure", "tree-structure"].includes(el.type))) {
+  if (selectedElements.every((el) => isLinearStructureElement(el) || ["matrix-structure", "graph-structure", "tree-structure"].includes(el.type))) {
     return "structure";
   }
   return "element";

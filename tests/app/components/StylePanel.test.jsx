@@ -21,11 +21,22 @@ vi.mock("@douyinfe/semi-ui", async () => {
     Button: ({ children, onClick }) => h("button", { onClick }, children),
     Checkbox: ({ children }) => h("label", null, children),
     ColorPicker,
-    Input: (props) => h("input", { value: props.value ?? "", readOnly: true }),
+    Input: (props) => h("input", {
+      type: props.type,
+      value: props.value ?? "",
+      onInput: (event) => props.onChange?.(event.currentTarget.value),
+    }),
     Select: ({ value }) => h("select", { value, readOnly: true }),
     Slider: ({ value }) => h("input", { type: "range", value, readOnly: true }),
-    Switch: ({ checked }) => h("input", { type: "checkbox", checked, readOnly: true }),
-    TextArea: ({ value }) => h("textarea", { value: value ?? "", readOnly: true }),
+    Switch: ({ checked, onChange }) => h("input", {
+      type: "checkbox",
+      checked,
+      onChange: (event) => onChange?.(event.currentTarget.checked),
+    }),
+    TextArea: ({ value, onChange }) => h("textarea", {
+      value: value ?? "",
+      onInput: (event) => onChange?.(event.currentTarget.value),
+    }),
   };
 });
 
@@ -61,6 +72,53 @@ afterEach(() => {
 });
 
 describe("StylePanel", () => {
+  it("renders and updates two-dimensional array properties", () => {
+    const updateMatrixStructure = vi.fn();
+    const host = renderPanel({
+      currentTool: "select",
+      panelMode: "structure",
+      stylePanelTitle: "二维数组",
+      structureSelection: "matrix-structure",
+      matrixStructure: {
+        elementId: "matrix_1",
+        input: "A,B\nC,D",
+        rows: 2,
+        columns: 2,
+        indexBase: 0,
+        showIndexes: true,
+      },
+      updateMatrixStructure,
+    });
+
+    expect(host.textContent).toContain("2 行 x 2 列");
+    expect(host.querySelector("textarea").value).toBe("A,B\nC,D");
+
+    const sizeInputs = host.querySelectorAll('input[type="number"]');
+    expect(sizeInputs).toHaveLength(2);
+
+    act(() => {
+      host.querySelector("textarea").value = "1,2,3\n4,5,6";
+      host.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => {
+      sizeInputs[0].value = "3";
+      sizeInputs[0].dispatchEvent(new Event("input", { bubbles: true }));
+      sizeInputs[1].value = "4";
+      sizeInputs[1].dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => {
+      [...host.querySelectorAll("button")].find((button) => button.textContent === "应用结构").click();
+      [...host.querySelectorAll("button")].find((button) => button.textContent === "应用尺寸").click();
+      [...host.querySelectorAll("button")].find((button) => button.textContent === "1 下标").click();
+      host.querySelector('input[type="checkbox"]').click();
+    });
+
+    expect(updateMatrixStructure).toHaveBeenNthCalledWith(1, { input: "1,2,3\n4,5,6" });
+    expect(updateMatrixStructure).toHaveBeenNthCalledWith(2, { rows: 3, columns: 4 });
+    expect(updateMatrixStructure).toHaveBeenNthCalledWith(3, { indexBase: 1 });
+    expect(updateMatrixStructure).toHaveBeenNthCalledWith(4, { showIndexes: false });
+  });
+
   it.each([
     ["text", "文字"],
     ["sticky", "标签"],

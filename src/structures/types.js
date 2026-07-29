@@ -1,5 +1,6 @@
 export const STRUCTURE_TYPES = {
   ARRAY: "array",
+  MATRIX: "matrix",
   STACK: "stack",
   QUEUE: "queue",
   DEQUE: "deque",
@@ -10,6 +11,7 @@ export const STRUCTURE_TYPES = {
 
 export const STRUCTURE_ELEMENT_TYPES = {
   ARRAY: "array-structure",
+  MATRIX: "matrix-structure",
   STACK: "stack-structure",
   QUEUE: "queue-structure",
   DEQUE: "deque-structure",
@@ -30,6 +32,12 @@ export const STRUCTURE_ITEMS = [
     label: "数组",
     defaultInput: "1,2,3,4,5",
     placeholder: "1,2,3,4,5",
+  },
+  {
+    id: STRUCTURE_TYPES.MATRIX,
+    label: "二维数组",
+    defaultInput: "1,2,3\n4,5,6\n7,8,9",
+    placeholder: "1,2,3\n4,5,6\n7,8,9",
   },
   {
     id: STRUCTURE_TYPES.STACK,

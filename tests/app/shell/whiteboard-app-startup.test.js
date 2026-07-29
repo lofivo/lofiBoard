@@ -679,6 +679,7 @@ describe("whiteboard app startup", () => {
         "setTool",
         "setZoomAtCenter",
         "toggleTextStyle",
+        "updateMatrixStructure",
         "zoomBy",
       ]);
 
@@ -842,6 +843,7 @@ describe("whiteboard app startup", () => {
         "graphDirected",
         "keepToolActive",
         "layers",
+        "matrixStructure",
         "panelMode",
         "properties",
         "selectedIds",
@@ -863,6 +865,53 @@ describe("whiteboard app startup", () => {
       expect(state.layers).toEqual(root._getLayersData());
       expect(state.selectedIds).toEqual(root._getSelectedIds());
       expect(state.properties.color).toBe("#111827");
+      expect(state.matrixStructure).toBeNull();
+
+      app.destroy();
+    }, 15_000);
+
+    it("通过命令读取并更新选中的二维数组属性", async () => {
+      seedDraft([{
+        id: "matrix_1",
+        type: "matrix-structure",
+        x: 0,
+        y: 0,
+        rows: 2,
+        columns: 2,
+        items: [
+          { id: "cell_1", row: 0, column: 0, value: "A" },
+          { id: "cell_2", row: 0, column: 1, value: "B" },
+          { id: "cell_3", row: 1, column: 0, value: "C" },
+          { id: "cell_4", row: 1, column: 1, value: "D" },
+        ],
+        settings: { indexBase: 0, showIndexes: true },
+        style: {},
+        zIndex: 0,
+      }]);
+      const { app, root } = await mountApp();
+      root._selectLayerItemById("matrix_1", "none");
+
+      expect(app.getUiState().matrixStructure).toMatchObject({
+        elementId: "matrix_1",
+        input: "A,B\nC,D",
+        rows: 2,
+        columns: 2,
+        indexBase: 0,
+        showIndexes: true,
+      });
+
+      app.commands.updateMatrixStructure({ input: "1,2,3\n4,5,6" });
+      app.commands.updateMatrixStructure({ rows: 3, columns: 4 });
+      app.commands.updateMatrixStructure({ indexBase: 1, showIndexes: false });
+
+      expect(app.getUiState().matrixStructure).toMatchObject({
+        input: "1,2,3,\n4,5,6,\n,,,",
+        rows: 3,
+        columns: 4,
+        indexBase: 1,
+        showIndexes: false,
+      });
+      expect(app.getBoard().elements[0]).toMatchObject({ width: 288, height: 132 });
 
       app.destroy();
     }, 15_000);

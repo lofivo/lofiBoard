@@ -8,6 +8,9 @@ import {
   updateGraphNodeLabel,
   updateGraphEdge,
 } from "../../structures/graph-structure.js";
+import {
+  updateMatrixItemValue,
+} from "../../structures/matrix-structure.js";
 
 export function createStructureCellEditorController({
   container,
@@ -110,6 +113,84 @@ export function createStructureCellEditorController({
     const handleCellEditorOutsidePointerDown = (event) => {
       if (closed) return;
       if (input.contains(event.target)) return;
+      setSuppressNextCanvasSelection(container.contains(event.target));
+      close(true);
+    };
+    windowRef.addEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
+  }
+
+  function editMatrixStructureItem({ elementId, row, column, value }) {
+    if (isTemporaryPanActive() || getCurrentTool() !== selectTool) return;
+    const element = findElement(elementId);
+    if (!element || element.type !== "matrix-structure" || element.locked) return;
+    renderBoard();
+    selectIds([elementId]);
+    requestAnimationFrameFn(() => editMatrixStructureItemInline({ elementId, row, column, value }));
+  }
+
+  function editMatrixStructureItemInline({ elementId, row, column, value }) {
+    const element = findElement(elementId);
+    const node = contentLayer.findOne(`#${elementId}`);
+    if (!element || element.type !== "matrix-structure" || !node) return;
+    const itemNode = node.find(".matrix-item").find((item) => (
+      item.getAttr("matrixRow") === row && item.getAttr("matrixColumn") === column
+    ));
+    const valueRect = itemNode?.findOne(".matrix-item-value-hit");
+    if (!valueRect) return;
+
+    const input = documentRef.createElement("input");
+    input.className = "cell-editor";
+    input.value = value;
+    const syncCellEditorStyle = () => {
+      const absolute = valueRect.getAbsolutePosition();
+      const stageScaleX = stage.scaleX();
+      const stageScaleY = stage.scaleY?.() ?? stageScaleX;
+      const scaleX = stageScaleX * (node.scaleX() || 1);
+      const scaleY = stageScaleY * (node.scaleY?.() || 1);
+      const box = stage.container().getBoundingClientRect();
+      input.style.left = `${box.left + absolute.x}px`;
+      input.style.top = `${box.top + absolute.y}px`;
+      input.style.width = `${valueRect.width() * scaleX}px`;
+      input.style.height = `${valueRect.height() * scaleY}px`;
+      input.style.fontSize = `${18 * Math.min(scaleX, scaleY)}px`;
+    };
+    documentRef.body.appendChild(input);
+    activeCellEditorSync = syncCellEditorStyle;
+    syncCellEditorStyle();
+    input.focus();
+    input.select();
+
+    let closed = false;
+    const close = (commit) => {
+      if (closed) return;
+      closed = true;
+      const nextValue = input.value;
+      windowRef.removeEventListener("pointerdown", handleCellEditorOutsidePointerDown, { capture: true });
+      activeCellEditorSync = null;
+      input.remove();
+      if (!commit) return;
+      setElements(getElements().map((item) => (
+        item.id === elementId ? updateMatrixItemValue(item, row, column, nextValue) : item
+      )));
+      renderBoard();
+      selectIds([elementId]);
+      pushHistory("已更新二维数组元素");
+    };
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        close(true);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close(false);
+      }
+    });
+    input.addEventListener("blur", () => close(true));
+
+    const handleCellEditorOutsidePointerDown = (event) => {
+      if (closed || input.contains(event.target)) return;
       setSuppressNextCanvasSelection(container.contains(event.target));
       close(true);
     };
@@ -345,6 +426,7 @@ export function createStructureCellEditorController({
 
   return {
     editArrayStructureItem,
+    editMatrixStructureItem,
     editTreeStructureNode,
     editGraphStructureNode,
     editGraphStructureEdge,

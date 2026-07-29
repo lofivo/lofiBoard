@@ -35,6 +35,19 @@ describe("app rendering adapter", () => {
     })).toBe("canEditArrayItems:false");
   });
 
+  it("includes two-dimensional array editability in the render handler snapshot", () => {
+    const element = { id: "matrix-1", type: "matrix-structure" };
+
+    expect(createElementRenderHandlerSnapshot(element, {
+      currentTool: TOOLS.SELECT,
+      temporaryPanActive: false,
+    })).toBe("canEditMatrixItems:true");
+    expect(createElementRenderHandlerSnapshot(element, {
+      currentTool: TOOLS.PAN,
+      temporaryPanActive: false,
+    })).toBe("canEditMatrixItems:false");
+  });
+
   it("includes the active tree node only for the matching tree element", () => {
     const activeTreeNode = { elementId: "tree-1", nodeId: "node-2" };
 

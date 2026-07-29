@@ -271,6 +271,27 @@ describe("board model", () => {
     });
   });
 
+  it("normalizes two-dimensional array defaults", () => {
+    const board = normalizeBoard({
+      version: 1,
+      elements: [{
+        id: "matrix_1",
+        type: "matrix-structure",
+        rows: 2,
+        columns: 2,
+        items: [{ row: 0, column: 0, value: "A" }],
+      }],
+    });
+
+    expect(board.elements[0]).toMatchObject({
+      type: "matrix-structure",
+      width: 216,
+      height: 132,
+      settings: { indexBase: 0, showIndexes: true },
+      style: { cellWidth: 72, cellHeight: 44, valueFill: "#ffffff" },
+    });
+  });
+
   it("normalizes coordinate plane defaults for older files", () => {
     const board = normalizeBoard({
       version: 1,

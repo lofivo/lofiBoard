@@ -45,6 +45,7 @@ export default function App() {
   const [selectedLayerIds, setSelectedLayerIds] = useState([]);
   const [structureSelection, setStructureSelection] = useState('none');
   const [graphDirected, setGraphDirected] = useState(false);
+  const [matrixStructure, setMatrixStructure] = useState(null);
   const [shapePopoverVisible, setShapePopoverVisible] = useState(false);
   const [structurePanelVisible, setStructurePanelVisible] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
@@ -164,6 +165,19 @@ export default function App() {
       syncValue(setActiveShape, state.activeShape);
       syncValue(setStructureSelection, state.structureSelection);
       syncValue(setGraphDirected, state.graphDirected);
+      setMatrixStructure((prev) => {
+        const next = state.matrixStructure ?? null;
+        if (prev === next) return prev;
+        if (!prev || !next) return next;
+        return prev.elementId === next.elementId
+          && prev.input === next.input
+          && prev.rows === next.rows
+          && prev.columns === next.columns
+          && prev.indexBase === next.indexBase
+          && prev.showIndexes === next.showIndexes
+          ? prev
+          : next;
+      });
 
       setSelectionCaps((prev) => {
         for (const key of Object.keys(state.selectionCaps)) {
@@ -379,6 +393,10 @@ export default function App() {
     getCommands()?.runContextAction(action);
   }, [getCommands]);
 
+  const updateMatrixStructure = useCallback((patch) => {
+    getCommands()?.updateMatrixStructure(patch);
+  }, [getCommands]);
+
   const hideContextMenu = useCallback(() => {
     setContextMenuVisible(false);
     contextMenuVisibleRef.current = false;
@@ -418,7 +436,7 @@ export default function App() {
     statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    graphDirected,
+    graphDirected, matrixStructure,
     contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
@@ -430,6 +448,7 @@ export default function App() {
     selectedLayerIds,
     runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
+    updateMatrixStructure,
     openLayerItemContextMenu,
     selectShape,
     setBackgroundMode: handleSetBackgroundMode,
@@ -456,7 +475,7 @@ export default function App() {
     statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    graphDirected,
+    graphDirected, matrixStructure,
     contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
@@ -468,6 +487,7 @@ export default function App() {
     selectedLayerIds,
     runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
+    updateMatrixStructure,
     openLayerItemContextMenu,
     selectShape,
     handleSetBackgroundMode,

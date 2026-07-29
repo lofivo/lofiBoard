@@ -4,6 +4,9 @@ import {
   ARRAY_STRUCTURE_STYLE,
 } from "../structures/linear-structure.js";
 import {
+  MATRIX_STRUCTURE_STYLE,
+} from "../structures/matrix-structure.js";
+import {
   LINEAR_STRUCTURE_TYPES,
   STRUCTURE_ELEMENT_TYPES,
 } from "../structures/types.js";
@@ -360,12 +363,14 @@ export function createElementNode(element, {
   onDragStart,
   onDragMove,
   canEditArrayItems = true,
+  canEditMatrixItems = true,
   onArrayItemMove,
   onArrayItemEdit,
   onArrayItemSelect,
   onArrayItemPress,
   onArrayItemRelease,
   onArrayPointerPress,
+  onMatrixItemEdit,
   onGraphNodeMove,
   onGraphNodeClick,
   onGraphNodeConnect,
@@ -554,6 +559,11 @@ export function createElementNode(element, {
       onArrayItemRelease,
       onArrayPointerPress,
     });
+  } else if (element.type === STRUCTURE_ELEMENT_TYPES.MATRIX) {
+    node = createMatrixStructureNode(element, common, {
+      canEditMatrixItems,
+      onMatrixItemEdit,
+    });
   } else if (element.type === "graph-structure") {
     node = createGraphStructureNode(element, common, {
       onGraphNodeMove,
@@ -606,6 +616,7 @@ const SYNCABLE_ELEMENT_TYPES = new Set([
   "image",
   "coordinate-plane",
   ...LINEAR_STRUCTURE_TYPES,
+  STRUCTURE_ELEMENT_TYPES.MATRIX,
   "graph-structure",
   "tree-structure",
 ]);
@@ -633,6 +644,9 @@ export function syncElementNode(node, element, handlers = {}) {
   }
   if (LINEAR_STRUCTURE_TYPES.includes(element.type)) {
     syncLinearStructureNodeContent(node, element, handlers);
+  }
+  if (element.type === STRUCTURE_ELEMENT_TYPES.MATRIX) {
+    syncMatrixStructureNodeContent(node, element, handlers);
   }
   if (element.type === "graph-structure") {
     syncGraphStructureNodeContent(node, element, handlers);
@@ -737,7 +751,7 @@ export function createNodeAttrs(element) {
       origin: element.origin,
     };
   }
-  if (LINEAR_STRUCTURE_TYPES.includes(element.type) || element.type === "graph-structure" || element.type === "tree-structure") {
+  if (LINEAR_STRUCTURE_TYPES.includes(element.type) || element.type === STRUCTURE_ELEMENT_TYPES.MATRIX || element.type === "graph-structure" || element.type === "tree-structure") {
     return {
       x: element.x,
       y: element.y,
@@ -846,6 +860,21 @@ function syncGraphStructureNodeContent(group, element, handlers) {
   nextGroup.destroy();
 }
 
+function syncMatrixStructureNodeContent(group, element, handlers) {
+  group.destroyChildren();
+  const nextGroup = createMatrixStructureNode(element, {
+    id: element.id,
+    name: "element",
+    elementType: element.type,
+    draggable: getSyncedStructureDraggable(group, handlers),
+    rotation: element.rotation ?? 0,
+    scaleX: element.scaleX ?? 1,
+    scaleY: element.scaleY ?? 1,
+  }, handlers);
+  [...nextGroup.getChildren()].forEach((child) => child.moveTo(group));
+  nextGroup.destroy();
+}
+
 function syncTreeStructureNodeContent(group, element, handlers) {
   if (element.settings?.treeKind === "binary" && syncBinaryTreeNodeVisuals(group, element, handlers)) {
     return;
@@ -885,6 +914,123 @@ function syncBinaryTreeNodeVisuals(group, element, handlers = {}) {
     if (isActive) nodeGroup.moveToTop();
   }
   return true;
+}
+
+function createMatrixStructureNode(element, common, {
+  canEditMatrixItems = true,
+  onMatrixItemEdit,
+} = {}) {
+  const style = { ...MATRIX_STRUCTURE_STYLE, ...(element.style ?? {}) };
+  const rows = Math.max(1, Number.parseInt(String(element.rows ?? 1), 10) || 1);
+  const columns = Math.max(1, Number.parseInt(String(element.columns ?? 1), 10) || 1);
+  const showIndexes = element.settings?.showIndexes ?? true;
+  const indexBase = Number(element.settings?.indexBase) === 1 ? 1 : 0;
+  const headerOffset = showIndexes ? 1 : 0;
+  const width = (columns + headerOffset) * style.cellWidth;
+  const height = (rows + headerOffset) * style.cellHeight;
+  const group = new Konva.Group({
+    ...common,
+    x: element.x,
+    y: element.y,
+    width,
+    height,
+  });
+
+  const addCell = ({ name, row, column, value, fill, textFill, attrs = {} }) => {
+    const cell = new Konva.Group({
+      name,
+      x: column * style.cellWidth,
+      y: row * style.cellHeight,
+      width: style.cellWidth,
+      height: style.cellHeight,
+      ...attrs,
+    });
+    const rect = new Konva.Rect({
+      name: name === "matrix-item" ? "matrix-item-value-hit" : undefined,
+      width: style.cellWidth,
+      height: style.cellHeight,
+      fill,
+      stroke: style.stroke,
+      strokeWidth: 1,
+    });
+    const text = new Konva.Text({
+      width: style.cellWidth,
+      height: style.cellHeight,
+      text: String(value ?? ""),
+      fill: textFill,
+      fontSize: 18,
+      align: "center",
+      verticalAlign: "middle",
+      padding: 4,
+      listening: false,
+    });
+    if (name === "matrix-item" && canEditMatrixItems) {
+      rect.on("dblclick dbltap", (event) => {
+        event.cancelBubble = true;
+        onMatrixItemEdit?.({
+          elementId: element.id,
+          row: attrs.matrixRow,
+          column: attrs.matrixColumn,
+          value: String(value ?? ""),
+        });
+      });
+    }
+    cell.add(rect);
+    cell.add(text);
+    group.add(cell);
+  };
+
+  if (showIndexes) {
+    addCell({
+      name: "matrix-index",
+      row: 0,
+      column: 0,
+      value: "",
+      fill: style.indexFill,
+      textFill: style.indexTextFill,
+    });
+    for (let column = 0; column < columns; column += 1) {
+      addCell({
+        name: "matrix-index",
+        row: 0,
+        column: column + 1,
+        value: column + indexBase,
+        fill: style.indexFill,
+        textFill: style.indexTextFill,
+      });
+    }
+  }
+
+  for (let row = 0; row < rows; row += 1) {
+    if (showIndexes) {
+      addCell({
+        name: "matrix-index",
+        row: row + 1,
+        column: 0,
+        value: row + indexBase,
+        fill: style.indexFill,
+        textFill: style.indexTextFill,
+      });
+    }
+    for (let column = 0; column < columns; column += 1) {
+      const item = (element.items ?? []).find((cell) => cell.row === row && cell.column === column);
+      addCell({
+        name: "matrix-item",
+        row: row + headerOffset,
+        column: column + headerOffset,
+        value: item?.value ?? " ",
+        fill: style.valueFill,
+        textFill: style.textFill,
+        attrs: {
+          matrixRow: row,
+          matrixColumn: column,
+          matrixItemId: item?.id,
+        },
+      });
+    }
+  }
+
+  return group;
 }
 
 function createLinearStructureNode(element, common, {

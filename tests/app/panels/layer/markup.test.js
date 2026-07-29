@@ -6,6 +6,7 @@ describe("app panels layer markup", () => {
     expect(getElementLabel({ type: "stroke" })).toBe("笔触");
     expect(getElementLabel({ type: "text", text: "一段很长的文字内容" })).toBe("文字：一段很长的文字内容");
     expect(getElementLabel({ type: "array-structure", items: [{}, {}, {}] })).toBe("数组：3 项");
+    expect(getElementLabel({ type: "matrix-structure", rows: 2, columns: 3 })).toBe("二维数组：2 x 3");
     expect(getElementLabel({ type: "graph-structure", nodes: [{}, {}], edges: [{}] })).toBe("图：2 点 1 边");
   });
 

@@ -7,7 +7,11 @@
 - `src/structures/*`：纯结构规则，负责解析、创建、更新、布局、导出。
 - `src/app/structures/*`：应用交互，负责面板、选区、浮动控件、拖拽、编辑、历史和渲染同步。
 
-结构元素包括线性结构、图和树。线性结构包括数组、栈、队列、双端队列；树结构通过 `settings.treeKind` 区分普通树和二叉树。
+结构元素包括线性结构、二维数组、图和树。线性结构包括数组、栈、队列、双端队列；二维数组使用换行分隔行、逗号分隔列；树结构通过 `settings.treeKind` 区分普通树和二叉树。
+
+二维数组属性栏通过 `getUiState().matrixStructure` 回灌内容、行列数和下标设置，通过 `commands.updateMatrixStructure()` 更新数据、行列数、0/1 下标起点和下标可见性。行列数限制为 1 到 32；调整尺寸时保留新范围内原坐标上的单元格，新增位置初始化为空。该流程不依赖遗留 DOM 控件。
+
+二维数组单元格由 `konva-elements.js` 把双击事件适配为 `onMatrixItemEdit`，再交给 `cell-editor-controller.js` 创建与单元格对齐的 `.cell-editor`。`Enter` 或失焦提交，`Escape` 取消；提交后更新画板模型、恢复结构选区并写入历史。
 
 ## 结构运行时
 

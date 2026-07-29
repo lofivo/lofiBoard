@@ -34,6 +34,9 @@ export function createElementRenderHandlerSnapshot(element, {
   if (isGraphStructure(element)) {
     return `activeGraphNode:${activeGraphNode?.elementId === element.id ? activeGraphNode.nodeId : ""}`;
   }
+  if (element?.type === STRUCTURE_ELEMENT_TYPES.MATRIX) {
+    return `canEditMatrixItems:${currentTool === TOOLS.SELECT && !temporaryPanActive}`;
+  }
   if (!isLinearStructureElement(element)) return "";
   return `canEditArrayItems:${currentTool === TOOLS.SELECT && !temporaryPanActive && !isArrayAlgorithmLocked(element.id)}`;
 }

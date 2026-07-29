@@ -3,6 +3,7 @@ import { Button, TextArea, Input, Card, Typography } from '@douyinfe/semi-ui';
 import {
   BetweenHorizontalEnd, Layers, ListOrdered, ArrowLeftRight,
   Share2, GitFork, Binary,
+  Table2,
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { STRUCTURE_ITEMS } from '../../structures/types.js';
@@ -14,6 +15,7 @@ const LINEAR_TYPES = new Set(['array', 'stack', 'queue', 'deque', 'tree', 'binar
 
 const STRUCTURE_ICON_MAP = {
   array: BetweenHorizontalEnd,
+  matrix: Table2,
   stack: Layers,
   queue: ListOrdered,
   deque: ArrowLeftRight,

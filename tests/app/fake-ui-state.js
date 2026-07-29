@@ -15,6 +15,7 @@ export function createFakeUiState(overrides = {}) {
     activeShape: "rect",
     structureSelection: "none",
     graphDirected: false,
+    matrixStructure: null,
     selectionCaps: {
       text: false,
       sticky: false,

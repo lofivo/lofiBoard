@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createStructureCellEditorController } from "../../../src/app/structures/cell-editor-controller.js";
 import {
   updateArrayItemValue,
+  updateMatrixItemValue,
   updateTreeNodeValue,
 } from "../../../src/structures/templates.js";
 
@@ -61,6 +62,7 @@ function createController(initialElements, overrides = {}) {
     findLinearItemNode: vi.fn(() => group),
     findTreeNodeGroup: vi.fn(() => treeNode),
     updateArrayItemValue,
+    updateMatrixItemValue,
     updateTreeNodeValue,
     structureInteraction: {
       setActiveTreeNode: vi.fn(),
@@ -123,6 +125,30 @@ describe("cell-editor-controller", () => {
 
     expect(callbacks.setSuppressNextCanvasSelection).toHaveBeenCalledWith(true);
     expect(document.querySelector(".cell-editor")).toBeNull();
+  });
+
+  it("commits two-dimensional array cell edits", () => {
+    const matrixCell = makeRect({ x: 42, y: 64, width: 72, height: 44 });
+    const matrixGroup = makeGroup(matrixCell);
+    matrixGroup.find = vi.fn(() => [matrixGroup]);
+    matrixGroup.getAttr = vi.fn((name) => ({ matrixRow: 1, matrixColumn: 0 }[name]));
+    const { callbacks, controller, contentLayer, getElements } = createController([{
+      id: "matrix_1",
+      type: "matrix-structure",
+      rows: 2,
+      columns: 2,
+      items: [{ id: "cell_1", row: 1, column: 0, value: "C" }],
+    }]);
+    contentLayer.findOne.mockReturnValue(matrixGroup);
+
+    controller.editMatrixStructureItem({ elementId: "matrix_1", row: 1, column: 0, value: "C" });
+    const input = document.querySelector(".cell-editor");
+    input.value = "X";
+    input.dispatchEvent(keydown("Enter"));
+
+    expect(getElements()[0].items[0].value).toBe("X");
+    expect(callbacks.selectIds).toHaveBeenLastCalledWith(["matrix_1"]);
+    expect(callbacks.pushHistory).toHaveBeenCalledWith("已更新二维数组元素");
   });
 
   it("keeps the active array editor aligned when requested", () => {

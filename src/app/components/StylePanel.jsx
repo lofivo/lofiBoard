@@ -390,6 +390,147 @@ function findLegacyRoot() {
   return container?.parentElement ?? null;
 }
 
+function MatrixStructureInspector({ ctx }) {
+  const matrix = ctx.matrixStructure;
+  const [input, setInput] = useState(matrix?.input ?? '');
+  const [rows, setRows] = useState(String(matrix?.rows ?? 1));
+  const [columns, setColumns] = useState(String(matrix?.columns ?? 1));
+  const activeElementIdRef = useRef(matrix?.elementId ?? null);
+  const dirtyRef = useRef(false);
+  const sizeDirtyRef = useRef(false);
+
+  useEffect(() => {
+    const elementChanged = activeElementIdRef.current !== (matrix?.elementId ?? null);
+    if (elementChanged || !dirtyRef.current) {
+      activeElementIdRef.current = matrix?.elementId ?? null;
+      setInput(matrix?.input ?? '');
+      dirtyRef.current = false;
+    }
+    if (elementChanged || !sizeDirtyRef.current) {
+      setRows(String(matrix?.rows ?? 1));
+      setColumns(String(matrix?.columns ?? 1));
+      sizeDirtyRef.current = false;
+    }
+  }, [matrix?.elementId, matrix?.input, matrix?.rows, matrix?.columns]);
+
+  if (!matrix) return null;
+
+  const handleInputChange = (value) => {
+    dirtyRef.current = true;
+    setInput(value);
+  };
+  const applyInput = () => {
+    dirtyRef.current = false;
+    ctx.updateMatrixStructure?.({ input });
+  };
+  const applySize = () => {
+    sizeDirtyRef.current = false;
+    const nextRows = Number.parseInt(rows, 10);
+    const nextColumns = Number.parseInt(columns, 10);
+    ctx.updateMatrixStructure?.({
+      rows: Number.isInteger(nextRows) ? nextRows : matrix.rows,
+      columns: Number.isInteger(nextColumns) ? nextColumns : matrix.columns,
+    });
+  };
+
+  return (
+    <div data-matrix-structure-inspector style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={cardGroupStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={cardGroupTitleStyle}>尺寸</div>
+          <span style={{ color: 'var(--semi-color-text-2)', fontSize: 11 }}>
+            {matrix.rows} 行 x {matrix.columns} 列
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={fieldGap}>
+            <span style={labelStyle}>行数</span>
+            <Input
+              type="number"
+              min={1}
+              max={32}
+              step={1}
+              value={rows}
+              onChange={(value) => { sizeDirtyRef.current = true; setRows(String(value)); }}
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldGap}>
+            <span style={labelStyle}>列数</span>
+            <Input
+              type="number"
+              min={1}
+              max={32}
+              step={1}
+              value={columns}
+              onChange={(value) => { sizeDirtyRef.current = true; setColumns(String(value)); }}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+        <Button
+          size="small"
+          theme="light"
+          type="primary"
+          style={{ height: 28, borderRadius: RADIUS.sm }}
+          onClick={applySize}
+        >
+          应用尺寸
+        </Button>
+      </div>
+
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>二维数据</div>
+        <TextArea
+          value={input}
+          onChange={handleInputChange}
+          rows={5}
+          spellCheck={false}
+          resize="vertical"
+          placeholder={'1,2,3\n4,5,6'}
+          style={textAreaStyle}
+          textareaStyle={textAreaInner}
+        />
+        <Button
+          size="small"
+          theme="light"
+          type="primary"
+          style={{ height: 28, borderRadius: RADIUS.sm }}
+          onClick={applyInput}
+        >
+          应用结构
+        </Button>
+      </div>
+
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>下标</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {[0, 1].map((indexBase) => (
+            <Button
+              key={indexBase}
+              size="small"
+              theme={matrix.indexBase === indexBase ? 'light' : 'outline'}
+              type={matrix.indexBase === indexBase ? 'primary' : 'tertiary'}
+              style={{ height: 28, borderRadius: RADIUS.sm }}
+              onClick={() => ctx.updateMatrixStructure?.({ indexBase })}
+            >
+              {indexBase} 下标
+            </Button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={labelStyle}>显示下标</span>
+          <Switch
+            checked={matrix.showIndexes}
+            size="small"
+            onChange={(checked) => ctx.updateMatrixStructure?.({ showIndexes: checked })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---- Linear Structure Inspector ---- */
 
 function LinearStructureInspector({ ctx }) {
@@ -772,6 +913,7 @@ function StructureCore({ ctx }) {
   const type = ctx.structureSelection || 'none';
 
   if (type === 'none') return <div style={{ padding: 8, color: 'var(--semi-color-text-2)', fontSize: 12 }}>选择一个结构元素</div>;
+  if (type === 'matrix-structure') return <MatrixStructureInspector ctx={ctx} />;
   if (LINEAR_STRUCTURE_TYPES.includes(type)) return <LinearStructureInspector ctx={ctx} />;
   if (type === 'graph-structure') return <GraphStructureInspector ctx={ctx} />;
   if (type === 'tree-structure') return <TreeStructureInspector ctx={ctx} />;

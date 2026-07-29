@@ -125,6 +125,7 @@ describe("transformer overdraw", () => {
     expect(getTransformerOverdrawForState(SM.IDLE, [{ type: "graph-structure" }])).toBe(false);
     expect(getTransformerOverdrawForState(SM.IDLE, [{ type: "tree-structure" }])).toBe(false);
     expect(getTransformerOverdrawForState(SM.IDLE, [{ type: "queue-structure" }])).toBe(false);
+    expect(getTransformerOverdrawForState(SM.IDLE, [{ type: "matrix-structure" }])).toBe(false);
   });
 
   it("returns true for non-structure single elements", () => {

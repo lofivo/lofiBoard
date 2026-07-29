@@ -19,6 +19,7 @@ describe("inspector model", () => {
     expect(getPropertyPanelTitle([{ type: "sticky" }])).toBe("标签");
     expect(getPropertyPanelTitle([{ type: "tree-structure", settings: { treeKind: "binary" } }])).toBe("二叉树");
     expect(getPropertyPanelTitle([{ type: "tree-structure", settings: { treeKind: "general" } }])).toBe("树");
+    expect(getPropertyPanelTitle([{ type: "matrix-structure" }])).toBe("二维数组");
     expect(getPropertyPanelTitle([{ type: "rect" }, { type: "ellipse" }])).toBe("属性");
   });
 
@@ -33,6 +34,7 @@ describe("inspector model", () => {
     expect(getSelectionPanelMode([{ type: "stroke" }])).toBe("brush");
     expect(getSelectionPanelMode([{ type: "line" }, { type: "arrow" }])).toBe("multi");
     expect(getSelectionPanelMode([{ type: "array-structure" }])).toBe("structure");
+    expect(getSelectionPanelMode([{ type: "matrix-structure" }])).toBe("structure");
     expect(getSelectionPanelMode([{ type: "rect" }])).toBe("element");
   });
 

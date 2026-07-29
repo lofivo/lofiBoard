@@ -19,6 +19,16 @@ const ARRAY_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
   indexTextFill: "#475569",
 });
 
+const MATRIX_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
+  cellWidth: 72,
+  cellHeight: 44,
+  indexFill: "#eef2ff",
+  valueFill: "#ffffff",
+  stroke: "#111827",
+  textFill: "#111827",
+  indexTextFill: "#475569",
+});
+
 const GRAPH_STRUCTURE_STYLE_DEFAULTS = Object.freeze({
   nodeRadius: 26,
   stroke: "#94a3b8",
@@ -145,6 +155,18 @@ const ELEMENT_DEFAULTS = {
     y: 0,
     width: 360,
     height: 88,
+    items: [],
+    settings: { indexBase: 0, showIndexes: true },
+    style: {},
+    rotation: 0,
+  },
+  "matrix-structure": {
+    x: 0,
+    y: 0,
+    width: 288,
+    height: 176,
+    rows: 3,
+    columns: 3,
     items: [],
     settings: { indexBase: 0, showIndexes: true },
     style: {},
@@ -314,6 +336,22 @@ export function normalizeElement(element, fallbackIndex = 0) {
       showIndexes: element.settings?.showIndexes ?? defaults.settings.showIndexes,
     };
     normalized.style = { ...ARRAY_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
+  }
+  if (normalized.type === "matrix-structure") {
+    normalized.settings = {
+      ...defaults.settings,
+      ...(element.settings ?? {}),
+      indexBase: Number(element.settings?.indexBase ?? defaults.settings.indexBase) === 1 ? 1 : 0,
+      showIndexes: element.settings?.showIndexes ?? defaults.settings.showIndexes,
+    };
+    normalized.style = { ...MATRIX_STRUCTURE_STYLE_DEFAULTS, ...(element.style ?? {}) };
+    const itemRows = (normalized.items ?? []).map((item) => Number(item.row)).filter(Number.isInteger);
+    const itemColumns = (normalized.items ?? []).map((item) => Number(item.column)).filter(Number.isInteger);
+    normalized.rows = Math.max(1, Number.parseInt(String(element.rows ?? ""), 10) || 0, ...itemRows.map((row) => row + 1));
+    normalized.columns = Math.max(1, Number.parseInt(String(element.columns ?? ""), 10) || 0, ...itemColumns.map((column) => column + 1));
+    const headerCount = normalized.settings.showIndexes ? 1 : 0;
+    normalized.width = (normalized.columns + headerCount) * normalized.style.cellWidth;
+    normalized.height = (normalized.rows + headerCount) * normalized.style.cellHeight;
   }
   if (normalized.type === "graph-structure") {
     normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };

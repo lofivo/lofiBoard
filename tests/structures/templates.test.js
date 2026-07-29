@@ -54,6 +54,11 @@ import {
   updateTreeFromInput,
   getTreeTraversalOrder,
   parseArrayInput,
+  parseMatrixInput,
+  exportMatrix,
+  setMatrixIndexOptions,
+  resizeMatrix,
+  updateMatrixFromInput,
   normalizeRandomArrayCount,
   createRandomArrayValues,
   parseGraphInput,
@@ -61,6 +66,78 @@ import {
 } from "../../src/structures/templates.js";
 
 describe("structure templates", () => {
+  it("exposes a two-dimensional array template", () => {
+    expect(getStructureItem(STRUCTURE_TYPES.MATRIX)).toMatchObject({
+      id: STRUCTURE_TYPES.MATRIX,
+      label: "二维数组",
+      defaultInput: "1,2,3\n4,5,6\n7,8,9",
+    });
+  });
+
+  it("parses and creates a two-dimensional array grid", () => {
+    expect(parseMatrixInput("A, B\nC, D")).toEqual([
+      ["A", "B"],
+      ["C", "D"],
+    ]);
+
+    const [matrix] = createStructureElements({
+      type: STRUCTURE_TYPES.MATRIX,
+      input: "A, B\nC, D",
+      point: { x: 10, y: 20 },
+      zIndexStart: 5,
+    });
+
+    expect(matrix).toMatchObject({
+      type: STRUCTURE_ELEMENT_TYPES.MATRIX,
+      zIndex: 5,
+      x: -98,
+      y: -46,
+      width: 216,
+      height: 132,
+      rows: 2,
+      columns: 2,
+    });
+    expect(matrix.items.map(({ row, column, value }) => ({ row, column, value }))).toEqual([
+      { row: 0, column: 0, value: "A" },
+      { row: 0, column: 1, value: "B" },
+      { row: 1, column: 0, value: "C" },
+      { row: 1, column: 1, value: "D" },
+    ]);
+  });
+
+  it("updates two-dimensional array values and index options", () => {
+    const [matrix] = createStructureElements({
+      type: STRUCTURE_TYPES.MATRIX,
+      input: "A,B\nC,D",
+      point: { x: 0, y: 0 },
+      zIndexStart: 0,
+    });
+    const firstId = matrix.items[0].id;
+    const updated = updateMatrixFromInput(matrix, "A,B,C\nD,E,F");
+
+    expect(exportMatrix(updated)).toBe("A,B,C\nD,E,F");
+    expect(updated.items[0].id).toBe(firstId);
+    expect(updated).toMatchObject({ rows: 2, columns: 3, width: 288, height: 132 });
+    expect(updated.x + updated.width / 2).toBe(matrix.x + matrix.width / 2);
+    expect(updated.y + updated.height / 2).toBe(matrix.y + matrix.height / 2);
+
+    const withoutIndexes = setMatrixIndexOptions(updated, { indexBase: 1, showIndexes: false });
+    expect(withoutIndexes).toMatchObject({
+      width: 216,
+      height: 88,
+      settings: { indexBase: 1, showIndexes: false },
+    });
+    expect(withoutIndexes.x + withoutIndexes.width / 2).toBe(updated.x + updated.width / 2);
+    expect(withoutIndexes.y + withoutIndexes.height / 2).toBe(updated.y + updated.height / 2);
+
+    const resized = resizeMatrix(withoutIndexes, { rows: 3, columns: 4 });
+    expect(resized).toMatchObject({ rows: 3, columns: 4, width: 288, height: 132 });
+    expect(exportMatrix(resized)).toBe("A,B,C,\nD,E,F,\n,,,");
+    expect(resized.items.find((item) => item.row === 0 && item.column === 0)?.id).toBe(firstId);
+    expect(resized.x + resized.width / 2).toBe(withoutIndexes.x + withoutIndexes.width / 2);
+    expect(resized.y + resized.height / 2).toBe(withoutIndexes.y + withoutIndexes.height / 2);
+  });
+
   it("parses comma separated array values", () => {
     expect(parseArrayInput("10, 20, 30")).toEqual(["10", "20", "30"]);
   });

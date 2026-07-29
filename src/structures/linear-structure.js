@@ -72,7 +72,12 @@ export function isLinearStructureElement(elementOrType) {
 }
 
 export function isLinearStructureType(type) {
-  return LINEAR_STRUCTURE_TYPES.includes(getLinearElementType(type));
+  return [
+    STRUCTURE_TYPES.ARRAY,
+    STRUCTURE_TYPES.STACK,
+    STRUCTURE_TYPES.QUEUE,
+    STRUCTURE_TYPES.DEQUE,
+  ].includes(type);
 }
 
 export function insertArrayItem(element, index = element?.items?.length ?? 0, value = "") {

@@ -171,6 +171,12 @@ import {
 } from "../structures/linear-structure.js";
 import { LINEAR_STRUCTURE_TYPES } from "../structures/types.js";
 import {
+  exportMatrix,
+  resizeMatrix,
+  setMatrixIndexOptions,
+  updateMatrixFromInput,
+} from "../structures/matrix-structure.js";
+import {
   GRAPH_STRUCTURE_STYLE,
   exportGraph,
   setGraphNodeRadius,
@@ -1237,6 +1243,7 @@ export function createWhiteboardApp(root) {
   });
   const {
     editArrayStructureItem,
+    editMatrixStructureItem,
     editTreeStructureNode,
     editGraphStructureNode,
     editGraphStructureEdge,
@@ -1629,6 +1636,44 @@ export function createWhiteboardApp(root) {
 
   root._showShapePopover = () => setShapePopoverOpen(true);
 
+  function getSelectedMatrixStructureState() {
+    const element = board.elements.find((item) => (
+      selectedIds.includes(item.id) && item.type === "matrix-structure"
+    ));
+    if (!element) return null;
+    return {
+      elementId: element.id,
+      input: exportMatrix(element),
+      rows: element.rows,
+      columns: element.columns,
+      indexBase: Number(element.settings?.indexBase) === 1 ? 1 : 0,
+      showIndexes: element.settings?.showIndexes ?? true,
+    };
+  }
+
+  function updateSelectedMatrixStructure(patch = {}) {
+    editSelectedStructure("matrix-structure", (element) => {
+      let nextElement = Object.prototype.hasOwnProperty.call(patch, "input")
+        ? updateMatrixFromInput(element, patch.input)
+        : element;
+      if (Object.prototype.hasOwnProperty.call(patch, "rows")
+        || Object.prototype.hasOwnProperty.call(patch, "columns")) {
+        nextElement = resizeMatrix(nextElement, {
+          rows: patch.rows ?? nextElement.rows,
+          columns: patch.columns ?? nextElement.columns,
+        });
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "indexBase")
+        || Object.prototype.hasOwnProperty.call(patch, "showIndexes")) {
+        nextElement = setMatrixIndexOptions(nextElement, {
+          indexBase: patch.indexBase ?? nextElement.settings?.indexBase,
+          showIndexes: patch.showIndexes ?? nextElement.settings?.showIndexes,
+        });
+      }
+      return nextElement;
+    }, "已更新二维数组");
+  }
+
   // React 侧驱动引擎的唯一入口:直接调命令,不再 querySelector 隐藏 DOM 再 .click()
   const commands = {
     runAction,
@@ -1640,6 +1685,7 @@ export function createWhiteboardApp(root) {
     setTool,
     setZoomAtCenter: (requestedScale) => viewportController.setZoomAtCenter(requestedScale),
     toggleTextStyle: toggleTextStyleControl,
+    updateMatrixStructure: updateSelectedMatrixStructure,
     zoomBy: (multiplier) => viewportController.zoomBy(multiplier),
   };
 
@@ -1658,6 +1704,7 @@ export function createWhiteboardApp(root) {
       activeShape: root.dataset.activeShape || "rect",
       structureSelection: root.dataset.structureSelection || "none",
       graphDirected: root.dataset.graphDirected === "true",
+      matrixStructure: getSelectedMatrixStructureState(),
       selectionCaps: {
         text: root.dataset.selectionHasText === "true",
         sticky: root.dataset.selectionHasSticky === "true",
@@ -1772,6 +1819,7 @@ export function createWhiteboardApp(root) {
         selectionDragController.finishNodeDragSelection(node);
       },
       canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive() && !isArrayAlgorithmLocked(element.id),
+      canEditMatrixItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive(),
       onSelect: (event, node) => {
         if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
         event.cancelBubble = true;
@@ -1797,6 +1845,7 @@ export function createWhiteboardApp(root) {
       onArrayItemPress: linearStructureEventAdapter.onArrayItemPress,
       onArrayItemRelease: linearStructureEventAdapter.onArrayItemRelease,
       onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event),
+      onMatrixItemEdit: editMatrixStructureItem,
       onGraphNodeMove: moveGraphStructureNode,
       onGraphNodeClick: handleGraphNodeClick,
       onGraphNodeDragStart: handleGraphNodeDragStart,

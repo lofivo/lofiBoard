@@ -9,6 +9,7 @@
 - `src/canvas/`：Konva 形状创建/同步、几何计算、视口适配、导出背景。
 - `src/tools/`：与具体 DOM 无关的工具行为、交互规则、笔触输入和交互状态机。
 - `src/structures/`：结构元素的纯逻辑，包括线性结构、图、树、结构工厂和结构交互运行时。
+- `src/structures/matrix-structure.js`：二维数组解析、创建、导出、单元格更新、行列调整和下标选项。
 - `src/algorithms/`：算法步骤生成，目前主要是数组排序。
 - `src/services/`：文件、剪贴板、图片导入、本地草稿、LaTeX 和文本 overlay 服务。
 - `src/ui/`：工具栏、菜单、上下文菜单、面板等 UI 配置和轻量状态。
@@ -21,7 +22,7 @@ React 组件位于 `src/app/components/*`。它们主要负责展示和用户输
 React 与引擎之间只走两个门面（AGENTS.md 第 39/40 条）：
 
 - 读：`app.getUiState()`。`App.jsx` 每 100ms 调一次取全量快照（工具、缩放、背景、面板模式、选区能力、属性值、图层、选中 id 等），逐字段 diff 后写入 `WhiteboardContext`。文本缩放等高频预览通过 `app.subscribeUiState()` 请求下一动画帧同步，普通状态仍由轮询兜底。React 不再自己扫遗留 DOM / dataset。
-- 写：`app.commands.*`，包括 `setTool` / `runAction` / `runToolAction` / `runContextAction` / `selectShapeTool` / `setProperty` / `toggleTextStyle` / `zoomBy` / `setZoomAtCenter` / `setBackgroundMode`。属性写入走 `setProperty(name, value, { checked, silent })`，由 `property-controls/dom-controller.js` 的副作用表处理选区样式和历史，不再合成 DOM `input` / `change` 事件。
+- 写：`app.commands.*`，包括 `setTool` / `runAction` / `runToolAction` / `runContextAction` / `selectShapeTool` / `setProperty` / `toggleTextStyle` / `updateMatrixStructure` / `zoomBy` / `setZoomAtCenter` / `setBackgroundMode`。属性写入走 `setProperty(name, value, { checked, silent })`，由 `property-controls/dom-controller.js` 的副作用表处理选区样式和历史；二维数组属性通过专用窄命令更新，不再合成 DOM `input` / `change` 事件。
 - 属性值的唯一真相是 `property-controls/dom-controller.js` 里的 `values` store（`MASTER_CONTROLS` 表）。新增属性时在该表加一行（名字、store key、副作用），`getUiState().properties` 会自动带上。
 
 尚未迁移的例外（新代码不要模仿）：`StylePanel.jsx` 的图结构输入 `[data-graph-structure-input]`、节点大小 `[data-graph-node-scale]` 和数组算法按钮 `[data-action='array-algorithm-*']` 仍直接读写遗留 DOM。

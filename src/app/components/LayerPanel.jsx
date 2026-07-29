@@ -15,6 +15,7 @@ const TYPE_DOT = {
   arrow: '#dc2626',
   'coordinate-plane': '#0ea5e9',
   'array-structure': '#f97316',
+  'matrix-structure': '#e11d48',
   'stack-structure': '#14b8a6',
   'queue-structure': '#06b6d4',
   'deque-structure': '#06b6d4',

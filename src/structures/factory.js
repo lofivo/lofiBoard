@@ -14,6 +14,10 @@ import {
   createTreeStructureElement,
   parseTreeInput,
 } from "./tree-structure.js";
+import {
+  createMatrixStructureElement,
+  parseMatrixInput,
+} from "./matrix-structure.js";
 
 export function createStructureElements({ type, input, point, zIndexStart = 0, initMode = "manual", randomCount, random } = {}) {
   const normalizedInput = normalizeStructureInput(type, input);
@@ -36,6 +40,8 @@ export function createStructureElements({ type, input, point, zIndexStart = 0, i
           zIndexStart,
           { treeKind: "binary" },
         )
-      : createLinearStructureElement(type, linearValues, point, zIndexStart);
+      : type === STRUCTURE_TYPES.MATRIX
+        ? createMatrixStructureElement(parseMatrixInput(normalizedInput), point, zIndexStart)
+        : createLinearStructureElement(type, linearValues, point, zIndexStart);
   return [element];
 }

@@ -93,6 +93,7 @@ export function getInteractionRuleForState(state, elementType) {
 function isStructureType(type) {
   return type && (
     type === "array-structure" ||
+    type === "matrix-structure" ||
     type === "stack-structure" ||
     type === "queue-structure" ||
     type === "deque-structure" ||

@@ -96,6 +96,23 @@ afterEach(() => {
 });
 
 describe("StructurePanel", () => {
+  it("offers a two-dimensional array template with multiline input", () => {
+    const { host } = renderPanel();
+    const legacyTypeButton = document.createElement("button");
+    legacyTypeButton.dataset.structureType = "matrix";
+    document.querySelector("[data-legacy-root]").append(legacyTypeButton);
+    const clickSpy = vi.fn();
+    legacyTypeButton.addEventListener("click", clickSpy);
+
+    act(() => {
+      findButton(host, "二维数组").click();
+    });
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("textarea").value).toBe("1,2,3\n4,5,6\n7,8,9");
+    expect(findButton(host, "随机生成")).toBeUndefined();
+  });
+
   it("initializes the random element count from the legacy panel input", () => {
     const { host } = renderPanel({ initMode: "random", randomCount: "12" });
 

@@ -1584,6 +1584,64 @@ describe("konva elements", () => {
     expect(node.find("Text").map((text) => text.text())).toEqual(["0", "A", "1", "B"]);
   });
 
+  it("renders a two-dimensional array with row and column indexes", () => {
+    const onMatrixItemEdit = vi.fn();
+    const node = createElementNode({
+      id: "matrix_1",
+      type: "matrix-structure",
+      x: 10,
+      y: 20,
+      width: 216,
+      height: 132,
+      rows: 2,
+      columns: 2,
+      items: [
+        { id: "cell_1", row: 0, column: 0, value: "A" },
+        { id: "cell_2", row: 0, column: 1, value: "B" },
+        { id: "cell_3", row: 1, column: 0, value: "C" },
+        { id: "cell_4", row: 1, column: 1, value: "D" },
+      ],
+      settings: { indexBase: 0, showIndexes: true },
+      style: {},
+    }, { ...baseHandlers, onMatrixItemEdit });
+
+    expect(node.x()).toBe(10);
+    expect(node.y()).toBe(20);
+    expect(node.find(".matrix-item")).toHaveLength(4);
+    expect(node.find(".matrix-index")).toHaveLength(5);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["", "0", "1", "0", "A", "B", "1", "C", "D"]);
+
+    const firstCell = node.find(".matrix-item")[0];
+    firstCell.findOne(".matrix-item-value-hit").fire("dblclick", { cancelBubble: false });
+    expect(onMatrixItemEdit).toHaveBeenCalledWith({
+      elementId: "matrix_1",
+      row: 0,
+      column: 0,
+      value: "A",
+    });
+
+    expect(syncElementNode(node, {
+      id: "matrix_1",
+      type: "matrix-structure",
+      x: 12,
+      y: 24,
+      width: 216,
+      height: 132,
+      rows: 2,
+      columns: 2,
+      items: [
+        { id: "cell_1", row: 0, column: 0, value: "A" },
+        { id: "cell_2", row: 0, column: 1, value: "B" },
+        { id: "cell_3", row: 1, column: 0, value: "C" },
+        { id: "cell_4", row: 1, column: 1, value: "X" },
+      ],
+      settings: { indexBase: 1, showIndexes: true },
+      style: {},
+    }, { ...baseHandlers, onMatrixItemEdit })).toBe(true);
+    expect(node.x()).toBe(12);
+    expect(node.find("Text").map((text) => text.text())).toEqual(["", "1", "2", "1", "A", "B", "2", "C", "X"]);
+  });
+
   it("renders independent stack structures with hidden indexes and endpoint labels", () => {
     const node = createElementNode({
       id: "stack_1",
