@@ -556,6 +556,7 @@ export function createWhiteboardApp(root) {
   });
   selectionDragController = createSelectionDragController({
     contentLayer,
+    overlayLayer,
     clearAlignmentGuides: alignmentSnapController.clearAlignmentGuides,
     enterDragging: () => interactionSM.enter(SM.DRAGGING),
     getElementIdFromNode,

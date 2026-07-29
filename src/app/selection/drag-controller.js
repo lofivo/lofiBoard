@@ -1,5 +1,6 @@
 export function createSelectionDragController({
   contentLayer,
+  overlayLayer = null,
   clearAlignmentGuides = () => {},
   enterDragging = () => {},
   getElementIdFromNode = () => null,
@@ -114,9 +115,24 @@ export function createSelectionDragController({
         y: original.y + dy,
       };
     }));
-    renderBoard();
+    // 拖拽只改变位置,无需重建结构/坐标面等复杂子节点:
+    // 直接同步 Konva 节点位置,再重绘与 transformer,避免每帧对全部元素
+    // 做 JSON.stringify 快照比对与全量 syncNode(含结构/坐标面 destroyChildren 重建)。
+    syncMovedNodePositions(originals, dx, dy);
+    transformer.forceUpdate();
+    contentLayer.batchDraw();
+    overlayLayer?.batchDraw?.();
+    syncTextOverlays();
     updateTreeControlsPosition();
     return true;
+  }
+
+  function syncMovedNodePositions(originals, dx, dy) {
+    for (const original of originals) {
+      const node = contentLayer.findOne(`#${original.id}`);
+      if (!node) continue;
+      node.position({ x: original.x + dx, y: original.y + dy });
+    }
   }
 
   function finishSelectionDrag() {

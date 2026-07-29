@@ -98,7 +98,7 @@ function createHarness(overrides = {}) {
 
 describe("drag-controller", () => {
   it("moves unlocked selected elements and suppresses structure clicks after a drag", () => {
-    const { callbacks, controller, nodes, state, structureInteraction } = createHarness();
+    const { callbacks, contentLayer, controller, nodes, state, structureInteraction, transformer } = createHarness();
 
     controller.beginSelectionDrag({ x: 0, y: 0 });
     controller.updateSelectionDrag({ x: 5, y: 7 });
@@ -113,7 +113,10 @@ describe("drag-controller", () => {
       { id: "array_1", x: 25, y: 27 },
       { id: "locked_1", x: 30, y: 30 },
     ]);
-    expect(callbacks.renderBoard).toHaveBeenCalled();
+    expect(transformer.forceUpdate).toHaveBeenCalled();
+    expect(contentLayer.batchDraw).toHaveBeenCalled();
+    expect(nodes["#shape_1"].position).toHaveBeenCalledWith({ x: 5, y: 7 });
+    expect(nodes["#tree_1"].position).toHaveBeenCalledWith({ x: 15, y: 17 });
     expect(callbacks.updateTreeControlsPosition).toHaveBeenCalled();
     expect(callbacks.setSuppressNextSelectionClick).toHaveBeenCalledWith(true);
     expect(callbacks.suppressNextLinearItemSelect).toHaveBeenCalledWith("array_1");
