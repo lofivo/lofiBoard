@@ -12,9 +12,9 @@ const ICON_UNDERLINE = icon(Underline);
 const ICON_STRIKE = icon(Strikethrough);
 const ICON_PANEL = icon(SlidersHorizontal);
 
-const COLORS = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#7c3aed'];
-const FILLS  = ['#ffffff', '#dbeafe', '#fee2e2', '#dcfce7', '#fef3c7', '#ede9fe'];
-const BGS    = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe', '#fed7aa'];
+const COLORS = ['#111827', '#2563eb', '#dc2626', '#16a34a', '#f59e0b'];
+const FILLS  = ['#ffffff', '#dbeafe', '#fee2e2', '#dcfce7', '#fef3c7'];
+const BGS    = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fecaca', '#ddd6fe'];
 const TEXT_PANEL_MODES = new Set(['text', 'sticky']);
 const COLOR_PICKER_WIDTH = 220;
 const COLOR_PICKER_HEIGHT = 180;
@@ -31,16 +31,16 @@ const FONTS = [
 /* ---- tiny helpers ---- */
 
 const labelStyle = { color: 'var(--semi-color-text-2)', fontSize: 12, fontWeight: 600, lineHeight: 1.1 };
-const fieldGap = { display: 'flex', flexDirection: 'column', gap: 6 };
+const fieldGap = { display: 'flex', flexDirection: 'column', gap: 5 };
 
 const cardGroupStyle = {
   background: 'var(--semi-color-fill-0)',
   border: '1px solid var(--semi-color-border)',
   borderRadius: RADIUS.md,
-  padding: '12px',
+  padding: '10px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '10px',
+  gap: '8px',
 };
 
 const cardGroupTitleStyle = {
@@ -61,10 +61,10 @@ function ColorField({ label, colors, value, set }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, ...labelStyle }}>
         <span>{label}</span>
       </div>
-      <div role="group" style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+      <div role="group" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
         {colors.map(c => (
           <button key={c} onClick={() => set?.(c)} title={c}
-            className="color-preset-btn" style={{ width: 24, height: 24, padding: 0, cursor: 'pointer', border: 'none', borderRadius: RADIUS.xs,
+            className="color-preset-btn" style={{ width: 22, height: 22, padding: 0, cursor: 'pointer', border: 'none', borderRadius: RADIUS.xs,
               backgroundColor: c, boxShadow: value === c ? `0 0 0 2px var(--semi-color-primary)` : `inset 0 0 0 1px rgba(0,0,0,0.15)` }} />
         ))}
         <div style={{ width: 1, height: 20, backgroundColor: 'var(--semi-color-border)', margin: '0 3px', flex: 'none' }} />
@@ -87,7 +87,7 @@ function ColorField({ label, colors, value, set }) {
             tabIndex={0}
             aria-label={`${label}调色板`}
             aria-expanded={paletteOpen}
-            style={{ ...colorTriggerBase, backgroundColor: value || '#111827', width: 26, height: 26 }}
+            style={{ ...colorTriggerBase, backgroundColor: value || '#111827', width: 24, height: 24 }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             onClick={(e) => { e.stopPropagation(); togglePalette(); }}
@@ -128,7 +128,7 @@ function CapStyle({ cap, onCap, style, onStyle }) {
   const idleBorder = '1px solid var(--semi-color-border)';
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       <div style={fieldGap}>
         <div style={labelStyle}>笔头</div>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -153,8 +153,9 @@ function CapStyle({ cap, onCap, style, onStyle }) {
       <div style={fieldGap}>
         <div style={labelStyle}>线型</div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {[{v:'solid',t:'solid'},{v:'dash',t:'dashed'},{v:'dot',t:'dotted'}].map(({v,t}) => (
+          {[{v:'solid',t:'solid',label:'实线'},{v:'dash',t:'dashed',label:'虚线'},{v:'dot',t:'dotted',label:'点线'}].map(({v,t,label}) => (
             <button key={v} onClick={()=>onStyle(v)}
+              title={label}
               style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', height:28, padding:0, cursor:'pointer',
                 border: style===v ? '2px solid var(--semi-color-primary)' : '1px solid var(--semi-color-border)',
                 borderRadius:RADIUS.sm, background: style===v ? 'var(--semi-color-primary-light-default)' : 'var(--semi-color-fill-0)' }}>
@@ -167,11 +168,17 @@ function CapStyle({ cap, onCap, style, onStyle }) {
   );
 }
 
-function Preview({ color, width, cap }) {
+function Preview({ color, width, cap, style, opacity }) {
+  const strokeColor = color || '#111827';
+  const sw = width || 6;
+  const linecap = cap || 'round';
+  const dashArray = style === 'dash' ? '14 8' : style === 'dot' ? '2 5' : null;
+  const fillOpacity = opacity != null ? opacity / 100 : 1;
   return (
     <div style={{ borderRadius: RADIUS.sm, background: 'var(--semi-color-fill-0)', padding: 6, overflow: 'hidden' }}>
       <svg viewBox="0 0 280 48" style={{ width: '100%', height: 40, display: 'block' }}>
-        <path d="M 14,24 C 72,10 132,38 266,24" fill="none" stroke={color||'#111827'} strokeWidth={width||6} strokeLinecap={cap||'round'} />
+        <path d="M 24,24 C 80,10 140,38 256,24" fill="none" stroke={strokeColor} strokeWidth={sw}
+          strokeLinecap={linecap} strokeDasharray={dashArray} opacity={fillOpacity} />
       </svg>
     </div>
   );
@@ -202,8 +209,8 @@ function FormatBtns({ bold, italic, underline, strike, onToggle }) {
 
 function BrushCore({ ctx, showFill, showArrow, showCapStyle, showPreview = false }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {showPreview && <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} />}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {showPreview && <Preview color={ctx.brushColor} width={ctx.brushWidth} cap={ctx.brushCap} style={ctx.brushStyle} opacity={ctx.brushOpacity} />}
       <ColorField label={showFill ? '边框颜色' : '颜色'} colors={COLORS} value={ctx.brushColor} set={ctx.setBrushColor} />
       {showFill && <ColorField label="填充颜色" colors={FILLS} value={ctx.fillColor} set={ctx.setFillColor} />}
       <div style={fieldGap}>
@@ -224,7 +231,7 @@ function BrushCore({ ctx, showFill, showArrow, showCapStyle, showPreview = false
 
 function TextCore({ ctx }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <ColorField label="颜色" colors={COLORS} value={ctx.textColor} set={ctx.setTextColor} />
       <div style={fieldGap}>
         <div style={labelStyle}>字体</div>
@@ -241,7 +248,7 @@ function TextCore({ ctx }) {
 
 function StickyCore({ ctx }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <ColorField label="背景颜色" colors={BGS} value={ctx.stickyBgColor} set={ctx.setStickyBgColor} />
       <ColorField label="字体颜色" colors={COLORS} value={ctx.stickyTextColor} set={ctx.setStickyTextColor} />
       <div style={fieldGap}>
@@ -261,7 +268,7 @@ function CoordinateCore({ ctx }) {
   const [activeColor, setActiveColor] = useState(null);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <RangeCtl label="单位间距" min={16} max={120} step={1} value={ctx.coordinateUnitSize||40} onChange={v => ctx.setCoordinateUnitSize?.(v)} />
       <div style={fieldGap}>
         <div style={labelStyle}>显示选项</div>
@@ -293,7 +300,7 @@ function CoordinateCore({ ctx }) {
 }
 
 const colorTriggerBase = {
-  width: 26, height: 26, borderRadius: RADIUS.xs, cursor: 'pointer',
+  width: 24, height: 24, borderRadius: RADIUS.xs, cursor: 'pointer',
   border: '1px solid var(--semi-color-border)',
   transition: 'transform 180ms cubic-bezier(0.33,0,0.2,1)',
   transform: 'scale(1)',
@@ -339,7 +346,7 @@ function MultiInspector({ ctx }) {
   const caps = ctx.selectionCaps || {};
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {(caps.drawing || caps.stroke) && (
         <BrushCore ctx={ctx} showFill={caps.fillShape} showArrow={caps.arrow} showCapStyle={caps.stroke} showPreview={caps.stroke} />
       )}
@@ -366,7 +373,7 @@ const textAreaInner = {
 };
 
 const inputStyle = {
-  width: '100%', boxSizing: 'border-box', height: 28, padding: '0 8px', fontSize: 12,
+  width: '100%', boxSizing: 'border-box', height: 26, padding: '0 8px', fontSize: 12,
   border: '1px solid var(--semi-color-border)', borderRadius: RADIUS.xs,
   background: 'var(--semi-color-fill-0)', color: 'var(--semi-color-text-0)',
   outline: 'none', fontFamily: 'inherit',
@@ -434,7 +441,7 @@ function MatrixStructureInspector({ ctx }) {
   };
 
   return (
-    <div data-matrix-structure-inspector style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div data-matrix-structure-inspector style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={cardGroupStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={cardGroupTitleStyle}>尺寸</div>
@@ -472,7 +479,7 @@ function MatrixStructureInspector({ ctx }) {
           size="small"
           theme="light"
           type="primary"
-          style={{ height: 28, borderRadius: RADIUS.sm }}
+          style={{ height: 26, borderRadius: RADIUS.sm }}
           onClick={applySize}
         >
           应用尺寸
@@ -495,7 +502,7 @@ function MatrixStructureInspector({ ctx }) {
           size="small"
           theme="light"
           type="primary"
-          style={{ height: 28, borderRadius: RADIUS.sm }}
+          style={{ height: 26, borderRadius: RADIUS.sm }}
           onClick={applyInput}
         >
           应用结构
@@ -504,14 +511,14 @@ function MatrixStructureInspector({ ctx }) {
 
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>下标</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
           {[0, 1].map((indexBase) => (
             <Button
               key={indexBase}
               size="small"
               theme={matrix.indexBase === indexBase ? 'light' : 'outline'}
               type={matrix.indexBase === indexBase ? 'primary' : 'tertiary'}
-              style={{ height: 28, borderRadius: RADIUS.sm }}
+              style={{ height: 26, borderRadius: RADIUS.sm }}
               onClick={() => ctx.updateMatrixStructure?.({ indexBase })}
             >
               {indexBase} 下标
@@ -633,7 +640,7 @@ function LinearStructureInspector({ ctx }) {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* 1. 数据输入 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>数据输入</div>
@@ -651,7 +658,7 @@ function LinearStructureInspector({ ctx }) {
       {/* 2. 元素高亮指示器 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>元素高亮指示器</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
           <div style={fieldGap}>
             <div style={labelStyle}>高亮起点</div>
             <Input value={hStart} size="small"
@@ -669,9 +676,9 @@ function LinearStructureInspector({ ctx }) {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 4 }}>
-          <Button size="small" theme="light" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: 600 }}
+          <Button size="small" theme="light" type="tertiary" style={{ height: 26, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: 600 }}
             onClick={() => ctx.runAction?.('array-highlight')}>应用高亮</Button>
-          <Button size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm }}
+          <Button size="small" theme="outline" type="tertiary" style={{ height: 26, fontSize: 12, borderRadius: RADIUS.sm }}
             onClick={() => ctx.runAction?.('array-clear-highlight')}>清除高亮</Button>
         </div>
       </div>
@@ -679,7 +686,7 @@ function LinearStructureInspector({ ctx }) {
       {/* 3. 下标与指针选项 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>下标与指针选项</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
           {[
             { action: 'linear-index-zero', label: '0 下标' },
             { action: 'linear-index-one', label: '1 下标' },
@@ -688,7 +695,7 @@ function LinearStructureInspector({ ctx }) {
             { action: 'linear-pointer-show', label: '显示指针' },
             { action: 'linear-pointer-hide', label: '隐藏指针' },
           ].map(a => (
-            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 28, fontSize: 11, padding: 0, borderRadius: RADIUS.xs }}
+            <Button key={a.action} size="small" theme="outline" type="tertiary" style={{ height: 26, fontSize: 11, padding: 0, borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
@@ -724,7 +731,7 @@ function LinearStructureInspector({ ctx }) {
         }}>
           {algoStatus || '选择数组后开始演示'}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
           {[
             { action: 'array-algorithm-start', label: '开始', main: true, disabled: startDisabled },
             { action: 'array-algorithm-prev', label: '上一步', disabled: prevDisabled },
@@ -737,7 +744,7 @@ function LinearStructureInspector({ ctx }) {
               theme={a.main ? "light" : "outline"}
               type="tertiary"
               disabled={a.disabled}
-              style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: a.main ? 600 : 400 }}
+              style={{ height: 26, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: a.main ? 600 : 400 }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
@@ -789,7 +796,7 @@ function GraphStructureInspector({ ctx }) {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* 1. 图结构数据 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>图结构数据</div>
@@ -873,7 +880,7 @@ function TreeStructureInspector({ ctx }) {
   const actions = treeKind === 'binary' ? BINARY_TREE_TRAVERSAL_ACTIONS : TREE_TRAVERSAL_ACTIONS;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* 1. 树结构数据 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>树结构数据</div>
@@ -891,14 +898,14 @@ function TreeStructureInspector({ ctx }) {
       {/* 2. 遍历与交互 */}
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>遍历与交互</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 5 }}>
           {actions.map(a => {
             const isClear = a.action.includes('clear');
             return (
               <Button key={a.action} size="small"
                 theme={isClear ? "outline" : "light"}
                 type="tertiary"
-                style={{ height: 28, fontSize: 12, borderRadius: RADIUS.sm }}
+                style={{ height: 26, fontSize: 12, borderRadius: RADIUS.sm }}
                 onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
             );
           })}
@@ -992,14 +999,14 @@ export default function StylePanel() {
 
   return (
     <>
-      <aside style={{ ...PANEL_STYLE, left: 0, width: 260, maxHeight: 'calc(100vh - 64px)', padding: 18,
+      <aside style={{ ...PANEL_STYLE, left: 0, width: 212, maxHeight: 'calc(100vh - 64px)', padding: 14,
         borderRadius: `0 ${RADIUS.lg}px ${RADIUS.lg}px 0`, borderLeft: 0, transform: panelTransform,
         opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
           <span style={{ display:'flex', alignItems:'center', gap:8, fontWeight:600, fontSize:13, color:TEXT.primary }}
             dangerouslySetInnerHTML={{ __html: ICON_PANEL + panelTitle }} />
           <button type="button" onClick={() => ctx.setStylePanelCollapsed?.(true)}
-            style={{ width:32, height:32, padding:0, border:'none', borderRadius:RADIUS.sm, cursor:'pointer',
+            style={{ width:28, height:28, padding:0, border:'none', borderRadius:RADIUS.sm, cursor:'pointer',
               background:'transparent', color:TEXT.tertiary, display:'flex', alignItems:'center', justifyContent:'center' }}
             aria-label="收起属性"
             dangerouslySetInnerHTML={{ __html: icon(ChevronLeft) }} />
@@ -1017,7 +1024,7 @@ export function StylePanelToggle({ collapsed, onClick }) {
       style={{
         ...GLASS_EDGE,
         position: 'fixed', zIndex: 26, top: '50%', left: 0, transform: 'translateY(-50%)',
-        width: 32, height: 56, padding: 0,
+        width: 28, height: 52, padding: 0,
         borderLeft: 0, borderRadius: `0 ${RADIUS.sm}px ${RADIUS.sm}px 0`,
         cursor: 'pointer', color: TEXT.secondary,
         display: collapsed ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center',

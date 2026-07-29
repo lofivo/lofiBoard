@@ -94,6 +94,7 @@ React 外壳承载可见 chrome，但不替换画板交互内核。`Topbar`、`T
 - 文本元素是 Konva Group 包 Text，宽高变化要同步外层 Group、hit area 和内部 Text。
 - 非编辑态宽度缩放先用 Canvas 测量即时预览，再用 DOM 实际高度修正；Canvas/启发式高度只作 DOM 尚不可用时的兜底。
 - 便签继续使用原有固定尺寸语义，不使用 `editWidth` / `editHeight`。
+- 便签支持显式或整段 LaTeX 渲染，复用 `text-overlay-controller.js` 和 `syncTextNodeContent()` 的 LaTeX 渲染路径；渲染结果覆盖在便签 Konva.Text 上方，尺寸仍遵循便签固定宽度/高度语义。
 
 ## 绘制和橡皮
 

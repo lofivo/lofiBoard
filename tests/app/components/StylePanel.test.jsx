@@ -184,7 +184,7 @@ describe("StylePanel", () => {
       stylePanelTitle: "画笔",
     });
 
-    expect(host.querySelector('path[d^="M 14,24"]')).not.toBeNull();
+    expect(host.querySelector('path[d^="M 24,24"]')).not.toBeNull();
   });
 
   it("closes the palette when its trigger is clicked again", () => {

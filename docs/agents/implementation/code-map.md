@@ -13,6 +13,8 @@
 - `src/algorithms/`：算法步骤生成，目前主要是数组排序。
 - `src/services/`：文件、剪贴板、图片导入、本地草稿、LaTeX 和文本 overlay 服务。
 - `src/ui/`：工具栏、菜单、上下文菜单、面板等 UI 配置和轻量状态。
+- `src/ui/tokens.js`：浮层 chrome 的唯一设计令牌来源（圆角、阴影、颜色变量、毛玻璃浮层底座）。组件内不写死 hex，颜色一律走 Semi 令牌或 `--board-*` 变量。
+- `src/vendor/semi-ui.js`：Semi UI 按需导入替换入口。`vite.config.js` 的 `resolve.alias` 把 `@douyinfe/semi-ui` 重定向到此文件，手动列出要用到的组件，配合 Rollup `manualChunks` 做按需打包。
 - `src/styles.css`：全局样式、面板状态、文本 overlay、结构控件等样式入口。
 
 ## React 外壳桥接
