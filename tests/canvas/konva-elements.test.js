@@ -1609,6 +1609,8 @@ describe("konva elements", () => {
     expect(node.y()).toBe(20);
     expect(node.find(".matrix-item")).toHaveLength(4);
     expect(node.find(".matrix-index")).toHaveLength(5);
+    expect(node.find(".matrix-corner-diagonal")).toHaveLength(1);
+    expect(node.findOne(".matrix-corner-diagonal").points()).toEqual([0, 0, 72, 44]);
     expect(node.find("Text").map((text) => text.text())).toEqual(["", "0", "1", "0", "A", "B", "1", "C", "D"]);
 
     const firstCell = node.find(".matrix-item")[0];

@@ -936,7 +936,7 @@ function createMatrixStructureNode(element, common, {
     height,
   });
 
-  const addCell = ({ name, row, column, value, fill, textFill, attrs = {} }) => {
+  const addCell = ({ name, row, column, value, fill, textFill, diagonal = false, attrs = {} }) => {
     const cell = new Konva.Group({
       name,
       x: column * style.cellWidth,
@@ -976,6 +976,15 @@ function createMatrixStructureNode(element, common, {
       });
     }
     cell.add(rect);
+    if (diagonal) {
+      cell.add(new Konva.Line({
+        name: "matrix-corner-diagonal",
+        points: [0, 0, style.cellWidth, style.cellHeight],
+        stroke: style.stroke,
+        strokeWidth: 1,
+        listening: false,
+      }));
+    }
     cell.add(text);
     group.add(cell);
   };
@@ -988,6 +997,7 @@ function createMatrixStructureNode(element, common, {
       value: "",
       fill: style.indexFill,
       textFill: style.indexTextFill,
+      diagonal: true,
     });
     for (let column = 0; column < columns; column += 1) {
       addCell({
