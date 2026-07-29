@@ -25,7 +25,7 @@ _Avoid_: app state, document session, file state
 _Avoid_: autosave file, backup document, persisted board
 
 **元素 (Element)**:
-画板上的可操作实体。类型包括笔触、文字、便签、图片、矩形、椭圆、线段、箭头、坐标系，以及数组/栈/队列/双端队列/图/树等结构。
+画板上的可操作实体。类型包括笔触、文字、便签、图片、矩形、椭圆、线段、箭头、坐标系，以及数组/二维数组/栈/队列/双端队列/图/树等结构。
 _Avoid_: item, node(数据语境), shape
 
 **形状 (Shape)**:
@@ -71,6 +71,10 @@ _Avoid_: level
 **结构 (Structure)**:
 一类复合元素，包括线性结构（数组/栈/队列/双端队列）、二维数组和关联结构（图/树）。
 _Avoid_: composite, container
+
+**二维数组 (Matrix Structure)**:
+按行列组织单元格的独立结构元素。输入文本用换行或分号分隔行、逗号分隔列；`row` / `column` 是单元格内部零基坐标，显示下标可从 0 或 1 开始。
+_Avoid_: matrix(图结构的邻接矩阵语境), table, grid
 
 **结构交互 (Structure Interaction)**:
 结构元素内部的操作流程，包括线性结构单元格选择/拖拽/指针拖拽、二维数组单元格编辑与行列调整、数组算法演示、图节点连边、树节点选择/编辑/遍历、结构浮动控件，以及这些操作引发的选区、历史记录和形状同步。

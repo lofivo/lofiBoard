@@ -31,15 +31,17 @@
 
 ## React 面板交互
 
-React 外壳只替换部分 UI，不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。
+React 外壳承载可见 chrome，但不替换画板交互内核。`Topbar`、`ToolDock`、`StylePanel`、`StructurePanel`、`LayerPanel`、`ContextMenu` 和 `StatusBar` 通过 `WhiteboardContext` 调用 `App.jsx` 中的桥接函数。
 
-典型流程（AGENTS.md 第 39/40 条的双门面闭环）：
+典型的双门面闭环：
 
 1. 引擎 controller 更新模型、Konva node 和内部状态。
 2. `App.jsx` 每 100ms 调一次 `app.getUiState()` 取全量快照，逐字段 diff 后写入 React context；文本缩放等高频预览状态通过 `app.subscribeUiState()` 主动通知，并在下一动画帧合并同步，避免属性栏出现 100ms 的阶梯式延迟。
 3. React 组件显示受控控件。
 4. 用户操作 React 控件后，组件通过 `ctx.runAction()`、`ctx.setTool()`、`ctx.runContextAction()`、`ctx.setProperty()` 等调用 `app.commands.*`。
 5. 引擎 controller 修改画板模型、历史和 Konva node，下一次 `getUiState()` 把新状态带回 React。
+
+二维数组是已迁移到门面的结构属性栏：`getUiState().matrixStructure` 提供所选元素的二维文本、行列数和下标设置，`commands.updateMatrixStructure(patch)` 负责提交修改。批量数据、尺寸和下标设置都应沿这条链路更新，不能在 React 中直接改画板对象。
 
 改 React 控件时要沿着这条闭环验证：显示值必须能从 `getUiState()` 回灌，用户输入必须经 `commands.*` 进入引擎。只改 React state 会导致控件回弹或画板模型没有变化。不要在 React 里 `querySelector` 遗留 DOM 再 `.click()` 或派发合成事件。
 

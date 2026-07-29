@@ -1,12 +1,12 @@
 # 测试指南
 
-项目要求测试优先：实现功能或修复 bug 前，先补对应测试，再改实现，最后确保测试通过。禁止为了绕过测试而面向测试用例编程。
+项目测试栈是 Vitest。功能修改应补足与风险匹配的回归测试，并优先把纯规则放在不依赖浏览器的模块中验证。
 
 ## 基本命令
 
 - 全量测试：`npm test`
 - 单个测试文件：`npm test -- tests/path/to/file.test.js`
-- 测试套件禁止使用 Playwright（测试栈是 Vitest）。需要真实浏览器人工验证时按 AGENTS.md 第 42 条：确认点到的是 React 控件而不是同名的遗留 DOM 按钮。
+- 当前自动化测试不包含 Playwright；需要真实浏览器验证时，确认操作命中 React 可见控件，而不是 `legacyRootRef` 内为引擎保留的同名 DOM 控件。
 
 ## 按改动选择测试
 
@@ -17,6 +17,8 @@
 - 修改选区、拖拽、Transformer、对齐：运行 `tests/app/selection/*` 和 `tests/tools/interaction-state-machine.test.js`。
 - 修改工具、画笔、橡皮、图形预览：运行 `tests/app/tools/*`、`tests/tools/stroke-engine.test.js`、`tests/tools/behavior.test.js`、`tests/canvas/geometry.test.js`。
 - 修改结构：运行 `tests/structures/*` 和 `tests/app/structures/*`。
+- 修改结构模板随机初始化或树遍历：运行 `tests/structures/templates.test.js`、`tests/app/structures/panel-controller.test.js`、`tests/app/components/StructurePanel.test.jsx`、`tests/app/components/StylePanel.test.jsx` 和 `tests/app/shell/shell.test.js`。
+- 修改二维数组解析、尺寸、持久化、单元格编辑或属性栏：运行 `tests/structures/templates.test.js`、`tests/board/model.test.js`、`tests/canvas/konva-elements.test.js`、`tests/app/structures/cell-editor-controller.test.js`、`tests/app/components/StylePanel.test.jsx` 和 `tests/app/shell/whiteboard-app-startup.test.js`。
 - 修改图结构属性栏、有向图开关、节点大小或结构输入桥接：运行 `tests/structures/templates.test.js`、`tests/app/structures/inspector-sync-controller.test.js`，并按涉及组件运行 `tests/app/components/*`。
 - 修改数组算法：运行 `tests/algorithms/array.test.js` 和 `tests/app/algorithms/array/*`。
 - 修改 React 外壳、React 面板、右键菜单或 `commands` / `getUiState` 门面桥接：运行对应 `tests/app/App.*.test.jsx`、`tests/app/components/*`，必要时补 `tests/app/inspector/*` 或 `tests/app/structures/*`。
@@ -50,5 +52,6 @@ rg "关键词|函数名|用户可见文案" tests src
 - `pointerdown` 到首次 `dragmove` 之间不要重建正在拖拽的 Konva node。
 - 数组算法运行中不能允许线性结构内容被同时编辑。
 - 保存画板前不能把结构运行时投影、算法 marker、选区或工具状态写入文件。
+- 二维数组改尺寸要保留仍在范围内的单元格及其 id；显示/隐藏下标后元素中心不能漂移，锁定后不能双击编辑单元格。
 - React 受控控件必须能从 `getUiState()` 回灌，并经 `commands.*` 门面闭环进入引擎 controller；不要恢复 `querySelector` + `.click()` / 合成事件的旧桥接。
-- 删除引擎读取的 DOM 或改属性 store 时，必须补一条真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的绘制路径测试，并验证改回旧写法时测试会红（AGENTS.md 第 41 条）。
+- 删除引擎读取的 DOM 或修改属性 store 时，要补真实走 `stage.eventHandlers.pointerdown → pointermove → pointerup` 的绘制路径测试，避免只验证组件表面状态而漏掉应用接线。

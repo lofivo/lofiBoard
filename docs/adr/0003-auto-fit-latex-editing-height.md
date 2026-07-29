@@ -1,5 +1,6 @@
 ---
 status: accepted
+amends: 0002-independent-text-editing-and-render-boxes
 ---
 
 # LaTeX 编辑框高度自动贴合源码

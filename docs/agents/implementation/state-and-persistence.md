@@ -21,9 +21,11 @@
 - 便签：`sticky`
 - 图片：`image`
 - 图形：`rect`、`ellipse`、`line`、`arrow`、`coordinate-plane`
-- 结构：`array-structure`、`stack-structure`、`queue-structure`、`deque-structure`、`graph-structure`、`tree-structure`
+- 结构：`array-structure`、`matrix-structure`、`stack-structure`、`queue-structure`、`deque-structure`、`graph-structure`、`tree-structure`
 
 新增字段要判断是否写入 `.lofibrd`。纯会话状态不要放进持久化元素字段。
+
+`matrix-structure` 使用 `rows` / `columns` 记录尺寸，`items` 中每个单元格保存稳定 `id`、零基 `row` / `column` 和字符串 `value`，`settings` 保存 `indexBase` 与 `showIndexes`。属性栏调整尺寸时限制为 1 到 32 行/列，并保留新范围内已有坐标的单元格；读入旧文件时，`normalizeElement()` 还会根据已有单元格坐标补足缺失的行列尺寸，并重新计算元素宽高。
 
 `text` 元素有两套尺寸数据：
 
@@ -79,6 +81,7 @@
 - `interactionSM` 当前状态
 - 文本编辑 DOM overlay
 - 线性结构活动单元格、拖拽预览、指针拖拽
+- 二维数组单元格的 DOM 编辑器
 - 树活动节点和浮动控件位置
 - 数组算法会话、播放 timer、动画 tween
 

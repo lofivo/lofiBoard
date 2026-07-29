@@ -1,56 +1,16 @@
-# Domain Docs
+# 领域文档使用说明
 
-How the engineering skills should consume this repo's domain documentation when exploring the codebase.
+lofiBoard 是单上下文仓库。根目录 `CONTEXT.md` 维护统一领域词汇，`docs/adr/` 记录已经接受的架构决策，`docs/agents/implementation/` 记录当前实现导航。
 
-## Before exploring, read these
+## 阅读顺序
 
-- **`CONTEXT.md`** at the repo root, or
-- **`CONTEXT-MAP.md`** at the repo root if it exists — it points at one `CONTEXT.md` per context. Read each one relevant to the topic.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
-- **`docs/agents/implementation/README.md`** — read this after the glossary/ADRs when you need to modify code. It points to implementation-specific docs for code maps, state, interactions, structures, whiteboard interaction maturity, and tests.
+1. 先读 `CONTEXT.md`，统一画板、画布、元素、形状、结构和交互状态等术语。
+2. 按任务阅读相关 ADR。涉及目录边界时读 ADR 0001，涉及文字/LaTeX 尺寸时读 ADR 0002 和 0003。
+3. 修改代码前读 `docs/agents/implementation/README.md`，再进入对应专题文档。
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+## 维护边界
 
-## File structure
-
-Single-context repo (most repos):
-
-```
-/
-├── CONTEXT.md
-├── docs/adr/
-│   ├── 0001-event-sourced-orders.md
-│   └── 0002-postgres-for-write-model.md
-└── src/
-```
-
-Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
-
-```
-/
-├── CONTEXT-MAP.md
-├── docs/adr/                          ← system-wide decisions
-└── src/
-    ├── ordering/
-    │   ├── CONTEXT.md
-    │   └── docs/adr/                  ← context-specific decisions
-    └── billing/
-        ├── CONTEXT.md
-        └── docs/adr/
-```
-
-## Use the glossary's vocabulary
-
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
-
-If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/grill-with-docs`).
-
-## Use implementation docs for code changes
-
-`CONTEXT.md` is a glossary, not an implementation guide. For implementation work, read `docs/agents/implementation/README.md` and the matching topic document before changing code. If you learn a reusable implementation fact while fixing a bug or adding a feature, update the matching implementation document instead of adding implementation detail to `CONTEXT.md`.
-
-## Flag ADR conflicts
-
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
-
-> _Contradicts ADR-0007 (event-sourced orders) — but worth reopening because…_
+- `CONTEXT.md` 只记录长期稳定的领域含义和禁用同义词，不放控制器接线、文件路径或临时实现细节。
+- `docs/agents/implementation/` 记录代码位置、状态所有权、交互链路和测试入口；跨模块流程变化时同步更新。
+- `docs/adr/` 只记录难以逆转、存在真实取舍且需要长期遵守的决策。新实现若与已接受 ADR 冲突，必须先明确指出并更新或取代原决策。
+- 新概念若无法用现有词汇准确表达，先确认它确实是领域概念，再补充 `CONTEXT.md`；不要为单个函数或 UI 文案制造领域词。

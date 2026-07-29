@@ -7,11 +7,9 @@
 - `src/structures/*`：纯结构规则，负责解析、创建、更新、布局、导出。
 - `src/app/structures/*`：应用交互，负责面板、选区、浮动控件、拖拽、编辑、历史和渲染同步。
 
-结构元素包括线性结构、二维数组、图和树。线性结构包括数组、栈、队列、双端队列；二维数组使用换行分隔行、逗号分隔列；树结构通过 `settings.treeKind` 区分普通树和二叉树。
+结构元素包括线性结构、二维数组、图和树。线性结构包括数组、栈、队列、双端队列；树结构通过 `settings.treeKind` 区分普通树和二叉树。
 
-二维数组属性栏通过 `getUiState().matrixStructure` 回灌内容、行列数和下标设置，通过 `commands.updateMatrixStructure()` 更新数据、行列数、0/1 下标起点和下标可见性。行列数限制为 1 到 32；调整尺寸时保留新范围内原坐标上的单元格，新增位置初始化为空。该流程不依赖遗留 DOM 控件。
-
-二维数组单元格由 `konva-elements.js` 把双击事件适配为 `onMatrixItemEdit`，再交给 `cell-editor-controller.js` 创建与单元格对齐的 `.cell-editor`。`Enter` 或失焦提交，`Escape` 取消；提交后更新画板模型、恢复结构选区并写入历史。
+结构模板统一支持手填和随机生成。随机数量输入对线性结构表示元素数量，对图/树表示节点数量，对二维数组表示方阵阶数；线性结构、图和树限制为 1 到 64，二维数组限制为 1 到 32 阶。
 
 ## 结构运行时
 
@@ -49,9 +47,25 @@
 
 线性结构属性栏选择“0 下标”或“1 下标”时，会在同一次结构编辑中自动开启下标显示；用户仍可随后通过“隐藏下标”单独关闭显示。
 
+## 二维数组
+
+纯逻辑集中在 `src/structures/matrix-structure.js`：
+
+- 输入使用换行或分号分隔行、逗号分隔列；短行会在右侧补空单元格，导出统一使用换行和逗号。
+- `rows` / `columns` 表示尺寸，单元格用稳定 `id`、零基 `row` / `column` 和字符串 `value` 表示。
+- 属性栏调整行列数时限制为 1 到 32，保留新范围内原坐标上的单元格，新增位置初始化为空。
+- 切换 0/1 下标或下标显隐会围绕元素中心重新计算尺寸。显示下标时，左上角空白表头使用对角线区分行、列标题。
+- 随机初始化按指定阶数生成方阵，单元格值沿用线性结构的 0 到 99 随机整数规则。
+
+属性栏通过 `getUiState().matrixStructure` 回灌二维文本、行列数和下标设置，通过 `commands.updateMatrixStructure()` 提交数据、尺寸和显示选项。该流程不依赖遗留 DOM 控件。
+
+单元格编辑由 `src/canvas/konva-elements.js` 把双击/双击触控事件适配为 `onMatrixItemEdit`，再交给 `src/app/structures/cell-editor-controller.js` 创建与单元格对齐的 `.cell-editor`。`Enter` 或失焦提交，`Escape` 取消；提交后更新模型、恢复结构选区并写入一条历史。锁定结构时不得进入单元格编辑。
+
 ## 图结构
 
 纯逻辑在 `src/structures/graph-structure.js`。支持边列表、邻接表、邻接矩阵导入导出，节点/边增删，节点移动，边方向和权重更新，图布局和高亮。
+
+随机初始化按节点数生成标签 `1..n` 的无向图：先为每个新节点随机选择一个已有节点形成生成树以保证连通，再按节点规模为尚未连接的点对随机补边。
 
 图结构的节点 id 和 label 要区分。用户看到的是 label，边内部连接用节点 id。
 
@@ -75,6 +89,8 @@
 - 普通树支持添加子节点、左右兄弟、移动节点、折叠子树、遍历高亮。
 - 二叉树限制每个父节点最多左/右两个子节点，并自动布局。
 - 根节点通过 `settings.rootId` 记录。
+- 普通树和二叉树都支持中序遍历。普通树采用“第一个子树 → 根 → 其余子树”的广义中序定义；二叉树保持“左子树 → 根 → 右子树”。
+- 随机初始化根据节点数创建完全树形输入；二叉树同时记录明确的左右孩子关系。
 
 树节点点击/双击必须由节点自身事件负责，不能在画布选择入口直接吞掉 `.tree-node` 命中。
 
@@ -103,5 +119,7 @@
 
 - 纯结构规则：`tests/structures/*`
 - 结构应用交互：`tests/app/structures/*`
+- 二维数组模型与渲染：`tests/structures/templates.test.js`、`tests/board/model.test.js`、`tests/canvas/konva-elements.test.js`
+- 二维数组属性栏与命令桥接：`tests/app/components/StylePanel.test.jsx`、`tests/app/shell/whiteboard-app-startup.test.js`
 - 数组算法纯步骤：`tests/algorithms/array.test.js`
 - 数组算法应用会话/面板：`tests/app/algorithms/array/*`

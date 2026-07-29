@@ -1,45 +1,45 @@
-# Issue tracker: GitHub
+# Issue Tracker：GitHub
 
-Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+本仓库的 issue 和 PRD 位于 GitHub 仓库 `lofivo/lofiBoard`，统一使用 `gh` CLI 操作。首次操作前运行 `gh auth status` 确认登录账号和权限。
 
-## Conventions
+## 常用操作
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
-- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh issue comment <number> --body "..."`
-- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh issue close <number> --comment "..."`
+- **创建 issue**：`gh issue create --title "..." --body "..."`。多行正文使用 heredoc。
+- **读取 issue**：`gh issue view <number> --comments`，同时获取标签，需要筛选评论时使用 `jq`。
+- **列出 issue**：`gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'`，并按任务补充 `--label` 和 `--state`。
+- **评论**：`gh issue comment <number> --body "..."`
+- **增删标签**：`gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+- **关闭**：`gh issue close <number> --comment "..."`
 
-Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
+在仓库目录内运行时，`gh` 会根据 `git remote -v` 自动识别目标仓库。
 
-## Pull requests as a triage surface
+## PR 是否参与分流
 
-**PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
+**PR 不是需求入口：no。** 外部需求只通过 issue 进入分流。
 
-When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
+若以后把该值改为 `yes`，PR 使用与 issue 相同的标签和状态，并改用对应的 `gh pr` 命令：
 
-- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
-- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
-- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
+- **读取 PR**：`gh pr view <number> --comments`，并用 `gh pr diff <number>` 查看差异。
+- **列出待分流的外部 PR**：运行 `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments`，只保留 `authorAssociation` 为 `CONTRIBUTOR`、`FIRST_TIME_CONTRIBUTOR` 或 `NONE` 的条目，排除 `OWNER`、`MEMBER` 和 `COLLABORATOR`。
+- **评论、标签和关闭**：`gh pr comment`、`gh pr edit --add-label` / `--remove-label`、`gh pr close`。
 
-GitHub shares one number space across issues and PRs, so a bare `#42` may be either — resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+GitHub 的 issue 和 PR 共用编号空间。遇到单独的 `#42` 时先运行 `gh pr view 42`，失败后再运行 `gh issue view 42`。
 
-## When a skill says "publish to the issue tracker"
+## 发布到 issue tracker
 
-Create a GitHub issue.
+创建一个 GitHub issue。
 
-## When a skill says "fetch the relevant ticket"
+## 获取相关 ticket
 
-Run `gh issue view <number> --comments`.
+运行 `gh issue view <number> --comments`。
 
-## Wayfinding operations
+## Wayfinding 操作
 
-Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
+供 `/wayfinder` 使用。**map** 是一个总 issue，**child** issue 是具体 ticket。
 
-- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
-- **Child ticket**: an issue linked to the map as a GitHub sub-issue (`gh api` on the sub-issues endpoint). Where sub-issues aren't enabled, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
-- **Blocking**: GitHub's **native issue dependencies** — the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only — the live gate). Where dependencies aren't available, fall back to a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed.
-- **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
-- **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write.
-- **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+- **Map**：带 `wayfinder:map` 标签的单个 issue，正文维护 Notes / Decisions-so-far / Fog。创建命令：`gh issue create --label wayfinder:map`。
+- **Child ticket**：通过 GitHub sub-issue API 关联到 map。若仓库未启用 sub-issue，则把 child 加入 map 正文的任务列表，并在 child 正文顶部写 `Part of #<map>`。标签使用 `wayfinder:<type>`，类型为 `research`、`prototype`、`grilling` 或 `task`；认领后分配给执行者。
+- **阻塞关系**：以 GitHub 原生 issue dependency 为准。使用 `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>` 添加，其中 `<blocker-db-id>` 是阻塞 issue 的数字 database id，可用 `gh api repos/<owner>/<repo>/issues/<n> --jq .id` 获取，不是 `#number` 或 `node_id`。若依赖功能不可用，在 child 正文顶部写 `Blocked by: #<n>, #<n>`；所有 blocker 关闭后 ticket 才算解除阻塞。
+- **Frontier 查询**：按 map 顺序列出仍打开的 child，排除 `issue_dependencies_summary.blocked_by > 0`、`Blocked by` 中仍有开放 issue 或已有 assignee 的条目，取第一个可执行 ticket。
+- **认领**：`gh issue edit <n> --add-assignee @me`，这是一次会话的首次写操作。
+- **解决**：先运行 `gh issue comment <n> --body "<answer>"`，再运行 `gh issue close <n>`，最后把上下文指针（gist + 链接）追加到 map 的 Decisions-so-far。

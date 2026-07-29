@@ -1,7 +1,13 @@
-# Domain and App Layer Directories
+---
+status: accepted
+---
 
-Domain directories under `src/<domain>/` hold pure logic, domain rules, and independently testable model functions, while matching directories under `src/app/<domain>/` hold controllers that coordinate DOM, Konva, selection, board session state, and application wiring. We keep both layers because modules such as structures, tools, and algorithms need a stable boundary between reusable behavior and app-specific orchestration; inside a domain directory, filenames should omit repeated domain prefixes when the directory already provides that context, while cross-domain or shared modules keep qualifiers that clarify ownership.
+# 领域层与应用层目录
 
-When several modules belong to the same sub-concept inside an app directory, prefer a subdirectory for that concept and keep filenames role-focused, such as `controller.js`, `dom-controller.js`, `action-controller.js`, or `markup.js`. Source file naming does not force matching changes to CSS classes, `data-*` attributes, action ids, or persisted board data; those names are UI or storage contracts and should change only for a separate compatibility-aware reason.
+`src/<domain>/` 下的领域目录保存纯逻辑、领域规则和可独立测试的模型函数；`src/app/<domain>/` 下的对应目录保存协调 DOM、Konva、选区、画板会话状态和应用接线的 controller。结构、工具和算法等模块需要在可复用行为与应用编排之间保持稳定边界，因此保留这两层。
 
-`createWhiteboardApp()` is the application composition root: it owns the browser/Konva setup and wires controllers together, while extracted controllers receive their collaborators as dependencies instead of importing mutable app state. This keeps startup wiring visible in one place and lets app-level behavior stay testable without moving domain rules out of `src/<domain>/`.
+领域目录已经提供上下文时，文件名不重复领域前缀；跨领域或共享模块保留能说明所有权的限定词。应用目录中多个模块属于同一子概念时，优先建立子目录，文件名只表达角色，例如 `controller.js`、`dom-controller.js`、`action-controller.js` 或 `markup.js`。
+
+源码文件改名不要求同步修改 CSS 类、`data-*` 属性、action id 或持久化画板字段；这些名称属于 UI 或存储契约，只有在单独评估兼容性后才可修改。
+
+`createWhiteboardApp()` 是应用组合根，负责浏览器/Konva 初始化和 controller 接线。抽取出的 controller 通过依赖注入接收协作者，不直接导入可变应用状态。这样既能把启动接线集中在一处，也能测试应用层行为，同时让领域规则继续留在 `src/<domain>/`。

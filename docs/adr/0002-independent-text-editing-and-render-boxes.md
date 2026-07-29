@@ -1,5 +1,6 @@
 ---
 status: accepted
+amended-by: 0003-auto-fit-latex-editing-height
 ---
 
 # 文本元素分离编辑框与渲染框

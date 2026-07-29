@@ -104,3 +104,19 @@ HOST=127.0.0.1 PORT=4173 npm run start
 ```bash
 DEPLOY_DIR=/var/www/lofibrd/dist npm run deploy:static
 ```
+
+`deploy:static` 会让目标目录与本次 `dist/` 完全一致：使用 `rsync` 时带 `--delete`，没有 `rsync` 时会先清空目标目录。`DEPLOY_DIR` 必须指向专用的静态产物目录，不能指向仓库或包含其他文件的共享目录。
+
+开发服务同样支持 `HOST` / `PORT`，日志和进程信息写入 `.runtime/`：
+
+```bash
+HOST=0.0.0.0 PORT=5173 npm run start:dev
+npm run stop:dev
+```
+
+其他维护脚本：
+
+```bash
+npm run deploy:build # 安装依赖并构建 dist/
+npm run bench:render # 运行渲染基准脚本
+```

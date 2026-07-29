@@ -1,3 +1,13 @@
+
+
+## 启动脚本
+```bash
+./start-dev.sh # 启动开发环境
+```
+```bash
+./stop-dev.sh # 停止开发环境
+```
+
 ## Agent skills
 
 ### Issue tracker
