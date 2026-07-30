@@ -1200,7 +1200,10 @@ describe("konva elements", () => {
     expect(node.strokeWidth()).toBe(8);
     expect(node.opacity()).toBe(0.45);
     expect(node.lineCap()).toBe("square");
-    expect(node.tension()).toBe(0.2);
+    // 虚线/点线用折线渲染(tension 0),让 dash 相位能按折线长度精确对齐,
+    // 擦除切分后右段不会整体平移。实线仍保留 smoothing 的 tension。
+    expect(node.tension()).toBe(0);
+    expect(node.dashOffset()).toBe(0);
     expect(node.dash()).toEqual([24, 16]);
   });
 
@@ -1227,6 +1230,23 @@ describe("konva elements", () => {
     expect(node.y()).toBe(40);
     expect(node.points()).toEqual([0, 0, 20, 20]);
     expect(node.strokeWidth()).toBe(8);
+  });
+
+  it("keeps smoothing tension for solid strokes and records dashOffset for split fragments", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      points: [{ x: 0, y: 0 }, { x: 20, y: 20 }],
+      stroke: "#111827",
+      strokeWidth: 6,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "solid",
+      smoothing: 0.45,
+    }, baseHandlers);
+
+    expect(node.tension()).toBe(0.45);
+    expect(node.dashOffset()).toBe(0);
   });
 
   it("renders pressure-sensitive strokes with a custom shape", () => {
@@ -1447,6 +1467,61 @@ describe("konva elements", () => {
     expect(context.arc).not.toHaveBeenCalled();
     expect(context.stroke.mock.calls.length).toBeGreaterThan(2);
     expect(context.setAttr).toHaveBeenCalledWith("lineCap", "square");
+  });
+
+  it("continues dash phase across an erased fragment via dashOffset", () => {
+    // 一段长 100 的笔触,虚线 dash=24/gap=16(周期 40)。dashOffset=24 表示本段
+ // 起点处于间隙,因此第一段 dash 不应画在 x=0,而要到 x=16(下一个周期起点)。
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      forcePressureStroke: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 8,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "dash",
+      dashOffset: 24,
+      smoothing: 0.45,
+    }, baseHandlers);
+    const context = createMockCanvasContext();
+
+    node.sceneFunc()(context, node);
+
+    const firstMoveX = context.moveTo.mock.calls[0][0];
+    expect(firstMoveX).toBeCloseTo(16, 5);
+  });
+
+  it("anchors dotted phase to the original start grid via dashOffset", () => {
+    // 点线 spacing=14.4。dashOffset=20 → 第一个点取 >=20 的最近网格点 28.8,
+    // 即本段局部 x≈8.8,而非从 x=0 起新画点。
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      forcePressureStroke: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 100, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 8,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "dot",
+      dashOffset: 20,
+      smoothing: 0.45,
+    }, baseHandlers);
+    const context = createMockCanvasContext();
+
+    node.sceneFunc()(context, node);
+
+    const spacing = Math.max(4, 8 * 1.8);
+    const firstDotX = context.moveTo.mock.calls[0][0];
+    expect(firstDotX).toBeCloseTo(Math.ceil(20 / spacing) * spacing - 20, 5);
   });
 
   it("renders coordinate plane axes, grid, ticks, and labels", () => {

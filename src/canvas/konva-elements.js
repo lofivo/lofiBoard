@@ -153,11 +153,11 @@ function drawPressureSolidStroke(context, points, strokeWidth, hit = false) {
   }
 }
 
-function drawPressureDashedStroke(context, points, strokeWidth, hit = false) {
+function drawPressureDashedStroke(context, points, strokeWidth, hit = false, phaseOffset = 0) {
   const dashLength = strokeWidth * 3;
   const gapLength = strokeWidth * 2;
   const cycleLength = dashLength + gapLength;
-  let travelled = 0;
+  let travelled = phaseOffset;
   for (let index = 1; index < points.length; index += 1) {
     const segmentStart = points[index - 1];
     const segmentEnd = points[index];
@@ -186,10 +186,12 @@ function drawPressureDashedStroke(context, points, strokeWidth, hit = false) {
   }
 }
 
-function drawPressureDottedStroke(context, shape, points, strokeWidth, hit = false) {
+function drawPressureDottedStroke(context, shape, points, strokeWidth, hit = false, phaseOffset = 0) {
   const spacing = Math.max(4, strokeWidth * 1.8);
-  let nextDotAt = 0;
-  let travelled = 0;
+  // 点的网格锚定在原始笔触起点(0、spacing、2*spacing…),本段从 phaseOffset 起,
+  // 第一个点取 >= phaseOffset 的最近网格点,这样擦除时右段的点不会随切点滑动。
+  let nextDotAt = Math.ceil(phaseOffset / spacing) * spacing;
+  let travelled = phaseOffset;
   for (let index = 1; index < points.length; index += 1) {
     const segmentStart = points[index - 1];
     const segmentEnd = points[index];
@@ -247,12 +249,14 @@ function drawPressureStroke(context, shape, { hit = false } = {}) {
     return;
   }
   const brushStyle = shape.getAttr("brushStyle") ?? "solid";
+  // dashOffset = 本段起点相对原始笔触起点的折线距离,用于虚线/点线相位续接。
+  const phaseOffset = Number(shape.dashOffset?.()) || 0;
   if (brushStyle === "dash") {
-    drawPressureDashedStroke(context, points, strokeWidth);
+    drawPressureDashedStroke(context, points, strokeWidth, false, phaseOffset);
     return;
   }
   if (brushStyle === "dot") {
-    drawPressureDottedStroke(context, shape, points, strokeWidth);
+    drawPressureDottedStroke(context, shape, points, strokeWidth, false, phaseOffset);
     return;
   }
   drawPressureSolidStroke(context, points, strokeWidth);
@@ -272,6 +276,7 @@ function createPressureStrokeNode(element, common) {
     lineJoin: "round",
     brushStyle: element.brushStyle ?? "solid",
     dash: getBrushDash(element),
+    dashOffset: element.dashOffset ?? 0,
     hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     perfectDrawEnabled: false,
     shadowForStrokeEnabled: false,
@@ -707,6 +712,8 @@ export function createNodeAttrs(element) {
     };
   }
   if (element.type === "stroke") {
+    const brushStyle = element.brushStyle ?? "solid";
+    const isSegmented = brushStyle === "dash" || brushStyle === "dot";
     return {
       x: element.x ?? 0,
       y: element.y ?? 0,
@@ -717,9 +724,13 @@ export function createNodeAttrs(element) {
       opacity: element.opacity ?? 1,
       lineCap: getBrushLineCap(element),
       lineJoin: "round",
-      brushStyle: element.brushStyle ?? "solid",
-      tension: element.smoothing ?? 0.45,
+      brushStyle,
+      // 虚线/点线用折线渲染(tension 0),让 dash 相位按折线长度精确对齐:
+      // 擦除切分出的右段 dashOffset = 起点累计折线长度,相位续接原始笔触,
+      // 不会随擦除位置整体平移。实线保留 tension 做平滑。
+      tension: isSegmented ? 0 : (element.smoothing ?? 0.45),
       dash: getBrushDash(element),
+      dashOffset: element.dashOffset ?? 0,
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     };
   }

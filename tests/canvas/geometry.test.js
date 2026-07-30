@@ -46,6 +46,58 @@ describe("geometry", () => {
     expect(fragments.every((fragment) => fragment.stroke === "#111827")).toBe(true);
   });
 
+  it("preserves brush style and dash phase offset across erased fragments", () => {
+    const stroke = {
+      id: "stroke_dash",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 10, y: 0, pressure: 0.5 },
+        { x: 20, y: 0, pressure: 0.5 },
+        { x: 30, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 6,
+      brushStyle: "dash",
+      lineCap: "square",
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
+
+    expect(fragments).toHaveLength(2);
+    expect(fragments.every((fragment) => fragment.brushStyle === "dash")).toBe(true);
+    // 左段从原起点开始,相位偏移 0;右段第一个点在 x=23(折线累计距离 23),
+    // dashOffset 续接原始相位,擦除时右段虚线不再整体平移。
+    expect(fragments[0].dashOffset).toBe(0);
+    expect(fragments[1].dashOffset).toBeCloseTo(23, 5);
+  });
+
+  it("accumulates dash phase offset when re-erasing an already-split fragment", () => {
+    const stroke = {
+      id: "stroke_resplit",
+      type: "stroke",
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 10, y: 0, pressure: 0.5 },
+        { x: 20, y: 0, pressure: 0.5 },
+        { x: 30, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 6,
+      brushStyle: "dot",
+      dashOffset: 5,
+      zIndex: 0,
+    };
+
+    const fragments = splitStrokeByEraser(stroke, { x: 15, y: 0 }, 6);
+
+    expect(fragments).toHaveLength(2);
+    // 已带 dashOffset 的笔触再被擦除:右段偏移 = 原偏移 + 本段起点累计距离。
+    expect(fragments[0].dashOffset).toBeCloseTo(5, 5);
+    expect(fragments[1].dashOffset).toBeCloseTo(5 + 23, 5);
+  });
+
   it("clips stroke fragments to the square eraser boundary on a single click", () => {
     const stroke = {
       id: "stroke_sparse",

@@ -32,15 +32,18 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   const fragments = [];
   let current = [];
   let didErase = false;
+  let fragmentStartDistance = 0;
+  let cumulative = 0;
 
   const closeCurrent = () => {
     if (current.length >= 2) {
-      fragments.push(current);
+      fragments.push({ points: current, startDistance: fragmentStartDistance });
     }
     current = [];
   };
 
-  const appendPoint = (point) => {
+  const appendPoint = (point, pointDistance) => {
+    if (current.length === 0) fragmentStartDistance = pointDistance;
     const previous = current.at(-1);
     if (previous && nearlyEqualPoints(previous, point)) return;
     current.push(point);
@@ -49,6 +52,7 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
   for (let index = 1; index < points.length; index += 1) {
     const start = points[index - 1];
     const end = points[index];
+    const segmentLength = distance(start, end);
     const outsideIntervals = getSegmentOutsideSquareIntervals(start, end, localEraserPoint, localHalfSize);
     if (!isWholeSegmentOutside(outsideIntervals)) {
       didErase = true;
@@ -56,32 +60,37 @@ export function splitStrokeByEraser(stroke, eraserPoint, radius) {
 
     if (outsideIntervals.length === 0) {
       closeCurrent();
-      continue;
-    }
+    } else {
+      for (const [startT, endT] of outsideIntervals) {
+        if (startT > 0) {
+          closeCurrent();
+        }
 
-    for (const [startT, endT] of outsideIntervals) {
-      if (startT > 0) {
-        closeCurrent();
+        appendPoint(getPointAtRatio(start, end, startT), cumulative + startT * segmentLength);
+        appendPoint(getPointAtRatio(start, end, endT), cumulative + endT * segmentLength);
+
+        if (endT < 1) {
+          closeCurrent();
+        }
       }
-
-      appendPoint(getPointAtRatio(start, end, startT));
-      appendPoint(getPointAtRatio(start, end, endT));
-
-      if (endT < 1) {
-        closeCurrent();
-      }
     }
+    cumulative += segmentLength;
   }
 
   closeCurrent();
+  // 虚线/点线的 dash 相位以“从原始笔触起点到本段第一个点的折线累计长度”为偏移,
+  // 这样擦除切分出的右段不会因 dash 重新从 0 开始而整体平移。递归擦除时输入
+  // stroke 已带 dashOffset,继续累加即可保持相位锚定在原始起点。
+  const baseDashOffset = Number(stroke.dashOffset) || 0;
   const retainedFragments = didErase
-    ? fragments.filter((fragment) => getPathLength(fragment) >= getMinimumRetainedFragmentLength(stroke, points))
+    ? fragments.filter((fragment) => getPathLength(fragment.points) >= getMinimumRetainedFragmentLength(stroke, points))
     : fragments;
 
-  return retainedFragments.map((points, index) => ({
+  return retainedFragments.map((fragment, index) => ({
     ...stroke,
     id: index === 0 ? stroke.id : createId("stroke"),
-    points: points.map((point) => ({ ...point })),
+    points: fragment.points.map((point) => ({ ...point })),
+    dashOffset: baseDashOffset + fragment.startDistance,
   }));
 }
 
