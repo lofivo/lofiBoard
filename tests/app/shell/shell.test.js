@@ -39,6 +39,10 @@ describe("app shell", () => {
     return readFileSync(new URL("../../../src/app/tools/activation-controller.js", import.meta.url), "utf8");
   }
 
+  function readOrchestratorSource() {
+    return readFileSync(new URL("../../../src/app/shell/board-orchestrator.js", import.meta.url), "utf8");
+  }
+
   function extractStageSelectPointerDownSource(source = readStagePointerSource()) {
     return source.slice(
       source.indexOf("function handleSelectPointerDown(event, worldPoint)"),
@@ -308,10 +312,11 @@ describe("app shell", () => {
 
   it("reuses ordinary Konva nodes across board renders", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const shapeRenderSource = readFileSync(new URL("../../../src/app/rendering/controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const shapeRenderController = createShapeRenderController({");
-    expect(appSource).toContain("shapeRenderController.syncElementNodes(reorderElements(board.elements));");
+    expect(orchestratorSource).toContain("shapeRenderController.syncElementNodes(reorderElements(getElements()));");
     expect(shapeRenderSource).toContain("const nodeRegistry = new Map();");
     expect(shapeRenderSource).toContain("function syncOrCreateElementNode(element)");
     expect(shapeRenderSource).toContain("if (existingNode && syncNode(existingNode, element, getHandlers(element)))");
@@ -321,6 +326,7 @@ describe("app shell", () => {
 
   it("skips Konva node synchronization when an element did not change", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const shapeRenderSource = readFileSync(new URL("../../../src/app/rendering/controller.js", import.meta.url), "utf8");
 
     expect(shapeRenderSource).toContain("const nodeRenderSnapshots = new Map();");
@@ -328,7 +334,7 @@ describe("app shell", () => {
     expect(shapeRenderSource).toContain("function createElementRenderSnapshot(element)");
     expect(shapeRenderSource).toContain("const cachedSnapshot = elementRenderSnapshotValues.get(element);");
     expect(shapeRenderSource).toContain("const handlerSnapshot = getHandlerSnapshot(element);");
-    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
+    expect(orchestratorSource).toContain("canEditArrayItems: getCurrentTool() === TOOLS.SELECT && !isTemporaryPanActive()");
     expect(shapeRenderSource).toMatch(/if \(existingNode && previousSnapshot === nextSnapshot\) \{[\s\S]*?return existingNode;[\s\S]*?\}/);
     expect(shapeRenderSource).toMatch(/if \(existingNode && syncNode\(existingNode, element, getHandlers\(element\)\)\) \{[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
     expect(shapeRenderSource).toMatch(/nodeRegistry\.set\(element\.id, node\);[\s\S]*?nodeRenderSnapshots\.set\(element\.id, nextSnapshot\);/);
@@ -511,8 +517,9 @@ describe("app shell", () => {
     expect(pointerDownSource).toContain("hideTreeControls();");
     expect(pointerDownSource).toContain("syncGeneralTreeActiveVisual(previousActiveTreeElementId);");
     expect(structureBoardActionSource).toContain("if (!element || !isBinaryTreeElement(element) || element.locked) return;");
-    expect(appSource).toContain("structureControlsController.renderTreeControls();");
-    expect(appSource).toContain("structureControlsController.hideTreeControls();");
+    const orchestratorSource = readOrchestratorSource();
+    expect(orchestratorSource).toContain("structureControlsController.renderTreeControls();");
+    expect(orchestratorSource).toContain("structureControlsController.hideTreeControls();");
   });
 
   it("updates floating tree controls while the whole tree selection is dragged", () => {
@@ -596,28 +603,30 @@ describe("app shell", () => {
     expect(selectionDragSource).toContain("function setSelectionDragNodeDraggable(enabled)");
     expect(appSource).toContain("function isSelectionDragElement(elementId)");
     expect(appSource).toContain("&& !isSelectionDragElement(element.id)");
-    expect(appSource).toContain("&& !isSelectionDragElement(id)");
+    const orchestratorSource = readOrchestratorSource();
+    expect(orchestratorSource).toContain("&& !isSelectionDragElement(id)");
     expect(beginDragSource).toContain("setSelectionDragNodeDraggable(false);");
     expect(finishDragSource.indexOf("setSelectionDragNodeDraggable(true);")).toBeLessThan(finishDragSource.indexOf("selectionDrag = null;"));
   });
 
   it("locks selection identity until an active selection drag finishes", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const selectionDragSource = readFileSync(new URL("../../../src/app/selection/drag-controller.js", import.meta.url), "utf8");
     const finishDragSource = selectionDragSource.slice(
       selectionDragSource.indexOf("function finishSelectionDrag()"),
       selectionDragSource.indexOf("function cancelSelectionDrag()"),
     );
-    const onSelectSource = appSource.slice(
-      appSource.indexOf("onSelect: (event, node) => {"),
-      appSource.indexOf("onEdit: (event, node) => {"),
+    const onSelectSource = orchestratorSource.slice(
+      orchestratorSource.indexOf("onSelect: (event, node) => {"),
+      orchestratorSource.indexOf("onEdit: (event, node) => {"),
     );
 
     expect(appSource).toContain("let suppressNextSelectionClick = false;");
     expect(finishDragSource).toContain("setSuppressNextSelectionClick(true);");
-    expect(onSelectSource).toContain("if (suppressNextSelectionClick) {");
-    expect(onSelectSource).toContain("suppressNextSelectionClick = false;");
-    expect(onSelectSource.indexOf("if (suppressNextSelectionClick)")).toBeLessThan(onSelectSource.indexOf("selectElementById(id, event.evt.shiftKey);"));
+    expect(onSelectSource).toContain("if (getSuppressNextSelectionClick()) {");
+    expect(onSelectSource).toContain("setSuppressNextSelectionClick(false)");
+    expect(onSelectSource.indexOf("if (getSuppressNextSelectionClick())")).toBeLessThan(onSelectSource.indexOf("selectElementById(id, event.evt.shiftKey);"));
   });
 
   it("opens the selected text editor when the transformer back area receives the second click", () => {
@@ -959,10 +968,11 @@ describe("app shell", () => {
   it("uses a DOM vector overlay for rendered latex text while editing keeps source input", () => {
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const editSource = readFileSync(new URL("../../../src/app/editing/controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("createTextOverlayController");
-    expect(appSource).toContain("textOverlayController.sync(elements)");
+    expect(orchestratorSource).toContain("textOverlayController.sync(elements)");
     expect(editSource).toContain("textOverlayController.setHiddenIds([id])");
     expect(styles).toContain(".text-latex-overlay,");
     expect(styles).toContain("pointer-events: none;");
@@ -1070,12 +1080,13 @@ describe("app shell", () => {
 
   it("rerenders coordinate plane internals during creation and resizing instead of stretching the group", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const previewSource = readFileSync(new URL("../../../src/app/selection/transform-preview-controller.js", import.meta.url), "utf8");
     const transformEventsSource = readFileSync(new URL("../../../src/app/selection/transform-events-controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("function rerenderCoordinatePlaneNode");
-    expect(appSource).toContain('if (element.type === "coordinate-plane") {');
-    expect(appSource).toContain("rerenderCoordinatePlaneNode(element, node)");
+    expect(orchestratorSource).toContain('if (element.type === "coordinate-plane") {');
+    expect(orchestratorSource).toContain("rerenderCoordinatePlaneNode(element, node)");
     expect(previewSource).toContain("syncCoordinatePlaneTransformPreview");
     expect(transformEventsSource).toContain('transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview)');
     expect(previewSource).toContain("node.scaleX(1)");
@@ -1283,10 +1294,11 @@ describe("app shell", () => {
 
   it("does not auto-activate the first linear item just because the array itself became selected", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
     const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const structureInteraction = createStructureInteraction();");
-    expect(appSource).toContain("structureInteraction.syncSelection({");
+    expect(orchestratorSource).toContain("structureInteraction.syncSelection({");
     expect(interactionSource).toContain("if (!selectedLinear) {");
     expect(interactionSource).toContain("activeLinearItem = null;");
     expect(interactionSource).toContain("if (activeLinearItem?.elementId === selectedLinear.id) {");
@@ -1384,7 +1396,7 @@ describe("app shell", () => {
 
     expect(appSource).toContain("const linearStructureEventAdapter = createLinearStructureEventAdapter((event) => {");
     expect(appSource).toContain("linearGestureController?.dispatchLinearStructureEvent(event);");
-    expect(appSource).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
+    expect(readOrchestratorSource()).toContain("onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect");
     expect(gestureSource).toContain("function dispatchLinearStructureEvent(event)");
     expect(gestureSource).toContain("function handleArrayStructureItemSelect({ elementId, index })");
     expect(gestureSource).toContain("structureInteraction.handleEvent({");
@@ -1399,10 +1411,11 @@ describe("app shell", () => {
 
   it("clears array item active styling when the canvas selection is cleared", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
 
-    expect(appSource).toContain("const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({");
-    expect(appSource).toContain("syncLinearItemActiveVisual(previousActiveLinearItem?.elementId)");
-    expect(appSource).toContain("contentLayer.batchDraw()");
+    expect(orchestratorSource).toContain("const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({");
+    expect(orchestratorSource).toContain("syncLinearItemActiveVisual(previousActiveLinearItem?.elementId)");
+    expect(orchestratorSource).toContain("contentLayer.batchDraw()");
   });
 
   it("uses setAttrs for linear drag preview group styling and always hides the drop indicator", () => {
@@ -1461,8 +1474,9 @@ describe("app shell", () => {
 
   it("only enables direct array item editing while the select tool is active", () => {
     const appSource = readFileSync(new URL("../../../src/app/whiteboard-app.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
 
-    expect(appSource).toContain("canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive()");
+    expect(orchestratorSource).toContain("canEditArrayItems: getCurrentTool() === TOOLS.SELECT && !isTemporaryPanActive()");
   });
 
   it("keeps stale array item press handlers from selecting or dragging arrays while using the pen", () => {
@@ -1687,7 +1701,7 @@ describe("app shell", () => {
     const pointerDragSource = readFileSync(new URL("../../../src/app/structures/linear-pointer-drag-controller.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
 
-    expect(appSource).toContain("onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event)");
+    expect(readOrchestratorSource()).toContain("onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event)");
     expect(gestureSource).toContain("function handleArrayPointerPress({ elementId, index })");
     expect(appSource).toContain("createLinearStructurePointerDragController");
     expect(pointerDragSource).toContain("function beginLinearPointerDrag");
@@ -1761,9 +1775,10 @@ describe("app shell", () => {
     const appActionSource = readFileSync(new URL("../../../src/app/shell/action-controller.js", import.meta.url), "utf8");
     const interactionSource = readFileSync(new URL("../../../src/structures/interaction.js", import.meta.url), "utf8");
     const gestureSource = readFileSync(new URL("../../../src/app/structures/linear-gesture-controller.js", import.meta.url), "utf8");
+    const orchestratorSource = readOrchestratorSource();
 
-    expect(appSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
-    expect(appSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| currentTool !== TOOLS\.SELECT\) return;/);
+    expect(orchestratorSource).toMatch(/onSelect: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| getCurrentTool\(\) !== TOOLS\.SELECT\) return;[\s\S]*?selectElementById\(id, event\.evt\.shiftKey\);/);
+    expect(orchestratorSource).toMatch(/onEdit: \(event, node\) => \{[\s\S]*?if \(isTemporaryPanActive\(\) \|\| getCurrentTool\(\) !== TOOLS\.SELECT\) return;/);
     expect(appSource).toMatch(/function shouldElementBeDraggable\(element\) \{[\s\S]*?return currentTool === TOOLS\.SELECT[\s\S]*?&& !isTemporaryPanActive\(\)[\s\S]*?&& !element\.locked/);
     expect(appSource).toContain("createLinearStructureEventAdapter((event) => {");
     expect(interactionSource).toContain("currentTool !== SELECT_TOOL");
@@ -1831,9 +1846,10 @@ describe("app shell", () => {
     expect(editActionSource).toContain("function moveTreeStructureNode({ elementId, nodeId, x, y })");
     expect(structureBoardActionSource).toContain("function handleTreeStructureNodePress(event, group)");
     expect(appSource).not.toContain("group.startDrag");
-    expect(appSource).toContain("onTreeNodeMove: moveTreeStructureNode");
-    expect(appSource).toContain("onTreeNodeConnect: connectTreeStructureNodes");
-    expect(appSource).toContain("getTreeConnectState:");
+    const orchestratorSource = readOrchestratorSource();
+    expect(orchestratorSource).toContain("onTreeNodeMove: moveTreeStructureNode");
+    expect(orchestratorSource).toContain("onTreeNodeConnect: connectTreeStructureNodes");
+    expect(orchestratorSource).toContain("getTreeConnectState:");
     expect(appActionSource).toContain('"tree-layout": () => editSelectedStructure("tree-structure", layoutTreeStructure');
     expect(appActionSource).toContain('"tree-highlight-inorder"');
     expect(appSource).toContain("createStructureInspectorSyncController");

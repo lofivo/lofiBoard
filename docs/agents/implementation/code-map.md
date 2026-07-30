@@ -5,6 +5,7 @@
 - `src/app/main.jsx`：React 浏览器入口，导入样式并渲染 `App`。
 - `src/app/App.jsx`：React 外壳。创建 `legacyRootRef`，在其中调用 `createWhiteboardApp(root)`，用 `.legacy-chrome-hidden` CSS 类隐藏被 React 替换的遗留 chrome，并通过 `getUiState()` / `commands.*` 门面桥接引擎状态。
 - `src/app/whiteboard-app.js`：应用装配入口。这里创建 Stage/Layer、状态变量、所有 controller，并把跨模块回调接起来。
+- `src/app/shell/board-orchestrator.js`：画板编排模块。从装配根提取的跨切面编排逻辑（`renderBoard`、`selectIds`、`clearSelection`、`syncTextOverlays`、`getElementNodeHandlers` 等 18 个函数），通过依赖注入接收所有 controller 和状态访问器，使编排逻辑可用 mock controller 隔离测试。装配根保留薄委托包装器，现有 DI 引用不需改动。
 - `src/board/`：画板数据模型、元素工厂、历史栈、ID。
 - `src/canvas/`：Konva 形状创建/同步、几何计算、视口适配、导出背景。
 - `src/tools/`：与具体 DOM 无关的工具行为、交互规则、笔触输入和交互状态机。
@@ -64,6 +65,7 @@ React 与引擎之间主要通过两个门面协作：
 - 新增元素类型：先改 `src/board/model.js` 和 `src/board/element-factory.js`，再改 `src/canvas/konva-elements.js`，最后接入工具/属性栏/测试。
 - 改工具行为：从 `src/app/shell/stage-pointer-controller.js` 看指针分发，再进入 `src/app/tools/*` 或 `src/tools/interaction-rules.js`。
 - 改选区/拖拽/缩放：优先看 `src/app/selection/*`，再看 `src/tools/interaction-state-machine.js` 和 `src/tools/interaction-rules.js`。
+- 改选区/渲染/overlay 编排序列：看 `src/app/shell/board-orchestrator.js`，编排逻辑已从装配根提取到此模块，可用 mock controller 隔离测试。
 - 改文本编辑：看 `src/app/editing/controller.js`、`src/app/editing/text-element-measure.js`、`src/services/text-overlay-controller.js` 和 `src/tools/interaction-rules.js`。
 - 改结构：先看 `src/structures/*` 的纯逻辑，再看 `src/app/structures/*` 的应用交互。
 - 改二维数组：先看 `src/structures/matrix-structure.js` 和 `src/board/model.js`，再看 `src/app/components/StylePanel.jsx`、`src/app/structures/cell-editor-controller.js`、`src/canvas/konva-elements.js` 与 `src/app/whiteboard-app.js` 的窄命令接线。
@@ -75,3 +77,4 @@ React 与引擎之间主要通过两个门面协作：
 - 数据模型叫元素，不叫 shape/node。
 - Konva 实例叫形状或 node，不叫元素。
 - `controller.js` 通常是无 DOM 或聚合 controller；`dom-controller.js` 管 DOM；`action-controller.js` 管用户命令；`markup.js` 只生成标记。
+  - `board-orchestrator.js`：跨切面编排逻辑（`renderBoard`/`selectIds`/`clearSelection`/`syncTextOverlays`/`getElementNodeHandlers` 等），通过 DI 接收所有 controller，可 mock 隔离测试。

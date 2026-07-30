@@ -1,5 +1,6 @@
 import Konva from "konva";
 import { renderShell } from "./shell/shell.js";
+import { createBoardOrchestrator } from "./shell/board-orchestrator.js";
 import { createBoardSessionActionController } from "./shell/board-session/action-controller.js";
 import { createBoardSessionController } from "./shell/board-session/controller.js";
 import { createClipboardController } from "./clipboard/controller.js";
@@ -267,7 +268,8 @@ export function createWhiteboardApp(root) {
   let previewTextFontSize = () => {};
   const uiStateListeners = new Set();
   let linearGestureController = null;
-  let suppressSelectionDragOnce = false;
+let boardOrchestrator = null;
+let suppressSelectionDragOnce = false;
   let suppressNextCanvasSelection = false;
   let suppressNextSelectionClick = false;
   const structureInteraction = createStructureInteraction();
@@ -1584,6 +1586,56 @@ export function createWhiteboardApp(root) {
     commitTextEditing: () => editController.commit?.(),
   });
 
+  boardOrchestrator = createBoardOrchestrator({
+    contentLayer,
+    overlayLayer,
+    transformer,
+    shapeRenderController,
+    selectionTransformerController,
+    selectionTransformCommitController,
+    structureControlsController,
+    structureActiveVisualController,
+    textOverlayController,
+    draftInteractionController,
+    editController,
+    selectionController,
+    selectionDragController,
+    linearGestureController,
+    structureInteraction,
+    linearStructureEventAdapter,
+    getElements: () => board.elements,
+    setElements: (elements) => { board.elements = elements; },
+    getSelectedIds: () => selectedIds,
+    setSelectedIds: (ids) => { selectedIds = ids; },
+    getCurrentTool: () => currentTool,
+    getSuppressNextSelectionClick: () => suppressNextSelectionClick,
+    setSuppressNextSelectionClick: (value) => { suppressNextSelectionClick = value; },
+    shouldElementBeDraggable,
+    isTemporaryPanActive,
+    isLinearPointerGestureElement,
+    isSelectionDragElement,
+    isArrayAlgorithmLocked,
+    getElementIdFromNode,
+    isElementLocked,
+    pauseUnselectedArrayAlgorithmSessions,
+    updateChrome: () => updateChrome(),
+    pushHistory: (message) => pushHistory(message),
+    cancelLinearItemDragPreview,
+    moveArrayStructureItem,
+    editArrayStructureItem,
+    editMatrixStructureItem,
+    moveGraphStructureNode,
+    handleGraphNodeClick,
+    handleGraphNodeDragStart,
+    editGraphStructureNode,
+    editGraphStructureEdge,
+    editTreeStructureNode,
+    handleTreeNodeClick,
+    handleTreeStructureNodePress,
+    moveTreeStructureNode,
+    connectTreeStructureNodes,
+  });
+
   hydrateLocalDraft();
   bindControls();
   applyViewport(board.viewport);
@@ -1815,169 +1867,59 @@ export function createWhiteboardApp(root) {
   }
 
   function addElement(element, message) {
-    board.elements = reorderElements([...board.elements, element]);
-    renderBoard();
-    pushHistory(message);
+    return boardOrchestrator.addElement(element, message);
   }
 
   function createNode(element) {
-    return createElementNode(element, getElementNodeHandlers(element));
+    return boardOrchestrator.createNode(element);
   }
 
   function getElementNodeHandlers(element) {
-    return {
-      draggable: shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id),
-      onDragStart: (node) => selectionDragController.beginNodeDragSelection(node),
-      onDragMove: (node) => selectionDragController.updateNodeDragSelection(node),
-      onMove: (node) => {
-        if (isElementLocked(getElementIdFromNode(node))) return;
-        selectionDragController.finishNodeDragSelection(node);
-      },
-      canEditArrayItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive() && !isArrayAlgorithmLocked(element.id),
-      canEditMatrixItems: currentTool === TOOLS.SELECT && !isTemporaryPanActive(),
-      onSelect: (event, node) => {
-        if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-        event.cancelBubble = true;
-        if (suppressNextSelectionClick) {
-          suppressNextSelectionClick = false;
-          return;
-        }
-        const id = getElementIdFromNode(node);
-        selectElementById(id, event.evt.shiftKey);
-      },
-      onEdit: (event, node) => {
-        if (isTemporaryPanActive() || currentTool !== TOOLS.SELECT) return;
-        event.cancelBubble = true;
-        const id = getElementIdFromNode(node);
-        const editable = board.elements.find((item) => item.id === id && ["text", "sticky"].includes(item.type));
-        if (!editable || editable.locked) return;
-        selectIds([id]);
-        requestAnimationFrame(() => editController.editElement(id));
-      },
-      onArrayItemMove: moveArrayStructureItem,
-      onArrayItemEdit: editArrayStructureItem,
-      onArrayItemSelect: linearStructureEventAdapter.onArrayItemSelect,
-      onArrayItemPress: linearStructureEventAdapter.onArrayItemPress,
-      onArrayItemRelease: linearStructureEventAdapter.onArrayItemRelease,
-      onArrayPointerPress: (event) => linearGestureController.handleArrayPointerPress(event),
-      onMatrixItemEdit: editMatrixStructureItem,
-      onGraphNodeMove: moveGraphStructureNode,
-      onGraphNodeClick: handleGraphNodeClick,
-      onGraphNodeDragStart: handleGraphNodeDragStart,
-      onGraphNodeEdit: editGraphStructureNode,
-      onGraphEdgeEdit: editGraphStructureEdge,
-      onTreeNodeEdit: editTreeStructureNode,
-      onTreeNodeClick: handleTreeNodeClick,
-      onTreeNodePress: handleTreeStructureNodePress,
-      onTreeNodeMove: moveTreeStructureNode,
-      onTreeNodeConnect: connectTreeStructureNodes,
-      getTreeConnectState: (elementId) => structureInteraction.getStructureConnectState({ kind: "tree", elementId }),
-    };
+    return boardOrchestrator.getElementNodeHandlers(element);
   }
 
   function applyElementToNode(element, node) {
-    node.setAttrs(createNodeAttrs(element));
-    if (["text", "sticky"].includes(element.type)) {
-      syncTextNodeContent(node, element);
-    }
-    if (element.type === "coordinate-plane") {
-      rerenderCoordinatePlaneNode(element, node);
-    }
+    return boardOrchestrator.applyElementToNode(element, node);
   }
 
   function rerenderCoordinatePlaneNode(element, node) {
-    syncCoordinatePlaneNodeContent(node, element);
+    return boardOrchestrator.rerenderCoordinatePlaneNode(element, node);
   }
 
   function syncTextOverlays({ hiddenIds = editController.isEditing ? selectedIds : [], elements = board.elements } = {}) {
-    const measuredElements = elements;
-    textOverlayController.setHiddenIds(hiddenIds);
-    const syncPromise = textOverlayController.sync(elements);
-    void syncPromise.then((measurements) => {
-      if (measuredElements !== board.elements) return;
-      const result = applyMeasuredTextHeights(board.elements, measurements);
-      if (!result.changed) return;
-      board.elements = result.elements;
-      for (const element of board.elements) {
-        const measuredHeight = result.heightById.get(element.id);
-        if (element.type !== "text" || !measuredHeight) continue;
-        syncTextNodeSize(contentLayer.findOne(`#${element.id}`), {
-          width: element.width,
-          height: element.height,
-          padding: element.padding ?? 0,
-        });
-      }
-      transformer.forceUpdate();
-      contentLayer.batchDraw();
-      overlayLayer.batchDraw();
-    });
-    return syncPromise;
+    return boardOrchestrator.syncTextOverlays(...arguments);
   }
 
   function renderBoard() {
-    shapeRenderController.syncElementNodes(reorderElements(board.elements));
-    draftInteractionController.moveSelectionRectToTop();
-    syncSelectionNodes();
-    structureControlsController.renderLinearItemControls();
-    structureControlsController.renderTreeControls();
-    structureControlsController.renderGraphNodeControls();
-    contentLayer.batchDraw();
-    overlayLayer.batchDraw();
-    syncTextOverlays({ hiddenIds: editController.isEditing ? selectedIds : [] });
+    return boardOrchestrator.renderBoard();
   }
 
   function selectIds(ids) {
-    selectedIds = selectionController.setSelectedIds(ids);
-    pauseUnselectedArrayAlgorithmSessions();
-    const { previousActiveLinearItem, activeLinearItem } = structureInteraction.syncSelection({
-      elements: board.elements,
-      selectedIds,
-    });
-    syncSelectionNodes();
-    syncLinearItemActiveVisual(previousActiveLinearItem?.elementId);
-    syncLinearItemActiveVisual(activeLinearItem?.elementId);
-    structureControlsController.renderLinearItemControls();
-    structureControlsController.renderTreeControls();
-    contentLayer.batchDraw();
-    updateChrome();
+    return boardOrchestrator.selectIds(ids);
   }
 
   function selectElementById(id, additive = false) {
-    const ids = selectionController.selectElementById(id, { additive, elements: board.elements });
-    selectIds(ids);
+    return boardOrchestrator.selectElementById(id, additive);
   }
 
   function toggleSelection(id) {
-    selectIds(selectionController.toggleSelection(id));
+    return boardOrchestrator.toggleSelection(id);
   }
 
   function clearSelection() {
-    cancelLinearItemDragPreview();
-    linearGestureController.cancelLinearPointerGesture();
-    linearGestureController.resetLinearItemPressState();
-    structureControlsController.hideLinearItemControls();
-    linearGestureController.clearLinearItemSelectSuppression();
-    structureInteraction.clearActiveTreeNode();
-    structureControlsController.hideTreeControls();
-    structureControlsController.hideBinaryTreeControls();
-    selectIds([]);
+    return boardOrchestrator.clearSelection();
   }
 
   function syncSelectionNodes() {
-    selectionTransformerController.syncSelectionNodes();
+    return boardOrchestrator.syncSelectionNodes();
   }
 
   function updateDraggableState() {
-    contentLayer.find(".element").forEach((node) => {
-      const id = getElementIdFromNode(node);
-      const element = board.elements.find((item) => item.id === id);
-      node.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(id) && !isSelectionDragElement(id));
-    });
+    return boardOrchestrator.updateDraggableState();
   }
 
   function syncSelectedNodes(nodes = transformer.nodes()) {
-    selectionTransformCommitController.syncSelectedNodes(nodes);
-    renderBoard();
+    return boardOrchestrator.syncSelectedNodes(nodes);
   }
 
   function getViewportCenterPoint() {
@@ -2004,19 +1946,19 @@ export function createWhiteboardApp(root) {
   }
 
   function syncLinearItemActiveVisual(elementId) {
-    structureActiveVisualController.syncLinearItemActiveVisual(elementId);
+    return boardOrchestrator.syncLinearItemActiveVisual(elementId);
   }
 
   function syncBinaryTreeActiveVisual(elementId) {
-    structureActiveVisualController.syncBinaryTreeActiveVisual(elementId);
+    return boardOrchestrator.syncBinaryTreeActiveVisual(elementId);
   }
 
   function syncGeneralTreeActiveVisual(elementId) {
-    structureActiveVisualController.syncGeneralTreeActiveVisual(elementId);
+    return boardOrchestrator.syncGeneralTreeActiveVisual(elementId);
   }
 
   function syncGraphActiveVisual(elementId) {
-    structureActiveVisualController.syncGraphActiveVisual(elementId);
+    return boardOrchestrator.syncGraphActiveVisual(elementId);
   }
 
   function shouldElementBeDraggable(element) {
