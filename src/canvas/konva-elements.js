@@ -120,7 +120,6 @@ function getPressureStrokeWidth(strokeWidth, pressure) {
 }
 
 function getBrushLineCap(element) {
-  if (element.brushStyle === "dot") return "round";
   return element.lineCap ?? "round";
 }
 
@@ -191,7 +190,6 @@ function drawPressureDottedStroke(context, shape, points, strokeWidth, hit = fal
   const spacing = Math.max(4, strokeWidth * 1.8);
   let nextDotAt = 0;
   let travelled = 0;
-  context.setAttr("fillStyle", hit ? shape.colorKey : shape.stroke());
   for (let index = 1; index < points.length; index += 1) {
     const segmentStart = points[index - 1];
     const segmentEnd = points[index];
@@ -203,9 +201,9 @@ function drawPressureDottedStroke(context, shape, points, strokeWidth, hit = fal
       const width = hit
         ? Math.max(strokeWidth + 14, 22)
         : getPressureStrokeWidth(strokeWidth, dotPoint.pressure);
-      context.beginPath();
-      context.arc(dotPoint.x, dotPoint.y, width / 2, 0, Math.PI * 2);
-      context.fill();
+      // 用零长线段 + lineCap 画点:round→圆点,square→方点。与 Konva.Line 的
+      // dash 方案、属性栏预览一致,点线不再无视用户选择的笔头(平头/圆头)。
+      drawStrokeSegment(context, dotPoint, dotPoint, width);
       nextDotAt += spacing;
     }
     travelled += segmentLength;

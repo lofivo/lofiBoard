@@ -237,4 +237,25 @@ describe("StylePanel", () => {
     expect(runAction).toHaveBeenCalledWith("tree-highlight-inorder");
   });
 
+  it("renders a width-scaled dashed/dotted brush preview that matches the canvas", () => {
+    const cases = [
+      { brushStyle: "dash", brushWidth: 6, expected: "18 12" },
+      { brushStyle: "dot", brushWidth: 6, expected: `0.01 ${(6 * 1.8).toString()}` },
+      { brushStyle: "dot", brushWidth: 10, expected: `0.01 ${(10 * 1.8).toString()}` },
+    ];
+    for (const { brushStyle, brushWidth, expected } of cases) {
+      const host = renderPanel({
+        brushColor: "#111827",
+        brushWidth,
+        brushStyle,
+        brushCap: "square",
+        currentTool: "pen",
+        panelMode: "brush",
+        stylePanelTitle: "画笔",
+      });
+      const path = host.querySelector('svg[viewBox="0 0 280 48"] path');
+      expect(path.getAttribute("stroke-dasharray")).toBe(expected);
+    }
+  });
+
 });

@@ -1263,7 +1263,7 @@ describe("konva elements", () => {
     });
   });
 
-  it("uses rounded dotted brush dashes for dot strokes", () => {
+  it("respects the selected brush cap for dot strokes", () => {
     const node = createElementNode({
       id: "stroke_1",
       type: "stroke",
@@ -1277,7 +1277,7 @@ describe("konva elements", () => {
     }, baseHandlers);
 
     expect(node.dash()).toEqual([0.01, 18]);
-    expect(node.lineCap()).toBe("round");
+    expect(node.lineCap()).toBe("square");
   });
 
   it("applies linear shape style controls to straight lines and arrows", () => {
@@ -1394,7 +1394,7 @@ describe("konva elements", () => {
     expect(context.lineTo).not.toHaveBeenCalledWith(60, 0);
   });
 
-  it("draws dotted pressure stroke previews as round dots", () => {
+  it("draws dotted pressure stroke previews as cap-shaped dots", () => {
     const node = createElementNode({
       id: "stroke_1",
       type: "stroke",
@@ -1415,8 +1415,38 @@ describe("konva elements", () => {
 
     node.sceneFunc()(context, node);
 
-    expect(context.arc.mock.calls.length).toBeGreaterThan(2);
-    expect(context.stroke).not.toHaveBeenCalled();
+    // 点线改用零长线段 + lineCap 画点,不再用 arc 填充圆。
+    expect(context.arc).not.toHaveBeenCalled();
+    expect(context.stroke.mock.calls.length).toBeGreaterThan(2);
+    expect(context.setAttr).toHaveBeenCalledWith("lineCap", "round");
+  });
+
+  it("draws dotted pressure stroke previews as square dots for square caps", () => {
+    const node = createElementNode({
+      id: "stroke_1",
+      type: "stroke",
+      forcePressureStroke: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.5 },
+        { x: 20, y: 0, pressure: 0.5 },
+        { x: 40, y: 0, pressure: 0.5 },
+      ],
+      stroke: "#111827",
+      strokeWidth: 8,
+      opacity: 1,
+      lineCap: "square",
+      brushStyle: "dot",
+      smoothing: 0.45,
+    }, baseHandlers);
+    const context = createMockCanvasContext();
+
+    node.sceneFunc()(context, node);
+
+    // 平头 + 点线:点应是方点,遵循所选 lineCap,而非强制圆点。
+    expect(node.lineCap()).toBe("square");
+    expect(context.arc).not.toHaveBeenCalled();
+    expect(context.stroke.mock.calls.length).toBeGreaterThan(2);
+    expect(context.setAttr).toHaveBeenCalledWith("lineCap", "square");
   });
 
   it("renders coordinate plane axes, grid, ticks, and labels", () => {
