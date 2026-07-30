@@ -733,12 +733,12 @@ function LinearStructureInspector({ ctx }) {
         }}>
           {algoStatus || '选择数组后开始演示'}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
           {[
             { action: 'array-algorithm-start', label: '开始', main: true, disabled: startDisabled },
+            { action: 'array-algorithm-play', label: playLabel, main: true, disabled: playDisabled },
             { action: 'array-algorithm-prev', label: '上一步', disabled: prevDisabled },
             { action: 'array-algorithm-next', label: '下一步', disabled: nextDisabled },
-            { action: 'array-algorithm-play', label: playLabel, main: true, disabled: playDisabled },
             { action: 'array-algorithm-reset', label: '重置', disabled: resetDisabled },
             { action: 'array-algorithm-stop', label: '结束', disabled: stopDisabled },
           ].map(a => (
@@ -746,7 +746,7 @@ function LinearStructureInspector({ ctx }) {
               theme={a.main ? "light" : "outline"}
               type="tertiary"
               disabled={a.disabled}
-              style={{ height: 26, fontSize: 12, borderRadius: RADIUS.sm, fontWeight: a.main ? 600 : 400 }}
+              style={{ height: 26, fontSize: 12, padding: '0 4px', borderRadius: RADIUS.sm, fontWeight: a.main ? 600 : 400, overflow: 'hidden' }}
               onClick={() => ctx.runAction?.(a.action)}>{a.label}</Button>
           ))}
         </div>
