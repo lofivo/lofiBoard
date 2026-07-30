@@ -198,10 +198,18 @@ export function createWhiteboardApp(root) {
 
   root.innerHTML = renderShell();
 
-  const refs = queryWhiteboardRefs(root);
+ const refs = queryWhiteboardRefs(root);
 
-  const {
-    container,
+  // 硬件加速:把渲染分辨率上限锁定到 2。HiDPI 屏幕(尤其 dpr=3 的手机/高分屏)
+  // 默认会让画布缓冲区放大 9 倍,每帧 batchDraw 的光栅化/填充成本随之倍增,
+  // 而白板主体是矢量形状与文字,dpr 2 与 3 视觉差异极小。封顶后直接降低 GPU
+  // 填充率与显存占用。PNG 导出走 stage.toDataURL({pixelRatio:2}) 不受此影响。
+  if (typeof window !== "undefined" && Konva.pixelRatio !== 1) {
+    Konva.pixelRatio = Math.min(Number(window.devicePixelRatio) || 1, 2);
+  }
+
+ const {
+   container,
     status,
     activeFileLabel,
     menuButton,
@@ -556,6 +564,7 @@ export function createWhiteboardApp(root) {
   });
   selectionDragController = createSelectionDragController({
     contentLayer,
+    overlayLayer,
     clearAlignmentGuides: alignmentSnapController.clearAlignmentGuides,
     enterDragging: () => interactionSM.enter(SM.DRAGGING),
     getElementIdFromNode,

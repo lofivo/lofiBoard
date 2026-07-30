@@ -44,6 +44,7 @@ export function createDrawingInteractionController({
   let eraseSnapshot = null;
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
+  let eraseChanged = false;
 
   function startStroke(worldPoint, pressure = 0.5) {
     const origin = { x: worldPoint.x, y: worldPoint.y };
@@ -107,6 +108,7 @@ export function createDrawingInteractionController({
     eraseSnapshot = snapshotBoard();
     activeEraserRadius = getBaseEraserRadius();
     lastEraserPoint = { ...worldPoint, time: now() };
+    eraseChanged = false;
     return activeEraserRadius;
   }
 
@@ -132,6 +134,7 @@ export function createDrawingInteractionController({
     if (!changed) return false;
     setBoardElements(reorderElements(nextElements));
     renderBoard();
+    eraseChanged = true;
     return true;
   }
 
@@ -158,6 +161,7 @@ export function createDrawingInteractionController({
     setBoardElements(reorderElements(getBoardElements().filter((item) => item.id !== id)));
     setSelectedIds(getSelectedIds().filter((selectedId) => selectedId !== id));
     renderBoard();
+    eraseChanged = true;
     return true;
   }
 
@@ -188,9 +192,10 @@ export function createDrawingInteractionController({
 
   function finishEraser() {
     if (!eraseSnapshot) return false;
-    const didChange = JSON.stringify(eraseSnapshot.elements) !== JSON.stringify(getBoardElements());
+    const didChange = eraseChanged;
     eraseSnapshot = null;
     lastEraserPoint = null;
+    eraseChanged = false;
     if (didChange) {
       pushHistory("已擦除内容");
     }
@@ -200,6 +205,7 @@ export function createDrawingInteractionController({
   function cancelEraser() {
     eraseSnapshot = null;
     lastEraserPoint = null;
+    eraseChanged = false;
   }
 
   function getActiveEraserRadius() {

@@ -172,9 +172,8 @@ function Preview({ color, width, cap, style, opacity }) {
   const strokeColor = color || '#111827';
   const sw = width || 6;
   const linecap = cap || 'round';
-  // 与画布渲染保持一致:虚线 [width*3, width*2],点线用近零短dash + 笔头
-  // (lineCap)塑形,间距 width*1.8。固定 '14 8'/'2 5' 会在大笔宽时让短划与
-  // 笔头延伸重叠,预览糊成实线,而画布却是离散点/虚线。
+  // 与 konva-elements.js 的 getBrushDash 保持一致：dash/gap 随线宽缩放，
+  // 否则 round 线帽在高粗细下会把点连成一片。
   const dashArray = style === 'dash' ? `${sw * 3} ${sw * 2}` : style === 'dot' ? `0.01 ${sw * 1.8}` : null;
   const fillOpacity = opacity != null ? opacity / 100 : 1;
   return (
