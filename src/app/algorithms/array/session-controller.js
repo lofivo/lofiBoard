@@ -13,6 +13,16 @@ import {
   ARRAY_STRUCTURE_STYLE,
   setArrayAlgorithmMarkers,
 } from "../../../structures/linear-structure.js";
+import {
+  completeAlgorithmPlayer,
+  createAlgorithmPlayerErrorSession,
+  createAlgorithmPlayerSession,
+  getAlgorithmPlayerLastStepIndex,
+  getAlgorithmPlayerStep,
+  resetAlgorithmPlayer,
+  setAlgorithmPlayerPlayback,
+  setAlgorithmPlayerStep,
+} from "../../../algorithms/player.js";
 
 export const ARRAY_ALGORITHM_BASE_STEP_MS = 460;
 
@@ -93,32 +103,22 @@ export function createArrayAlgorithmSessionController({
     const panelState = getArrayAlgorithmPanelState(element.id);
     const result = createArrayAlgorithmSteps(panelState.algorithm, values);
     if (!result.ok) {
-      setArrayAlgorithmSession({
+      setArrayAlgorithmSession(createAlgorithmPlayerErrorSession({
         elementId: element.id,
+        algorithm: panelState.algorithm,
+        algorithmLabel: getArrayAlgorithmLabel(panelState.algorithm),
         error: result.message,
         speed: panelState.speed,
-        isPlaying: false,
-        isAnimating: false,
-      });
+      }));
       syncArrayAlgorithmPanelState();
       setStatus(result.message);
       return;
     }
 
-    setArrayAlgorithmSession({
+    setArrayAlgorithmSession(createAlgorithmPlayerSession(result, {
       elementId: element.id,
-      algorithm: result.algorithm,
-      algorithmLabel: getArrayAlgorithmLabel(result.algorithm),
-      initialValues: result.initialValues,
-      steps: result.steps,
-      stepIndex: 0,
       speed: panelState.speed,
-      isPlaying: false,
-      isAnimating: false,
-      committed: false,
-      error: "",
-      stableStepIndex: 0,
-    });
+    }));
     applyArrayAlgorithmStep(0, { render: true });
     selectIds([element.id]);
     syncArrayAlgorithmPanelState();
@@ -155,7 +155,7 @@ export function createArrayAlgorithmSessionController({
       return;
     }
     if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) return;
-    setArrayAlgorithmSession({ ...session, isPlaying: true });
+    setArrayAlgorithmSession(setAlgorithmPlayerPlayback(session, true));
     syncArrayAlgorithmPanelState();
     scheduleArrayAlgorithmPlayback();
   }
@@ -177,15 +177,7 @@ export function createArrayAlgorithmSessionController({
         ? applyArrayAlgorithmValues(clearArrayAlgorithmRuntimeMarkers(element), initialValues)
         : element
     )));
-    setArrayAlgorithmSession({
-      ...session,
-      stepIndex: 0,
-      stableStepIndex: 0,
-      isPlaying: false,
-      isAnimating: false,
-      committed: false,
-      error: "",
-    });
+    setArrayAlgorithmSession(resetAlgorithmPlayer(session));
     applyArrayAlgorithmStep(0, { render: false });
     renderBoard();
     selectIds([elementId]);
@@ -217,7 +209,7 @@ export function createArrayAlgorithmSessionController({
     const session = getSelectedArrayAlgorithmSession();
     if (!session?.steps) return;
     const previousIndex = Math.max(0, currentIndex - 1);
-    const step = session.steps[currentIndex];
+    const step = getAlgorithmPlayerStep(session, currentIndex);
     if (!step || currentIndex <= 0) {
       applyArrayAlgorithmStep(previousIndex, { render: true });
       return;
@@ -240,7 +232,7 @@ export function createArrayAlgorithmSessionController({
   function runArrayAlgorithmStep(nextIndex) {
     const session = getSelectedArrayAlgorithmSession();
     if (!session?.steps) return;
-    const step = session.steps[nextIndex];
+    const step = getAlgorithmPlayerStep(session, nextIndex);
     if (!step) return;
     if (step.type === ALGORITHM_STEP_TYPES.PICK_KEY) {
       playArrayAlgorithmPickKeyStep(nextIndex);
@@ -260,8 +252,7 @@ export function createArrayAlgorithmSessionController({
       if (!appliedSession) return;
       setArrayAlgorithmSession({
         ...appliedSession,
-        isPlaying: false,
-        committed: true,
+        ...completeAlgorithmPlayer(appliedSession),
       });
       pushHistory(`已执行${session.algorithmLabel ?? "排序"}`);
       syncArrayAlgorithmPanelState();
@@ -272,7 +263,7 @@ export function createArrayAlgorithmSessionController({
 
   function playArrayAlgorithmSwapStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
+    const step = getAlgorithmPlayerStep(session, nextIndex);
     const moves = step?.animation?.moves ?? step?.swapIndices?.map((index, moveIndex, indices) => ({
       from: index,
       to: indices[moveIndex === 0 ? 1 : 0],
@@ -367,7 +358,7 @@ export function createArrayAlgorithmSessionController({
 
   function playArrayAlgorithmPickKeyStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
+    const step = getAlgorithmPlayerStep(session, nextIndex);
     const floatingKey = step?.markers?.floatingKey;
     if (!session || !step || !floatingKey) return;
     const previousStepIndex = session.stepIndex;
@@ -433,7 +424,7 @@ export function createArrayAlgorithmSessionController({
 
   function playArrayAlgorithmMoveStep(nextIndex, { reverse = false } = {}) {
     const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[nextIndex];
+    const step = getAlgorithmPlayerStep(session, nextIndex);
     const move = step?.animation?.moves?.[0] ?? step?.shift ?? step?.insert;
     if (!session || !step || !move) return;
     const previousStepIndex = session.stepIndex;
@@ -691,7 +682,7 @@ export function createArrayAlgorithmSessionController({
 
   function applyArrayAlgorithmStep(stepIndex, { render = true } = {}) {
     const session = getSelectedArrayAlgorithmSession();
-    const step = session?.steps?.[stepIndex];
+    const step = getAlgorithmPlayerStep(session, stepIndex);
     if (!session || !step) return;
     const pointer = step.activeIndices?.[0] ?? null;
     setElements(getElements().map((element) => (
@@ -712,13 +703,7 @@ export function createArrayAlgorithmSessionController({
         )
         : element
     )));
-    setArrayAlgorithmSession({
-      ...session,
-      stepIndex,
-      stableStepIndex: stepIndex,
-      isAnimating: false,
-      pendingStepIndex: null,
-    });
+    setArrayAlgorithmSession(setAlgorithmPlayerStep(session, stepIndex));
     if (render) {
       renderBoard();
       selectIds([session.elementId]);
@@ -731,7 +716,7 @@ export function createArrayAlgorithmSessionController({
     const session = getSelectedArrayAlgorithmSession();
     if (!session?.isPlaying || session.isAnimating) return;
     if (session.stepIndex >= getArrayAlgorithmLastStepIndex(session)) {
-      setArrayAlgorithmSession({ ...session, isPlaying: false });
+      setArrayAlgorithmSession(setAlgorithmPlayerPlayback(session, false));
       syncArrayAlgorithmPanelState();
       return;
     }
@@ -744,7 +729,7 @@ export function createArrayAlgorithmSessionController({
   function cancelArrayAlgorithmPlayback() {
     cancelArrayAlgorithmTimer();
     const session = getSelectedArrayAlgorithmSession();
-    if (session) setArrayAlgorithmSession({ ...session, isPlaying: false });
+    if (session) setArrayAlgorithmSession(setAlgorithmPlayerPlayback(session, false));
   }
 
   function cancelArrayAlgorithmTimer() {
@@ -761,12 +746,9 @@ export function createArrayAlgorithmSessionController({
     const session = getSelectedArrayAlgorithmSession();
     if (!session?.isAnimating) return;
     const stableStepIndex = session.stableStepIndex ?? session.stepIndex ?? 0;
-    setArrayAlgorithmSession({
-      ...session,
-      isAnimating: false,
-      pendingStepIndex: null,
-      stepIndex: stableStepIndex,
-    });
+    setArrayAlgorithmSession(setAlgorithmPlayerStep(session, stableStepIndex, {
+      isPlaying: false,
+    }));
     if (commitStableState) applyArrayAlgorithmStep(stableStepIndex, { render: true });
   }
 
@@ -776,7 +758,7 @@ export function createArrayAlgorithmSessionController({
   }
 
   function getArrayAlgorithmLastStepIndex(session = getSelectedArrayAlgorithmSession()) {
-    return Math.max(0, (session?.steps?.length ?? 1) - 1);
+    return getAlgorithmPlayerLastStepIndex(session);
   }
 
   function isArrayAlgorithmLocked(elementId) {

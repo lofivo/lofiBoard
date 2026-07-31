@@ -106,6 +106,16 @@
 
 排序步骤生成在 `src/algorithms/array.js`，支持冒泡排序、选择排序和插入排序。应用会话在 `src/app/algorithms/array/session-controller.js`。
 
+通用算法轨迹和播放器模型位于 `src/algorithms/player.js`。算法实现只需要生成可序列化的 trace：
+
+- trace 包含 `algorithm`、`label`、`initialState`、`steps` 和 `metadata`。
+- 每个 step 在保留领域字段的同时统一提供 `state`、`explanation`、`codeLine`、`variables` 和 `visual.markers` / `visual.animation`。
+- `createAlgorithmPlayerSession()` 负责创建不含 DOM、计时器和渲染节点的播放会话。
+- `advanceAlgorithmPlayer()`、`rewindAlgorithmPlayer()`、`setAlgorithmPlayerPlayback()`、`resetAlgorithmPlayer()` 和 `completeAlgorithmPlayer()` 只做不可变状态转换。
+- Konva 动画、计时器、结构元素更新和历史提交属于应用层 adapter，不得写入通用播放器模型。
+
+数组排序通过 `src/app/algorithms/array/model.js` 适配到该 trace 接口，并继续保留 `values`、`markers` 和 `animation` 等数组专用字段。后续图、树或动态规划算法应复用同一播放器会话，不要复制数组专用的播放状态字段。
+
 数组算法会话包含：
 
 - 算法和算法名称。
@@ -123,5 +133,6 @@
 - 结构应用交互：`tests/app/structures/*`
 - 二维数组模型与渲染：`tests/structures/templates.test.js`、`tests/board/model.test.js`、`tests/canvas/konva-elements.test.js`
 - 二维数组属性栏与命令桥接：`tests/app/components/StylePanel.test.jsx`、`tests/app/shell/whiteboard-app-startup.test.js`
+- 算法轨迹和播放器模型：`tests/algorithms/player.test.js`
 - 数组算法纯步骤：`tests/algorithms/array.test.js`
 - 数组算法应用会话/面板：`tests/app/algorithms/array/*`

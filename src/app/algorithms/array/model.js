@@ -8,6 +8,7 @@ import {
   clearArrayAlgorithmMarkers,
   isLinearStructureElement,
 } from "../../../structures/linear-structure.js";
+import { createAlgorithmTrace } from "../../../algorithms/player.js";
 
 export const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
   algorithm: ARRAY_ALGORITHMS.BUBBLE_SORT,
@@ -15,9 +16,24 @@ export const DEFAULT_ARRAY_ALGORITHM_PANEL_STATE = Object.freeze({
 });
 
 export function createArrayAlgorithmSteps(algorithm, values) {
-  if (algorithm === ARRAY_ALGORITHMS.SELECTION_SORT) return createSelectionSortSteps(values);
-  if (algorithm === ARRAY_ALGORITHMS.INSERTION_SORT) return createInsertionSortSteps(values);
-  return createBubbleSortSteps(values);
+  const result = algorithm === ARRAY_ALGORITHMS.SELECTION_SORT
+    ? createSelectionSortSteps(values)
+    : algorithm === ARRAY_ALGORITHMS.INSERTION_SORT
+      ? createInsertionSortSteps(values)
+      : createBubbleSortSteps(values);
+
+  if (!result.ok) return result;
+  return createAlgorithmTrace({
+    algorithm: result.algorithm,
+    label: getArrayAlgorithmLabel(result.algorithm),
+    initialState: { values: result.initialValues },
+    initialValues: result.initialValues,
+    steps: result.steps,
+    metadata: {
+      domain: "array",
+      stateKey: "values",
+    },
+  });
 }
 
 export function getArrayAlgorithmLabel(algorithm) {

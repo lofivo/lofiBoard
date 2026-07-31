@@ -1,3 +1,5 @@
+import { getAlgorithmPlayerStep } from "../../../algorithms/player.js";
+
 export function createArrayAlgorithmPanelController({
   root,
   arrayAlgorithmSelect,
@@ -91,8 +93,8 @@ export function createArrayAlgorithmPanelController({
       arrayAlgorithmStatus.dataset.state = "error";
       return;
     }
-    const step = session.steps?.[session.stepIndex];
-    arrayAlgorithmStatus.textContent = `${session.stepIndex + 1} / ${session.steps.length}：${step?.message ?? ""}`;
+    const step = getAlgorithmPlayerStep(session);
+    arrayAlgorithmStatus.textContent = `${session.stepIndex + 1} / ${session.steps.length}：${step?.explanation ?? step?.message ?? ""}`;
     arrayAlgorithmStatus.dataset.state = "";
   }
 
