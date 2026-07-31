@@ -60,6 +60,8 @@ React 外壳承载可见 chrome，但不替换画板交互内核。`Topbar`、`T
 
 选区状态由 `src/app/selection/controller.js` 管，命中查询由 `src/app/selection/hit-query.js` 管。拖拽和缩放拆在多个 controller：
 
+坐标系只把两条坐标轴和原点小范围加入 Konva 命中画布，左右键都可由命中节点回溯到坐标系元素；网格、刻度、标签、函数曲线和内部空白保持不可命中，避免挡住框选起手或坐标系上的其他元素。
+
 - `drag-controller.js`：选区拖拽和 Konva node drag。
 - `transformer-controller.js`：Transformer 节点绑定、锚点和 overdraw。
 - `transform-events-controller.js`：记录 transform 事件中的上下文。

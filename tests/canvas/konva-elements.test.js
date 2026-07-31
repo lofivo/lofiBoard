@@ -1550,6 +1550,35 @@ describe("konva elements", () => {
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "-1")).toBe(true);
   });
 
+  it("makes coordinate axes and origin selectable without making the plane interior interactive", () => {
+    const node = createElementNode({
+      id: "plane_hit_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 240,
+      height: 160,
+      unitSize: 40,
+      origin: { x: 120, y: 80 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
+      rotation: 0,
+    }, baseHandlers);
+
+    const axes = node.find(".coordinate-plane-axis");
+    expect(axes).toHaveLength(2);
+    expect(axes.every((axis) => axis.listening() && axis.hitStrokeWidth() >= 14)).toBe(true);
+    expect(axes.every((axis) => axis.findAncestor(".element")?.id() === "plane_hit_1")).toBe(true);
+
+    const origin = node.findOne(".coordinate-plane-origin-hit");
+    expect(origin).toBeTruthy();
+    expect(origin.listening()).toBe(true);
+    expect(origin.findAncestor(".element")?.id()).toBe("plane_hit_1");
+
+    expect(node.find(".coordinate-plane-grid").every((line) => line.listening() === false)).toBe(true);
+    expect(node.find(".coordinate-plane-tick").every((line) => line.listening() === false)).toBe(true);
+  });
+
   it("renders compiled coordinate functions as non-interactive graph lines", () => {
     const node = createElementNode({
       id: "plane_function_1",
@@ -1588,8 +1617,11 @@ describe("konva elements", () => {
       rotation: 0,
     }, baseHandlers);
 
-    // 内部空白不能进命中画布,否则框选起手会被整块坐标系吞掉(AGENTS.md #24)
-    expect(node.getChildren().filter((child) => child.listening() && child.fill?.())).toHaveLength(0);
+    // 只有坐标轴和原点进入命中画布；内部空白仍不能吞掉框选起手和其他元素点击。
+    expect(node.getChildren()
+      .filter((child) => child.listening())
+      .map((child) => child.name())
+      .every((name) => ["coordinate-plane-axis", "coordinate-plane-origin-hit"].includes(name))).toBe(true);
 
     const frame = node.findOne(".coordinate-plane-frame");
     expect(frame).toBeTruthy();

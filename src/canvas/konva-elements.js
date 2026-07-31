@@ -1546,7 +1546,8 @@ function addCoordinatePlaneContent(group, element, width, height) {
     strokeWidth: 2,
     pointerLength: 10,
     pointerWidth: 10,
-    listening: false,
+    hitStrokeWidth: 16,
+    listening: true,
   }));
   group.add(new Konva.Arrow({
     name: "coordinate-plane-axis",
@@ -1556,7 +1557,16 @@ function addCoordinatePlaneContent(group, element, width, height) {
     strokeWidth: 2,
     pointerLength: 10,
     pointerWidth: 10,
-    listening: false,
+    hitStrokeWidth: 16,
+    listening: true,
+  }));
+  group.add(new Konva.Circle({
+    name: "coordinate-plane-origin-hit",
+    x: origin.x,
+    y: origin.y,
+    radius: 10,
+    fill: "rgba(0,0,0,0)",
+    listening: true,
   }));
 
   if (settings.showTicks) {
