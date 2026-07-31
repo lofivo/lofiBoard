@@ -19,6 +19,7 @@ import {
 } from "../structures/tree-structure.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 import { getTextDisplayValue } from "../services/latex.js";
+import { sampleCoordinateFunction } from "./coordinate-functions.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
@@ -1501,6 +1502,7 @@ function addCoordinatePlaneContent(group, element, width, height) {
     gridStroke: "#e5e7eb",
     axisStroke: "#111827",
     labelFill: "#64748b",
+    functionStroke: "#2563eb",
     ...(element.style ?? {}),
   };
   // 定尺隐形边框矩形:把 group 的包围盒锚定到 element.width×height。
@@ -1567,6 +1569,54 @@ function addCoordinatePlaneContent(group, element, width, height) {
     addCoordinatePlaneLabel(group, "y", origin.x + 8, 8, style);
   }
 
+  addCoordinatePlaneFunctions(group, {
+    expressions: element.functions,
+    width,
+    height,
+    unitSize,
+    origin,
+    stroke: style.functionStroke,
+  });
+
+}
+
+function addCoordinatePlaneFunctions(group, {
+  expressions,
+  width,
+  height,
+  unitSize,
+  origin,
+  stroke = "#2563eb",
+}) {
+  if (!Array.isArray(expressions)) return;
+  const functionGroup = new Konva.Group({
+    name: "coordinate-plane-functions",
+    clipX: 0,
+    clipY: 0,
+    clipWidth: width,
+    clipHeight: height,
+    listening: false,
+  });
+  group.add(functionGroup);
+  expressions.forEach((expression) => {
+    const segments = sampleCoordinateFunction(expression, {
+      width,
+      height,
+      unitSize,
+      origin,
+    });
+    segments.forEach((points) => {
+      functionGroup.add(new Konva.Line({
+        name: "coordinate-plane-function",
+        points,
+        stroke,
+        strokeWidth: 2.5,
+        lineCap: "round",
+        lineJoin: "round",
+        listening: false,
+      }));
+    });
+  });
 }
 
 function addCoordinatePlaneTicks(group, { width, height, unitSize, origin, style, showLabels }) {

@@ -19,6 +19,7 @@ export const DEFAULT_COORDINATE_PLANE_STYLE = Object.freeze({
   gridStroke: "#e5e7eb",
   axisStroke: "#111827",
   labelFill: "#64748b",
+  functionStroke: "#2563eb",
 });
 
 export function createTextElement({ point, zIndex, text = "", measureText }) {
@@ -165,6 +166,7 @@ export function createShapeElement({
       height,
       unitSize: DEFAULT_COORDINATE_PLANE_STYLE.unitSize,
       origin: { x: width / 2, y: height / 2 },
+      functions: [],
       settings: {
         showGrid: true,
         showTicks: true,
@@ -174,6 +176,7 @@ export function createShapeElement({
         gridStroke: DEFAULT_COORDINATE_PLANE_STYLE.gridStroke,
         axisStroke: DEFAULT_COORDINATE_PLANE_STYLE.axisStroke,
         labelFill: DEFAULT_COORDINATE_PLANE_STYLE.labelFill,
+        functionStroke: DEFAULT_COORDINATE_PLANE_STYLE.functionStroke,
       },
     };
   }

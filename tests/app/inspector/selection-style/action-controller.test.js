@@ -35,6 +35,7 @@ function createController({
       coordinateShowLabels: true,
       coordinateShowTicks: false,
       coordinateUnitSize: "40",
+      coordinateFunctions: "sin(x)\nx^2",
       fill: "#ffffff",
       fillTransparent: false,
       fontFamily: "Inter",
@@ -97,6 +98,7 @@ describe("app inspector selection-style action-controller", () => {
       showLabels: true,
       showTicks: false,
       unitSize: "40",
+      functions: "sin(x)\nx^2",
     });
     expect(selectionStyleController.toggleTextStyle).toHaveBeenCalledWith("bold");
     expect(callbacks.pushHistory).toHaveBeenCalledWith("已更新坐标系");

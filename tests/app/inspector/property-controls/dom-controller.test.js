@@ -350,6 +350,7 @@ describe("app inspector property-controls dom-controller", () => {
         axisStroke: "#0f172a",
         labelFill: "#475569",
       },
+      functions: ["sin(x)", "x^2"],
     });
 
     expect(controller.getControlValues()).toMatchObject({
@@ -360,6 +361,7 @@ describe("app inspector property-controls dom-controller", () => {
       coordinateGridColor: "#94a3b8",
       coordinateAxisColor: "#0f172a",
       coordinateLabelColor: "#475569",
+      coordinateFunctions: "sin(x)\nx^2",
     });
   });
 

@@ -45,6 +45,7 @@ export function createSelectionStyleActionController({
       showLabels: controls.coordinateShowLabels,
       showTicks: controls.coordinateShowTicks,
       unitSize: controls.coordinateUnitSize,
+      functions: controls.coordinateFunctions,
     });
     if (!didApply) return;
 

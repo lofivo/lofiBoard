@@ -17,6 +17,7 @@ export const DEFAULT_PROPERTY_CONTROLS = Object.freeze({
   coordinateGridColor: "#e5e7eb",
   coordinateAxisColor: "#111827",
   coordinateLabelColor: "#64748b",
+  coordinateFunctions: "",
   fontSize: "28",
   fontFamily: "Inter, system-ui, sans-serif",
   fontStyle: "normal",

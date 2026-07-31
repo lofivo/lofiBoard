@@ -133,6 +133,7 @@ describe("app inspector selection-style controller", () => {
       gridStroke: "#94a3b8",
       axisStroke: "#0f172a",
       labelFill: "#475569",
+      functions: "sin(x)\nx^2",
     });
 
     expect(didApply).toBe(true);
@@ -140,6 +141,7 @@ describe("app inspector selection-style controller", () => {
       unitSize: 8,
       settings: { showGrid: false, showTicks: true, showLabels: false, keep: true },
       style: { gridStroke: "#94a3b8", axisStroke: "#0f172a", labelFill: "#475569", keep: "#111111" },
+      functions: ["sin(x)", "x^2"],
     });
     expect(state.elements[1]).toEqual({ id: "plane_2", type: "coordinate-plane", locked: true, unitSize: 40 });
     expect(state.elements[2]).toEqual({ id: "rect_1", type: "rectangle", stroke: "#000000" });

@@ -553,6 +553,30 @@ describe("whiteboard app startup", () => {
     app.destroy();
   }, 15_000);
 
+  it("applies coordinate function input to the selected plane", async () => {
+    seedDraft([{
+      id: "plane_1",
+      type: "coordinate-plane",
+      x: 20,
+      y: 30,
+      width: 240,
+      height: 160,
+      unitSize: 40,
+      origin: { x: 120, y: 80 },
+      settings: { showGrid: true, showTicks: true, showLabels: true },
+      style: {},
+      zIndex: 0,
+    }]);
+    const { app, root } = await mountApp();
+
+    root._selectLayerItemById("plane_1", "none");
+    app.commands.setProperty("coordinate-functions", "sin(x)\nx^2");
+
+    expect(app.getBoard().elements[0].functions).toEqual(["sin(x)", "x^2"]);
+    expect(app.getUiState().properties.coordinateFunctions).toBe("sin(x)\nx^2");
+    app.destroy();
+  }, 15_000);
+
   it("keeps text and sticky tool presets after switching tools", async () => {
     const { app } = await mountApp();
     const properties = () => app.getUiState().properties;

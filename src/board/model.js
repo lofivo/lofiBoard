@@ -146,6 +146,7 @@ const ELEMENT_DEFAULTS = {
     height: 360,
     unitSize: 40,
     origin: { x: 240, y: 180 },
+    functions: [],
     settings: { showGrid: true, showTicks: true, showLabels: true },
     style: {},
     rotation: 0,
@@ -311,6 +312,9 @@ export function normalizeElement(element, fallbackIndex = 0) {
   if (normalized.type === "coordinate-plane") {
     normalized.settings = { ...defaults.settings, ...(element.settings ?? {}) };
     normalized.style = { ...defaults.style, ...(element.style ?? {}) };
+    normalized.functions = Array.isArray(element.functions)
+      ? element.functions.map((item) => String(item ?? "").trim()).filter(Boolean).slice(0, 8)
+      : [];
     if (!element.origin) {
       normalized.origin = {
         x: Number(normalized.width ?? defaults.width) / 2,

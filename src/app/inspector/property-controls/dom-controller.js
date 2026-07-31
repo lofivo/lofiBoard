@@ -39,6 +39,7 @@ export function createPropertyControlsDomController({
     { name: "coordinate-grid-color", key: "coordinateGridColor", effects: APPLY_COORDINATE },
     { name: "coordinate-axis-color", key: "coordinateAxisColor", effects: APPLY_COORDINATE },
     { name: "coordinate-label-color", key: "coordinateLabelColor", effects: APPLY_COORDINATE },
+    { name: "coordinate-functions", key: "coordinateFunctions", effects: APPLY_COORDINATE },
     { name: "font-size", key: "fontSize", effects: APPLY_STYLE },
     { name: "font-family", key: "fontFamily", effects: APPLY_STYLE },
   ];
@@ -165,6 +166,7 @@ export function createPropertyControlsDomController({
     writeValue("coordinateGridColor", element.style?.gridStroke ?? "#e5e7eb");
     writeValue("coordinateAxisColor", element.style?.axisStroke ?? "#111827");
     writeValue("coordinateLabelColor", element.style?.labelFill ?? "#64748b");
+    writeValue("coordinateFunctions", Array.isArray(element.functions) ? element.functions.join("\n") : "");
   }
 
   function getStrokeStyleFromControls() {

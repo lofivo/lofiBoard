@@ -270,9 +270,35 @@ function StickyCore({ ctx }) {
 
 function CoordinateCore({ ctx }) {
   const [activeColor, setActiveColor] = useState(null);
+  const [functionDraft, setFunctionDraft] = useState(ctx.coordinateFunctions || '');
+
+  useEffect(() => {
+    setFunctionDraft(ctx.coordinateFunctions || '');
+  }, [ctx.coordinateFunctions]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={cardGroupStyle}>
+        <div style={cardGroupTitleStyle}>函数 f(x)</div>
+        <textarea
+          value={functionDraft}
+          onChange={(event) => setFunctionDraft(event.target.value)}
+          rows={3}
+          spellCheck={false}
+          placeholder={'例如：sin(x)\nx^2 / 4 - 1'}
+          aria-label="坐标系函数"
+          style={{ ...textAreaStyle, resize: 'vertical', minHeight: 64, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}
+        />
+        <Button
+          size="small"
+          theme="light"
+          type="primary"
+          style={{ height: 26, borderRadius: RADIUS.sm }}
+          onClick={() => ctx.setCoordinateFunctions?.(functionDraft)}
+        >
+          应用函数
+        </Button>
+      </div>
       <RangeCtl label="单位间距" min={16} max={120} step={1} value={ctx.coordinateUnitSize||40} onChange={v => ctx.setCoordinateUnitSize?.(v)} />
       <div style={fieldGap}>
         <div style={labelStyle}>显示选项</div>

@@ -86,6 +86,7 @@ export function createSelectionStyleController({
     showLabels,
     showTicks,
     unitSize,
+    functions,
   } = {}) {
     const selectedIds = getSelectedIds();
     const elements = getElements();
@@ -114,6 +115,9 @@ export function createSelectionStyleController({
           axisStroke,
           labelFill,
         },
+        functions: Array.isArray(functions)
+          ? functions
+          : String(functions ?? "").split(/[\n;]/).map((item) => item.trim()).filter(Boolean).slice(0, 8),
       };
     }));
     return true;

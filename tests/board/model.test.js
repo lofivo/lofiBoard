@@ -319,6 +319,7 @@ describe("board model", () => {
       settings: { showGrid: true, showTicks: true, showLabels: true },
       style: {},
     });
+    expect(board.elements[0].functions).toEqual([]);
   });
 
   it("serializes viewport and elements without mutating the source board", () => {

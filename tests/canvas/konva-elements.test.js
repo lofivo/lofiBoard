@@ -1550,6 +1550,29 @@ describe("konva elements", () => {
     expect(node.find(".coordinate-plane-label").some((label) => label.text() === "-1")).toBe(true);
   });
 
+  it("renders compiled coordinate functions as non-interactive graph lines", () => {
+    const node = createElementNode({
+      id: "plane_function_1",
+      type: "coordinate-plane",
+      x: 10,
+      y: 20,
+      width: 240,
+      height: 160,
+      unitSize: 40,
+      origin: { x: 120, y: 80 },
+      functions: ["x", "sin(x)"],
+      settings: { showGrid: false, showTicks: false, showLabels: false },
+      style: {},
+      rotation: 0,
+    }, baseHandlers);
+
+    expect(node.find(".coordinate-plane-function").length).toBeGreaterThan(1);
+    expect(node.find(".coordinate-plane-function").every((line) => line.listening() === false)).toBe(true);
+    const functionGroup = node.findOne(".coordinate-plane-functions");
+    expect(functionGroup.clipWidth()).toBe(240);
+    expect(functionGroup.clipHeight()).toBe(160);
+  });
+
   it("keeps the coordinate plane interior off the hit canvas but anchors its bounds", () => {
     const node = createElementNode({
       id: "plane_1",

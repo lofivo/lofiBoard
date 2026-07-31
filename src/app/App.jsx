@@ -80,6 +80,7 @@ export default function App() {
   const [coordinateGridColor, setCoordinateGridColor] = useState('#e5e7eb');
   const [coordinateAxisColor, setCoordinateAxisColor] = useState('#111827');
   const [coordinateLabelColor, setCoordinateLabelColor] = useState('#64748b');
+  const [coordinateFunctions, setCoordinateFunctions] = useState('');
   const [arrowDoubleEnded, setArrowDoubleEnded] = useState(false);
   const [stylePanelCollapsed, setStylePanelCollapsed] = useState(false);
   const [layerPanelCollapsed, setLayerPanelCollapsed] = useState(true);
@@ -126,6 +127,7 @@ export default function App() {
   const setCoordinateGridColorSynced = useCallback((v) => { setCoordinateGridColor(v); syncPropertyToInput('coordinate-grid-color', v); }, [syncPropertyToInput]);
   const setCoordinateAxisColorSynced = useCallback((v) => { setCoordinateAxisColor(v); syncPropertyToInput('coordinate-axis-color', v); }, [syncPropertyToInput]);
   const setCoordinateLabelColorSynced = useCallback((v) => { setCoordinateLabelColor(v); syncPropertyToInput('coordinate-label-color', v); }, [syncPropertyToInput]);
+  const setCoordinateFunctionsSynced = useCallback((v) => { setCoordinateFunctions(v); syncPropertyToInput('coordinate-functions', v); }, [syncPropertyToInput]);
   const setTextStyleSynced = useCallback((style) => {
     getCommands()?.toggleTextStyle(style);
     if (style === 'bold') setTextBold(b => !b);
@@ -214,6 +216,7 @@ export default function App() {
       syncValue(setCoordinateGridColor, p.coordinateGridColor);
       syncValue(setCoordinateAxisColor, p.coordinateAxisColor);
       syncValue(setCoordinateLabelColor, p.coordinateLabelColor);
+      syncValue(setCoordinateFunctions, p.coordinateFunctions);
       syncValue(setTextBold, p.textBold);
       syncValue(setTextItalic, p.textItalic);
       syncValue(setTextUnderline, p.textUnderline);
@@ -447,6 +450,7 @@ export default function App() {
     stickyBgColor, stickyTextColor, stickyFontFamily, stickyFontSize,
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
+    coordinateFunctions,
     selectedLayerIds,
     runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
@@ -472,6 +476,7 @@ export default function App() {
     setCoordinateGridColor: setCoordinateGridColorSynced,
     setCoordinateAxisColor: setCoordinateAxisColorSynced,
     setCoordinateLabelColor: setCoordinateLabelColorSynced,
+    setCoordinateFunctions: setCoordinateFunctionsSynced,
     setShapePopoverVisible, setStructurePanelVisible,
   }), [
     statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
@@ -486,6 +491,7 @@ export default function App() {
     stickyBgColor, stickyTextColor, stickyFontFamily, stickyFontSize,
     coordinateUnitSize, coordinateShowGrid, coordinateShowTicks, coordinateShowLabels,
     coordinateGridColor, coordinateAxisColor, coordinateLabelColor, arrowDoubleEnded,
+    coordinateFunctions,
     selectedLayerIds,
     runAction, setTool, toggleKeepToolActive, zoomBy, setZoomAtCenter,
     runContextAction, hideContextMenu, selectLayerItem,
@@ -500,7 +506,7 @@ export default function App() {
     setStickyBgColorSynced, setStickyTextColorSynced, setStickyFontFamilySynced, setStickyFontSizeSynced,
     setTextStyleSynced,
     setCoordinateUnitSizeSynced, setCoordinateShowGridSynced, setCoordinateShowTicksSynced, setCoordinateShowLabelsSynced,
-    setCoordinateGridColorSynced, setCoordinateAxisColorSynced, setCoordinateLabelColorSynced,
+    setCoordinateGridColorSynced, setCoordinateAxisColorSynced, setCoordinateLabelColorSynced, setCoordinateFunctionsSynced,
   ]);
 
   return (
