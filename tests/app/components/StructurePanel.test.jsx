@@ -25,9 +25,15 @@ vi.mock("@douyinfe/semi-ui", async () => {
       "input",
       { "aria-label": ariaLabel, value, onInput: (event) => onChange?.(event.currentTarget.value) },
     ),
-    TextArea: ({ onChange, value, ...props }) => h(
+    TextArea: ({ onChange, value, textareaStyle, resize, style: _style, ...props }) => h(
       "textarea",
-      { value, onInput: (event) => onChange?.(event.currentTarget.value), ...props },
+      {
+        value,
+        onInput: (event) => onChange?.(event.currentTarget.value),
+        style: { ...textareaStyle, resize },
+        "data-resize": resize,
+        ...props,
+      },
     ),
     Typography: {
       Text: ({ children }) => h("span", null, children),
@@ -117,6 +123,9 @@ describe("StructurePanel", () => {
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(host.querySelector("textarea").value).toBe("1,2,3\n4,5,6\n7,8,9");
+    expect(host.querySelector("[data-preset-height-textarea]")).toBeTruthy();
+    expect(host.querySelector("textarea").style.overflowY).toBe("auto");
+    expect(host.querySelector("textarea").style.resize).toBe("vertical");
     expect(findButton(host, "随机生成")).toBeTruthy();
 
     act(() => {

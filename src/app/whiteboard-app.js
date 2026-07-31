@@ -1771,6 +1771,7 @@ let suppressSelectionDragOnce = false;
       activeShape: root.dataset.activeShape || "rect",
       structureSelection: root.dataset.structureSelection || "none",
       graphDirected: root.dataset.graphDirected === "true",
+      treeKind: root.dataset.treeKind || "general",
       matrixStructure: getSelectedMatrixStructureState(),
       selectionCaps: {
         text: root.dataset.selectionHasText === "true",

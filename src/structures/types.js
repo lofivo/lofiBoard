@@ -81,6 +81,14 @@ export function getStructureItem(type) {
   return STRUCTURE_ITEMS.find((item) => item.id === type) ?? STRUCTURE_ITEMS[0];
 }
 
+export function getStructureInspectorPresetInput(type) {
+  const input = getStructureItem(type).defaultInput;
+  if (![STRUCTURE_TYPES.GRAPH, STRUCTURE_TYPES.TREE, STRUCTURE_TYPES.BINARY_TREE].includes(type)) {
+    return input;
+  }
+  return input.split(',').map((value) => value.trim()).filter(Boolean).join('\n');
+}
+
 export function normalizeStructureInput(type, input) {
   const value = String(input ?? "").trim();
   return value || getStructureItem(type).defaultInput;

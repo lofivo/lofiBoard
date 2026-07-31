@@ -45,6 +45,7 @@ export default function App() {
   const [selectedLayerIds, setSelectedLayerIds] = useState([]);
   const [structureSelection, setStructureSelection] = useState('none');
   const [graphDirected, setGraphDirected] = useState(false);
+  const [treeKind, setTreeKind] = useState('general');
   const [matrixStructure, setMatrixStructure] = useState(null);
   const [shapePopoverVisible, setShapePopoverVisible] = useState(false);
   const [structurePanelVisible, setStructurePanelVisible] = useState(false);
@@ -165,6 +166,7 @@ export default function App() {
       syncValue(setActiveShape, state.activeShape);
       syncValue(setStructureSelection, state.structureSelection);
       syncValue(setGraphDirected, state.graphDirected);
+      syncValue(setTreeKind, state.treeKind);
       setMatrixStructure((prev) => {
         const next = state.matrixStructure ?? null;
         if (prev === next) return prev;
@@ -436,7 +438,7 @@ export default function App() {
     statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    graphDirected, matrixStructure,
+    graphDirected, treeKind, matrixStructure,
     contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,
@@ -475,7 +477,7 @@ export default function App() {
     statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
-    graphDirected, matrixStructure,
+    graphDirected, treeKind, matrixStructure,
     contextMenuVisible, contextMenuPos, contextMenuScope,
     contextMenuDisabledActions, selectionCaps,
     brushColor, brushWidth, brushOpacity, brushCap, brushStyle,

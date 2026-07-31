@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getStructureInspectorPresetInput,
   STRUCTURE_ELEMENT_TYPES,
   STRUCTURE_TYPES,
   createStructureElements,
@@ -66,6 +67,18 @@ import {
 } from "../../src/structures/templates.js";
 
 describe("structure templates", () => {
+  it("uses the normalized multi-line relationship format for inspector preset heights", () => {
+    expect(getStructureInspectorPresetInput(STRUCTURE_TYPES.GRAPH)).toBe(
+      "A->B\nA->C\nB->D\nC->D",
+    );
+    expect(getStructureInspectorPresetInput(STRUCTURE_TYPES.BINARY_TREE)).toBe(
+      "1->2\n1->3\n2->4\n2->5\n3->6\n3->7",
+    );
+    expect(getStructureInspectorPresetInput(STRUCTURE_TYPES.MATRIX)).toBe(
+      "1,2,3\n4,5,6\n7,8,9",
+    );
+  });
+
   it("exposes a two-dimensional array template", () => {
     expect(getStructureItem(STRUCTURE_TYPES.MATRIX)).toMatchObject({
       id: STRUCTURE_TYPES.MATRIX,

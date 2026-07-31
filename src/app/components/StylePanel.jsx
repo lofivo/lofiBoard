@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, ColorPicker, Select, Slider, Input, TextArea, Checkbox, Switch } from '@douyinfe/semi-ui';
+import { Button, ColorPicker, Select, Slider, Input, Checkbox, Switch } from '@douyinfe/semi-ui';
 import { Bold, Italic, Underline, Strikethrough, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { getInspectorTitle } from '../inspector/model.js';
 import { icon } from '../../ui/config.js';
 import { GLASS, GLASS_EDGE, RADIUS, TEXT, PANEL_MOTION } from '../../ui/tokens.js';
+import { getStructureInspectorPresetInput, getStructureItem, STRUCTURE_TYPES } from '../../structures/types.js';
+import PresetHeightTextArea from './PresetHeightTextArea.jsx';
 
 const ICON_BOLD = icon(Bold);
 const ICON_ITALIC = icon(Italic);
@@ -362,6 +364,16 @@ function MultiInspector({ ctx }) {
 /* ---- mode → inspector dispatch ---- */
 
 const LINEAR_STRUCTURE_TYPES = ['array-structure', 'stack-structure', 'queue-structure', 'deque-structure'];
+const LINEAR_PRESET_TYPES = {
+  'array-structure': STRUCTURE_TYPES.ARRAY,
+  'stack-structure': STRUCTURE_TYPES.STACK,
+  'queue-structure': STRUCTURE_TYPES.QUEUE,
+  'deque-structure': STRUCTURE_TYPES.DEQUE,
+};
+
+function getSelectedStructureResetKey(ctx, fallback) {
+  return ctx.selectedLayerIds?.[0] ?? fallback;
+}
 
 const textAreaStyle = {
   width: '100%', boxSizing: 'border-box',
@@ -490,12 +502,13 @@ function MatrixStructureInspector({ ctx }) {
 
       <div style={cardGroupStyle}>
         <div style={cardGroupTitleStyle}>二维数据</div>
-        <TextArea
+        <PresetHeightTextArea
           value={input}
           onChange={handleInputChange}
-          rows={5}
+          presetValue={getStructureItem(STRUCTURE_TYPES.MATRIX).defaultInput}
+          resetKey={matrix.elementId}
+          rows={1}
           spellCheck={false}
-          resize="vertical"
           placeholder={'1,2,3\n4,5,6'}
           style={textAreaStyle}
           textareaStyle={textAreaInner}
@@ -652,8 +665,10 @@ function LinearStructureInspector({ ctx }) {
             <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('linear-apply-values')}>应用结构</Button>
           </div>
-          <TextArea value={values} onChange={v => handleValuesChange(v)} rows={2}
-            spellCheck={false} placeholder="1,2,3" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
+          <PresetHeightTextArea value={values} onChange={v => handleValuesChange(v)} rows={1}
+            presetValue={getStructureItem(LINEAR_PRESET_TYPES[ctx.structureSelection]).defaultInput}
+            resetKey={getSelectedStructureResetKey(ctx, ctx.structureSelection)}
+            spellCheck={false} placeholder="1,2,3" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
       </div>
 
@@ -808,8 +823,10 @@ function GraphStructureInspector({ ctx }) {
             <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('graph-apply-structure')}>应用结构</Button>
           </div>
-          <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
-            spellCheck={false} placeholder="A->B&#10;A-C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
+          <PresetHeightTextArea value={input} onChange={v => handleInputChange(v)} rows={1}
+            presetValue={getStructureInspectorPresetInput(STRUCTURE_TYPES.GRAPH)}
+            resetKey={getSelectedStructureResetKey(ctx, STRUCTURE_TYPES.GRAPH)}
+            spellCheck={false} placeholder="A->B&#10;A-C" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
       </div>
 
@@ -855,7 +872,7 @@ const BINARY_TREE_TRAVERSAL_ACTIONS = [
 
 function TreeStructureInspector({ ctx }) {
   const [input, setInput] = useState('');
-  const [treeKind, setTreeKind] = useState('general');
+  const treeKind = ctx.treeKind || 'general';
 
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
@@ -867,7 +884,6 @@ function TreeStructureInspector({ ctx }) {
       const t = ctxRef.current.structureSelection || 'none';
       if (t !== 'tree-structure') return;
       setInput(prev => { const v = readDom(root, '[data-tree-structure-input]'); return prev !== v ? v : prev; });
-      setTreeKind(prev => { const v = root.dataset.treeKind || 'general'; return prev !== v ? v : prev; });
     };
     sync();
     const id = setInterval(sync, 150);
@@ -892,8 +908,10 @@ function TreeStructureInspector({ ctx }) {
             <Button size="small" theme="light" type="primary" style={{ height: 26, fontSize: 11, padding: '0 8px', borderRadius: RADIUS.xs }}
               onClick={() => ctx.runAction?.('tree-apply-structure')}>应用结构</Button>
           </div>
-          <TextArea value={input} onChange={v => handleInputChange(v)} rows={3}
-            spellCheck={false} placeholder="A->B&#10;A->C" resize="vertical" style={textAreaStyle} textareaStyle={textAreaInner} />
+          <PresetHeightTextArea value={input} onChange={v => handleInputChange(v)} rows={1}
+            presetValue={getStructureInspectorPresetInput(treeKind === 'binary' ? STRUCTURE_TYPES.BINARY_TREE : STRUCTURE_TYPES.TREE)}
+            resetKey={`${getSelectedStructureResetKey(ctx, STRUCTURE_TYPES.TREE)}:${treeKind}`}
+            spellCheck={false} placeholder="A->B&#10;A->C" style={textAreaStyle} textareaStyle={textAreaInner} />
         </div>
       </div>
 

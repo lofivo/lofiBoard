@@ -852,6 +852,7 @@ describe("whiteboard app startup", () => {
         "structureSelection",
         "stylePanelTitle",
         "tool",
+        "treeKind",
         "zoom",
       ]);
 
@@ -866,6 +867,7 @@ describe("whiteboard app startup", () => {
       expect(state.selectedIds).toEqual(root._getSelectedIds());
       expect(state.properties.color).toBe("#111827");
       expect(state.matrixStructure).toBeNull();
+      expect(state.treeKind).toBe(root.dataset.treeKind || "general");
 
       app.destroy();
     }, 15_000);

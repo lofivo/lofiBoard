@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button, TextArea, Input, Card, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Card, Typography } from '@douyinfe/semi-ui';
 import {
   BetweenHorizontalEnd, Layers, ListOrdered, ArrowLeftRight,
   Share2, GitFork, Binary,
@@ -8,6 +8,7 @@ import {
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { STRUCTURE_ITEMS } from '../../structures/types.js';
 import { icon } from '../../ui/config.js';
+import PresetHeightTextArea from './PresetHeightTextArea.jsx';
 
 const { Text } = Typography;
 
@@ -231,12 +232,13 @@ export default function StructurePanel() {
               <Text style={{ fontSize: 12, color: 'var(--semi-color-text-2)' }}>
                 初始结构
               </Text>
-              <TextArea
+              <PresetHeightTextArea
                 value={input}
                 onChange={handleInputChange}
-                rows={3}
+                presetValue={getStructureItem(activeType).defaultInput}
+                resetKey={activeType}
+                rows={1}
                 spellCheck={false}
-                resize="vertical"
                 placeholder={getStructureItem(activeType).placeholder}
               />
             </div>
