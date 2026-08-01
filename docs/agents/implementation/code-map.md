@@ -11,7 +11,7 @@
 - `src/tools/`：与具体 DOM 无关的工具行为、交互规则、笔触输入和交互状态机。
 - `src/structures/`：结构元素的纯逻辑，包括线性结构、二维数组、图、树、结构工厂和结构交互运行时。
 - `src/structures/matrix-structure.js`：二维数组解析、创建、导出、单元格更新、行列调整和下标选项。
-- `src/algorithms/`：算法步骤生成，目前主要是数组排序。
+- `src/algorithms/`：算法步骤生成、通用算法轨迹/播放器模型与数组排序算法。
 - `src/services/`：文件、剪贴板、图片导入、本地草稿、LaTeX、文本 overlay 和网页 iframe overlay 服务。
 - `src/ui/`：工具栏、菜单、上下文菜单、面板等 UI 配置和轻量状态。
 - `src/ui/tokens.js`：浮层 chrome 的唯一设计令牌来源（圆角、阴影、颜色变量、毛玻璃浮层底座）。组件内不写死 hex，颜色一律走 Semi 令牌或 `--board-*` 变量。

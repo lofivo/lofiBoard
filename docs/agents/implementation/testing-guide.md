@@ -20,7 +20,7 @@
 - 修改结构模板随机初始化或树遍历：运行 `tests/structures/templates.test.js`、`tests/app/structures/panel-controller.test.js`、`tests/app/components/StructurePanel.test.jsx`、`tests/app/components/StylePanel.test.jsx` 和 `tests/app/shell/shell.test.js`。
 - 修改二维数组解析、尺寸、持久化、单元格编辑或属性栏：运行 `tests/structures/templates.test.js`、`tests/board/model.test.js`、`tests/canvas/konva-elements.test.js`、`tests/app/structures/cell-editor-controller.test.js`、`tests/app/components/StylePanel.test.jsx` 和 `tests/app/shell/whiteboard-app-startup.test.js`。
 - 修改图结构属性栏、有向图开关、节点大小或结构输入桥接：运行 `tests/structures/templates.test.js`、`tests/app/structures/inspector-sync-controller.test.js`，并按涉及组件运行 `tests/app/components/*`。
-- 修改数组算法：运行 `tests/algorithms/array.test.js` 和 `tests/app/algorithms/array/*`。
+- 修改算法步骤或播放器模型：运行 `tests/algorithms/player.test.js`、`tests/algorithms/array.test.js` 和 `tests/app/algorithms/array/*`。
 - 修改 React 外壳、React 面板、右键菜单或 `commands` / `getUiState` 门面桥接：运行对应 `tests/app/App.*.test.jsx`、`tests/app/components/*`，必要时补 `tests/app/inspector/*` 或 `tests/app/structures/*`。
 - 修改属性栏/面板/图层：运行 `tests/app/inspector/*`、`tests/app/panels/*`、`tests/app/components/*`、`tests/ui/panel-state.test.js`。
 - 修改导入导出/剪贴板/草稿：运行 `tests/app/import-export/*`、`tests/app/clipboard/*`、`tests/services/clipboard.test.js`、`tests/services/draft-storage.test.js`、`tests/services/image-import.test.js`。
