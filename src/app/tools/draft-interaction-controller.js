@@ -31,6 +31,7 @@ export function createDraftInteractionController({
   setTool = () => {},
 } = {}) {
   let shapeDraft = null;
+  let webpageDraft = null;
   let selectionDraft = null;
 
   const selectionRect = new Konva.Rect({
@@ -98,6 +99,48 @@ export function createDraftInteractionController({
     return Boolean(shapeDraft);
   }
 
+  function startWebpageDraft(worldPoint) {
+    const node = new Konva.Rect({
+      name: "webpage-draft",
+      x: worldPoint.x,
+      y: worldPoint.y,
+      width: 1,
+      height: 1,
+      fill: "rgba(248, 250, 252, 0.94)",
+      stroke: "#2563eb",
+      strokeWidth: 2,
+      dash: [8, 5],
+      cornerRadius: 6,
+      listening: false,
+    });
+    contentLayer?.add?.(node);
+    webpageDraft = { start: worldPoint, end: worldPoint, node };
+    return true;
+  }
+
+  function updateWebpageDraft(worldPoint) {
+    if (!webpageDraft) return false;
+    webpageDraft.end = worldPoint;
+    const rect = normalizeRect(webpageDraft.start, worldPoint);
+    webpageDraft.node?.setAttrs?.({ ...rect, width: Math.max(1, rect.width), height: Math.max(1, rect.height) });
+    contentLayer?.batchDraw?.();
+    return true;
+  }
+
+  function finishWebpageDraft() {
+    if (!webpageDraft) return null;
+    const { start, end, node } = webpageDraft;
+    const rect = normalizeRect(start, end);
+    node?.destroy?.();
+    webpageDraft = null;
+    if (rect.width < 160 || rect.height < 120) return null;
+    return { start, end };
+  }
+
+  function hasWebpageDraft() {
+    return Boolean(webpageDraft);
+  }
+
   function startSelectionDraft(worldPoint) {
     selectionDraft = { start: worldPoint };
     selectionRect.setAttrs({
@@ -147,13 +190,17 @@ export function createDraftInteractionController({
   return {
     finishSelectionDraft,
     finishShapeDraft,
+    finishWebpageDraft,
     getSelectionRect,
     hasSelectionDraft,
     hasShapeDraft,
+    hasWebpageDraft,
     moveSelectionRectToTop,
     startSelectionDraft,
     startShapeDraft,
+    startWebpageDraft,
     updateSelectionDraft,
     updateShapeDraft,
+    updateWebpageDraft,
   };
 }

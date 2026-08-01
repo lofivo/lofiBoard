@@ -1,3 +1,5 @@
+import { normalizeWebpageUrl } from "../services/webpage.js";
+
 export const BOARD_VERSION = 1;
 export const APP_NAME = "lofiBoard";
 
@@ -101,6 +103,16 @@ const ELEMENT_DEFAULTS = {
     height: 220,
     src: "",
     rotation: 0,
+  },
+  webpage: {
+    x: 0,
+    y: 0,
+    width: 640,
+    height: 420,
+    src: "",
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
   },
   rect: {
     x: 0,
@@ -331,6 +343,13 @@ export function normalizeElement(element, fallbackIndex = 0) {
     normalized.editHeight = Math.max(1, Number.isFinite(Number(element.editHeight))
       ? Number(element.editHeight)
       : renderHeight);
+  }
+  if (normalized.type === "webpage") {
+    normalized.x = normalizeFiniteNumber(normalized.x, defaults.x);
+    normalized.y = normalizeFiniteNumber(normalized.y, defaults.y);
+    normalized.width = Math.max(160, normalizeFiniteNumber(normalized.width, defaults.width));
+    normalized.height = Math.max(120, normalizeFiniteNumber(normalized.height, defaults.height));
+    normalized.src = normalizeWebpageUrl(element.src);
   }
   if (["array-structure", "stack-structure", "queue-structure", "deque-structure"].includes(normalized.type)) {
     normalized.settings = {

@@ -19,12 +19,15 @@ import {
 } from "../structures/tree-structure.js";
 import { getStickyVisualMetrics } from "../tools/interaction-rules.js";
 import { getTextDisplayValue } from "../services/latex.js";
+import { getWebpageTitle } from "../services/webpage.js";
 import { sampleCoordinateFunction } from "./coordinate-functions.js";
 
 const imageCache = new Map();
 const LINEAR_POINTER_BASE_Y = -30;
 const ARRAY_ALGORITHM_FLOATING_KEY_GAP = 12;
 const PRESSURE_VARIATION_THRESHOLD = 0.08;
+const LASER_DECAY_TIME_MS = 1000;
+const LASER_DECAY_LENGTH = 400;
 export const PRESSURE_STROKE_PREVIEW_ATTR = "forcePressureStroke";
 
 export function getStickyBorderColor(fill) {
@@ -107,6 +110,38 @@ function getStrokePressurePoints(element) {
     y: Number(point.y) || 0,
     pressure: normalizePressureValue(point.pressure),
   }));
+}
+
+function getLaserPoints(element) {
+  return (element.points ?? []).map((point) => ({
+    x: Number(point.x) || 0,
+    y: Number(point.y) || 0,
+    time: Number.isFinite(Number(point.time)) ? Number(point.time) : 0,
+  }));
+}
+
+function easeOut(value) {
+  const clamped = Math.min(1, Math.max(0, value));
+  return 1 - Math.pow(1 - clamped, 4);
+}
+
+function getLaserSizeFactors(points, currentTime) {
+  const factors = new Array(points.length).fill(0);
+  let distanceToHead = 0;
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index];
+    const lengthFactor = easeOut(1 - Math.min(LASER_DECAY_LENGTH, distanceToHead) / LASER_DECAY_LENGTH);
+    const age = point.time > 0 ? Math.max(0, currentTime - point.time) : 0;
+    const timeFactor = easeOut(1 - Math.min(LASER_DECAY_TIME_MS, age) / LASER_DECAY_TIME_MS);
+    factors[index] = Math.min(lengthFactor, timeFactor);
+    if (index > 0) {
+      distanceToHead += Math.hypot(
+        points[index].x - points[index - 1].x,
+        points[index].y - points[index - 1].y,
+      );
+    }
+  }
+  return factors;
 }
 
 function hasPressureVariation(points) {
@@ -263,6 +298,36 @@ function drawPressureStroke(context, shape, { hit = false } = {}) {
   drawPressureSolidStroke(context, points, strokeWidth);
 }
 
+function drawLaserStroke(context, shape) {
+  const points = shape.getAttr("laserPoints") ?? [];
+  if (points.length === 0) return;
+
+  const strokeWidth = Math.max(0.5, Number(shape.strokeWidth()) || 2);
+  const laserNow = Number(shape.getAttr("laserNow"));
+  const currentTime = Number.isFinite(laserNow)
+    ? laserNow
+    : (globalThis.performance?.now?.() ?? Date.now());
+  context.setAttr("strokeStyle", shape.stroke());
+  context.setAttr("lineCap", "round");
+  context.setAttr("lineJoin", "round");
+  context.setLineDash([]);
+  const sizeFactors = getLaserSizeFactors(points, currentTime);
+
+  if (points.length === 1) {
+    drawStrokeSegment(context, points[0], points[0], strokeWidth * sizeFactors[0]);
+    return;
+  }
+
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const sizeFactor = Math.min(sizeFactors[index - 1], sizeFactors[index]);
+    const width = strokeWidth * sizeFactor;
+    if (width <= 0.05) continue;
+    drawStrokeSegment(context, start, end, width);
+  }
+}
+
 function createPressureStrokeNode(element, common) {
   const pressurePoints = getStrokePressurePoints(element);
   const shape = new Konva.Shape({
@@ -270,6 +335,9 @@ function createPressureStrokeNode(element, common) {
     x: element.x ?? 0,
     y: element.y ?? 0,
     pressurePoints,
+    laser: Boolean(element.laser),
+    laserPoints: getLaserPoints(element),
+    laserNow: Number(element.laserNow) || 0,
     stroke: element.stroke,
     strokeWidth: element.strokeWidth,
     opacity: element.opacity ?? 1,
@@ -281,7 +349,9 @@ function createPressureStrokeNode(element, common) {
     hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     perfectDrawEnabled: false,
     shadowForStrokeEnabled: false,
-    sceneFunc: (context, pressureShape) => drawPressureStroke(context, pressureShape),
+    sceneFunc: (context, pressureShape) => pressureShape.getAttr("laser")
+      ? drawLaserStroke(context, pressureShape)
+      : drawPressureStroke(context, pressureShape),
     hitFunc: (context, pressureShape) => drawPressureStroke(context, pressureShape, { hit: true }),
   });
   shape.getSelfRect = function getSelfRect() {
@@ -408,6 +478,8 @@ export function createElementNode(element, {
         ...common,
         ...createNodeAttrs(element),
       });
+  } else if (element.type === "webpage") {
+    node = createWebpageNode(element, common);
   } else if (element.type === "text") {
     const horizontalPadding = element.padding ?? 0;
     node = new Konva.Group({
@@ -617,6 +689,7 @@ const SYNCABLE_ELEMENT_TYPES = new Set([
   "text",
   "sticky",
   "stroke",
+  "webpage",
   "image",
   "coordinate-plane",
   ...LINEAR_STRUCTURE_TYPES,
@@ -642,6 +715,9 @@ export function syncElementNode(node, element, handlers = {}) {
   }
   if (element.type === "image") {
     if (element.src && typeof window !== "undefined") attachCachedImage(node, element.src);
+  }
+  if (element.type === "webpage") {
+    syncWebpageNodeContent(node, element);
   }
   if (element.type === "coordinate-plane") {
     syncCoordinatePlaneNodeContent(node, element);
@@ -701,6 +777,14 @@ export function createNodeAttrs(element) {
       height: element.height,
     };
   }
+  if (element.type === "webpage") {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
   if (element.type === "ellipse") {
     return {
       x: element.x,
@@ -715,6 +799,7 @@ export function createNodeAttrs(element) {
   if (element.type === "stroke") {
     const brushStyle = element.brushStyle ?? "solid";
     const isSegmented = brushStyle === "dash" || brushStyle === "dot";
+    const isLaser = Boolean(element.laser);
     return {
       x: element.x ?? 0,
       y: element.y ?? 0,
@@ -732,6 +817,9 @@ export function createNodeAttrs(element) {
       tension: isSegmented ? 0 : (element.smoothing ?? 0.45),
       dash: getBrushDash(element),
       dashOffset: element.dashOffset ?? 0,
+      laser: isLaser,
+      laserPoints: isLaser ? getLaserPoints(element) : [],
+      laserNow: isLaser ? (Number(element.laserNow) || 0) : 0,
       hitStrokeWidth: Math.max((element.strokeWidth ?? 1) + 14, 22),
     };
   }
@@ -770,6 +858,89 @@ export function createNodeAttrs(element) {
     };
   }
   return {};
+}
+
+function createWebpageNode(element, common) {
+  const node = new Konva.Group({
+    ...common,
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height,
+  });
+  node.add(new Konva.Rect({
+    name: "webpage-surface",
+    width: element.width,
+    height: element.height,
+    fill: "#ffffff",
+    stroke: "#94a3b8",
+    strokeWidth: 1,
+    cornerRadius: 6,
+    shadowColor: "rgba(15, 23, 42, 0.12)",
+    shadowBlur: 12,
+    shadowOffset: { x: 0, y: 4 },
+    shadowOpacity: 1,
+  }));
+  node.add(new Konva.Rect({
+    name: "webpage-header",
+    x: 1,
+    y: 1,
+    width: Math.max(1, element.width - 2),
+    height: 30,
+    fill: "#f1f5f9",
+    cornerRadius: [5, 5, 0, 0],
+    listening: false,
+  }));
+  node.add(new Konva.Text({
+    name: "webpage-title",
+    x: 12,
+    y: 8,
+    width: Math.max(1, element.width - 24),
+    height: 16,
+    text: getWebpageTitle(element.src),
+    fontSize: 12,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fill: "#475569",
+    ellipsis: true,
+    listening: false,
+  }));
+  node.add(new Konva.Text({
+    name: "webpage-placeholder",
+    x: 16,
+    y: 48,
+    width: Math.max(1, element.width - 32),
+    height: Math.max(1, element.height - 64),
+    text: "嵌入网页",
+    fontSize: 18,
+    fontFamily: "Inter, system-ui, sans-serif",
+    fill: "#94a3b8",
+    align: "center",
+    verticalAlign: "middle",
+    listening: false,
+  }));
+  syncWebpageNodeContent(node, element);
+  return node;
+}
+
+export function syncWebpageNodeContent(node, element) {
+  if (!node || element?.type !== "webpage") return;
+  const width = Math.max(160, Number(element.width) || 160);
+  const height = Math.max(120, Number(element.height) || 120);
+  node.width(width);
+  node.height(height);
+  node.findOne?.(".webpage-surface")?.setAttrs({ width, height });
+  node.findOne?.(".webpage-header")?.setAttrs({
+    width: Math.max(1, width - 2),
+    height: Math.min(30, Math.max(1, height - 2)),
+  });
+  node.findOne?.(".webpage-title")?.setAttrs({
+    width: Math.max(1, width - 24),
+    text: getWebpageTitle(element.src),
+  });
+  node.findOne?.(".webpage-placeholder")?.setAttrs({
+    width: Math.max(1, width - 32),
+    height: Math.max(1, height - 64),
+  });
 }
 
 export function syncCoordinatePlaneNodeContent(group, element) {

@@ -9,6 +9,7 @@ import {
   getShapeToolTitle,
   getToolInspectorCapabilities,
   getToolPanelMode,
+  getToolPropertyPanelTitle,
   isToolPropertyPanelAvailable,
 } from "../../../src/app/inspector/model.js";
 import { TOOLS } from "../../../src/ui/config.js";
@@ -63,6 +64,7 @@ describe("inspector model", () => {
       drawing: false,
     });
     expect(getToolPanelMode(TOOLS.PEN, TOOLS.RECT)).toBe("brush");
+    expect(getToolPropertyPanelTitle(TOOLS.LASER, TOOLS.RECT)).toBe("激光笔");
     expect(getToolPanelMode(TOOLS.SHAPE, TOOLS.ARROW)).toBe("linear-tool");
     expect(getShapeToolTitle(TOOLS.COORDINATE_PLANE)).toBe("坐标系");
   });

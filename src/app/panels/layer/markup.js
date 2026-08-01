@@ -24,6 +24,7 @@ export function renderLayerItemsMarkup({ elements, selectedIds = [] }) {
 export function getElementLabel(element) {
   const labels = {
     stroke: "笔触",
+    webpage: element.src ? `网页：${truncateWithEllipsis(element.src, 18)}` : "网页",
     text: element.text ? `文字：${truncateWithEllipsis(element.text, 10)}` : "文字",
     sticky: element.text ? `便签：${truncateWithEllipsis(element.text, 10)}` : "便签",
     image: "图片",

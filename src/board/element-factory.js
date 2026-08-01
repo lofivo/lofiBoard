@@ -3,6 +3,7 @@ import { createId } from "./ids.js";
 import { getFillValue } from "../tools/behavior.js";
 import { getNormalizedTextBox, getPreferredTextBoxWidth } from "../tools/interaction-rules.js";
 import { containsRenderableLatex } from "../services/latex.js";
+import { normalizeWebpageUrl } from "../services/webpage.js";
 import { TOOLS } from "../ui/config.js";
 
 export const DEFAULT_TEXT_STYLE = Object.freeze({
@@ -111,6 +112,25 @@ export function createImageElement({ point, src, width, height, zIndex, anchor =
   };
 }
 
+export function createWebpageElement({ start, end, src, zIndex }) {
+  const rect = normalizeRect(start, end);
+  const normalizedSrc = normalizeWebpageUrl(src);
+  if (!normalizedSrc) return null;
+  return {
+    id: createId("webpage"),
+    type: "webpage",
+    x: rect.x,
+    y: rect.y,
+    width: Math.max(160, rect.width),
+    height: Math.max(120, rect.height),
+    src: normalizedSrc,
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    zIndex,
+  };
+}
+
 export function createShapeElement({
   type,
   start,
@@ -204,6 +224,7 @@ export function isTinyElement(element) {
   if (element.type === "rect") return element.width < 4 || element.height < 4;
   if (element.type === "ellipse") return element.radiusX < 3 || element.radiusY < 3;
   if (element.type === "coordinate-plane") return element.width < 24 || element.height < 24;
+  if (element.type === "webpage") return element.width < 160 || element.height < 120;
   if (element.type === "line" || element.type === "arrow") {
     return Math.hypot(element.points[2] - element.points[0], element.points[3] - element.points[1]) < 4;
   }

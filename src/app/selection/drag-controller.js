@@ -24,6 +24,7 @@ export function createSelectionDragController({
   suppressNextLinearItemSelect = () => {},
   syncNodeToElement = () => {},
   syncTextOverlays = () => {},
+  syncWebpageOverlays = () => {},
   transformer,
   updateTreeControlsPosition = () => {},
 } = {}) {
@@ -123,6 +124,7 @@ export function createSelectionDragController({
     contentLayer.batchDraw();
     overlayLayer?.batchDraw?.();
     syncTextOverlays();
+    syncWebpageOverlays();
     updateTreeControlsPosition();
     return true;
   }
@@ -273,6 +275,7 @@ export function createSelectionDragController({
     contentLayer.batchDraw();
     updateTreeControlsPosition();
     syncTextOverlays();
+    syncWebpageOverlays();
     return true;
   }
 
@@ -296,6 +299,7 @@ export function createSelectionDragController({
         excludeIds: dragSelection.originals.map((item) => item.id),
       });
       syncNodeToElement(node, { positionOnly: true });
+      syncWebpageOverlays();
       setHandledNodeDragEnd(true);
       pushHistory("已移动对象");
       return true;

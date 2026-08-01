@@ -1,6 +1,7 @@
 import {
   createStickyElement as defaultCreateStickyElement,
   createTextElement as defaultCreateTextElement,
+  createWebpageElement as defaultCreateWebpageElement,
 } from "../../board/element-factory.js";
 import { getWorldPointer } from "../../canvas/geometry.js";
 import { SM } from "../../tools/interaction-state-machine.js";
@@ -34,6 +35,7 @@ export function createStagePointerController({
   commitTextEditing = () => {},
   createStickyElement = defaultCreateStickyElement,
   createTextElement = defaultCreateTextElement,
+  createWebpageElement = defaultCreateWebpageElement,
   editElement = () => {},
   enterInteraction = () => {},
   exitInteractionToIdle = () => {},
@@ -69,11 +71,13 @@ export function createStagePointerController({
   isTransformerTarget = defaultIsTransformerTarget,
   isTreeNodeHitTarget = () => false,
   persistCurrentDraft = () => {},
+  promptValue = () => "",
   requestAnimationFrame = globalThis.requestAnimationFrame ?? ((callback) => callback()),
   selectElementById = () => {},
   selectIds = () => {},
   setLastPointerWorldPoint = () => {},
   setStructurePanelOpen = () => {},
+  setStatus = () => {},
   setTool = () => {},
   setZoomMenuOpen = () => {},
   shouldIgnoreCanvasPointerDown = defaultShouldIgnoreCanvasPointerDown,
@@ -157,7 +161,8 @@ export function createStagePointerController({
       return true;
     }
 
-    const shouldUseSelection = currentTool === TOOLS.SELECT || isInsideSelectedBounds(worldPoint);
+    const shouldUseSelection = currentTool === TOOLS.SELECT
+      || (![TOOLS.LASER, TOOLS.WEBPAGE].includes(currentTool) && isInsideSelectedBounds(worldPoint));
     if (shouldUseSelection) {
       setSelectionHoverActive(currentTool !== TOOLS.SELECT);
       if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
@@ -184,6 +189,21 @@ export function createStagePointerController({
       showBrushCursor(worldPoint);
       beginDrawingPointerSession(event);
       drawingInteractionController.startStroke(worldPoint, event.evt.pressure);
+      enterInteraction(SM.DRAWING);
+      return true;
+    }
+
+    if (currentTool === TOOLS.LASER) {
+      showBrushCursor(worldPoint);
+      beginDrawingPointerSession(event);
+      drawingInteractionController.startStroke(worldPoint, event.evt.pressure);
+      enterInteraction(SM.DRAWING);
+      return true;
+    }
+
+    if (currentTool === TOOLS.WEBPAGE) {
+      beginDrawingPointerSession(event);
+      draftInteractionController.startWebpageDraft(worldPoint);
       enterInteraction(SM.DRAWING);
       return true;
     }
@@ -287,6 +307,11 @@ export function createStagePointerController({
       return true;
     }
 
+    if (draftInteractionController.hasWebpageDraft?.()) {
+      draftInteractionController.updateWebpageDraft(worldPoint);
+      return true;
+    }
+
     if (draftInteractionController.hasSelectionDraft()) {
       draftInteractionController.updateSelectionDraft(worldPoint);
       return true;
@@ -300,11 +325,12 @@ export function createStagePointerController({
     const currentTool = getCurrentTool();
     const shouldUseSelection = currentTool !== TOOLS.SELECT
       && currentTool !== TOOLS.PAN
+      && ![TOOLS.LASER, TOOLS.WEBPAGE].includes(currentTool)
       && isInsideSelectedBounds(worldPoint);
     setSelectionHoverActive(shouldUseSelection);
     if (shouldUseSelection) return true;
 
-    if (currentTool === TOOLS.PEN) {
+    if ([TOOLS.PEN, TOOLS.LASER].includes(currentTool)) {
       showBrushCursor(worldPoint);
       return true;
     }
@@ -359,6 +385,28 @@ export function createStagePointerController({
     if (draftInteractionController.hasShapeDraft()) {
       endDrawingPointerSession();
       draftInteractionController.finishShapeDraft();
+      exitInteractionToIdle();
+      return true;
+    }
+
+    if (draftInteractionController.hasWebpageDraft?.()) {
+      endDrawingPointerSession();
+      const draft = draftInteractionController.finishWebpageDraft();
+      if (draft) {
+        const src = promptValue("请输入要嵌入的网页地址（例如 https://example.com）", "");
+        const element = createWebpageElement({
+          ...draft,
+          src,
+          zIndex: getBoardElementCount(),
+        });
+        if (element) {
+          addElement(element, "已添加网页");
+          selectIds([element.id]);
+          updateToolAfterPlacement(TOOLS.WEBPAGE);
+        } else if (src) {
+          setStatus("请输入有效的 http(s) 网页地址");
+        }
+      }
       exitInteractionToIdle();
       return true;
     }

@@ -3,6 +3,7 @@ import { isLinearStructureElement } from "../../structures/linear-structure.js";
 
 const ELEMENT_SCHEMA = {
   stroke: { title: "画笔", group: "brush" },
+  webpage: { title: "网页", group: "webpage" },
   text: { title: "文字", group: "text" },
   sticky: { title: "标签", group: "sticky" },
   image: { title: "图片", group: "element" },
@@ -22,6 +23,7 @@ const ELEMENT_SCHEMA = {
 
 const TOOL_PANEL_SCHEMA = {
   [TOOLS.PEN]: { title: "画笔", group: "brush" },
+  [TOOLS.LASER]: { title: "激光笔", group: "brush" },
   [TOOLS.TEXT]: { title: "文字", group: "text" },
   [TOOLS.STICKY]: { title: "标签", group: "sticky" },
   [TOOLS.SHAPE]: { title: "图形", group: "tool" },
@@ -95,14 +97,14 @@ export function getSelectionPanelMode(selectedElements) {
 }
 
 export function getToolPanelMode(currentTool, drawingTool) {
-  if (currentTool === TOOLS.PEN) return "brush";
+  if ([TOOLS.PEN, TOOLS.LASER].includes(currentTool)) return "brush";
   if (drawingTool === TOOLS.COORDINATE_PLANE) return "coordinate-tool";
   if (["line", "arrow"].includes(drawingTool)) return "linear-tool";
   return "tool";
 }
 
 export function isToolPropertyPanelAvailable(currentTool) {
-  return new Set([TOOLS.PEN, TOOLS.SHAPE, ...SHAPE_TOOLS]).has(currentTool);
+  return new Set([TOOLS.PEN, TOOLS.LASER, TOOLS.SHAPE, ...SHAPE_TOOLS]).has(currentTool);
 }
 
 export function canPersistToolPropertyControls(currentTool) {
@@ -137,8 +139,8 @@ export function getToolInspectorCapabilities(drawingTool, currentToolName) {
   return {
     text: currentToolName === TOOLS.TEXT,
     sticky: currentToolName === TOOLS.STICKY,
-    stroke: currentToolName === TOOLS.PEN,
-    drawing: currentToolName === TOOLS.PEN || ["rect", "ellipse", "line", "arrow"].includes(drawingTool),
+    stroke: [TOOLS.PEN, TOOLS.LASER].includes(currentToolName),
+    drawing: [TOOLS.PEN, TOOLS.LASER].includes(currentToolName) || ["rect", "ellipse", "line", "arrow"].includes(drawingTool),
     fillShape: ["rect", "ellipse"].includes(drawingTool),
     arrow: drawingTool === "arrow",
     coordinate: drawingTool === TOOLS.COORDINATE_PLANE,

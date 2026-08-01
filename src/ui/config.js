@@ -57,6 +57,8 @@ export const TOOLS = {
   LINE: "line",
   ARROW: "arrow",
   COORDINATE_PLANE: "coordinate-plane",
+  LASER: "laser",
+  WEBPAGE: "webpage",
 };
 
 export const SHAPE_TOOLS = new Set([TOOLS.RECT, TOOLS.ELLIPSE, TOOLS.LINE, TOOLS.ARROW, TOOLS.COORDINATE_PLANE]);

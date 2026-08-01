@@ -24,6 +24,18 @@ describe("app inspector property-controls controller", () => {
     });
   });
 
+  it("uses Excalidraw-like defaults for the laser pointer", () => {
+    const controller = createPropertyControlsController();
+
+    expect(controller.getDefaultControlsForTool(TOOLS.LASER)).toMatchObject({
+      color: "#ef4444",
+      width: "2",
+      brushOpacity: "100",
+      brushCap: "round",
+      brushStyle: "solid",
+    });
+  });
+
   it("saves and restores independent snapshots per tool", () => {
     const controller = createPropertyControlsController();
     const snapshot = {

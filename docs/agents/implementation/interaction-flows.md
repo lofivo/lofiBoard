@@ -117,3 +117,9 @@ React 外壳承载可见 chrome，但不替换画板交互内核。`Topbar`、`T
 `src/app/viewport/controller.js` 负责缩放、滚轮、网格 CSS 变量、光标和 overlay 同步。`src/app/viewport/action-controller.js` 管适配内容、确保选区可见、重置视图和背景切换。
 
 视口改变要同步文本 overlay、结构浮动控件和本地草稿。连续滚轮、触控板平移和程序化视口更新会即时修改 Stage 与网格，但文字 overlay 同步通过动画帧合并，同一帧最多执行一次；不要在 `updateGrid()` 的调用方再次重复同步。
+
+## 激光笔和网页嵌入
+
+激光笔是只存在于当前交互的临时工具，复用 `stroke` 节点实时预览，但松开后不写入 `board.elements`、历史或文件。它默认使用红色、2px、圆头、实线和完全不透明的工具预设，轨迹尾部按长度和点的时间逐渐变细，松开后由 `drawing-interaction-controller` 驱动约 1000ms 的 requestAnimationFrame 渐隐并销毁节点。工具切换和指针分发要将激光笔视为连续绘制工具，不能把选中对象的边界误判为移动起点。
+
+网页工具先在 Konva 中绘制临时矩形，松开后校验尺寸并询问 `http(s)` 地址，提交为 `webpage` 元素，放置成功后默认切换到选择工具（工具锁定时遵循锁定状态）。`src/services/webpage-overlay-controller.js` 为每个网页元素创建 iframe DOM overlay，使用 eager 加载，随视口平移/缩放和元素旋转同步；选择工具下 iframe 内容层接收网页内部点击并获得焦点，只有高层标题栏负责选择和拖动网页框，网址右侧的编辑按钮通过 prompt 修改规范化后的 URL。iframe 层通常位于 Konva 画布下方，网页标签、编辑/打开按钮和八向缩放柄位于独立的高层控制层；选择工具开启网页交互时仅将 iframe 层提升到画布上方，保证网页内容可操作，同时标题栏仍可操作。网页单选时禁用 Konva Transformer，移动、缩放在 overlay controller 中提交模型并各记录一条历史，同时实时同步 Konva 网页占位节点，避免拖拽期间旧位置残留一个网页框。页面拒绝嵌入时不在画布底部插入错误通知，用户可通过顶部的新窗口按钮打开；目标站点的 `X-Frame-Options` / CSP `frame-ancestors` 是浏览器安全限制，前端不能绕过。

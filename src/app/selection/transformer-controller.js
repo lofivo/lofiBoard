@@ -39,9 +39,19 @@ export function createSelectionTransformerController({
     const nodes = selectedIds
       .map((id) => contentLayer.findOne(`#${id}`))
       .filter(Boolean);
+    const selectedElements = getElements().filter((element) => selectedIds.includes(element.id));
+    if (selectedElements.length === 1 && selectedElements[0].type === "webpage") {
+      // 网页由 DOM overlay 接收内容交互和自定义缩放,Konva Transformer 会被 iframe 遮住。
+      transformer.nodes([]);
+      transformer.visible(false);
+      transformer.resizeEnabled(false);
+      transformer.rotateEnabled(false);
+      transformer.enabledAnchors([]);
+      disableHitAreaDrag();
+      return;
+    }
     transformer.nodes(nodes);
     const hasSelection = nodes.length > 0;
-    const selectedElements = getElements().filter((element) => selectedIds.includes(element.id));
     const canTransform = getCurrentTool() === selectTool
       && selectedElements.length > 0
       && selectedElements.every((element) => !element.locked);

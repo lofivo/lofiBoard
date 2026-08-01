@@ -8,12 +8,14 @@ export function createSelectionTransformEventsController() {
     selectionTransformPreviewController,
     handleTransformerDoubleClick,
     syncSelectedNodes,
+    syncWebpageOverlays = () => {},
     pushHistory,
   }) {
     transformer.on("transform", selectionTransformPreviewController.syncTextWidthResize);
     transformer.on("transform", selectionTransformPreviewController.syncTextTransformPreview);
     transformer.on("transform", selectionTransformPreviewController.syncCoordinatePlaneTransformPreview);
     transformer.on("transform", selectionTransformPreviewController.syncGraphTransformPreview);
+    transformer.on("transform", syncWebpageOverlays);
     transformer.on("transformstart transform", () => {
       lastTransformAnchor = transformer.getActiveAnchor?.() ?? lastTransformAnchor;
     });
@@ -25,6 +27,7 @@ export function createSelectionTransformEventsController() {
         return;
       }
       syncSelectedNodes(transformer.nodes());
+      syncWebpageOverlays();
       pushHistory("已更新选择对象");
       lastTransformAnchor = null;
     });

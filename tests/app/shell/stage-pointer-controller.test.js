@@ -55,6 +55,14 @@ function createHarness(overrides = {}) {
     addElement: vi.fn((element) => { elements = [...elements, element]; }),
     beginDrawingPointerSession: undefined,
     clearSelection: vi.fn(() => { selectedIds = []; }),
+    createWebpageElement: vi.fn(({ start, end, src, zIndex }) => ({
+      id: "webpage_new",
+      type: "webpage",
+      start,
+      end,
+      src,
+      zIndex,
+    })),
     editElement: vi.fn(),
     enterInteraction: vi.fn(),
     eraseObjectAt: vi.fn(),
@@ -77,6 +85,7 @@ function createHarness(overrides = {}) {
     isTransformerTarget: vi.fn(() => false),
     persistCurrentDraft: vi.fn(),
     pushHistory: vi.fn(),
+    promptValue: vi.fn(() => "https://example.com"),
     selectElementById: vi.fn((id) => { selectedIds = [id]; }),
     selectIds: vi.fn((ids) => { selectedIds = ids; }),
     setStructurePanelOpen: vi.fn(),
@@ -119,12 +128,16 @@ function createHarness(overrides = {}) {
   const draftInteractionController = {
     finishSelectionDraft: vi.fn(),
     finishShapeDraft: vi.fn(),
+    finishWebpageDraft: vi.fn(),
     hasSelectionDraft: vi.fn(() => false),
     hasShapeDraft: vi.fn(() => false),
+    hasWebpageDraft: vi.fn(() => false),
     startSelectionDraft: vi.fn(),
     startShapeDraft: vi.fn(),
+    startWebpageDraft: vi.fn(),
     updateSelectionDraft: vi.fn(),
     updateShapeDraft: vi.fn(),
+    updateWebpageDraft: vi.fn(),
     ...overrides.draftInteractionController,
   };
   const structureInteraction = {
@@ -145,6 +158,7 @@ function createHarness(overrides = {}) {
     consumeSuppressSelectionDragOnce: overrides.consumeSuppressSelectionDragOnce ?? (() => false),
     createStickyElement: vi.fn(({ point, zIndex }) => ({ id: "sticky_new", type: "sticky", point, zIndex })),
     createTextElement: vi.fn(({ point, zIndex }) => ({ id: "text_new", type: "text", point, zIndex })),
+    createWebpageElement: callbacks.createWebpageElement,
     editElement: callbacks.editElement,
     enterInteraction: callbacks.enterInteraction,
     exitInteractionToIdle: callbacks.exitInteractionToIdle,
@@ -178,6 +192,7 @@ function createHarness(overrides = {}) {
     isTransformerTarget: callbacks.isTransformerTarget,
     isTreeNodeHitTarget: callbacks.isTreeNodeHitTarget ?? (() => false),
     persistCurrentDraft: callbacks.persistCurrentDraft,
+    promptValue: callbacks.promptValue,
     requestAnimationFrame: (callback) => callback(),
     selectElementById: callbacks.selectElementById,
     selectIds: callbacks.selectIds,
@@ -226,6 +241,28 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.editElement).toHaveBeenCalledWith(elementId);
     expect(callbacks.setTool).not.toHaveBeenCalled();
     expect(getCurrentTool()).toBe(tool);
+  });
+
+  it("returns to the select tool after webpage placement", () => {
+    const { callbacks, controller, getCurrentTool } = createHarness({
+      currentTool: TOOLS.WEBPAGE,
+      draftInteractionController: {
+        finishWebpageDraft: vi.fn(() => ({
+          start: { x: 10, y: 20 },
+          end: { x: 210, y: 170 },
+        })),
+        hasWebpageDraft: vi.fn(() => true),
+      },
+    });
+
+    controller.handlePointerUp(createKonvaEvent());
+
+    expect(callbacks.createWebpageElement).toHaveBeenCalledWith(expect.objectContaining({
+      src: "https://example.com",
+    }));
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["webpage_new"]);
+    expect(callbacks.setTool).toHaveBeenCalledWith(TOOLS.SELECT);
+    expect(getCurrentTool()).toBe(TOOLS.SELECT);
   });
 
   it("starts, moves, and finishes a pan gesture from temporary pan mode", () => {

@@ -19,6 +19,7 @@ export function createToolActivationController({
   setStructurePanelOpen,
   syncInspectorPanelState,
   syncSelectionNodes,
+  syncWebpageOverlays = () => {},
   updateChrome,
   updateDraggableState,
 }) {
@@ -45,6 +46,7 @@ export function createToolActivationController({
     }
     updateDraggableState();
     syncSelectionNodes();
+    syncWebpageOverlays();
     stageContainer.dataset.tool = tool;
     if (toolChanged) {
       restorePropertyControlsForTool(tool);

@@ -111,6 +111,7 @@ import { createId } from "../board/ids.js";
 import {
   createImageElement as buildImageElement,
   createTextElement as buildTextElement,
+  createWebpageElement as buildWebpageElement,
 } from "../board/element-factory.js";
 import {
   chooseWhiteboardSaveFile,
@@ -125,6 +126,7 @@ import {
   saveLocalDraft,
 } from "../services/draft-storage.js";
 import { createTextOverlayController } from "../services/text-overlay-controller.js";
+import { createWebpageOverlayController } from "../services/webpage-overlay-controller.js";
 import { getWorldPointer } from "../canvas/geometry.js";
 import { createHistory } from "../board/history.js";
 import {
@@ -136,6 +138,7 @@ import {
   syncLinearStructureNodeContent,
   syncTextNodeContent,
   syncTextNodeSize,
+  syncWebpageNodeContent,
 } from "../canvas/konva-elements.js";
 import {
   getImageFileFromDropEvent,
@@ -540,6 +543,48 @@ let suppressSelectionDragOnce = false;
     getContainerRect: () => container.getBoundingClientRect(),
     getStageState: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
   });
+  const webpageOverlayController = createWebpageOverlayController({
+    container,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    getCurrentTool: () => currentTool,
+    getViewport: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
+    isElementLocked,
+    setElements: (elements) => { board.elements = elements; },
+    syncWebpageNode: (element) => {
+      if (!element) return;
+      const node = contentLayer.findOne(`#${element.id}`);
+      if (!node) return;
+      node.setAttrs({
+        x: Number(element.x) || 0,
+        y: Number(element.y) || 0,
+        rotation: Number(element.rotation) || 0,
+        scaleX: Number(element.scaleX) || 1,
+        scaleY: Number(element.scaleY) || 1,
+      });
+      syncWebpageNodeContent(node, element);
+      contentLayer.batchDraw();
+    },
+    setWebpageNodeVisible: (elementId, visible) => {
+      const node = contentLayer.findOne(`#${elementId}`);
+      if (!node) return;
+
+      const nextVisible = Boolean(visible);
+      if (node.getAttr("webpageCanvasVisible") === nextVisible) return;
+
+      node.setAttrs({
+        opacity: nextVisible ? 1 : 0,
+        webpageCanvasVisible: nextVisible,
+      });
+      contentLayer.batchDraw();
+    },
+    selectIds,
+    promptValue: (...args) => promptValue(...args),
+    renderBoard: () => renderBoard(),
+    pushHistory: (message) => pushHistory(message),
+    schedulePersistCurrentDraft: () => schedulePersistCurrentDraft(),
+    setStatus: (message) => setStatus(message),
+  });
 
   const transformer = createSelectionTransformerNode({
     Konva,
@@ -590,6 +635,7 @@ let suppressSelectionDragOnce = false;
     suppressNextLinearItemSelect: (elementId) => linearGestureController.suppressNextLinearItemSelect(elementId),
     syncNodeToElement: (node) => selectionTransformCommitController.syncNodeToElement(node),
     syncTextOverlays,
+    syncWebpageOverlays: () => webpageOverlayController.sync(),
     transformer,
     updateTreeControlsPosition: () => structureControlsPositionController.updateTreeControlsPosition(),
   });
@@ -835,6 +881,7 @@ let suppressSelectionDragOnce = false;
     setStructurePanelOpen: (open) => setStructurePanelOpen(open),
     syncInspectorPanelState: (options) => syncInspectorPanelState(options),
     syncSelectionNodes,
+    syncWebpageOverlays: () => webpageOverlayController.sync(),
     updateChrome: () => updateChrome(),
     updateDraggableState,
   });
@@ -874,6 +921,7 @@ let suppressSelectionDragOnce = false;
     getBrushOpacityValue,
     getBrushCap: () => readControlValues().brushCap,
     getBrushStyle: () => readControlValues().brushStyle,
+    getIsLaser: () => currentTool === TOOLS.LASER,
     getBrushSmoothingValue,
     getBrushInputSmoothingValue,
     getScale: () => stage.scaleX(),
@@ -1502,6 +1550,7 @@ let suppressSelectionDragOnce = false;
     updateLinearItemControlsPosition: structureControlsPositionController.updateLinearItemControlsPosition,
     syncActiveCellEditor,
     syncTextOverlays,
+    syncWebpageOverlays: () => webpageOverlayController.sync(),
     updateContextPanel,
     schedulePersistCurrentDraft,
     closeZoomMenu: () => setZoomMenuOpen(false),
@@ -1521,6 +1570,7 @@ let suppressSelectionDragOnce = false;
     structureInteraction,
     addElement,
     clearSelection,
+    createWebpageElement: buildWebpageElement,
     editElement: (id) => editController.editElement(id),
     enterInteraction: (state) => interactionSM.enter(state),
     exitInteractionToIdle: () => interactionSM.exitToIdle(),
@@ -1553,10 +1603,12 @@ let suppressSelectionDragOnce = false;
     isTemporaryPanActive,
     isTreeNodeHitTarget,
     persistCurrentDraft,
+    promptValue,
     selectElementById,
     selectIds,
     setLastPointerWorldPoint: (worldPoint) => { lastPointerWorldPoint = worldPoint; },
     setStructurePanelOpen,
+    setStatus,
     setTool,
     setZoomMenuOpen,
     shouldShowContextMenu: ({ targetId, selectedIds: nextSelectedIds }) => contextMenuController.shouldShow({
@@ -1596,6 +1648,7 @@ let suppressSelectionDragOnce = false;
     structureControlsController,
     structureActiveVisualController,
     textOverlayController,
+    webpageOverlayController,
     draftInteractionController,
     editController,
     selectionController,
@@ -1814,7 +1867,9 @@ let suppressSelectionDragOnce = false;
       unbindKeyboard?.();
       boardSession.destroy();
       destroyArrayAlgorithmSessionController();
+      drawingInteractionController.destroy();
       viewportController.destroy();
+      webpageOverlayController.destroy();
       textOverlayController.clear();
       shapeRenderController.clear();
       stage.destroy();
@@ -1839,6 +1894,7 @@ let suppressSelectionDragOnce = false;
       selectionTransformPreviewController,
       handleTransformerDoubleClick: stagePointerController.handleTransformerDoubleClick,
       syncSelectedNodes,
+      syncWebpageOverlays: () => webpageOverlayController.sync(),
       pushHistory,
     });
   }
@@ -1967,7 +2023,7 @@ let suppressSelectionDragOnce = false;
     return currentTool === TOOLS.SELECT
       && !isTemporaryPanActive()
       && !element.locked
-      && !["text", "sticky"].includes(element.type);
+      && !["text", "sticky", "webpage"].includes(element.type);
   }
 
   function isLinearPointerGestureElement(elementId) {

@@ -123,6 +123,15 @@ describe("app shell", () => {
     expect(styles).toMatch(/@media \(max-width: 760px\) \{[\s\S]*?\.statusbar \{[\s\S]*?right: 0;[\s\S]*?left: 0;/);
   });
 
+  it("raises the canvas above webpage overlays while drawing", () => {
+    const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
+
+    expect(styles).toMatch(/\.webpage-overlay-layer\.is-laser-mode,[\s\S]*?\.webpage-overlay-layer\.is-canvas-above-webpage \{[\s\S]*?z-index: 1;/);
+    expect(styles).toMatch(/\.webpage-overlay-layer\.is-page-interaction-mode \{[\s\S]*?z-index: 4;/);
+    expect(styles).toMatch(/\.webpage-overlay-controls-layer \{[\s\S]*?z-index: 5;/);
+    expect(styles).toMatch(/\.stage-container\[data-tool="laser"\] \.konvajs-content,[\s\S]*?\.stage-container\.is-canvas-above-webpage \.konvajs-content \{[\s\S]*?z-index: 2;/);
+  });
+
   it("keeps the current selection when pointer down starts on an already selected element", () => {
     const stagePointerSource = readStagePointerSource();
 

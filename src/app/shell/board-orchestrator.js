@@ -4,6 +4,7 @@ import {
   syncCoordinatePlaneNodeContent,
   syncTextNodeContent,
   syncTextNodeSize,
+  syncWebpageNodeContent,
 } from "../../canvas/konva-elements.js";
 import { applyMeasuredTextHeights } from "../editing/text-element-measure.js";
 import { reorderElements } from "../../board/model.js";
@@ -26,6 +27,7 @@ export function createBoardOrchestrator({
   structureControlsController,
   structureActiveVisualController,
   textOverlayController,
+  webpageOverlayController = { sync() {} },
   draftInteractionController,
   editController,
   selectionController,
@@ -65,6 +67,10 @@ export function createBoardOrchestrator({
   moveTreeStructureNode,
   connectTreeStructureNodes,
 }) {
+  function shouldUseNativeDrag(element) {
+    return element?.type !== "webpage" && shouldElementBeDraggable(element);
+  }
+
   // ── Group C: 结构视觉同步（薄委托） ──
 
   function syncLinearItemActiveVisual(elementId) {
@@ -123,6 +129,7 @@ export function createBoardOrchestrator({
     structureControlsController.renderGraphNodeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
+    webpageOverlayController.sync(getElements());
     syncTextOverlays({ hiddenIds: editController.isEditing ? getSelectedIds() : [] });
   }
 
@@ -139,6 +146,7 @@ export function createBoardOrchestrator({
     structureControlsController.renderLinearItemControls();
     structureControlsController.renderTreeControls();
     contentLayer.batchDraw();
+    webpageOverlayController.sync(getElements());
     updateChrome();
   }
 
@@ -167,7 +175,7 @@ export function createBoardOrchestrator({
     contentLayer.find(".element").forEach((node) => {
       const id = getElementIdFromNode(node);
       const element = getElements().find((item) => item.id === id);
-      node.draggable(shouldElementBeDraggable(element) && !isLinearPointerGestureElement(id) && !isSelectionDragElement(id));
+      node.draggable(shouldUseNativeDrag(element) && !isLinearPointerGestureElement(id) && !isSelectionDragElement(id));
     });
   }
 
@@ -186,7 +194,7 @@ export function createBoardOrchestrator({
 
   function getElementNodeHandlers(element) {
     return {
-      draggable: shouldElementBeDraggable(element) && !isLinearPointerGestureElement(element.id),
+      draggable: shouldUseNativeDrag(element) && !isLinearPointerGestureElement(element.id),
       onDragStart: (node) => selectionDragController.beginNodeDragSelection(node),
       onDragMove: (node) => selectionDragController.updateNodeDragSelection(node),
       onMove: (node) => {
@@ -246,6 +254,9 @@ export function createBoardOrchestrator({
     }
     if (element.type === "coordinate-plane") {
       rerenderCoordinatePlaneNode(element, node);
+    }
+    if (element.type === "webpage") {
+      syncWebpageNodeContent(node, element);
     }
   }
 

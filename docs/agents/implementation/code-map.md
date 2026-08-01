@@ -12,7 +12,7 @@
 - `src/structures/`：结构元素的纯逻辑，包括线性结构、二维数组、图、树、结构工厂和结构交互运行时。
 - `src/structures/matrix-structure.js`：二维数组解析、创建、导出、单元格更新、行列调整和下标选项。
 - `src/algorithms/`：算法步骤生成，目前主要是数组排序。
-- `src/services/`：文件、剪贴板、图片导入、本地草稿、LaTeX 和文本 overlay 服务。
+- `src/services/`：文件、剪贴板、图片导入、本地草稿、LaTeX、文本 overlay 和网页 iframe overlay 服务。
 - `src/ui/`：工具栏、菜单、上下文菜单、面板等 UI 配置和轻量状态。
 - `src/ui/tokens.js`：浮层 chrome 的唯一设计令牌来源（圆角、阴影、颜色变量、毛玻璃浮层底座）。组件内不写死 hex，颜色一律走 Semi 令牌或 `--board-*` 变量。
 - `src/vendor/semi-ui.js`：Semi UI 按需导入替换入口。`vite.config.js` 的 `resolve.alias` 把 `@douyinfe/semi-ui` 重定向到此文件，手动列出要用到的组件，配合 Rollup `manualChunks` 做按需打包。
@@ -71,6 +71,7 @@ React 与引擎之间主要通过两个门面协作：
 - 改二维数组：先看 `src/structures/matrix-structure.js` 和 `src/board/model.js`，再看 `src/app/components/StylePanel.jsx`、`src/app/structures/cell-editor-controller.js`、`src/canvas/konva-elements.js` 与 `src/app/whiteboard-app.js` 的窄命令接线。
 - 改 React 属性栏或结构面板：先看 `src/app/App.jsx` 的桥接状态，再看 `src/app/components/StylePanel.jsx` / `StructurePanel.jsx`，最后看对应 `src/app/inspector/*` 或 `src/app/structures/*` controller。
 - 改保存/草稿/历史：看 `src/app/shell/board-session/*`、`src/board/history.js`、`src/services/file.js`、`src/services/draft-storage.js`。
+- 改网页嵌入：看 `src/board/model.js`、`src/board/element-factory.js`、`src/canvas/konva-elements.js` 和 `src/services/webpage-overlay-controller.js`；网页内容由 DOM iframe overlay 显示，Konva 只保留可命中的占位形状。
 
 ## 命名约定
 

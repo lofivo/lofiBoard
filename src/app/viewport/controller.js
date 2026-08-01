@@ -8,6 +8,7 @@ export function createViewportController({
   updateLinearItemControlsPosition = () => {},
   syncActiveCellEditor = () => {},
   syncTextOverlays = () => {},
+  syncWebpageOverlays = () => {},
   updateContextPanel = () => {},
   schedulePersistCurrentDraft = () => {},
   closeZoomMenu = () => {},
@@ -40,6 +41,7 @@ export function createViewportController({
     container.style.setProperty("--grid-y", `${stage.y()}px`);
     updateLinearItemControlsPosition();
     syncActiveCellEditor();
+    syncWebpageOverlays();
     scheduleTextOverlaySync();
   }
 

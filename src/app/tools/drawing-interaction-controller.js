@@ -16,6 +16,12 @@ import {
   smoothStrokePoint,
 } from "../../tools/stroke-engine.js";
 
+const LASER_FADE_DURATION_MS = 1000;
+const DEFAULT_REQUEST_ANIMATION_FRAME = globalThis.requestAnimationFrame?.bind(globalThis)
+  ?? ((callback) => globalThis.setTimeout?.(() => callback(Date.now()), 16));
+const DEFAULT_CANCEL_ANIMATION_FRAME = globalThis.cancelAnimationFrame?.bind(globalThis)
+  ?? ((frameId) => globalThis.clearTimeout?.(frameId));
+
 export function createDrawingInteractionController({
   addElement = () => {},
   contentLayer,
@@ -32,8 +38,12 @@ export function createDrawingInteractionController({
   getScale = () => 1,
   getSelectedIds = () => [],
   getStrokeWidth = () => 4,
+  getIsLaser = () => false,
   getVisibleEraserRadius = (radius) => radius,
   now = () => performance.now(),
+  requestAnimationFrame = DEFAULT_REQUEST_ANIMATION_FRAME,
+  cancelAnimationFrame = DEFAULT_CANCEL_ANIMATION_FRAME,
+  laserFadeDuration = LASER_FADE_DURATION_MS,
   pushHistory = () => {},
   renderBoard = () => {},
   setBoardElements = () => {},
@@ -45,10 +55,14 @@ export function createDrawingInteractionController({
   let lastEraserPoint = null;
   let activeEraserRadius = 24;
   let eraseChanged = false;
+  const laserAnimations = new Set();
 
   function startStroke(worldPoint, pressure = 0.5) {
+    const isLaser = Boolean(getIsLaser());
+    const laserNow = isLaser ? now() : null;
     const origin = { x: worldPoint.x, y: worldPoint.y };
     const points = [{ x: 0, y: 0, pressure: normalizePressure(pressure) }];
+    if (isLaser) points[0].time = laserNow;
     const element = {
       id: createId("stroke"),
       type: "stroke",
@@ -66,10 +80,15 @@ export function createDrawingInteractionController({
       scaleY: 1,
       zIndex: getBoardElements().length,
     };
+    if (isLaser) {
+      element.laser = true;
+      element.laserNow = laserNow;
+    }
 
     const node = createNode({ ...element, [PRESSURE_STROKE_PREVIEW_ATTR]: true });
     contentLayer?.add?.(node);
-    strokeDraft = { element, node, origin };
+    contentLayer?.batchDraw?.();
+    strokeDraft = { element, node, origin, isLaser };
   }
 
   function appendStroke(worldPoint, pressure = 0.5) {
@@ -80,10 +99,16 @@ export function createDrawingInteractionController({
       y: worldPoint.y - strokeDraft.origin.y,
       pressure: normalizePressure(pressure),
     };
+    if (strokeDraft.isLaser) nextPoint.time = now();
     const minDistance = Math.max(0.7, Number(getStrokeWidth()) * 0.08) / getScale();
     if (!shouldAppendStrokePoint(previousPoint, nextPoint, minDistance)) return false;
 
-    strokeDraft.element.points.push(smoothStrokePoint(previousPoint, nextPoint, getBrushInputSmoothingValue()));
+    const smoothedPoint = smoothStrokePoint(previousPoint, nextPoint, getBrushInputSmoothingValue());
+    if (strokeDraft.isLaser) {
+      smoothedPoint.time = nextPoint.time;
+      strokeDraft.element.laserNow = nextPoint.time;
+    }
+    strokeDraft.element.points.push(smoothedPoint);
     strokeDraft.node?.setAttrs?.(createNodeAttrs(strokeDraft.element));
     contentLayer?.batchDraw?.();
     return true;
@@ -91,13 +116,72 @@ export function createDrawingInteractionController({
 
   function finishStroke() {
     if (!strokeDraft) return false;
-    const { element, node } = strokeDraft;
-    node?.destroy?.();
+    const { element, node, isLaser } = strokeDraft;
     strokeDraft = null;
 
-    if (element.points.length < 2) return false;
+    if (element.points.length < 2) {
+      node?.destroy?.();
+      return false;
+    }
+    if (isLaser) {
+      fadeLaserStroke(element, node);
+      return true;
+    }
+    node?.destroy?.();
     addElement(element, "已添加笔触");
     return true;
+  }
+
+  function setNodeOpacity(node, opacity) {
+    if (!node) return;
+    if (typeof node.opacity === "function") {
+      node.opacity(opacity);
+    } else if (typeof node.setAttr === "function") {
+      node.setAttr("opacity", opacity);
+    } else {
+      node.setAttrs?.({ opacity });
+    }
+    contentLayer?.batchDraw?.();
+  }
+
+  function fadeLaserStroke(element, node) {
+    if (!node) return;
+    const opacity = Number(element.opacity);
+    const animation = {
+      node,
+      frameId: null,
+      startedAt: null,
+      initialOpacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 1,
+    };
+    const duration = Math.max(1, Number(laserFadeDuration) || LASER_FADE_DURATION_MS);
+
+    const step = (timestamp) => {
+      if (!laserAnimations.has(animation)) return;
+      const currentTime = Number.isFinite(timestamp) ? timestamp : now();
+      animation.startedAt ??= currentTime;
+      const progress = Math.min(1, Math.max(0, (currentTime - animation.startedAt) / duration));
+      animation.node.setAttrs?.({ laserNow: currentTime });
+      setNodeOpacity(animation.node, animation.initialOpacity * (1 - (progress ** 4)));
+      if (progress >= 1) {
+        laserAnimations.delete(animation);
+        animation.node.destroy?.();
+        contentLayer?.batchDraw?.();
+        return;
+      }
+      animation.frameId = requestAnimationFrame?.(step) ?? null;
+    };
+
+    laserAnimations.add(animation);
+    animation.frameId = requestAnimationFrame?.(step) ?? null;
+  }
+
+  function cancelLaserAnimations() {
+    for (const animation of laserAnimations) {
+      if (animation.frameId !== null) cancelAnimationFrame?.(animation.frameId);
+      animation.node.destroy?.();
+    }
+    laserAnimations.clear();
+    contentLayer?.batchDraw?.();
   }
 
   function hasStrokeDraft() {
@@ -216,6 +300,15 @@ export function createDrawingInteractionController({
     return Boolean(eraseSnapshot);
   }
 
+  function destroy() {
+    if (strokeDraft) {
+      strokeDraft.node?.destroy?.();
+      strokeDraft = null;
+    }
+    cancelLaserAnimations();
+    cancelEraser();
+  }
+
   return {
     appendStroke,
     beginEraser,
@@ -228,6 +321,7 @@ export function createDrawingInteractionController({
     getActiveEraserRadius,
     hasActiveEraserSnapshot,
     hasStrokeDraft,
+    destroy,
     startStroke,
     updateObjectEraser,
     updateStrokeEraser,

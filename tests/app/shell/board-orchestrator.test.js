@@ -92,7 +92,9 @@ function createOrchestrator(overrides = {}) {
     getSuppressNextSelectionClick: () => suppressNextSelectionClick,
     setSuppressNextSelectionClick: (value) => { suppressNextSelectionClick = value; },
 
-    shouldElementBeDraggable: () => true,
+    shouldElementBeDraggable: (element) => currentTool === "select"
+      && !element?.locked
+      && !["text", "sticky"].includes(element?.type),
     isTemporaryPanActive: () => false,
     isLinearPointerGestureElement: () => false,
     isSelectionDragElement: () => false,
@@ -208,6 +210,13 @@ describe("board orchestrator", () => {
       let suppressed = false;
       handlers.onSelect({ cancelBubble: false, evt: { shiftKey: false } }, {});
       expect(deps.getSuppressNextSelectionClick()).toBe(false);
+    });
+
+    it("does not make webpage placeholders natively draggable", () => {
+      const { orchestrator } = createOrchestrator({ currentTool: "select" });
+      const handlers = orchestrator.getElementNodeHandlers({ id: "webpage-1", type: "webpage" });
+
+      expect(handlers.draggable).toBe(false);
     });
   });
 

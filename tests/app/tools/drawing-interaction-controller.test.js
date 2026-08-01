@@ -63,12 +63,16 @@ function createHarness(overrides = {}) {
     getBrushSmoothingValue: () => 0.3,
     getBrushInputSmoothingValue: () => 0,
     getScale: overrides.getScale ?? (() => 1),
+    getIsLaser: overrides.getIsLaser ?? (() => false),
     getBaseEraserRadius: () => 10,
     getVisibleEraserRadius: overrides.getVisibleEraserRadius ?? ((radius) => radius),
     addElement: callbacks.addElement,
     pushHistory: callbacks.pushHistory,
     renderBoard: callbacks.renderBoard,
     now: overrides.now ?? vi.fn(() => 1000),
+    requestAnimationFrame: overrides.requestAnimationFrame,
+    cancelAnimationFrame: overrides.cancelAnimationFrame,
+    laserFadeDuration: overrides.laserFadeDuration,
   });
 
   return { callbacks, controller, layer, nodes, state };
@@ -115,6 +119,38 @@ describe("drawing-interaction-controller", () => {
 
     expect(nodes[0].destroy).toHaveBeenCalled();
     expect(callbacks.addElement).not.toHaveBeenCalled();
+  });
+
+  it("fades laser strokes without adding them to the board or history", () => {
+    const frames = [];
+    const requestAnimationFrame = vi.fn((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const cancelAnimationFrame = vi.fn();
+    const { callbacks, controller, nodes, state } = createHarness({
+      getIsLaser: () => true,
+      requestAnimationFrame,
+      cancelAnimationFrame,
+      laserFadeDuration: 100,
+    });
+
+    controller.startStroke({ x: 20, y: 30 }, 0.8);
+    controller.appendStroke({ x: 35, y: 40 }, 0.4);
+    controller.finishStroke();
+
+    expect(callbacks.addElement).not.toHaveBeenCalled();
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
+    expect(state.elements).toEqual([]);
+    expect(nodes[0].destroy).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(1);
+
+    frames.shift()(1000);
+    expect(nodes[0].attrs.opacity).toBe(0.75);
+    expect(nodes[0].destroy).not.toHaveBeenCalled();
+    frames.shift()(1100);
+    expect(nodes[0].attrs.opacity).toBe(0);
+    expect(nodes[0].destroy).toHaveBeenCalledTimes(1);
   });
 
   it("samples stroke eraser movement and records history only when the board changed", () => {

@@ -43,6 +43,7 @@ export function getToolStatus(tool) {
     select: "选择：单击单选，Shift 范围多选，Ctrl 切换多选",
     pan: "平移：拖动画布",
     pen: "画笔：拖动画出可编辑笔触",
+    laser: "激光笔：拖动标记画布，松开后渐隐",
     "eraser-stroke": "片段橡皮：擦除笔触的一部分",
     "eraser-object": "对象橡皮：碰到对象即删除",
     text: "文字：点击画布添加文字",
@@ -53,5 +54,6 @@ export function getToolStatus(tool) {
     ellipse: "椭圆：拖动创建",
     line: "直线：拖动创建",
     arrow: "箭头：拖动创建",
+    webpage: "嵌入网页：拖动创建网页区域",
   }[tool];
 }

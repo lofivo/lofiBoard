@@ -7,6 +7,7 @@ vi.mock("../../src/services/latex.js", () => ({
 import {
   createElementNode,
   getStickyBorderColor,
+  PRESSURE_STROKE_PREVIEW_ATTR,
   syncElementNode,
   syncTextNodeContent,
   syncTextNodeScalePreview,
@@ -321,6 +322,34 @@ describe("konva elements", () => {
     expect(rect.width()).toBe(100);
     expect(rect.stroke()).toBe("#2563eb");
     expect(rect.fill()).toBe("#dbeafe");
+  });
+
+  it("keeps laser trail timestamps and rendering state on the temporary node", () => {
+    const node = createElementNode({
+      id: "laser_1",
+      type: "stroke",
+      x: 10,
+      y: 20,
+      points: [
+        { x: 0, y: 0, pressure: 0.5, time: 1000 },
+        { x: 40, y: 0, pressure: 0.5, time: 1020 },
+      ],
+      stroke: "#ef4444",
+      strokeWidth: 2,
+      opacity: 1,
+      lineCap: "round",
+      brushStyle: "solid",
+      laser: true,
+      laserNow: 1020,
+      [PRESSURE_STROKE_PREVIEW_ATTR]: true,
+    }, baseHandlers);
+
+    expect(node.getAttr("laser")).toBe(true);
+    expect(node.getAttr("laserNow")).toBe(1020);
+    expect(node.getAttr("laserPoints")).toEqual([
+      { x: 0, y: 0, time: 1000 },
+      { x: 40, y: 0, time: 1020 },
+    ]);
   });
 
   it("syncs text and sticky nodes in place including child content", () => {

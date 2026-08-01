@@ -37,6 +37,13 @@ export function createPropertyControlsController() {
       controls.fill = "#fef08a";
       controls.fillTransparent = false;
     }
+    if (tool === TOOLS.LASER) {
+      controls.color = "#ef4444";
+      controls.width = "2";
+      controls.brushOpacity = "100";
+      controls.brushCap = "round";
+      controls.brushStyle = "solid";
+    }
     return controls;
   }
 

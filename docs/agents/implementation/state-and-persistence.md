@@ -21,7 +21,10 @@
 - 便签：`sticky`
 - 图片：`image`
 - 图形：`rect`、`ellipse`、`line`、`arrow`、`coordinate-plane`
+- 网页：`webpage`，保存位置、尺寸、旋转、缩放和规范化后的 `src` 地址；iframe、加载状态和 overlay 交互不写入文件。
 - 结构：`array-structure`、`matrix-structure`、`stack-structure`、`queue-structure`、`deque-structure`、`graph-structure`、`tree-structure`
+
+激光笔不生成持久化 `stroke` 元素；它只在绘制期间存在于 Konva 临时节点，松开后渐隐并销毁。普通 `stroke` 的颜色、透明度、线宽、线帽和笔刷样式仍保存在笔触自身。
 
 新增字段要判断是否写入 `.lofibrd`。纯会话状态不要放进持久化元素字段。
 

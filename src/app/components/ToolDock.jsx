@@ -3,10 +3,10 @@ import { Button, Tooltip, Card } from '@douyinfe/semi-ui';
 import {
   MousePointer2, Hand, PenLine, Eraser, Trash2,
   Type, StickyNote, Image as ImageIcon, Binary, Shapes,
-  Square, Circle, Minus, ArrowRight, Grid2X2, Lock,
+  Square, Circle, Minus, ArrowRight, Grid2X2, Lock, Crosshair, Globe2,
 } from 'lucide-static';
 import { useWhiteboardContext } from '../WhiteboardContext';
-import { icon } from '../../ui/config.js';
+import { icon, TOOLS } from '../../ui/config.js';
 import { GLASS, RADIUS, BORDER } from '../../ui/tokens.js';
 
 // group 决定分隔线位置：相邻工具 group 不同时插入一条竖线。
@@ -28,8 +28,10 @@ const TOOL_CONFIG = [
   { id: 'more-tools', label: '更多工具', svg: Shapes, group: 'shape' },
 ];
 
-const SHAPE_OPTIONS = [
+const MORE_TOOL_OPTIONS = [
   { id: 'coordinate-plane', label: '坐标系', svg: Grid2X2 },
+  { id: TOOLS.LASER, label: '激光笔', svg: Crosshair },
+  { id: TOOLS.WEBPAGE, label: '嵌入网页', svg: Globe2 },
 ];
 
 const KEEP_TOOL_ACTIVE_LABEL = '绘制后保持所选的工具栏状态 (Q)';
@@ -119,14 +121,18 @@ export default function ToolDock() {
               bodyStyle={{ padding: 6 }}
             >
               <div className="shape-popover-grid">
-                {SHAPE_OPTIONS.map(s => {
-                  const isShapeActive = ctx.currentTool === 'shape' && ctx.activeShape === s.id;
+                {MORE_TOOL_OPTIONS.filter((option) => option.id === 'coordinate-plane' || ctx.setTool).map(s => {
+                  const isShapeActive = s.id === 'coordinate-plane'
+                    ? ctx.currentTool === 'shape' && ctx.activeShape === s.id
+                    : ctx.currentTool === s.id;
                   return (
                     <button
                       key={s.id}
                       type="button"
                       className={`shape-option-card${isShapeActive ? ' active' : ''}`}
-                      onClick={() => handleShapeClick(s.id)}
+                      onClick={() => s.id === 'coordinate-plane'
+                        ? handleShapeClick(s.id)
+                        : ctx.setTool?.(s.id)}
                     >
                       <span className="shape-option-icon">
                         <ToolIcon svg={s.svg} />
@@ -161,7 +167,8 @@ export default function ToolDock() {
           const isActive = tool.shapeId
             ? ctx.currentTool === 'shape' && ctx.activeShape === tool.shapeId
             : tool.id === 'more-tools'
-              ? ctx.currentTool === 'shape' && SHAPE_OPTIONS.some(option => option.id === ctx.activeShape)
+            ? (ctx.currentTool === 'shape' && ctx.activeShape === 'coordinate-plane')
+                || [TOOLS.LASER, TOOLS.WEBPAGE].includes(ctx.currentTool)
             : tool.id
             ? ctx.currentTool === tool.id
             : false;

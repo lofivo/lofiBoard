@@ -1654,6 +1654,235 @@ button {
   cursor: var(--cursor-panning);
 }
 
+.webpage-overlay-layer {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.webpage-overlay-layer.is-laser-mode,
+.webpage-overlay-layer.is-canvas-above-webpage {
+  z-index: 1;
+}
+
+.webpage-overlay-layer.is-page-interaction-mode {
+  z-index: 4;
+}
+
+.webpage-overlay-controls-layer {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stage-container[data-tool="laser"] .konvajs-content,
+.stage-container.is-canvas-above-webpage .konvajs-content {
+  position: relative;
+  z-index: 2;
+}
+
+.webpage-overlay {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  transform-origin: left top;
+  pointer-events: none;
+}
+
+.webpage-overlay-controls {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: visible;
+  transform-origin: left top;
+  pointer-events: none;
+}
+
+.webpage-overlay.is-selected {
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+.webpage-overlay.is-interactive {
+  border: 2px solid #2563eb;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.16);
+  pointer-events: auto;
+}
+
+.webpage-overlay-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.webpage-overlay-chrome {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  height: var(--webpage-toolbar-height, 30px);
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  overflow: hidden;
+  color: #475569;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: grab;
+  pointer-events: none;
+  user-select: none;
+}
+
+.webpage-overlay.is-interactive .webpage-overlay-chrome,
+.webpage-overlay-controls.is-interactive .webpage-overlay-chrome {
+  pointer-events: auto;
+}
+
+.webpage-overlay.is-moveable .webpage-overlay-chrome,
+.webpage-overlay-controls.is-moveable .webpage-overlay-chrome {
+  pointer-events: auto;
+}
+
+.webpage-overlay-chrome:active {
+  cursor: grabbing;
+}
+
+.webpage-overlay-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webpage-overlay-edit,
+.webpage-overlay-open,
+.webpage-overlay-resize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #475569;
+  background: transparent;
+  border: 0;
+}
+
+.webpage-overlay-edit,
+.webpage-overlay-open {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+}
+
+.webpage-overlay-edit:hover,
+.webpage-overlay-open:hover {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.webpage-overlay-edit .icon,
+.webpage-overlay-open .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.webpage-overlay-resize-handle {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 0;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.webpage-overlay-resize-top-left {
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.webpage-overlay-resize-top {
+  top: 0;
+  right: 12px;
+  left: 12px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.webpage-overlay-resize-top-right {
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nesw-resize;
+}
+
+.webpage-overlay-resize-right {
+  top: 12px;
+  right: 0;
+  bottom: 12px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.webpage-overlay-resize-bottom-right {
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.webpage-overlay-resize-bottom {
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.webpage-overlay-resize-bottom-left {
+  bottom: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nesw-resize;
+}
+
+.webpage-overlay-resize-left {
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.webpage-overlay.is-interactive .webpage-overlay-resize-handle,
+.webpage-overlay-controls.is-interactive .webpage-overlay-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .text-latex-overlay,
 .text-dom-overlay {
   user-select: none;
