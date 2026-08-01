@@ -127,8 +127,8 @@ describe("app shell", () => {
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 
     expect(styles).toMatch(/\.webpage-overlay-layer\.is-laser-mode,[\s\S]*?\.webpage-overlay-layer\.is-canvas-above-webpage \{[\s\S]*?z-index: 1;/);
-    expect(styles).toMatch(/\.webpage-overlay-layer\.is-page-interaction-mode \{[\s\S]*?z-index: 4;/);
     expect(styles).toMatch(/\.webpage-overlay-controls-layer \{[\s\S]*?z-index: 5;/);
+    expect(styles).toMatch(/\.stage-container\.is-webpage-interaction-hover \.konvajs-content \{[\s\S]*?pointer-events: none;/);
     expect(styles).toMatch(/\.stage-container\[data-tool="laser"\] \.konvajs-content,[\s\S]*?\.stage-container\.is-canvas-above-webpage \.konvajs-content \{[\s\S]*?z-index: 2;/);
   });
 

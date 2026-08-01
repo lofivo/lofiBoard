@@ -1667,10 +1667,6 @@ button {
   z-index: 1;
 }
 
-.webpage-overlay-layer.is-page-interaction-mode {
-  z-index: 4;
-}
-
 .webpage-overlay-controls-layer {
   position: absolute;
   z-index: 5;
@@ -1683,6 +1679,10 @@ button {
 .stage-container.is-canvas-above-webpage .konvajs-content {
   position: relative;
   z-index: 2;
+}
+
+.stage-container.is-webpage-interaction-hover .konvajs-content {
+  pointer-events: none;
 }
 
 .webpage-overlay {

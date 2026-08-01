@@ -94,6 +94,51 @@ export function createWebpageOverlayController({
 
   const overlays = new Map();
   let interaction = null;
+  let webpageInteractionTargetId = null;
+
+  function setWebpageInteractionTarget(elementId = null) {
+    const nextId = elementId || null;
+    if (webpageInteractionTargetId === nextId) return;
+    webpageInteractionTargetId = nextId;
+    container.classList.toggle("is-webpage-interaction-hover", Boolean(nextId));
+  }
+
+  function getWebpageIdAtClientPoint(clientX, clientY) {
+    if (getCurrentTool() !== "select") return null;
+    const x = Number(clientX);
+    const y = Number(clientY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    const records = [...overlays.values()];
+    for (let index = records.length - 1; index >= 0; index -= 1) {
+      const record = records[index];
+      const rect = record.wrapper.getBoundingClientRect?.();
+      if (!rect) continue;
+      const left = Number(rect.left) || 0;
+      const top = Number(rect.top) || 0;
+      const right = Number(rect.right) || left + (Number(rect.width) || 0);
+      const bottom = Number(rect.bottom) || top + (Number(rect.height) || 0);
+      if (x >= left && x <= right && y >= top && y <= bottom) {
+        return record.elementId;
+      }
+    }
+    return null;
+  }
+
+  function handleContainerPointerMove(event) {
+    setWebpageInteractionTarget(getWebpageIdAtClientPoint(event.clientX, event.clientY));
+  }
+
+  function handleContainerPointerLeave() {
+    setWebpageInteractionTarget();
+  }
+
+  function handleWebpagePointerLeave() {
+    setWebpageInteractionTarget();
+  }
+
+  container.addEventListener("pointermove", handleContainerPointerMove, true);
+  container.addEventListener("pointerleave", handleContainerPointerLeave);
 
   function createOverlay(element) {
     const wrapper = documentRef.createElement("div");
@@ -148,6 +193,7 @@ export function createWebpageOverlayController({
     chrome.append(title, editButton, openButton);
     wrapper.append(iframe);
     layer.appendChild(wrapper);
+    wrapper.addEventListener("pointerleave", handleWebpagePointerLeave);
 
     const controls = documentRef.createElement("div");
     controls.className = "webpage-overlay-controls";
@@ -242,8 +288,9 @@ export function createWebpageOverlayController({
     const pageInteractionMode = currentTool === "select";
     layer.classList.toggle("is-laser-mode", currentTool === "laser");
     layer.classList.toggle("is-canvas-above-webpage", canvasAboveWebpage);
-    layer.classList.toggle("is-page-interaction-mode", pageInteractionMode);
+    layer.classList.remove("is-page-interaction-mode");
     container.classList.toggle("is-canvas-above-webpage", canvasAboveWebpage);
+    if (!pageInteractionMode) setWebpageInteractionTarget();
     const visibleIds = new Set();
     const selectedIds = new Set(getSelectedIds());
 
@@ -290,6 +337,9 @@ export function createWebpageOverlayController({
       record.wrapper.remove();
       record.controls.remove();
       overlays.delete(id);
+    }
+    if (webpageInteractionTargetId && !visibleIds.has(webpageInteractionTargetId)) {
+      setWebpageInteractionTarget();
     }
   }
 
@@ -414,6 +464,9 @@ export function createWebpageOverlayController({
     }
     overlays.clear();
     container.classList.remove("is-canvas-above-webpage");
+    container.classList.remove("is-webpage-interaction-hover");
+    container.removeEventListener("pointermove", handleContainerPointerMove, true);
+    container.removeEventListener("pointerleave", handleContainerPointerLeave);
     layer.remove();
     controlsLayer.remove();
   }

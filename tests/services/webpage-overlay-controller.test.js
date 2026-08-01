@@ -185,7 +185,7 @@ describe("webpage-overlay-controller", () => {
     expect(container.querySelector("iframe").style.pointerEvents).toBe("none");
   });
 
-  it("lets iframe content receive focus without selecting an unselected webpage", () => {
+  it("routes pointer input to iframe content without raising the webpage visually", () => {
     const { callbacks, container, controller } = createHarness({ selectedIds: [] });
 
     controller.sync();
@@ -193,10 +193,42 @@ describe("webpage-overlay-controller", () => {
     const layer = container.querySelector(".webpage-overlay-layer");
     const wrapper = container.querySelector(".webpage-overlay");
     const iframe = container.querySelector("iframe");
-    expect(layer.classList.contains("is-page-interaction-mode")).toBe(true);
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    expect(layer.classList.contains("is-page-interaction-mode")).toBe(false);
     expect(wrapper.style.pointerEvents).toBe("auto");
     expect(iframe.style.pointerEvents).toBe("auto");
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
     expect(callbacks.selectIds).not.toHaveBeenCalled();
+  });
+
+  it("clears iframe pointer routing when the webpage is removed", () => {
+    const { container, controller, state } = createHarness({ selectedIds: [] });
+
+    controller.sync();
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
+
+    state.elements = [];
+    controller.sync();
+
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
   });
 
   it("places the canvas above webpage overlays while using the pen", () => {
