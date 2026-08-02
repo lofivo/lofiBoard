@@ -5,7 +5,7 @@ import { createWebpageOverlayController } from "../../src/services/webpage-overl
 
 function createHarness(overrides = {}) {
   const state = {
-    elements: [{
+    elements: overrides.elements ?? [{
       id: "webpage_1",
       type: "webpage",
       x: 10,
@@ -38,6 +38,8 @@ function createHarness(overrides = {}) {
     getElements: () => state.elements,
     getSelectedIds: () => state.selectedIds,
     getCurrentTool: () => state.currentTool,
+    isCanvasInteractionActive: overrides.isCanvasInteractionActive ?? (() => false),
+    getSelectableCanvasElementIdAtClientPoint: overrides.getSelectableCanvasElementIdAtClientPoint ?? (() => null),
     getViewport: () => overrides.viewport ?? { x: 10, y: 20, scale: 2 },
     setElements: (elements) => { state.elements = elements; },
     selectIds: callbacks.selectIds,
@@ -80,6 +82,22 @@ describe("webpage-overlay-controller", () => {
     expect(container.querySelectorAll("[data-webpage-resize]")).toHaveLength(8);
   });
 
+  it("only displays the control bar for the selected webpage", () => {
+    const { container, controller } = createHarness({
+      selectedIds: ["webpage_a"],
+      elements: [
+        { id: "webpage_a", type: "webpage", x: 0, y: 0, width: 160, height: 120, src: "a.example", zIndex: 0 },
+        { id: "webpage_b", type: "webpage", x: 200, y: 0, width: 160, height: 120, src: "b.example", zIndex: 1 },
+      ],
+    });
+
+    controller.sync();
+
+    const controls = [...container.querySelectorAll(".webpage-overlay-controls")];
+    expect(controls[0].hidden).toBe(false);
+    expect(controls[1].hidden).toBe(true);
+  });
+
   it("moves a selected webpage from its toolbar and records one history entry", () => {
     const { callbacks, container, controller, state } = createHarness();
     controller.sync();
@@ -110,7 +128,7 @@ describe("webpage-overlay-controller", () => {
     }));
   });
 
-  it("allows dragging an unselected webpage from its label", () => {
+  it("does not drag an unselected webpage from its label", () => {
     const { callbacks, container, controller, state } = createHarness({ selectedIds: [] });
     controller.sync();
     const chrome = container.querySelector("[data-webpage-drag]");
@@ -119,11 +137,12 @@ describe("webpage-overlay-controller", () => {
     window.dispatchEvent(pointerEvent("pointermove", { clientX: 120, clientY: 130 }));
     window.dispatchEvent(pointerEvent("pointerup", { clientX: 120, clientY: 130 }));
 
-    expect(callbacks.selectIds).toHaveBeenCalledWith(["webpage_1"]);
-    expect(state.elements[0]).toMatchObject({ x: 20, y: 35 });
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
   });
 
-  it("edits the webpage URL from the label edit button", () => {
+  it("does not edit the URL from an unselected webpage label", () => {
     const { callbacks, container, controller, state } = createHarness({
       selectedIds: [],
       callbacks: {
@@ -136,13 +155,10 @@ describe("webpage-overlay-controller", () => {
     expect(editButton).toBeTruthy();
     editButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 
-    expect(callbacks.promptValue).toHaveBeenCalledWith(
-      "请输入新的网页地址（例如 https://example.com）",
-      "https://example.com/docs",
-    );
-    expect(state.elements[0].src).toBe("https://new.example.com/docs");
-    expect(callbacks.pushHistory).toHaveBeenCalledWith("已修改网页地址");
-    expect(callbacks.schedulePersistCurrentDraft).toHaveBeenCalledTimes(1);
+    expect(callbacks.promptValue).not.toHaveBeenCalled();
+    expect(state.elements[0].src).toBe("example.com/docs");
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
+    expect(callbacks.schedulePersistCurrentDraft).not.toHaveBeenCalled();
   });
 
   it("resizes a webpage with a minimum size without adding an error notice", () => {
@@ -201,12 +217,80 @@ describe("webpage-overlay-controller", () => {
       width: 400,
       height: 300,
     });
-    expect(layer.classList.contains("is-page-interaction-mode")).toBe(false);
+    expect(layer.classList.contains("is-page-interaction-mode")).toBe(true);
     expect(wrapper.style.pointerEvents).toBe("auto");
     expect(iframe.style.pointerEvents).toBe("auto");
     container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
     expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
     expect(callbacks.selectIds).not.toHaveBeenCalled();
+  });
+
+  it("keeps canvas routing when a selectable canvas element is inside the webpage", () => {
+    const getSelectableCanvasElementIdAtClientPoint = vi.fn(() => "stroke_1");
+    const { container, controller } = createHarness({
+      selectedIds: ["stroke_1"],
+      elements: [
+        {
+          id: "webpage_1",
+          type: "webpage",
+          x: 10,
+          y: 20,
+          width: 300,
+          height: 200,
+          src: "example.com/docs",
+        },
+        { id: "stroke_1", type: "stroke", zIndex: 1 },
+      ],
+      getSelectableCanvasElementIdAtClientPoint,
+    });
+
+    controller.sync();
+
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+
+    expect(getSelectableCanvasElementIdAtClientPoint).toHaveBeenCalledWith(100, 100);
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
+  });
+
+  it("keeps canvas routing and lowers webpage controls while a canvas element is dragged", () => {
+    let dragging = true;
+    const { container, controller } = createHarness({
+      selectedIds: [],
+      isCanvasInteractionActive: () => dragging,
+    });
+
+    controller.sync();
+
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
+    expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay-controls").style.zIndex).toBe("1");
+    expect(container.querySelector("iframe").style.pointerEvents).toBe("none");
+
+    dragging = false;
+    controller.sync();
+
+    expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay").style.pointerEvents).toBe("auto");
   });
 
   it("clears iframe pointer routing when the webpage is removed", () => {
@@ -231,13 +315,15 @@ describe("webpage-overlay-controller", () => {
     expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
   });
 
-  it("places the canvas above webpage overlays while using the pen", () => {
+  it("keeps webpage overlays non-interactive while using the pen", () => {
     const { callbacks, container, controller } = createHarness({ currentTool: "pen" });
 
     controller.sync();
 
-    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(true);
-    expect(container.classList.contains("is-canvas-above-webpage")).toBe(true);
+    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay").style.pointerEvents).toBe("none");
+    expect(container.querySelector("iframe").style.pointerEvents).toBe("none");
     expect(callbacks.setWebpageNodeVisible).toHaveBeenCalledWith("webpage_1", false);
   });
 
@@ -247,18 +333,90 @@ describe("webpage-overlay-controller", () => {
     controller.sync();
 
     expect(container.querySelector("iframe")).toBeTruthy();
-    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(true);
+    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay").style.pointerEvents).toBe("none");
     expect(callbacks.setWebpageNodeVisible).toHaveBeenCalledWith("webpage_1", false);
   });
 
-  it("keeps the canvas above the webpage after returning to the select tool", () => {
+  it("restores iframe interaction after returning to the select tool", () => {
     const { callbacks, container, controller, state } = createHarness({ currentTool: "pen" });
 
     controller.sync();
     state.currentTool = "select";
     controller.sync();
 
-    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(true);
+    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay-layer").classList.contains("is-page-interaction-mode")).toBe(true);
+    expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector("iframe").style.pointerEvents).toBe("auto");
     expect(callbacks.setWebpageNodeVisible).toHaveBeenLastCalledWith("webpage_1", false);
+  });
+
+  it("keeps unselected webpage controls below a higher-layer canvas element", () => {
+    const { container, controller, state } = createHarness({ selectedIds: [] });
+    state.elements = [
+      { ...state.elements[0], zIndex: 0 },
+      { id: "stroke_1", type: "stroke", zIndex: 1 },
+    ];
+
+    controller.sync();
+
+    expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
+    expect(container.querySelector(".webpage-overlay-controls").style.zIndex).toBe("1");
+  });
+
+  it("assigns interleaved webpage overlays their shared z-index positions", () => {
+    const { container, controller } = createHarness({
+      selectedIds: [],
+      elements: [
+        { id: "canvas_a", type: "stroke", zIndex: 0 },
+        { id: "webpage_a", type: "webpage", zIndex: 1, x: 0, y: 0, width: 160, height: 120, src: "a.example" },
+        { id: "canvas_b", type: "stroke", zIndex: 2 },
+        { id: "webpage_b", type: "webpage", zIndex: 3, x: 0, y: 0, width: 160, height: 120, src: "b.example" },
+        { id: "canvas_c", type: "stroke", zIndex: 4 },
+      ],
+    });
+
+    controller.sync();
+
+    const wrappers = [...container.querySelectorAll(".webpage-overlay")];
+    const controls = [...container.querySelectorAll(".webpage-overlay-controls")];
+    expect(wrappers.map((node) => [node.dataset.elementId, node.style.zIndex])).toEqual([
+      ["webpage_a", "1"],
+      ["webpage_b", "3"],
+    ]);
+    expect(controls.map((node) => [node.dataset.elementId, node.style.zIndex])).toEqual([
+      ["webpage_a", "1"],
+      ["webpage_b", "3"],
+    ]);
+  });
+
+  it("does not add history for a click without movement", () => {
+    const { callbacks, container, controller, state } = createHarness();
+    controller.sync();
+    const chrome = container.querySelector("[data-webpage-drag]");
+
+    chrome.dispatchEvent(pointerEvent("pointerdown", { clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pointerEvent("pointerup", { clientX: 100, clientY: 100 }));
+
+    expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
+    expect(callbacks.renderBoard).not.toHaveBeenCalled();
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
+    expect(callbacks.schedulePersistCurrentDraft).not.toHaveBeenCalled();
+  });
+
+  it("restores the webpage and skips history after pointer cancellation", () => {
+    const { callbacks, container, controller, state } = createHarness();
+    controller.sync();
+    const chrome = container.querySelector("[data-webpage-drag]");
+
+    chrome.dispatchEvent(pointerEvent("pointerdown", { clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pointerEvent("pointermove", { clientX: 140, clientY: 150 }));
+    expect(state.elements[0]).toMatchObject({ x: 30, y: 45 });
+
+    window.dispatchEvent(pointerEvent("pointercancel", { clientX: 140, clientY: 150 }));
+
+    expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
   });
 });

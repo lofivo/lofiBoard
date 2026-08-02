@@ -33,6 +33,8 @@ function createOrchestrator(overrides = {}) {
     contentLayer: { batchDraw: track("contentLayer.batchDraw"), find: () => [] },
     overlayLayer: { batchDraw: track("overlayLayer.batchDraw") },
     transformer: { nodes: () => [], forceUpdate: track("transformer.forceUpdate") },
+    syncContentLayers: track("syncContentLayers"),
+    syncCanvasInteractionShield: track("syncCanvasInteractionShield"),
 
     shapeRenderController: { syncElementNodes: track("shapeRenderController.syncElementNodes") },
     selectionTransformerController: { syncSelectionNodes: track("selectionTransformerController.syncSelectionNodes") },
@@ -133,6 +135,7 @@ describe("board orchestrator", () => {
       orchestrator.renderBoard();
       const names = getCalls().map((c) => c.name);
       expect(names).toEqual([
+        "syncContentLayers",
         "shapeRenderController.syncElementNodes",
         "draftInteractionController.moveSelectionRectToTop",
         "selectionTransformerController.syncSelectionNodes",
@@ -141,6 +144,7 @@ describe("board orchestrator", () => {
         "structureControlsController.renderGraphNodeControls",
         "contentLayer.batchDraw",
         "overlayLayer.batchDraw",
+        "syncCanvasInteractionShield",
         "textOverlayController.setHiddenIds",
       ]);
     });

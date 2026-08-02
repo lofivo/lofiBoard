@@ -68,6 +68,21 @@ describe("app rendering controller", () => {
     expect(createdNodes[0].syncedElement).toEqual(element);
   });
 
+  it("moves each element into the render layer selected by its layer band", () => {
+    const lowerLayer = {};
+    const { controller, createdNodes } = createController({
+      getRenderLayer: vi.fn((element) => element.id === "a" ? lowerLayer : {}),
+    });
+
+    controller.syncElementNodes([
+      { id: "a", type: "rect" },
+      { id: "b", type: "rect" },
+    ]);
+
+    expect(createdNodes[0].moveTo).toHaveBeenCalledWith(lowerLayer);
+    expect(createdNodes[1].moveTo).toHaveBeenCalledWith(expect.any(Object));
+  });
+
   it("destroys nodes that are no longer present", () => {
     const { controller, createdNodes } = createController();
 

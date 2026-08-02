@@ -28,11 +28,17 @@ export function createSelectionHitQuery({
   function getSelectableElementIdAtWorldPoint(worldPoint, {
     fallbackNode = null,
     preferUnselected = false,
+    excludeTypes = [],
   } = {}) {
     const contentLayer = getContentLayer();
     const stage = getStage();
+    const excludedTypes = new Set(excludeTypes);
     const fallbackId = getElementIdFromNode(fallbackNode);
-    const candidates = getElements().map((element) => {
+    const fallbackElement = getElements().find((element) => element.id === fallbackId);
+    const selectableFallbackId = !fallbackElement || !excludedTypes.has(fallbackElement.type)
+      ? fallbackId
+      : null;
+    const candidates = getElements().filter((element) => !excludedTypes.has(element?.type)).map((element) => {
       const node = contentLayer.findOne(`#${element.id}`);
       if (!node) return null;
       return {
@@ -46,7 +52,7 @@ export function createSelectionHitQuery({
       point: worldPoint,
       candidates,
       padding: getSelectionHitRadius(stage.scaleX()),
-      fallbackId,
+      fallbackId: selectableFallbackId,
       selectedIds: getSelectedIds(),
       preferUnselected,
     });

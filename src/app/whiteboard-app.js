@@ -21,6 +21,7 @@ import {
 import { createSelectionHitQuery } from "./selection/hit-query.js";
 import { createShapeRenderAdapter } from "./rendering/adapter.js";
 import { createShapeRenderController } from "./rendering/controller.js";
+import { createLayeredContentController } from "./rendering/layered-content.js";
 import { createStructureActiveVisualController } from "./structures/active-visual-controller.js";
 import { createStructureControlsController } from "./structures/controls-controller.js";
 import { createStructureControlsPositionController } from "./structures/controls-position-controller.js";
@@ -74,6 +75,7 @@ import { createAlignmentSnapController } from "./selection/alignment-snap-contro
 import { createSelectionActionController } from "./selection/action-controller.js";
 import { createSelectionClipboardController } from "./selection/clipboard-controller.js";
 import { createSelectionDragController } from "./selection/drag-controller.js";
+import { createCanvasInteractionShieldController } from "./selection/canvas-interaction-shield.js";
 import { createSelectionTransformCommitController } from "./selection/transform-commit-controller.js";
 import { createSelectionTransformEventsController } from "./selection/transform-events-controller.js";
 import { createSelectionTransformPreviewController } from "./selection/transform-preview-controller.js";
@@ -304,10 +306,26 @@ let suppressSelectionDragOnce = false;
     height: container.clientHeight,
   });
 
-  const contentLayer = new Konva.Layer();
-  const overlayLayer = new Konva.Layer();
-  stage.add(contentLayer);
-  stage.add(overlayLayer);
+  const contentLayer = stage;
+  const interactionLayer = new Konva.Layer({ name: "canvas-interaction-layer" });
+  const overlayLayer = new Konva.Layer({ name: "selection-overlay-layer" });
+  const layeredContentController = createLayeredContentController({
+    Konva,
+    stage,
+    interactionLayer,
+    overlayLayer,
+  });
+  const canvasInteractionShieldController = createCanvasInteractionShieldController({
+    Konva,
+    layer: interactionLayer,
+    getStage: () => stage,
+    getContentLayer: () => contentLayer,
+    getElements: () => board.elements,
+    getSelectedIds: () => selectedIds,
+    isElementLocked: (id) => Boolean(board.elements.find((element) => element.id === id)?.locked),
+    getCurrentTool: () => currentTool,
+    isCanvasInteractionActive: () => selectionDragController?.hasActiveDrag?.() ?? false,
+  });
 
   const {
     expandGroupedIds,
@@ -343,6 +361,7 @@ let suppressSelectionDragOnce = false;
 
   const shapeRenderController = createShapeRenderController({
     contentLayer,
+    getRenderLayer: (element) => layeredContentController.getLayerForElement(element),
     createNode,
     syncNode: syncElementNode,
     getHandlers: getElementNodeHandlers,
@@ -548,6 +567,23 @@ let suppressSelectionDragOnce = false;
     getElements: () => board.elements,
     getSelectedIds: () => selectedIds,
     getCurrentTool: () => currentTool,
+    isCanvasInteractionActive: () => selectionDragController?.hasActiveDrag?.() ?? false,
+    syncCanvasInteractionShield: canvasInteractionShieldController.sync,
+    getSelectableCanvasElementIdAtClientPoint: (clientX, clientY) => {
+      const x = Number(clientX);
+      const y = Number(clientY);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+      const containerRect = container.getBoundingClientRect?.() ?? { left: 0, top: 0 };
+      const scale = Math.max(0.01, Number(stage.scaleX()) || 1);
+      const worldPoint = {
+        x: (x - (Number(containerRect.left) || 0) - stage.x()) / scale,
+        y: (y - (Number(containerRect.top) || 0) - stage.y()) / scale,
+      };
+      return getSelectableElementIdAtWorldPoint(worldPoint, {
+        excludeTypes: ["webpage"],
+      });
+    },
     getViewport: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
     isElementLocked,
     setElements: (elements) => { board.elements = elements; },
@@ -888,6 +924,7 @@ let suppressSelectionDragOnce = false;
   draftInteractionController = createDraftInteractionController({
     Konva,
     contentLayer,
+    draftLayer: interactionLayer,
     createNode,
     applyElementToNode,
     getElementIdFromNode,
@@ -909,7 +946,7 @@ let suppressSelectionDragOnce = false;
     setTool,
   });
   drawingInteractionController = createDrawingInteractionController({
-    contentLayer,
+    contentLayer: interactionLayer,
     createNode,
     getBoardElements: () => board.elements,
     setBoardElements: (elements) => { board.elements = elements; },
@@ -1595,6 +1632,7 @@ let suppressSelectionDragOnce = false;
     hideToolCursors,
     hideTreeControls: () => structureControlsController.hideTreeControls(),
     isBinaryTreeElement,
+    isCanvasSelectionShieldTarget: canvasInteractionShieldController.isSelectionShieldTarget,
     isElementLocked,
     isEditingText: () => editController.isEditing,
     isGeneralTreeElement,
@@ -1641,6 +1679,8 @@ let suppressSelectionDragOnce = false;
   boardOrchestrator = createBoardOrchestrator({
     contentLayer,
     overlayLayer,
+    syncContentLayers: layeredContentController.sync,
+    syncCanvasInteractionShield: canvasInteractionShieldController.sync,
     transformer,
     shapeRenderController,
     selectionTransformerController,
@@ -1870,8 +1910,10 @@ let suppressSelectionDragOnce = false;
       drawingInteractionController.destroy();
       viewportController.destroy();
       webpageOverlayController.destroy();
+      canvasInteractionShieldController.destroy();
       textOverlayController.clear();
       shapeRenderController.clear();
+      layeredContentController.destroy();
       stage.destroy();
     },
   };

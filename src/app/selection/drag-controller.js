@@ -54,6 +54,7 @@ export function createSelectionDragController({
         }),
     };
     setSelectionDragNodeDraggable(false);
+    syncWebpageOverlays();
     return true;
   }
 
@@ -146,6 +147,7 @@ export function createSelectionDragController({
     if (didMove) setSuppressNextSelectionClick(true);
     setSelectionDragNodeDraggable(true);
     selectionDrag = null;
+    syncWebpageOverlays();
     if (didMove) {
       pushHistory("已移动对象");
     }
@@ -156,6 +158,7 @@ export function createSelectionDragController({
     clearAlignmentGuides();
     setSelectionDragNodeDraggable(true);
     selectionDrag = null;
+    syncWebpageOverlays();
   }
 
   function setSelectionDragNodeDraggable(enabled) {
@@ -171,6 +174,10 @@ export function createSelectionDragController({
 
   function hasSelectionDrag() {
     return Boolean(selectionDrag);
+  }
+
+  function hasActiveDrag() {
+    return Boolean(selectionDrag || nodeDragSelection);
   }
 
   function suppressBinaryTreeNodeClickAfterDrag() {
@@ -233,6 +240,7 @@ export function createSelectionDragController({
           };
         }),
     };
+    syncWebpageOverlays();
     return true;
   }
 
@@ -324,6 +332,7 @@ export function createSelectionDragController({
   return {
     beginNodeDragSelection,
     beginSelectionDrag,
+    hasActiveDrag,
     cancelSelectionDrag,
     clearRootDragState,
     consumeSuppressedBinaryTreeNodeClick,

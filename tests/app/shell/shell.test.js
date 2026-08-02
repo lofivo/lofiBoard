@@ -123,13 +123,15 @@ describe("app shell", () => {
     expect(styles).toMatch(/@media \(max-width: 760px\) \{[\s\S]*?\.statusbar \{[\s\S]*?right: 0;[\s\S]*?left: 0;/);
   });
 
-  it("raises the canvas above webpage overlays while drawing", () => {
+  it("uses per-element stacking instead of a global webpage/canvas stack switch", () => {
     const styles = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 
-    expect(styles).toMatch(/\.webpage-overlay-layer\.is-laser-mode,[\s\S]*?\.webpage-overlay-layer\.is-canvas-above-webpage \{[\s\S]*?z-index: 1;/);
-    expect(styles).toMatch(/\.webpage-overlay-controls-layer \{[\s\S]*?z-index: 5;/);
-    expect(styles).toMatch(/\.stage-container\.is-webpage-interaction-hover \.konvajs-content \{[\s\S]*?pointer-events: none;/);
-    expect(styles).toMatch(/\.stage-container\[data-tool="laser"\] \.konvajs-content,[\s\S]*?\.stage-container\.is-canvas-above-webpage \.konvajs-content \{[\s\S]*?z-index: 2;/);
+    expect(styles).toMatch(/\.webpage-overlay-layer \{[\s\S]*?pointer-events: none;/);
+    expect(styles).toMatch(/\.webpage-overlay-controls-layer \{[\s\S]*?pointer-events: none;/);
+    expect(styles).toMatch(/\.stage-container \.konvajs-content \{[\s\S]*?z-index: auto;/);
+    expect(styles).not.toContain(".webpage-overlay-layer.is-canvas-above-webpage");
+    expect(styles).not.toContain(".webpage-overlay-controls-layer.is-canvas-above-webpage");
+    expect(styles).not.toContain(".stage-container.is-webpage-interaction-hover .konvajs-content");
   });
 
   it("keeps the current selection when pointer down starts on an already selected element", () => {
@@ -325,7 +327,11 @@ describe("app shell", () => {
     const shapeRenderSource = readFileSync(new URL("../../../src/app/rendering/controller.js", import.meta.url), "utf8");
 
     expect(appSource).toContain("const shapeRenderController = createShapeRenderController({");
-    expect(orchestratorSource).toContain("shapeRenderController.syncElementNodes(reorderElements(getElements()));");
+    expect(appSource).toContain("createLayeredContentController({");
+    expect(appSource).toContain("createCanvasInteractionShieldController({");
+    expect(orchestratorSource).toContain("const orderedElements = reorderElements(getElements());");
+    expect(orchestratorSource).toContain("syncContentLayers(orderedElements);");
+    expect(orchestratorSource).toContain("shapeRenderController.syncElementNodes(orderedElements);");
     expect(shapeRenderSource).toContain("const nodeRegistry = new Map();");
     expect(shapeRenderSource).toContain("function syncOrCreateElementNode(element)");
     expect(shapeRenderSource).toContain("if (existingNode && syncNode(existingNode, element, getHandlers(element)))");

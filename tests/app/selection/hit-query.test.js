@@ -103,6 +103,51 @@ describe("hit-query", () => {
     });
   });
 
+  it("can exclude webpage placeholders from canvas hit testing", () => {
+    const elements = [
+      { id: "stroke", type: "stroke", zIndex: 0 },
+      { id: "webpage", type: "webpage", zIndex: 1 },
+    ];
+    const nodes = new Map([
+      ["stroke", createElementNode("stroke")],
+      ["webpage", createElementNode("webpage")],
+    ]);
+    const pickElementIdAtPoint = vi.fn(({ candidates }) => (
+      [...candidates].sort((a, b) => b.zIndex - a.zIndex)[0]?.id ?? null
+    ));
+    const { query } = createQuery({ elements, nodes, pickElementIdAtPoint });
+
+    expect(query.getSelectableElementIdAtWorldPoint(
+      { x: 10, y: 10 },
+      { excludeTypes: ["webpage"] },
+    )).toBe("stroke");
+  });
+
+  it("does not return an excluded webpage fallback node", () => {
+    const elements = [
+      { id: "webpage", type: "webpage", zIndex: 0 },
+      { id: "stroke", type: "stroke", zIndex: 1 },
+    ];
+    const webpageNode = createElementNode("webpage");
+    const { query, pickElementIdAtPoint } = createQuery({
+      elements,
+      nodes: new Map([
+        ["webpage", webpageNode],
+        ["stroke", createElementNode("stroke")],
+      ]),
+      pickElementIdAtPoint: vi.fn(({ fallbackId }) => fallbackId),
+    });
+
+    expect(query.getSelectableElementIdAtWorldPoint(
+      { x: 10, y: 10 },
+      { fallbackNode: webpageNode, excludeTypes: ["webpage"] },
+    )).toBeNull();
+    expect(pickElementIdAtPoint).toHaveBeenCalledWith(expect.objectContaining({
+      fallbackId: null,
+      candidates: [expect.objectContaining({ id: "stroke" })],
+    }));
+  });
+
   it("returns the first selected id when the point hits selected element bounds", () => {
     const { pointHitsSelectionBounds, query } = createQuery({ selectedIds: ["a", "b"] });
 

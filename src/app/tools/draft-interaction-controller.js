@@ -12,6 +12,7 @@ export function createDraftInteractionController({
   addElement = () => {},
   applyElementToNode = () => {},
   contentLayer,
+  draftLayer = contentLayer,
   createNode = () => null,
   expandGroupedIds = (ids) => ids,
   getActiveShapeTool = () => TOOLS.RECT,
@@ -42,13 +43,13 @@ export function createDraftInteractionController({
     visible: false,
     listening: false,
   });
-  contentLayer?.add?.(selectionRect);
+  draftLayer?.add?.(selectionRect);
 
   function startShapeDraft(worldPoint) {
     const element = buildShapeElement(getShapeElementOptions(worldPoint, worldPoint));
     const node = createNode(element);
     node?.listening?.(false);
-    contentLayer?.add?.(node);
+    draftLayer?.add?.(node);
     shapeDraft = { start: worldPoint, element, node };
     return true;
   }
@@ -113,7 +114,7 @@ export function createDraftInteractionController({
       cornerRadius: 6,
       listening: false,
     });
-    contentLayer?.add?.(node);
+    draftLayer?.add?.(node);
     webpageDraft = { start: worldPoint, end: worldPoint, node };
     return true;
   }

@@ -1656,33 +1656,21 @@ button {
 
 .webpage-overlay-layer {
   position: absolute;
-  z-index: 1;
   inset: 0;
   overflow: visible;
   pointer-events: none;
-}
-
-.webpage-overlay-layer.is-laser-mode,
-.webpage-overlay-layer.is-canvas-above-webpage {
-  z-index: 1;
 }
 
 .webpage-overlay-controls-layer {
   position: absolute;
-  z-index: 5;
   inset: 0;
   overflow: visible;
   pointer-events: none;
 }
 
-.stage-container[data-tool="laser"] .konvajs-content,
-.stage-container.is-canvas-above-webpage .konvajs-content {
+.stage-container .konvajs-content {
   position: relative;
-  z-index: 2;
-}
-
-.stage-container.is-webpage-interaction-hover .konvajs-content {
-  pointer-events: none;
+  z-index: auto;
 }
 
 .webpage-overlay {

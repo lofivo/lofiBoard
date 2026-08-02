@@ -1,5 +1,6 @@
 export function createShapeRenderController({
   contentLayer,
+  getRenderLayer = () => contentLayer,
   createNode,
   syncNode,
   getHandlers,
@@ -23,7 +24,7 @@ export function createShapeRenderController({
     }
     return runtimeElements.map((element) => {
       const node = syncOrCreateElementNode(element);
-      node.moveTo(contentLayer);
+      node.moveTo(getRenderLayer(element) ?? contentLayer);
       node.moveToTop();
       return node;
     });

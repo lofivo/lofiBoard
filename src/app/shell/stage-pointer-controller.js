@@ -61,6 +61,7 @@ export function createStagePointerController({
   hideTreeControls = () => {},
   hideGraphNodeControls = () => {},
   isBinaryTreeElement = () => false,
+  isCanvasSelectionShieldTarget = () => false,
   isElementLocked = () => false,
   isEditingText = () => false,
   isGeneralTreeElement = () => false,
@@ -168,6 +169,7 @@ export function createStagePointerController({
       if (isTransformerTarget(event.target) && !isTransformerAnchorTarget(event.target)) {
         const passThroughId = getSelectableElementIdAtWorldPoint(worldPoint, {
           preferUnselected: true,
+          excludeTypes: ["webpage"],
         });
         if (passThroughId) {
           selectElementById(passThroughId, event.evt.shiftKey);
@@ -449,7 +451,10 @@ export function createStagePointerController({
     // 也会漏掉未填充图形的内部；与左键选中共用包围盒命中，保证右键目标一致。
     const intersectionNode = pointer ? stage.getIntersection(pointer) : null;
     const directTargetId = (worldPoint
-      ? getSelectableElementIdAtWorldPoint(worldPoint, { fallbackNode: intersectionNode })
+      ? getSelectableElementIdAtWorldPoint(worldPoint, {
+        fallbackNode: intersectionNode,
+        excludeTypes: ["webpage"],
+      })
       : null) ?? getElementIdFromNode(intersectionNode);
     const targetId = directTargetId ?? (worldPoint ? getNearbySelectedElementId(worldPoint) : null);
 
@@ -495,9 +500,16 @@ export function createStagePointerController({
     if (consumeSuppressSelectionDragOnce()) {
       return true;
     }
+    if (isCanvasSelectionShieldTarget(event.target)) {
+      if (!event.evt.shiftKey && getSelectedIds().some((id) => !isElementLocked(id))) {
+        selectionDragController.beginSelectionDrag(worldPoint);
+      }
+      return true;
+    }
     const rawTargetElement = getElementIdFromNode(event.target);
     const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
       fallbackNode: event.target,
+      excludeTypes: ["webpage"],
     });
     if (targetElement) {
       const element = getElements().find((item) => item.id === targetElement);

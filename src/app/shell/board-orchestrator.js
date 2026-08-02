@@ -20,6 +20,8 @@ import { TOOLS } from "../../ui/config.js";
 export function createBoardOrchestrator({
   contentLayer,
   overlayLayer,
+  syncContentLayers = () => {},
+  syncCanvasInteractionShield = () => {},
   transformer,
   shapeRenderController,
   selectionTransformerController,
@@ -121,7 +123,9 @@ export function createBoardOrchestrator({
   }
 
   function renderBoard() {
-    shapeRenderController.syncElementNodes(reorderElements(getElements()));
+    const orderedElements = reorderElements(getElements());
+    syncContentLayers(orderedElements);
+    shapeRenderController.syncElementNodes(orderedElements);
     draftInteractionController.moveSelectionRectToTop();
     syncSelectionNodes();
     structureControlsController.renderLinearItemControls();
@@ -129,6 +133,7 @@ export function createBoardOrchestrator({
     structureControlsController.renderGraphNodeControls();
     contentLayer.batchDraw();
     overlayLayer.batchDraw();
+    syncCanvasInteractionShield();
     webpageOverlayController.sync(getElements());
     syncTextOverlays({ hiddenIds: editController.isEditing ? getSelectedIds() : [] });
   }
@@ -146,6 +151,7 @@ export function createBoardOrchestrator({
     structureControlsController.renderLinearItemControls();
     structureControlsController.renderTreeControls();
     contentLayer.batchDraw();
+    syncCanvasInteractionShield();
     webpageOverlayController.sync(getElements());
     updateChrome();
   }

@@ -25,7 +25,7 @@ _Avoid_: app state, document session, file state
 _Avoid_: autosave file, backup document, persisted board
 
 **元素 (Element)**:
-画板上的可操作实体。类型包括笔触、文字、便签、图片、矩形、椭圆、线段、箭头、坐标系，以及数组/二维数组/栈/队列/双端队列/图/树等结构。
+画板上的可操作实体。类型包括笔触、文字、便签、图片、网页、矩形、椭圆、线段、箭头、坐标系，以及数组/二维数组/栈/队列/双端队列/图/树等结构。
 _Avoid_: item, node(数据语境), shape
 
 **形状 (Shape)**:

@@ -54,6 +54,7 @@ function createHarness(overrides = {}) {
     suppressNextLinearItemSelect: vi.fn(),
     syncNodeToElement: vi.fn(),
     syncTextOverlays: vi.fn(),
+    syncWebpageOverlays: vi.fn(),
     updateTreeControlsPosition: vi.fn(),
     ...overrides.callbacks,
   };
@@ -89,6 +90,7 @@ function createHarness(overrides = {}) {
     suppressNextLinearItemSelect: callbacks.suppressNextLinearItemSelect,
     syncNodeToElement: callbacks.syncNodeToElement,
     syncTextOverlays: callbacks.syncTextOverlays,
+    syncWebpageOverlays: callbacks.syncWebpageOverlays,
     transformer,
     updateTreeControlsPosition: callbacks.updateTreeControlsPosition,
     ...overrides.controller,
@@ -280,6 +282,24 @@ describe("drag-controller", () => {
     controller.beginSelectionDrag({ x: 0, y: 0 });
     controller.cancelSelectionDrag();
     expect(callbacks.clearAlignmentGuides).toHaveBeenCalled();
+  });
+
+  it("reports both custom and native node drags as active canvas interactions", () => {
+    const { controller, nodes } = createHarness({
+      state: { selectedIds: ["shape_1"] },
+    });
+
+    expect(controller.hasActiveDrag()).toBe(false);
+
+    controller.beginSelectionDrag({ x: 0, y: 0 });
+    expect(controller.hasActiveDrag()).toBe(true);
+    controller.finishSelectionDrag();
+    expect(controller.hasActiveDrag()).toBe(false);
+
+    controller.beginNodeDragSelection(nodes["#shape_1"]);
+    expect(controller.hasActiveDrag()).toBe(true);
+    controller.finishNodeDragSelection(nodes["#shape_1"]);
+    expect(controller.hasActiveDrag()).toBe(false);
   });
 
 });

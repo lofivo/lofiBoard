@@ -1,10 +1,16 @@
 import { Edit, ExternalLink } from "lucide-static";
 import { icon } from "../ui/config.js";
+import {
+  getElementLayerValue,
+  getWebpageStackIndex,
+  getWebpageStackZIndex,
+} from "../app/rendering/layer-order.js";
 import { getWebpageTitle, normalizeWebpageUrl } from "./webpage.js";
 
 const MIN_WIDTH = 160;
 const MIN_HEIGHT = 120;
 const DRAG_THRESHOLD = 0.5;
+const WEBPAGE_CONTROL_Z_INDEX = 100000;
 const RESIZE_ANCHORS = [
   "top-left",
   "top",
@@ -62,6 +68,9 @@ export function createWebpageOverlayController({
   getElements = () => [],
   getSelectedIds = () => [],
   getCurrentTool = () => "select",
+  isCanvasInteractionActive = () => false,
+  syncCanvasInteractionShield = () => {},
+  getSelectableCanvasElementIdAtClientPoint = () => null,
   getViewport = () => ({ x: 0, y: 0, scale: 1 }),
   isElementLocked = () => false,
   setElements = () => {},
@@ -104,14 +113,16 @@ export function createWebpageOverlayController({
   }
 
   function getWebpageIdAtClientPoint(clientX, clientY) {
-    if (getCurrentTool() !== "select") return null;
+    if (getCurrentTool() !== "select" || isCanvasInteractionActive()) return null;
     const x = Number(clientX);
     const y = Number(clientY);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
-    const records = [...overlays.values()];
-    for (let index = records.length - 1; index >= 0; index -= 1) {
-      const record = records[index];
+    const elements = getElements();
+    const records = [...overlays.values()].sort((left, right) => (
+      getWebpageStackIndex(elements, right.elementId) - getWebpageStackIndex(elements, left.elementId)
+    ));
+    for (const record of records) {
       const rect = record.wrapper.getBoundingClientRect?.();
       if (!rect) continue;
       const left = Number(rect.left) || 0;
@@ -119,6 +130,13 @@ export function createWebpageOverlayController({
       const right = Number(rect.right) || left + (Number(rect.width) || 0);
       const bottom = Number(rect.bottom) || top + (Number(rect.height) || 0);
       if (x >= left && x <= right && y >= top && y <= bottom) {
+        const canvasId = getSelectableCanvasElementIdAtClientPoint(x, y);
+        const canvasElement = elements.find((element) => element.id === canvasId);
+        const webpageElement = elements.find((element) => element.id === record.elementId);
+        if (canvasElement && webpageElement
+          && getElementLayerValue(canvasElement) > getElementLayerValue(webpageElement)) {
+          return null;
+        }
         return record.elementId;
       }
     }
@@ -209,6 +227,7 @@ export function createWebpageOverlayController({
       title,
       chrome,
       editButton,
+      openButton,
       resizeHandle: resizeHandles.get("bottom-right"),
       resizeHandles,
       source: "",
@@ -239,6 +258,7 @@ export function createWebpageOverlayController({
 
   function openInNewWindow(elementId) {
     const element = getElements().find((item) => item.id === elementId);
+    if (!element || !canInteract(element)) return;
     const src = normalizeWebpageUrl(element?.src);
     if (!src) return;
     const opened = windowRef?.open?.(src, "_blank", "noopener,noreferrer");
@@ -257,9 +277,8 @@ export function createWebpageOverlayController({
 
   function editWebpageUrl(elementId) {
     const element = getElements().find((item) => item.id === elementId);
-    if (!element || !canMove(element)) return;
+    if (!element || !canInteract(element)) return;
 
-    selectIds([elementId]);
     const value = promptValue(
       "请输入新的网页地址（例如 https://example.com）",
       normalizeWebpageUrl(element.src) || element.src || "",
@@ -281,15 +300,15 @@ export function createWebpageOverlayController({
   }
 
   function sync(elements = getElements()) {
+    syncCanvasInteractionShield();
     const viewport = getViewport() ?? {};
     const scale = Math.max(0.01, Number(viewport.scale) || 1);
     const currentTool = getCurrentTool();
-    const canvasAboveWebpage = true;
-    const pageInteractionMode = currentTool === "select";
+    const pageInteractionMode = currentTool === "select" && !isCanvasInteractionActive();
     layer.classList.toggle("is-laser-mode", currentTool === "laser");
-    layer.classList.toggle("is-canvas-above-webpage", canvasAboveWebpage);
-    layer.classList.remove("is-page-interaction-mode");
-    container.classList.toggle("is-canvas-above-webpage", canvasAboveWebpage);
+    layer.classList.toggle("is-page-interaction-mode", pageInteractionMode);
+    controlsLayer.classList.remove("is-canvas-above-webpage");
+    container.classList.remove("is-canvas-above-webpage");
     if (!pageInteractionMode) setWebpageInteractionTarget();
     const visibleIds = new Set();
     const selectedIds = new Set(getSelectedIds());
@@ -299,8 +318,10 @@ export function createWebpageOverlayController({
       visibleIds.add(element.id);
       const record = overlays.get(element.id) ?? createOverlay(element);
       const src = normalizeWebpageUrl(element.src);
-      const selected = canInteract(element);
+      const selected = selectedIds.has(element.id);
+      const interactive = canInteract(element);
       const movable = canMove(element);
+      const webpageStackIndex = getWebpageStackIndex(elements, element.id);
       const width = Math.max(MIN_WIDTH, Number(element.width) || MIN_WIDTH);
       const height = Math.max(MIN_HEIGHT, Number(element.height) || MIN_HEIGHT);
       const toolbarHeight = Math.max(24, 30 * scale);
@@ -313,13 +334,19 @@ export function createWebpageOverlayController({
         node.style.transform = `rotate(${Number(element.rotation) || 0}deg) scale(${Number(element.scaleX) || 1}, ${Number(element.scaleY) || 1})`;
         node.style.setProperty("--webpage-toolbar-height", `${toolbarHeight}px`);
         node.classList.toggle("is-selected", selectedIds.has(element.id));
-        node.classList.toggle("is-interactive", selected);
+        node.classList.toggle("is-interactive", interactive);
         node.classList.toggle("is-moveable", movable);
         node.classList.toggle("is-locked", Boolean(element.locked));
       }
-      record.wrapper.style.pointerEvents = pageInteractionMode || selected ? "auto" : "none";
-      record.controls.style.pointerEvents = "none";
-      record.chrome.style.pointerEvents = movable ? "auto" : "none";
+      record.wrapper.style.zIndex = String(getWebpageStackZIndex(webpageStackIndex));
+      record.controls.style.zIndex = String(selected ? WEBPAGE_CONTROL_Z_INDEX : getWebpageStackZIndex(webpageStackIndex));
+      record.controls.hidden = !selected;
+      record.wrapper.style.pointerEvents = pageInteractionMode ? "auto" : "none";
+      record.controls.style.pointerEvents = selected ? "auto" : "none";
+      record.chrome.style.pointerEvents = interactive ? "auto" : "none";
+      for (const button of [record.editButton, record.openButton, ...record.resizeHandles.values()]) {
+        button.style.pointerEvents = interactive ? "auto" : "none";
+      }
       record.iframe.style.pointerEvents = pageInteractionMode ? "auto" : "none";
       record.iframe.style.top = selected ? `${toolbarHeight}px` : "0px";
       record.iframe.style.height = selected ? `calc(100% - ${toolbarHeight}px)` : "100%";
@@ -346,7 +373,7 @@ export function createWebpageOverlayController({
   function beginInteraction(kind, elementId, event, anchor = "bottom-right") {
     if (event.button !== undefined && event.button !== 0) return;
     const element = getElements().find((item) => item.id === elementId);
-    if (!element || !canMove(element)) return;
+    if (!element || !canInteract(element)) return;
     const record = overlays.get(elementId);
     if (!record) return;
 

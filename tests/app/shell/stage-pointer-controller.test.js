@@ -182,6 +182,7 @@ function createHarness(overrides = {}) {
     hideEraser: callbacks.hideEraser,
     hideToolCursors: callbacks.hideToolCursors,
     isBinaryTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind === "binary",
+    isCanvasSelectionShieldTarget: overrides.isCanvasSelectionShieldTarget ?? (() => false),
     isElementLocked: callbacks.isElementLocked,
     isEditingText: callbacks.isEditingText,
     isGeneralTreeElement: (element) => element?.type === "tree-structure" && element.settings?.treeKind !== "binary",
@@ -263,6 +264,35 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.selectIds).toHaveBeenCalledWith(["webpage_new"]);
     expect(callbacks.setTool).toHaveBeenCalledWith(TOOLS.SELECT);
     expect(getCurrentTool()).toBe(TOOLS.SELECT);
+  });
+
+  it("starts selection drag when the layer-selected canvas shield receives the pointer", () => {
+    const shield = {};
+    const { controller, selectionDragController } = createHarness({
+      selectedIds: ["stroke_1"],
+      elements: [{ id: "stroke_1", type: "stroke" }],
+      isCanvasSelectionShieldTarget: (target) => target === shield,
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: shield }));
+
+    expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("does not start selection drag from the shield when every selected item is locked", () => {
+    const shield = {};
+    const { controller, selectionDragController } = createHarness({
+      selectedIds: ["locked_1"],
+      elements: [{ id: "locked_1", type: "stroke", locked: true }],
+      isCanvasSelectionShieldTarget: (target) => target === shield,
+      callbacks: {
+        isElementLocked: (id) => id === "locked_1",
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: shield }));
+
+    expect(selectionDragController.beginSelectionDrag).not.toHaveBeenCalled();
   });
 
   it("starts, moves, and finishes a pan gesture from temporary pan mode", () => {
@@ -451,6 +481,27 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.selectElementById).not.toHaveBeenCalled();
   });
 
+  it("excludes webpage placeholders when starting a selected canvas drag", () => {
+    const getSelectableElementIdAtWorldPoint = vi.fn(() => "stroke_1");
+    const { controller, selectionDragController } = createHarness({
+      selectedIds: ["stroke_1"],
+      elements: [
+        { id: "webpage_1", type: "webpage", zIndex: 1 },
+        { id: "stroke_1", type: "stroke", zIndex: 0 },
+      ],
+      callbacks: { getSelectableElementIdAtWorldPoint },
+    });
+    const event = createKonvaEvent({ target: { id: "stroke_1" } });
+
+    controller.handlePointerDown(event);
+
+    expect(getSelectableElementIdAtWorldPoint).toHaveBeenCalledWith(
+      { x: 10, y: 20 },
+      { fallbackNode: event.target, excludeTypes: ["webpage"] },
+    );
+    expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
   it("lets graph node pointerdown flow to the graph node drag handler", () => {
     const graphNodeTarget = { id: "inner_node" };
     const { callbacks, controller, selectionDragController, structureInteraction } = createHarness({
@@ -559,7 +610,7 @@ describe("stage-pointer-controller", () => {
 
     expect(callbacks.getSelectableElementIdAtWorldPoint).toHaveBeenCalledWith(
       { x: 10, y: 20 },
-      { fallbackNode: transformerBack },
+      { fallbackNode: transformerBack, excludeTypes: ["webpage"] },
     );
     expect(callbacks.selectIds).not.toHaveBeenCalled();
     expect(callbacks.shouldShowContextMenu).toHaveBeenCalledWith({
