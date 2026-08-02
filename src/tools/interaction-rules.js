@@ -919,15 +919,29 @@ export function pickElementIdAtPoint({
   const selected = new Set(selectedIds);
   const hitPadding = Math.max(0, Number(padding) || 0);
   const hits = candidates
-    .filter((candidate) => {
-      if (!candidate?.id || !candidate.box) return false;
-      if (!pointHitsSelectionBounds(point, [candidate.box], hitPadding)) return false;
-      // 已选中元素整块包围盒都可拖；未选中元素只认真实图形命中（fallbackId）或边框附近，
-      // 否则大元素（结构 / 未填充图形）的内部空白会吞掉框选起手和内部元素的点击。
-      if (selected.has(candidate.id) || candidate.id === fallbackId) return true;
-      return !pointIsDeepInsideBox(point, candidate.box, hitPadding);
+    .map((candidate) => {
+      if (!candidate?.id || !candidate.box) return null;
+      if (!pointHitsSelectionBounds(point, [candidate.box], hitPadding)) return null;
+
+      const isSelected = selected.has(candidate.id);
+      const isFallback = candidate.id === fallbackId;
+      const isDeepInside = pointIsDeepInsideBox(point, candidate.box, hitPadding);
+      // 真实图形命中（Konva fallback）或边框附近视为强命中。
+      // 已选中元素的内部空白仅作为弱命中，方便拖拽，但不能压过内部真实元素。
+      const isGeometryHit = isFallback || !isDeepInside;
+      if (!isGeometryHit && !isSelected) return null;
+
+      return {
+        ...candidate,
+        // 仅因“已选中包围盒”而命中的内部点是弱命中。
+        isWeakHit: isSelected && !isGeometryHit,
+      };
     })
-    .sort((a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0));
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.isWeakHit !== b.isWeakHit) return a.isWeakHit ? 1 : -1;
+      return (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0);
+    });
 
   if (preferUnselected) {
     if (selected.has(hits[0]?.id)) return null;

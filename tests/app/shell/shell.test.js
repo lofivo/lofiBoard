@@ -166,7 +166,10 @@ describe("app shell", () => {
     expect(selectionHitSource).toContain("function getSelectableElementIdAtWorldPoint(worldPoint");
     expect(selectionHitSource).toContain("pickElementIdAtPoint");
     expect(selectionHitSource).toContain("padding: getSelectionHitRadius(stage.scaleX())");
-    expect(selectSource).toContain("getSelectableElementIdAtWorldPoint(worldPoint");
+    expect(selectionHitSource).toContain("function getContentElementIdAtWorldPoint(worldPoint)");
+    expect(selectionHitSource).toContain("selection-overlay-layer");
+    expect(selectionHitSource).toContain("canvas-interaction-layer");
+    expect(selectSource).toContain("getSelectableElementIdAtWorldPoint(");
     expect(selectSource).toContain("fallbackNode: event.target");
   });
 

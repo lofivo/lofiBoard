@@ -1074,6 +1074,56 @@ describe("interaction rules", () => {
     })).toBe("stroke");
   });
 
+  it("selects a real hit inside a selected higher container instead of keeping the container", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 210, y: 208 },
+      padding: 12,
+      fallbackId: "stroke",
+      selectedIds: ["circle"],
+      candidates: [
+        { id: "circle", zIndex: 5, box: { x: 100, y: 100, width: 300, height: 240 } },
+        { id: "stroke", zIndex: 1, box: { x: 200, y: 200, width: 30, height: 20 } },
+      ],
+    })).toBe("stroke");
+  });
+
+  it("keeps the selected container when the click only hits its empty interior", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 250, y: 220 },
+      padding: 12,
+      selectedIds: ["circle"],
+      candidates: [
+        { id: "circle", zIndex: 5, box: { x: 100, y: 100, width: 300, height: 240 } },
+        { id: "stroke", zIndex: 1, box: { x: 200, y: 200, width: 30, height: 20 } },
+      ],
+    })).toBe("circle");
+  });
+
+  it("selects nested rect/ellipse geometry inside a selected outer shape", () => {
+    expect(pickElementIdAtPoint({
+      point: { x: 180, y: 170 },
+      padding: 12,
+      fallbackId: "inner-rect",
+      selectedIds: ["outer-ellipse"],
+      candidates: [
+        { id: "outer-ellipse", zIndex: 4, box: { x: 40, y: 40, width: 320, height: 260 } },
+        { id: "inner-rect", zIndex: 1, box: { x: 120, y: 110, width: 140, height: 100 } },
+      ],
+    })).toBe("inner-rect");
+
+    expect(pickElementIdAtPoint({
+      point: { x: 180, y: 170 },
+      padding: 12,
+      fallbackId: "inner-ellipse",
+      selectedIds: ["outer-rect"],
+      preferUnselected: true,
+      candidates: [
+        { id: "outer-rect", zIndex: 4, box: { x: 40, y: 40, width: 320, height: 260 } },
+        { id: "inner-ellipse", zIndex: 2, box: { x: 110, y: 100, width: 160, height: 120 } },
+      ],
+    })).toBe("inner-ellipse");
+  });
+
   it("prevents browser page zoom gestures globally", () => {
     expect(shouldPreventBrowserZoom({ ctrlKey: true, metaKey: false })).toBe(true);
     expect(shouldPreventBrowserZoom({ ctrlKey: false, metaKey: true })).toBe(true);

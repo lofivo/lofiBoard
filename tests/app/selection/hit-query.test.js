@@ -17,6 +17,14 @@ function createChildNode(parent) {
   };
 }
 
+function createContentLayer({ name = "canvas-content-band", hit = null, visible = true } = {}) {
+  return {
+    name: vi.fn(() => name),
+    isVisible: vi.fn(() => visible),
+    getIntersection: vi.fn(() => hit),
+  };
+}
+
 function createQuery(overrides = {}) {
   const elements = overrides.elements ?? [
     { id: "a", zIndex: 1 },
@@ -26,10 +34,27 @@ function createQuery(overrides = {}) {
     ["a", createElementNode("a", { x: 0, y: 0, width: 40, height: 40 })],
     ["b", createElementNode("b", { x: 30, y: 0, width: 40, height: 40 })],
   ]);
+  const contentBand = overrides.contentBand ?? createContentLayer({
+    hit: Object.prototype.hasOwnProperty.call(overrides, "contentHit")
+      ? overrides.contentHit
+      : nodes.get("a"),
+  });
+  const overlayLayer = overrides.overlayLayer ?? createContentLayer({
+    name: "selection-overlay-layer",
+    hit: overrides.overlayHit ?? null,
+  });
+  const interactionLayer = overrides.interactionLayer ?? createContentLayer({
+    name: "canvas-interaction-layer",
+    hit: overrides.interactionHit ?? null,
+  });
   const stage = overrides.stage ?? {
     scaleX: vi.fn(() => 2),
+    x: vi.fn(() => 0),
+    y: vi.fn(() => 0),
     getPointerPosition: vi.fn(() => ({ x: 10, y: 10 })),
-    getIntersection: vi.fn(() => nodes.get("a")),
+    getIntersection: vi.fn(() => overrides.overlayHit ?? nodes.get("a")),
+    getLayers: vi.fn(() => [contentBand, interactionLayer, overlayLayer]),
+    children: [contentBand, interactionLayer, overlayLayer],
   };
   const contentLayer = overrides.contentLayer ?? {
     findOne: vi.fn((selector) => nodes.get(selector.replace("#", "")) ?? null),
@@ -49,10 +74,13 @@ function createQuery(overrides = {}) {
   });
 
   return {
+    contentBand,
     contentLayer,
     elements,
     expandGroupedIds,
+    interactionLayer,
     nodes,
+    overlayLayer,
     pickElementIdAtPoint,
     pointHitsSelectionBounds,
     query,
@@ -82,33 +110,38 @@ describe("hit-query", () => {
     expect(stage.getIntersection).toHaveBeenCalledWith({ x: 10, y: 10 });
   });
 
-  it("uses the actual Konva hit region for webpage occlusion", () => {
+  it("uses the actual content-layer hit region for webpage occlusion", () => {
     const hit = createElementNode("b");
+    const contentBand = createContentLayer({ hit });
     const stage = {
       scaleX: vi.fn(() => 2),
       x: vi.fn(() => 10),
       y: vi.fn(() => 20),
-      getIntersection: vi.fn(() => hit),
+      getLayers: vi.fn(() => [contentBand]),
+      children: [contentBand],
     };
-    const { query } = createQuery({ stage });
+    const { query } = createQuery({ stage, contentBand, contentHit: hit });
 
     expect(query.getCanvasInteractionAtWorldPoint({ x: 15, y: 25 })).toEqual({
       blocksWebpage: true,
       elementId: "b",
     });
-    expect(stage.getIntersection).toHaveBeenCalledWith({ x: 40, y: 70 });
+    expect(contentBand.getIntersection).toHaveBeenCalledWith({ x: 40, y: 70 });
   });
 
   it("ignores the hidden webpage placeholder when checking canvas occlusion", () => {
     const webpageHit = createElementNode("webpage");
+    const contentBand = createContentLayer({ hit: webpageHit });
     const stage = {
       scaleX: vi.fn(() => 1),
       x: vi.fn(() => 0),
       y: vi.fn(() => 0),
-      getIntersection: vi.fn(() => webpageHit),
+      getLayers: vi.fn(() => [contentBand]),
+      children: [contentBand],
     };
     const { query } = createQuery({
       stage,
+      contentBand,
       elements: [{ id: "webpage", type: "webpage", zIndex: 0 }],
       nodes: new Map([["webpage", webpageHit]]),
     });
@@ -123,14 +156,17 @@ describe("hit-query", () => {
     ];
     const webpageNode = createElementNode("webpage", { x: 0, y: 0, width: 80, height: 80 });
     const canvasNode = createElementNode("canvas-below");
+    const contentBand = createContentLayer({ hit: canvasNode });
     const stage = {
       scaleX: vi.fn(() => 1),
       x: vi.fn(() => 0),
       y: vi.fn(() => 0),
-      getIntersection: vi.fn(() => canvasNode),
+      getLayers: vi.fn(() => [contentBand]),
+      children: [contentBand],
     };
     const { query } = createQuery({
       stage,
+      contentBand,
       elements,
       nodes: new Map([
         ["canvas-below", canvasNode],
@@ -152,14 +188,17 @@ describe("hit-query", () => {
     ];
     const webpageNode = createElementNode("webpage", { x: 0, y: 0, width: 80, height: 80 });
     const canvasNode = createElementNode("canvas-above");
+    const contentBand = createContentLayer({ hit: canvasNode });
     const stage = {
       scaleX: vi.fn(() => 1),
       x: vi.fn(() => 0),
       y: vi.fn(() => 0),
-      getIntersection: vi.fn(() => canvasNode),
+      getLayers: vi.fn(() => [contentBand]),
+      children: [contentBand],
     };
     const { query } = createQuery({
       stage,
+      contentBand,
       elements,
       nodes: new Map([
         ["canvas-above", canvasNode],
@@ -176,7 +215,9 @@ describe("hit-query", () => {
 
   it("builds hit-test candidates from element client rects and selection padding", () => {
     const fallbackNode = createElementNode("fallback");
-    const { pickElementIdAtPoint, query } = createQuery();
+    const { pickElementIdAtPoint, query } = createQuery({
+      contentHit: null,
+    });
 
     expect(query.getSelectableElementIdAtWorldPoint(
       { x: 32, y: 4 },
@@ -195,6 +236,79 @@ describe("hit-query", () => {
     });
   });
 
+  it("prefers content-layer geometry over transformer/overlay hits when selecting", () => {
+    const inner = createElementNode("inner-rect", { x: 40, y: 40, width: 80, height: 60 });
+    const outer = createElementNode("outer-ellipse", { x: 0, y: 0, width: 200, height: 160 });
+    const contentBand = createContentLayer({ hit: inner });
+    const overlayLayer = createContentLayer({
+      name: "selection-overlay-layer",
+      hit: { hasName: vi.fn(() => false), findAncestor: vi.fn(() => null) },
+    });
+    const elements = [
+      { id: "outer-ellipse", type: "ellipse", zIndex: 0 },
+      { id: "inner-rect", type: "rect", zIndex: 1 },
+    ];
+    const nodes = new Map([
+      ["outer-ellipse", outer],
+      ["inner-rect", inner],
+    ]);
+    const pickElementIdAtPoint = vi.fn(({ fallbackId }) => fallbackId);
+    const { query, stage } = createQuery({
+      elements,
+      nodes,
+      contentBand,
+      overlayLayer,
+      selectedIds: ["outer-ellipse"],
+      pickElementIdAtPoint,
+      stage: {
+        scaleX: vi.fn(() => 1),
+        x: vi.fn(() => 0),
+        y: vi.fn(() => 0),
+        getLayers: vi.fn(() => [contentBand, overlayLayer]),
+        children: [contentBand, overlayLayer],
+      },
+    });
+
+    expect(query.getSelectableElementIdAtWorldPoint(
+      { x: 70, y: 55 },
+      { preferUnselected: true },
+    )).toBe("inner-rect");
+    expect(pickElementIdAtPoint).toHaveBeenCalledWith(expect.objectContaining({
+      fallbackId: "inner-rect",
+      preferUnselected: true,
+      selectedIds: ["outer-ellipse"],
+    }));
+    expect(overlayLayer.getIntersection).not.toHaveBeenCalled();
+    expect(contentBand.getIntersection).toHaveBeenCalledWith({ x: 70, y: 55 });
+    expect(stage.getLayers).toHaveBeenCalled();
+  });
+
+  it("skips interaction shield layers while resolving content geometry", () => {
+    const shape = createElementNode("shape");
+    const contentBand = createContentLayer({ hit: shape });
+    const interactionLayer = createContentLayer({
+      name: "canvas-interaction-layer",
+      hit: createElementNode("shield"),
+    });
+    const { query } = createQuery({
+      contentBand,
+      interactionLayer,
+      elements: [{ id: "shape", type: "rect", zIndex: 0 }],
+      nodes: new Map([["shape", shape]]),
+      stage: {
+        scaleX: vi.fn(() => 1),
+        x: vi.fn(() => 0),
+        y: vi.fn(() => 0),
+        getLayers: vi.fn(() => [contentBand, interactionLayer]),
+        children: [contentBand, interactionLayer],
+      },
+      pickElementIdAtPoint: vi.fn(({ fallbackId }) => fallbackId),
+    });
+
+    expect(query.getContentElementIdAtWorldPoint({ x: 12, y: 18 })).toBe("shape");
+    expect(interactionLayer.getIntersection).not.toHaveBeenCalled();
+  });
+
   it("can exclude webpage placeholders from canvas hit testing", () => {
     const elements = [
       { id: "stroke", type: "stroke", zIndex: 0 },
@@ -207,7 +321,12 @@ describe("hit-query", () => {
     const pickElementIdAtPoint = vi.fn(({ candidates }) => (
       [...candidates].sort((a, b) => b.zIndex - a.zIndex)[0]?.id ?? null
     ));
-    const { query } = createQuery({ elements, nodes, pickElementIdAtPoint });
+    const { query } = createQuery({
+      elements,
+      nodes,
+      pickElementIdAtPoint,
+      contentHit: null,
+    });
 
     expect(query.getSelectableElementIdAtWorldPoint(
       { x: 10, y: 10 },
@@ -227,6 +346,7 @@ describe("hit-query", () => {
         ["webpage", webpageNode],
         ["stroke", createElementNode("stroke")],
       ]),
+      contentHit: null,
       pickElementIdAtPoint: vi.fn(({ fallbackId }) => fallbackId),
     });
 
