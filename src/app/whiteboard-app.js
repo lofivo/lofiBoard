@@ -22,6 +22,7 @@ import { createSelectionHitQuery } from "./selection/hit-query.js";
 import { createShapeRenderAdapter } from "./rendering/adapter.js";
 import { createShapeRenderController } from "./rendering/controller.js";
 import { createLayeredContentController } from "./rendering/layered-content.js";
+import { getOrderedElements } from "./rendering/layer-order.js";
 import { createStructureActiveVisualController } from "./structures/active-visual-controller.js";
 import { createStructureControlsController } from "./structures/controls-controller.js";
 import { createStructureControlsPositionController } from "./structures/controls-position-controller.js";
@@ -584,6 +585,32 @@ let suppressSelectionDragOnce = false;
       };
       return getCanvasInteractionAtWorldPoint(worldPoint);
     },
+    getCanvasElementHitProxies: (webpageId) => {
+      if (!webpageId) return [];
+      const ordered = getOrderedElements(board.elements);
+      const webpageIndex = ordered.findIndex((element) => element?.id === webpageId);
+      if (webpageIndex < 0) return [];
+
+      const proxies = [];
+      for (let index = webpageIndex + 1; index < ordered.length; index += 1) {
+        const element = ordered[index];
+        if (!element || element.type === "webpage") continue;
+        const node = contentLayer.findOne(`#${element.id}`);
+        const box = node?.getClientRect?.();
+        if (!box) continue;
+        const width = Number(box.width) || 0;
+        const height = Number(box.height) || 0;
+        if (width <= 0 || height <= 0) continue;
+        proxies.push({
+          elementId: element.id,
+          left: Number(box.x) || 0,
+          top: Number(box.y) || 0,
+          width,
+          height,
+        });
+      }
+      return proxies;
+    },
     getViewport: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
     isElementLocked,
     setElements: (elements) => { board.elements = elements; },
@@ -606,10 +633,15 @@ let suppressSelectionDragOnce = false;
       if (!node) return;
 
       const nextVisible = Boolean(visible);
-      if (node.getAttr("webpageCanvasVisible") === nextVisible) return;
+      if (
+        node.getAttr("webpageCanvasVisible") === nextVisible
+        && node.listening() === nextVisible
+      ) return;
 
       node.setAttrs({
         opacity: nextVisible ? 1 : 0,
+        // Hidden placeholders must not steal selection hits under DOM iframes.
+        listening: nextVisible,
         webpageCanvasVisible: nextVisible,
       });
       contentLayer.batchDraw();

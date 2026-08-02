@@ -513,9 +513,13 @@ export function createStagePointerController({
       ? getWebpageInteractionAtWorldPoint(worldPoint)
       : null;
     if (rawTarget?.type === "webpage" && !webpageInteraction?.blocksWebpage) {
+      // Free webpage content should not marquee-select, but blank clicks must still
+      // clear any existing canvas selection (e.g. a stroke above the webpage).
+      if (getSelectedIds().length) clearSelection();
       return true;
     }
     if (webpageInteraction?.elementId && !webpageInteraction.blocksWebpage) {
+      if (getSelectedIds().length) clearSelection();
       return true;
     }
     const actualCanvasTargetId = webpageInteraction?.blocksWebpage

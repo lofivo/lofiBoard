@@ -504,7 +504,7 @@ describe("stage-pointer-controller", () => {
     expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
   });
 
-  it("does not clear selection or start a marquee from webpage content", () => {
+  it("clears canvas selection from free webpage content without starting a marquee", () => {
     const { callbacks, controller, draftInteractionController, selectionDragController } = createHarness({
       selectedIds: ["text_1"],
       elements: [
@@ -521,13 +521,35 @@ describe("stage-pointer-controller", () => {
 
     controller.handlePointerDown(createKonvaEvent({ target: { id: "stage" } }));
 
-    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(callbacks.clearSelection).toHaveBeenCalled();
     expect(callbacks.enterInteraction).not.toHaveBeenCalledWith(SM.SELECTING);
     expect(draftInteractionController.startSelectionDraft).not.toHaveBeenCalled();
     expect(selectionDragController.beginSelectionDrag).not.toHaveBeenCalled();
     expect(callbacks.selectElementById).not.toHaveBeenCalled();
     expect(callbacks.selectIds).not.toHaveBeenCalled();
     expect(callbacks.getWebpageInteractionAtWorldPoint).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("does not start a marquee from free webpage content when nothing is selected", () => {
+    const { callbacks, controller, draftInteractionController, selectionDragController } = createHarness({
+      selectedIds: [],
+      elements: [
+        { id: "webpage_1", type: "webpage", zIndex: 0 },
+      ],
+      callbacks: {
+        getWebpageInteractionAtWorldPoint: vi.fn(() => ({
+          blocksWebpage: false,
+          elementId: "webpage_1",
+        })),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: { id: "stage" } }));
+
+    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(callbacks.enterInteraction).not.toHaveBeenCalledWith(SM.SELECTING);
+    expect(draftInteractionController.startSelectionDraft).not.toHaveBeenCalled();
+    expect(selectionDragController.beginSelectionDrag).not.toHaveBeenCalled();
   });
 
   it("keeps a real higher canvas hit selectable inside a webpage", () => {
@@ -552,7 +574,7 @@ describe("stage-pointer-controller", () => {
     expect(callbacks.clearSelection).not.toHaveBeenCalled();
   });
 
-  it("ignores a webpage placeholder target even when no overlay hit state is available", () => {
+  it("clears selection from a webpage placeholder target without starting a marquee", () => {
     const { callbacks, controller, draftInteractionController } = createHarness({
       selectedIds: ["text_1"],
       elements: [
@@ -563,8 +585,9 @@ describe("stage-pointer-controller", () => {
 
     controller.handlePointerDown(createKonvaEvent({ target: { id: "webpage_1" } }));
 
-    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(callbacks.clearSelection).toHaveBeenCalled();
     expect(draftInteractionController.startSelectionDraft).not.toHaveBeenCalled();
+    expect(callbacks.enterInteraction).not.toHaveBeenCalledWith(SM.SELECTING);
   });
 
   it("lets graph node pointerdown flow to the graph node drag handler", () => {

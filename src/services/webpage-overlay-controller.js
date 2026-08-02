@@ -71,6 +71,7 @@ export function createWebpageOverlayController({
   isCanvasInteractionActive = () => false,
   syncCanvasInteractionShield = () => {},
   getCanvasInteractionAtClientPoint = () => null,
+  getCanvasElementHitProxies = () => [],
   getViewport = () => ({ x: 0, y: 0, scale: 1 }),
   isElementLocked = () => false,
   setElements = () => {},
@@ -101,19 +102,124 @@ export function createWebpageOverlayController({
   controlsLayer.className = "webpage-overlay-controls-layer";
   container.appendChild(controlsLayer);
 
+  const higherHitProxyLayer = documentRef.createElement("div");
+  higherHitProxyLayer.className = "webpage-higher-hit-proxy-layer";
+  container.appendChild(higherHitProxyLayer);
+
   const overlays = new Map();
   let interaction = null;
   let webpageInteractionTargetId = null;
 
+  function isPageInteractionMode() {
+    return getCurrentTool() === "select" && !isCanvasInteractionActive();
+  }
+
+  function hasBlockingCanvasSelection() {
+    // A non-webpage selection must keep canvas pointer events active so blank
+    // clicks inside a webpage frame can deselect the canvas element.
+    const selectedIds = getSelectedIds() || [];
+    if (!selectedIds.length) return false;
+    const elements = getElements();
+    return selectedIds.some((id) => {
+      const element = elements.find((item) => item.id === id);
+      return Boolean(element && element.type !== "webpage");
+    });
+  }
+
+  function getOverlayStackZIndex(elementId, { selected = false } = {}) {
+    // Keep the normal interleaved stack position even while the webpage is the
+    // content-interaction target. Raising the opaque iframe above higher canvas
+    // bands would visually hide strokes/shapes that sort above the webpage.
+    // Hit routing is handled by pointer-events (canvas PE none + iframe PE auto).
+    void selected;
+    const webpageStackIndex = getWebpageStackIndex(getElements(), elementId);
+    return getWebpageStackZIndex(webpageStackIndex);
+  }
+
+  function getControlsStackZIndex(elementId, { selected = false } = {}) {
+    const webpageStackIndex = getWebpageStackIndex(getElements(), elementId);
+    return WEBPAGE_CONTROL_Z_INDEX + webpageStackIndex + (selected ? 1000 : 0);
+  }
+
+  function syncWebpagePointerRouting() {
+    const pageInteractionMode = isPageInteractionMode();
+    const selectedIds = new Set(getSelectedIds());
+    const enableWebpageContent = pageInteractionMode && Boolean(webpageInteractionTargetId);
+    // Disable the Konva host box itself (not only its canvases). With PE-none children,
+    // the host would still capture hits and block a non-topmost lifted iframe.
+    // Canvas inline PE is owned by layered-content; the CSS hover rule overrides it.
+    const konvaContent = container.querySelector?.(".konvajs-content");
+    if (konvaContent?.style) {
+      konvaContent.style.pointerEvents = enableWebpageContent ? "none" : "";
+    }
+    for (const [id, record] of overlays) {
+      // Only the non-occluded webpage under the pointer may receive content input.
+      // Otherwise higher full-viewport canvas bands permanently steal hits, or the
+      // iframe blocks selecting canvas elements that sort above the webpage.
+      const enableIframe = pageInteractionMode && webpageInteractionTargetId === id;
+      record.iframe.style.pointerEvents = enableIframe ? "auto" : "none";
+      record.wrapper.style.zIndex = String(getOverlayStackZIndex(id, {
+        selected: selectedIds.has(id),
+      }));
+      record.controls.style.zIndex = String(getControlsStackZIndex(id, {
+        selected: selectedIds.has(id),
+      }));
+    }
+    syncHigherHitProxies();
+  }
+
+  function clearHigherHitProxies() {
+    higherHitProxyLayer.replaceChildren();
+  }
+
+  function syncHigherHitProxies() {
+    clearHigherHitProxies();
+    if (!isPageInteractionMode() || !webpageInteractionTargetId) return;
+
+    // DOM hit proxies sit above the iframe (but below title-bar controls) so higher
+    // canvas strokes remain clickable while content-interaction hover disables canvas PE.
+    const proxies = getCanvasElementHitProxies(webpageInteractionTargetId) || [];
+    for (const proxy of proxies) {
+      const elementId = proxy?.elementId;
+      if (!elementId) continue;
+      const left = Number(proxy.left);
+      const top = Number(proxy.top);
+      const width = Number(proxy.width);
+      const height = Number(proxy.height);
+      if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) continue;
+
+      const node = documentRef.createElement("div");
+      node.className = "webpage-higher-hit-proxy";
+      node.dataset.elementId = elementId;
+      node.style.left = `${left}px`;
+      node.style.top = `${top}px`;
+      node.style.width = `${width}px`;
+      node.style.height = `${height}px`;
+      node.addEventListener("pointerdown", (event) => {
+        if (event.button !== undefined && event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setWebpageInteractionTarget(null);
+        selectIds([elementId]);
+      });
+      higherHitProxyLayer.appendChild(node);
+    }
+  }
+
   function setWebpageInteractionTarget(elementId = null) {
     const nextId = elementId || null;
-    if (webpageInteractionTargetId === nextId) return;
+    if (webpageInteractionTargetId === nextId) {
+      syncWebpagePointerRouting();
+      return;
+    }
     webpageInteractionTargetId = nextId;
     container.classList.toggle("is-webpage-interaction-hover", Boolean(nextId));
+    syncWebpagePointerRouting();
   }
 
   function getWebpageIdAtClientPoint(clientX, clientY) {
     if (getCurrentTool() !== "select" || isCanvasInteractionActive()) return null;
+    if (hasBlockingCanvasSelection()) return null;
     const x = Number(clientX);
     const y = Number(clientY);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
@@ -148,23 +254,94 @@ export function createWebpageOverlayController({
     return null;
   }
 
-  function handleContainerPointerMove(event) {
+  function updateWebpageInteractionFromEvent(event) {
     setWebpageInteractionTarget(getWebpageIdAtClientPoint(event.clientX, event.clientY));
+  }
+
+  function handleContainerPointerMove(event) {
+    updateWebpageInteractionFromEvent(event);
   }
 
   function handleContainerPointerEnter(event) {
-    setWebpageInteractionTarget(getWebpageIdAtClientPoint(event.clientX, event.clientY));
+    updateWebpageInteractionFromEvent(event);
   }
 
-  function handleContainerPointerLeave() {
-    setWebpageInteractionTarget();
+  function handleContainerPointerDown(event) {
+    if (!isPageInteractionMode()) {
+      updateWebpageInteractionFromEvent(event);
+      return;
+    }
+    const x = Number(event?.clientX);
+    const y = Number(event?.clientY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      updateWebpageInteractionFromEvent(event);
+      return;
+    }
+
+    // When content-interaction hover is active, canvas PE is none and higher strokes stay
+    // painted above the iframe but are not hittable. Steal the click so the user can select them.
+    // Only steal while a webpage is already the interaction target — otherwise canvas PE is auto
+    // and stage pointer handling must receive the event.
+    if (webpageInteractionTargetId) {
+      const canvasInteraction = getCanvasInteractionAtClientPoint(x, y);
+      if (canvasInteraction?.blocksWebpage && canvasInteraction.elementId) {
+        setWebpageInteractionTarget(null);
+        selectIds([canvasInteraction.elementId]);
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        return;
+      }
+    }
+
+    // While a non-webpage element is selected, blank clicks inside the webpage frame must
+    // clear that selection. Hover is suppressed (canvas PE stays auto), so stage usually
+    // handles this; clear here as a defensive fallback for residual hover states.
+    if (hasBlockingCanvasSelection()) {
+      const canvasInteraction = getCanvasInteractionAtClientPoint(x, y);
+      if (!canvasInteraction?.blocksWebpage) {
+        const overWebpage = [...overlays.values()].some((record) => {
+          const rect = record.wrapper.getBoundingClientRect?.();
+          if (!rect) return false;
+          const left = Number(rect.left) || 0;
+          const top = Number(rect.top) || 0;
+          const right = Number(rect.right) || left + (Number(rect.width) || 0);
+          const bottom = Number(rect.bottom) || top + (Number(rect.height) || 0);
+          return x >= left && x <= right && y >= top && y <= bottom;
+        });
+        if (overWebpage) {
+          setWebpageInteractionTarget(null);
+          selectIds([]);
+        }
+      }
+      return;
+    }
+
+    // Prime routing before the canvas full-viewport band consumes the click.
+    updateWebpageInteractionFromEvent(event);
   }
 
-  function handleWebpagePointerLeave() {
+  function handleContainerPointerLeave(event) {
+    // Entering a cross-origin iframe yields relatedTarget=null and fires pointerleave on
+    // the container. Clearing routing here re-enables full-viewport canvas bands, so they
+    // steal the pointer again and webpage content stays dead.
+    const related = event?.relatedTarget;
+    if (related && typeof container.contains === "function" && container.contains(related)) {
+      return;
+    }
+    const x = Number(event?.clientX);
+    const y = Number(event?.clientY);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const webpageId = getWebpageIdAtClientPoint(x, y);
+      if (webpageId) {
+        setWebpageInteractionTarget(webpageId);
+        return;
+      }
+    }
     setWebpageInteractionTarget();
   }
 
   container.addEventListener("pointermove", handleContainerPointerMove, true);
+  container.addEventListener("pointerdown", handleContainerPointerDown, true);
   container.addEventListener("pointerenter", handleContainerPointerEnter);
   container.addEventListener("pointerleave", handleContainerPointerLeave);
 
@@ -221,7 +398,6 @@ export function createWebpageOverlayController({
     chrome.append(title, editButton, openButton);
     wrapper.append(iframe);
     layer.appendChild(wrapper);
-    wrapper.addEventListener("pointerleave", handleWebpagePointerLeave);
 
     const controls = documentRef.createElement("div");
     controls.className = "webpage-overlay-controls";
@@ -247,12 +423,10 @@ export function createWebpageOverlayController({
     chrome.addEventListener("pointerdown", (event) => {
       if (event.target?.closest?.("button")) return;
       const currentElement = getElements().find((item) => item.id === element.id);
-      if (!currentElement || !canSelect(currentElement)) return;
+      if (!currentElement || !canSelect(currentElement) || !canMove(currentElement)) return;
+      // Select first so beginInteraction's canInteract gate passes, then start drag on the same pointerdown.
       if (!getSelectedIds().includes(element.id)) {
-        event.preventDefault();
-        event.stopPropagation();
         selectIds([element.id]);
-        return;
       }
       beginInteraction("move", element.id, event);
     });
@@ -331,7 +505,7 @@ export function createWebpageOverlayController({
     layer.classList.toggle("is-page-interaction-mode", pageInteractionMode);
     controlsLayer.classList.remove("is-canvas-above-webpage");
     container.classList.remove("is-canvas-above-webpage");
-    if (!pageInteractionMode) setWebpageInteractionTarget();
+    if (!pageInteractionMode || hasBlockingCanvasSelection()) setWebpageInteractionTarget();
     const visibleIds = new Set();
     const selectedIds = new Set(getSelectedIds());
 
@@ -360,17 +534,22 @@ export function createWebpageOverlayController({
         node.classList.toggle("is-moveable", movable);
         node.classList.toggle("is-locked", Boolean(element.locked));
       }
-      record.wrapper.style.zIndex = String(getWebpageStackZIndex(webpageStackIndex));
-      record.controls.style.zIndex = String(selected ? WEBPAGE_CONTROL_Z_INDEX : getWebpageStackZIndex(webpageStackIndex));
+      record.wrapper.style.zIndex = String(getOverlayStackZIndex(element.id, { selected }));
+      // Keep title/controls above interleaved canvas bands. The controls box itself is
+      // pointer-events:none, so only the title bar / buttons / handles opt into hits.
+      // This lets users select a webpage from its title bar even when it is not topmost.
+      record.controls.style.zIndex = String(getControlsStackZIndex(element.id, { selected }));
       record.controls.hidden = false;
-      record.wrapper.style.pointerEvents = pageInteractionMode ? "none" : "none";
+      record.wrapper.style.pointerEvents = "none";
       // The controls box covers the whole webpage rect; only its visible controls may receive events.
       record.controls.style.pointerEvents = "none";
       record.chrome.style.pointerEvents = canSelect(element) ? "auto" : "none";
       for (const button of [record.editButton, record.openButton, ...record.resizeHandles.values()]) {
         button.style.pointerEvents = interactive ? "auto" : "none";
       }
-      record.iframe.style.pointerEvents = pageInteractionMode ? "auto" : "none";
+      record.iframe.style.pointerEvents = pageInteractionMode && webpageInteractionTargetId === element.id
+        ? "auto"
+        : "none";
       record.iframe.style.top = `${toolbarHeight}px`;
       record.iframe.style.height = `calc(100% - ${toolbarHeight}px)`;
       record.title.textContent = getWebpageTitle(src || element.src);
@@ -390,6 +569,8 @@ export function createWebpageOverlayController({
     }
     if (webpageInteractionTargetId && !visibleIds.has(webpageInteractionTargetId)) {
       setWebpageInteractionTarget();
+    } else {
+      syncWebpagePointerRouting();
     }
   }
 
@@ -508,17 +689,23 @@ export function createWebpageOverlayController({
   function destroy() {
     clearInteractionListeners();
     interaction = null;
+    webpageInteractionTargetId = null;
     for (const record of overlays.values()) {
       record.wrapper.remove();
       record.controls.remove();
     }
     overlays.clear();
+    const konvaContent = container.querySelector?.(".konvajs-content");
+    if (konvaContent?.style) konvaContent.style.pointerEvents = "";
     container.classList.remove("is-canvas-above-webpage");
     container.classList.remove("is-webpage-interaction-hover");
     container.removeEventListener("pointermove", handleContainerPointerMove, true);
+    container.removeEventListener("pointerdown", handleContainerPointerDown, true);
     container.removeEventListener("pointerenter", handleContainerPointerEnter);
     container.removeEventListener("pointerleave", handleContainerPointerLeave);
     layer.remove();
+    clearHigherHitProxies();
+    higherHitProxyLayer.remove();
     controlsLayer.remove();
   }
 

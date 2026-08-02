@@ -1661,6 +1661,22 @@ button {
   pointer-events: none;
 }
 
+.webpage-higher-hit-proxy-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 99999;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.webpage-higher-hit-proxy {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  /* Keep invisible; only used for hit routing above interactive iframes. */
+  background: transparent;
+}
+
 .webpage-overlay-controls-layer {
   position: absolute;
   inset: 0;
@@ -1673,8 +1689,13 @@ button {
   z-index: auto;
 }
 
+/* !important: layered-content/shield set inline pointer-events on canvas bands.
+   Without it, higher full-viewport bands keep stealing hits from lower webpage iframes.
+   Also disable the konvajs-content host: with PE-none children, the host box would still
+   capture hits and block the lifted iframe underneath. */
+.stage-container.is-webpage-interaction-hover .konvajs-content,
 .stage-container.is-webpage-interaction-hover .konvajs-content canvas {
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .webpage-overlay {

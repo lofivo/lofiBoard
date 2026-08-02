@@ -129,7 +129,7 @@ describe("app shell", () => {
     expect(styles).toMatch(/\.webpage-overlay-layer \{[\s\S]*?pointer-events: none;/);
     expect(styles).toMatch(/\.webpage-overlay-controls-layer \{[\s\S]*?pointer-events: none;/);
     expect(styles).toMatch(/\.stage-container \.konvajs-content \{[\s\S]*?z-index: auto;/);
-    expect(styles).toMatch(/\.stage-container\.is-webpage-interaction-hover \.konvajs-content canvas \{[\s\S]*?pointer-events: none;/);
+    expect(styles).toMatch(/\.stage-container\.is-webpage-interaction-hover \.konvajs-content(?:,\s*\.stage-container\.is-webpage-interaction-hover \.konvajs-content canvas)? \{[\s\S]*?pointer-events: none !important;/);
     expect(styles).not.toContain(".webpage-overlay-layer.is-canvas-above-webpage");
     expect(styles).not.toContain(".webpage-overlay-controls-layer.is-canvas-above-webpage");
   });
