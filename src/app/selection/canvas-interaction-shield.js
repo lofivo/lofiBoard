@@ -11,6 +11,11 @@ export function createCanvasInteractionShieldController({
 } = {}) {
   let shield = null;
 
+  function setLayerPointerEvents(enabled) {
+    const canvas = layer?.getNativeCanvasElement?.();
+    canvas?.style?.setProperty?.("pointer-events", enabled ? "auto" : "none");
+  }
+
   function getSelectedCanvasElements() {
     const selectedIds = new Set(getSelectedIds());
     return getElements().filter((element) => (
@@ -78,9 +83,11 @@ export function createCanvasInteractionShieldController({
       ? (isCanvasInteractionActive() ? getViewportBounds() : getSelectionBounds(selectedElements))
       : null;
     const nextShield = bounds ? createShield() : shield;
+    setLayerPointerEvents(!shouldShield || Boolean(bounds));
     if (!nextShield) return;
     if (!bounds) {
       nextShield.visible(false);
+      layer.batchDraw?.();
       return;
     }
     nextShield.setAttrs({ ...bounds, visible: true });

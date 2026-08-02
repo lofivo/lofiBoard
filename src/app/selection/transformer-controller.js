@@ -25,6 +25,11 @@ export function createSelectionTransformerController({
   structureInteraction,
   transformer,
 } = {}) {
+  function setTransformerCanvasPointerEvents(enabled) {
+    const canvas = transformer.getLayer?.()?.getNativeCanvasElement?.();
+    canvas?.style?.setProperty?.("pointer-events", enabled ? "auto" : "none");
+  }
+
   function syncSelectionNodes() {
     if (structureInteraction.hasLinearItemDragState() || structureInteraction.hasLinearPointerDragState()) {
       transformer.nodes([]);
@@ -33,6 +38,7 @@ export function createSelectionTransformerController({
       transformer.rotateEnabled(false);
       transformer.enabledAnchors([]);
       disableHitAreaDrag();
+      setTransformerCanvasPointerEvents(false);
       return;
     }
     const selectedIds = getSelectedIds();
@@ -48,6 +54,7 @@ export function createSelectionTransformerController({
       transformer.rotateEnabled(false);
       transformer.enabledAnchors([]);
       disableHitAreaDrag();
+      setTransformerCanvasPointerEvents(false);
       return;
     }
     transformer.nodes(nodes);
@@ -62,6 +69,7 @@ export function createSelectionTransformerController({
     transformer.shouldOverdrawWholeArea(hasSelection && getTransformerOverdrawForState(getInteractionState(), selectedElements));
     transformer.forceUpdate();
     disableHitAreaDrag();
+    setTransformerCanvasPointerEvents(hasSelection);
   }
 
   function disableHitAreaDrag() {

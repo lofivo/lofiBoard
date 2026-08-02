@@ -1,9 +1,9 @@
 import { Edit, ExternalLink } from "lucide-static";
 import { icon } from "../ui/config.js";
 import {
-  getElementLayerValue,
   getWebpageStackIndex,
   getWebpageStackZIndex,
+  getOrderedElements,
 } from "../app/rendering/layer-order.js";
 import { getWebpageTitle, normalizeWebpageUrl } from "./webpage.js";
 
@@ -70,7 +70,7 @@ export function createWebpageOverlayController({
   getCurrentTool = () => "select",
   isCanvasInteractionActive = () => false,
   syncCanvasInteractionShield = () => {},
-  getSelectableCanvasElementIdAtClientPoint = () => null,
+  getCanvasInteractionAtClientPoint = () => null,
   getViewport = () => ({ x: 0, y: 0, scale: 1 }),
   isElementLocked = () => false,
   setElements = () => {},
@@ -130,11 +130,16 @@ export function createWebpageOverlayController({
       const right = Number(rect.right) || left + (Number(rect.width) || 0);
       const bottom = Number(rect.bottom) || top + (Number(rect.height) || 0);
       if (x >= left && x <= right && y >= top && y <= bottom) {
-        const canvasId = getSelectableCanvasElementIdAtClientPoint(x, y);
-        const canvasElement = elements.find((element) => element.id === canvasId);
+        const canvasInteraction = getCanvasInteractionAtClientPoint(x, y);
+        const canvasElement = elements.find((element) => element.id === canvasInteraction?.elementId);
         const webpageElement = elements.find((element) => element.id === record.elementId);
-        if (canvasElement && webpageElement
-          && getElementLayerValue(canvasElement) > getElementLayerValue(webpageElement)) {
+        const orderedElements = getOrderedElements(elements);
+        const canvasIndex = orderedElements.indexOf(canvasElement);
+        const webpageIndex = orderedElements.indexOf(webpageElement);
+        const canvasIsAboveWebpage = canvasElement && webpageElement
+          ? canvasIndex > webpageIndex
+          : Boolean(canvasInteraction?.blocksWebpage);
+        if (canvasIsAboveWebpage && canvasInteraction?.blocksWebpage) {
           return null;
         }
         return record.elementId;
@@ -147,6 +152,10 @@ export function createWebpageOverlayController({
     setWebpageInteractionTarget(getWebpageIdAtClientPoint(event.clientX, event.clientY));
   }
 
+  function handleContainerPointerEnter(event) {
+    setWebpageInteractionTarget(getWebpageIdAtClientPoint(event.clientX, event.clientY));
+  }
+
   function handleContainerPointerLeave() {
     setWebpageInteractionTarget();
   }
@@ -156,6 +165,7 @@ export function createWebpageOverlayController({
   }
 
   container.addEventListener("pointermove", handleContainerPointerMove, true);
+  container.addEventListener("pointerenter", handleContainerPointerEnter);
   container.addEventListener("pointerleave", handleContainerPointerLeave);
 
   function createOverlay(element) {
@@ -236,6 +246,14 @@ export function createWebpageOverlayController({
 
     chrome.addEventListener("pointerdown", (event) => {
       if (event.target?.closest?.("button")) return;
+      const currentElement = getElements().find((item) => item.id === element.id);
+      if (!currentElement || !canSelect(currentElement)) return;
+      if (!getSelectedIds().includes(element.id)) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectIds([element.id]);
+        return;
+      }
       beginInteraction("move", element.id, event);
     });
     editButton.addEventListener("click", (event) => {
@@ -268,6 +286,10 @@ export function createWebpageOverlayController({
   function canInteract(element) {
     return canMove(element)
       && getSelectedIds().includes(element.id);
+  }
+
+  function canSelect(element) {
+    return getCurrentTool() === "select" && !isCanvasInteractionActive() && Boolean(element);
   }
 
   function canMove(element) {
@@ -340,16 +362,17 @@ export function createWebpageOverlayController({
       }
       record.wrapper.style.zIndex = String(getWebpageStackZIndex(webpageStackIndex));
       record.controls.style.zIndex = String(selected ? WEBPAGE_CONTROL_Z_INDEX : getWebpageStackZIndex(webpageStackIndex));
-      record.controls.hidden = !selected;
-      record.wrapper.style.pointerEvents = pageInteractionMode ? "auto" : "none";
-      record.controls.style.pointerEvents = selected ? "auto" : "none";
-      record.chrome.style.pointerEvents = interactive ? "auto" : "none";
+      record.controls.hidden = false;
+      record.wrapper.style.pointerEvents = pageInteractionMode ? "none" : "none";
+      // The controls box covers the whole webpage rect; only its visible controls may receive events.
+      record.controls.style.pointerEvents = "none";
+      record.chrome.style.pointerEvents = canSelect(element) ? "auto" : "none";
       for (const button of [record.editButton, record.openButton, ...record.resizeHandles.values()]) {
         button.style.pointerEvents = interactive ? "auto" : "none";
       }
       record.iframe.style.pointerEvents = pageInteractionMode ? "auto" : "none";
-      record.iframe.style.top = selected ? `${toolbarHeight}px` : "0px";
-      record.iframe.style.height = selected ? `calc(100% - ${toolbarHeight}px)` : "100%";
+      record.iframe.style.top = `${toolbarHeight}px`;
+      record.iframe.style.height = `calc(100% - ${toolbarHeight}px)`;
       record.title.textContent = getWebpageTitle(src || element.src);
       setWebpageNodeVisible(element.id, false);
 
@@ -493,6 +516,7 @@ export function createWebpageOverlayController({
     container.classList.remove("is-canvas-above-webpage");
     container.classList.remove("is-webpage-interaction-hover");
     container.removeEventListener("pointermove", handleContainerPointerMove, true);
+    container.removeEventListener("pointerenter", handleContainerPointerEnter);
     container.removeEventListener("pointerleave", handleContainerPointerLeave);
     layer.remove();
     controlsLayer.remove();

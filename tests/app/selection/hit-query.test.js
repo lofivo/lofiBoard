@@ -82,6 +82,98 @@ describe("hit-query", () => {
     expect(stage.getIntersection).toHaveBeenCalledWith({ x: 10, y: 10 });
   });
 
+  it("uses the actual Konva hit region for webpage occlusion", () => {
+    const hit = createElementNode("b");
+    const stage = {
+      scaleX: vi.fn(() => 2),
+      x: vi.fn(() => 10),
+      y: vi.fn(() => 20),
+      getIntersection: vi.fn(() => hit),
+    };
+    const { query } = createQuery({ stage });
+
+    expect(query.getCanvasInteractionAtWorldPoint({ x: 15, y: 25 })).toEqual({
+      blocksWebpage: true,
+      elementId: "b",
+    });
+    expect(stage.getIntersection).toHaveBeenCalledWith({ x: 40, y: 70 });
+  });
+
+  it("ignores the hidden webpage placeholder when checking canvas occlusion", () => {
+    const webpageHit = createElementNode("webpage");
+    const stage = {
+      scaleX: vi.fn(() => 1),
+      x: vi.fn(() => 0),
+      y: vi.fn(() => 0),
+      getIntersection: vi.fn(() => webpageHit),
+    };
+    const { query } = createQuery({
+      stage,
+      elements: [{ id: "webpage", type: "webpage", zIndex: 0 }],
+      nodes: new Map([["webpage", webpageHit]]),
+    });
+
+    expect(query.getCanvasInteractionAtWorldPoint({ x: 10, y: 20 })).toBeNull();
+  });
+
+  it("lets a webpage receive input when the only canvas hit is below it", () => {
+    const elements = [
+      { id: "canvas-below", type: "stroke", zIndex: 0 },
+      { id: "webpage", type: "webpage", zIndex: 1 },
+    ];
+    const webpageNode = createElementNode("webpage", { x: 0, y: 0, width: 80, height: 80 });
+    const canvasNode = createElementNode("canvas-below");
+    const stage = {
+      scaleX: vi.fn(() => 1),
+      x: vi.fn(() => 0),
+      y: vi.fn(() => 0),
+      getIntersection: vi.fn(() => canvasNode),
+    };
+    const { query } = createQuery({
+      stage,
+      elements,
+      nodes: new Map([
+        ["canvas-below", canvasNode],
+        ["webpage", webpageNode],
+      ]),
+    });
+
+    expect(query.getWebpageInteractionAtWorldPoint({ x: 20, y: 20 })).toEqual({
+      blocksWebpage: false,
+      canvasElementId: "canvas-below",
+      elementId: "webpage",
+    });
+  });
+
+  it("reports a higher real canvas hit as the webpage blocker", () => {
+    const elements = [
+      { id: "webpage", type: "webpage", zIndex: 0 },
+      { id: "canvas-above", type: "stroke", zIndex: 1 },
+    ];
+    const webpageNode = createElementNode("webpage", { x: 0, y: 0, width: 80, height: 80 });
+    const canvasNode = createElementNode("canvas-above");
+    const stage = {
+      scaleX: vi.fn(() => 1),
+      x: vi.fn(() => 0),
+      y: vi.fn(() => 0),
+      getIntersection: vi.fn(() => canvasNode),
+    };
+    const { query } = createQuery({
+      stage,
+      elements,
+      nodes: new Map([
+        ["canvas-above", canvasNode],
+        ["webpage", webpageNode],
+      ]),
+    });
+
+    expect(query.getWebpageInteractionAtWorldPoint({ x: 20, y: 20 })).toEqual({
+      blocksWebpage: true,
+      canvasElementId: "canvas-above",
+      elementId: "webpage",
+    });
+  });
+
   it("builds hit-test candidates from element client rects and selection padding", () => {
     const fallbackNode = createElementNode("fallback");
     const { pickElementIdAtPoint, query } = createQuery();

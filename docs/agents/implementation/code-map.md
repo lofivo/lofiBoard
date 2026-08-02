@@ -71,7 +71,7 @@ React 与引擎之间主要通过两个门面协作：
 - 改二维数组：先看 `src/structures/matrix-structure.js` 和 `src/board/model.js`，再看 `src/app/components/StylePanel.jsx`、`src/app/structures/cell-editor-controller.js`、`src/canvas/konva-elements.js` 与 `src/app/whiteboard-app.js` 的窄命令接线。
 - 改 React 属性栏或结构面板：先看 `src/app/App.jsx` 的桥接状态，再看 `src/app/components/StylePanel.jsx` / `StructurePanel.jsx`，最后看对应 `src/app/inspector/*` 或 `src/app/structures/*` controller。
 - 改保存/草稿/历史：看 `src/app/shell/board-session/*`、`src/board/history.js`、`src/services/file.js`、`src/services/draft-storage.js`。
-- 改网页嵌入：看 `src/board/model.js`、`src/board/element-factory.js`、`src/canvas/konva-elements.js`、`src/app/rendering/layer-order.js`、`src/app/rendering/layered-content.js`、`src/app/selection/canvas-interaction-shield.js` 和 `src/services/webpage-overlay-controller.js`；网页内容由 DOM iframe overlay 显示，Konva 保留网页占位形状，并通过分层 Canvas 与透明选区命中层协调共享 `zIndex` 和拖拽命中。
+- 改网页嵌入：看 `src/board/model.js`、`src/board/element-factory.js`、`src/canvas/konva-elements.js`、`src/app/rendering/layer-order.js`、`src/app/rendering/layered-content.js`、`src/app/selection/hit-query.js`、`src/app/selection/canvas-interaction-shield.js` 和 `src/services/webpage-overlay-controller.js`；网页内容由 DOM iframe overlay 显示，Konva 保留网页占位形状，并通过分层 Canvas、真实 hit graph 与透明选区命中层协调共享 `zIndex` 和拖拽命中。
 
 ## 命名约定
 

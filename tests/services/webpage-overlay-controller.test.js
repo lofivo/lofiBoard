@@ -39,7 +39,7 @@ function createHarness(overrides = {}) {
     getSelectedIds: () => state.selectedIds,
     getCurrentTool: () => state.currentTool,
     isCanvasInteractionActive: overrides.isCanvasInteractionActive ?? (() => false),
-    getSelectableCanvasElementIdAtClientPoint: overrides.getSelectableCanvasElementIdAtClientPoint ?? (() => null),
+    getCanvasInteractionAtClientPoint: overrides.getCanvasInteractionAtClientPoint ?? (() => null),
     getViewport: () => overrides.viewport ?? { x: 10, y: 20, scale: 2 },
     setElements: (elements) => { state.elements = elements; },
     selectIds: callbacks.selectIds,
@@ -78,11 +78,13 @@ describe("webpage-overlay-controller", () => {
     expect(iframe.getAttribute("loading")).toBe("eager");
     expect(overlay.style.left).toBe("30px");
     expect(overlay.style.top).toBe("60px");
+    expect(iframe.style.top).toBe("60px");
+    expect(iframe.style.height).toBe("calc(100% - 60px)");
     expect(container.querySelector(".webpage-overlay-resize")).toBeTruthy();
     expect(container.querySelectorAll("[data-webpage-resize]")).toHaveLength(8);
   });
 
-  it("only displays the control bar for the selected webpage", () => {
+  it("keeps webpage title bars visible even when a webpage is not selected", () => {
     const { container, controller } = createHarness({
       selectedIds: ["webpage_a"],
       elements: [
@@ -95,7 +97,53 @@ describe("webpage-overlay-controller", () => {
 
     const controls = [...container.querySelectorAll(".webpage-overlay-controls")];
     expect(controls[0].hidden).toBe(false);
-    expect(controls[1].hidden).toBe(true);
+    expect(controls[1].hidden).toBe(false);
+    expect(controls[0].classList.contains("is-interactive")).toBe(true);
+    expect(controls[1].classList.contains("is-interactive")).toBe(false);
+    expect(controls.map((control) => control.querySelector(".webpage-overlay-title").textContent)).toEqual([
+      "a.example",
+      "b.example",
+    ]);
+    expect([...container.querySelectorAll("iframe")].map((iframe) => iframe.style.top)).toEqual(["60px", "60px"]);
+  });
+
+  it("selects an unselected webpage from its title bar without moving it", () => {
+    const { callbacks, container, controller, state } = createHarness({ selectedIds: [] });
+
+    controller.sync();
+    const chrome = container.querySelector("[data-webpage-drag]");
+
+    expect(chrome.style.pointerEvents).toBe("auto");
+    chrome.dispatchEvent(pointerEvent("pointerdown", { clientX: 100, clientY: 40 }));
+    window.dispatchEvent(pointerEvent("pointerup", { clientX: 100, clientY: 40 }));
+
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["webpage_1"]);
+    expect(state.selectedIds).toEqual(["webpage_1"]);
+    expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
+  });
+
+  it("keeps the selected control container transparent so the iframe can receive focus", () => {
+    const { container, controller } = createHarness();
+
+    controller.sync();
+
+    expect(container.querySelector(".webpage-overlay-controls").style.pointerEvents).toBe("none");
+    expect(container.querySelector("iframe").style.pointerEvents).toBe("auto");
+  });
+
+  it("does not move a selected webpage from iframe content input", () => {
+    const { callbacks, container, controller, state } = createHarness();
+    controller.sync();
+    const iframe = container.querySelector("iframe");
+
+    iframe.dispatchEvent(pointerEvent("pointerdown", { clientX: 100, clientY: 100 }));
+    window.dispatchEvent(pointerEvent("pointermove", { clientX: 140, clientY: 150 }));
+    window.dispatchEvent(pointerEvent("pointerup", { clientX: 140, clientY: 150 }));
+
+    expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.pushHistory).not.toHaveBeenCalled();
   });
 
   it("moves a selected webpage from its toolbar and records one history entry", () => {
@@ -128,7 +176,7 @@ describe("webpage-overlay-controller", () => {
     }));
   });
 
-  it("does not drag an unselected webpage from its label", () => {
+  it("selects but does not move an unselected webpage from its label", () => {
     const { callbacks, container, controller, state } = createHarness({ selectedIds: [] });
     controller.sync();
     const chrome = container.querySelector("[data-webpage-drag]");
@@ -137,7 +185,8 @@ describe("webpage-overlay-controller", () => {
     window.dispatchEvent(pointerEvent("pointermove", { clientX: 120, clientY: 130 }));
     window.dispatchEvent(pointerEvent("pointerup", { clientX: 120, clientY: 130 }));
 
-    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.selectIds).toHaveBeenCalledWith(["webpage_1"]);
+    expect(state.selectedIds).toEqual(["webpage_1"]);
     expect(state.elements[0]).toMatchObject({ x: 10, y: 20 });
     expect(callbacks.pushHistory).not.toHaveBeenCalled();
   });
@@ -218,17 +267,37 @@ describe("webpage-overlay-controller", () => {
       height: 300,
     });
     expect(layer.classList.contains("is-page-interaction-mode")).toBe(true);
-    expect(wrapper.style.pointerEvents).toBe("auto");
+    expect(wrapper.style.pointerEvents).toBe("none");
     expect(iframe.style.pointerEvents).toBe("auto");
     container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
     expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
     expect(callbacks.selectIds).not.toHaveBeenCalled();
   });
 
-  it("keeps canvas routing when a selectable canvas element is inside the webpage", () => {
-    const getSelectableCanvasElementIdAtClientPoint = vi.fn(() => "stroke_1");
+  it("primes iframe routing when the pointer enters a webpage before the first click", () => {
+    const { container, controller } = createHarness({ selectedIds: [] });
+
+    controller.sync();
+
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointerenter", { clientX: 100, clientY: 100 }));
+
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
+    expect(container.querySelector("iframe").style.pointerEvents).toBe("auto");
+  });
+
+  it("routes iframe input through a higher canvas band when its actual hit is empty", () => {
+    const getCanvasInteractionAtClientPoint = vi.fn(() => null);
     const { container, controller } = createHarness({
-      selectedIds: ["stroke_1"],
+      selectedIds: [],
       elements: [
         {
           id: "webpage_1",
@@ -238,10 +307,11 @@ describe("webpage-overlay-controller", () => {
           width: 300,
           height: 200,
           src: "example.com/docs",
+          zIndex: 0,
         },
         { id: "stroke_1", type: "stroke", zIndex: 1 },
       ],
-      getSelectableCanvasElementIdAtClientPoint,
+      getCanvasInteractionAtClientPoint,
     });
 
     controller.sync();
@@ -257,7 +327,69 @@ describe("webpage-overlay-controller", () => {
     });
     container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
 
-    expect(getSelectableCanvasElementIdAtClientPoint).toHaveBeenCalledWith(100, 100);
+    expect(getCanvasInteractionAtClientPoint).toHaveBeenCalledWith(100, 100);
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(true);
+  });
+
+  it("keeps canvas routing when a selectable canvas element is inside the webpage", () => {
+    const getCanvasInteractionAtClientPoint = vi.fn(() => ({
+      blocksWebpage: true,
+      elementId: "stroke_1",
+    }));
+    const { container, controller } = createHarness({
+      selectedIds: ["stroke_1"],
+      elements: [
+        {
+          id: "webpage_1",
+          type: "webpage",
+          x: 10,
+          y: 20,
+          width: 300,
+          height: 200,
+          src: "example.com/docs",
+        },
+        { id: "stroke_1", type: "stroke", zIndex: 1 },
+      ],
+      getCanvasInteractionAtClientPoint,
+    });
+
+    controller.sync();
+
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+
+    expect(getCanvasInteractionAtClientPoint).toHaveBeenCalledWith(100, 100);
+    expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
+  });
+
+  it("keeps canvas routing for a selection overlay hit without an element id", () => {
+    const getCanvasInteractionAtClientPoint = vi.fn(() => ({ blocksWebpage: true }));
+    const { container, controller } = createHarness({
+      selectedIds: [],
+      getCanvasInteractionAtClientPoint,
+    });
+
+    controller.sync();
+
+    const wrapper = container.querySelector(".webpage-overlay");
+    wrapper.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+    });
+    container.dispatchEvent(pointerEvent("pointermove", { clientX: 100, clientY: 100 }));
+
     expect(container.classList.contains("is-webpage-interaction-hover")).toBe(false);
   });
 
@@ -290,7 +422,7 @@ describe("webpage-overlay-controller", () => {
     controller.sync();
 
     expect(container.querySelector(".webpage-overlay-controls-layer").classList.contains("is-canvas-above-webpage")).toBe(false);
-    expect(container.querySelector(".webpage-overlay").style.pointerEvents).toBe("auto");
+    expect(container.querySelector(".webpage-overlay").style.pointerEvents).toBe("none");
   });
 
   it("clears iframe pointer routing when the webpage is removed", () => {

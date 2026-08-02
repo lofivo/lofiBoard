@@ -68,6 +68,14 @@ _Avoid_: 非编辑态边框, textarea 尺寸
 元素沿 z 轴的堆叠顺序。通过 zIndex 控制。
 _Avoid_: level
 
+**网页内容区 (Webpage Content Area)**:
+网页元素中用于直接操作嵌入网页的区域；标题栏、控制按钮和缩放柄属于画板操作区域。
+_Avoid_: 网页主体
+
+**元素覆盖 (Element Occlusion)**:
+同一指针位置发生空间重叠时，上层元素的真实可命中区域优先接收交互；不相交或未命中的空白区域不因图层顺序失去交互。
+_Avoid_: 全局顶层遮挡
+
 **结构 (Structure)**:
 一类复合元素，包括线性结构（数组/栈/队列/双端队列）、二维数组和关联结构（图/树）。
 _Avoid_: composite, container

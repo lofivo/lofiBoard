@@ -9,11 +9,13 @@ function createNode(id) {
 function createTransformer(initialNodes = []) {
   let nodesValue = initialNodes;
   const back = { draggable: vi.fn() };
+  const nativeCanvas = { style: { setProperty: vi.fn() } };
   return {
     enabledAnchors: vi.fn(),
     findOne: vi.fn((selector) => (selector === ".back" ? back : null)),
     forceUpdate: vi.fn(),
     getActiveAnchor: vi.fn(() => "middle-right"),
+    getLayer: vi.fn(() => ({ getNativeCanvasElement: () => nativeCanvas })),
     nodes: vi.fn(function nodes(nextNodes) {
       if (arguments.length > 0) nodesValue = nextNodes;
       return nodesValue;
@@ -23,6 +25,7 @@ function createTransformer(initialNodes = []) {
     shouldOverdrawWholeArea: vi.fn(),
     visible: vi.fn(),
     _back: back,
+    _nativeCanvas: nativeCanvas,
   };
 }
 
@@ -90,6 +93,7 @@ describe("transformer-controller", () => {
     expect(transformer.rotateEnabled).toHaveBeenCalledWith(false);
     expect(transformer.enabledAnchors).toHaveBeenCalledWith([]);
     expect(transformer._back.draggable).toHaveBeenCalledWith(false);
+    expect(transformer._nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "none");
   });
 
   it("syncs selected nodes and applies type-aware transformer affordances", () => {
@@ -119,6 +123,25 @@ describe("transformer-controller", () => {
     expect(transformer.shouldOverdrawWholeArea).toHaveBeenCalledWith(true);
     expect(transformer.forceUpdate).toHaveBeenCalled();
     expect(transformer._back.draggable).toHaveBeenCalledWith(false);
+    expect(transformer._nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "auto");
+  });
+
+  it("lets selected webpage overlays receive iframe input by disabling the transformer canvas", () => {
+    const { controller, transformer } = createHarness({
+      state: {
+        elements: [{ id: "webpage_1", type: "webpage" }],
+        selectedIds: ["webpage_1"],
+      },
+    });
+
+    controller.syncSelectionNodes();
+
+    expect(transformer.nodes).toHaveBeenCalledWith([]);
+    expect(transformer.visible).toHaveBeenCalledWith(false);
+    expect(transformer.resizeEnabled).toHaveBeenCalledWith(false);
+    expect(transformer.rotateEnabled).toHaveBeenCalledWith(false);
+    expect(transformer.enabledAnchors).toHaveBeenCalledWith([]);
+    expect(transformer._nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "none");
   });
 
   it("uses text transform minimums when clamping anchor drag bounds", () => {

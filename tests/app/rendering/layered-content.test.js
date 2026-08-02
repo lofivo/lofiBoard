@@ -69,6 +69,11 @@ describe("layered content", () => {
     expect(controller.getLayerForElement(elements[4])).toBe(layers[2]);
     expect(stage.children).toEqual([...layers, interactionLayer, overlayLayer]);
     expect(layers.map((layer) => layer.nativeCanvas.style.setProperty.mock.calls.at(-1))).toEqual([
+      ["pointer-events", "auto"],
+      ["pointer-events", "auto"],
+      ["pointer-events", "auto"],
+    ]);
+    expect(layers.map((layer) => layer.nativeCanvas.style.setProperty.mock.calls.at(-2))).toEqual([
       ["z-index", "0"],
       ["z-index", "2"],
       ["z-index", "4"],
@@ -77,7 +82,7 @@ describe("layered content", () => {
     expect(overlayLayer.nativeCanvas.style.setProperty).toHaveBeenLastCalledWith("z-index", "8");
   });
 
-  it("keeps unused canvas bands hidden and non-listening", () => {
+  it("keeps blank canvas bands above webpages hidden, non-listening, and transparent", () => {
     const { controller } = createHarness();
 
     controller.sync([
@@ -89,8 +94,9 @@ describe("layered content", () => {
     expect(layers).toHaveLength(2);
     expect(layers[0].visibleValue).toBe(true);
     expect(layers[0].listeningValue).toBe(true);
-    expect(layers[1].visibleValue).toBe(true);
-    expect(layers[1].listeningValue).toBe(true);
+    expect(layers[1].visibleValue).toBe(false);
+    expect(layers[1].listeningValue).toBe(false);
+    expect(layers[1].nativeCanvas.style.setProperty).toHaveBeenLastCalledWith("pointer-events", "none");
 
     controller.sync([{ id: "canvas-a", type: "stroke", zIndex: 0 }]);
 

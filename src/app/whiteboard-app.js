@@ -329,10 +329,12 @@ let suppressSelectionDragOnce = false;
 
   const {
     expandGroupedIds,
+    getCanvasInteractionAtWorldPoint,
     getElementIdAtPointer,
     getElementIdFromNode,
     getNearbySelectedElementId,
     getSelectableElementIdAtWorldPoint,
+    getWebpageInteractionAtWorldPoint,
     isElementLocked,
   } = createSelectionHitQuery({
     getStage: () => stage,
@@ -569,7 +571,7 @@ let suppressSelectionDragOnce = false;
     getCurrentTool: () => currentTool,
     isCanvasInteractionActive: () => selectionDragController?.hasActiveDrag?.() ?? false,
     syncCanvasInteractionShield: canvasInteractionShieldController.sync,
-    getSelectableCanvasElementIdAtClientPoint: (clientX, clientY) => {
+    getCanvasInteractionAtClientPoint: (clientX, clientY) => {
       const x = Number(clientX);
       const y = Number(clientY);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
@@ -580,9 +582,7 @@ let suppressSelectionDragOnce = false;
         x: (x - (Number(containerRect.left) || 0) - stage.x()) / scale,
         y: (y - (Number(containerRect.top) || 0) - stage.y()) / scale,
       };
-      return getSelectableElementIdAtWorldPoint(worldPoint, {
-        excludeTypes: ["webpage"],
-      });
+      return getCanvasInteractionAtWorldPoint(worldPoint);
     },
     getViewport: () => ({ x: stage.x(), y: stage.y(), scale: stage.scaleX() }),
     isElementLocked,
@@ -1623,6 +1623,7 @@ let suppressSelectionDragOnce = false;
     getNearbySelectedElementId,
     getSelectableElementIdAtWorldPoint,
     getSelectedIds: () => selectedIds,
+    getWebpageInteractionAtWorldPoint,
     handleLinearPointerMove: (worldPoint) => linearGestureController.handlePointerMove(worldPoint),
     handleLinearPointerUp: () => linearGestureController.handlePointerUp(),
     hideBinaryTreeControls: () => structureControlsController.hideBinaryTreeControls(),

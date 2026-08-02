@@ -1673,6 +1673,10 @@ button {
   z-index: auto;
 }
 
+.stage-container.is-webpage-interaction-hover .konvajs-content canvas {
+  pointer-events: none;
+}
+
 .webpage-overlay {
   position: absolute;
   box-sizing: border-box;

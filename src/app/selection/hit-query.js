@@ -1,3 +1,5 @@
+import { getOrderedElements } from "../rendering/layer-order.js";
+
 export function createSelectionHitQuery({
   getStage,
   getContentLayer,
@@ -23,6 +25,60 @@ export function createSelectionHitQuery({
     const pointer = stage.getPointerPosition();
     if (!pointer) return null;
     return getElementIdFromNode(stage.getIntersection(pointer));
+  }
+
+  function getCanvasInteractionAtWorldPoint(worldPoint) {
+    const stage = getStage();
+    if (!stage?.getIntersection || !worldPoint) return null;
+    const scale = Math.max(0.01, Number(stage.scaleX?.()) || 1);
+    const x = Number(worldPoint.x);
+    const y = Number(worldPoint.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    const hit = stage.getIntersection({
+      x: x * scale + (Number(stage.x?.()) || 0),
+      y: y * scale + (Number(stage.y?.()) || 0),
+    });
+    if (!hit) return null;
+
+    const elementId = getElementIdFromNode(hit);
+    const element = getElements().find((candidate) => candidate.id === elementId);
+    if (element?.type === "webpage") return null;
+
+    return {
+      blocksWebpage: true,
+      elementId,
+    };
+  }
+
+  function getWebpageInteractionAtWorldPoint(worldPoint) {
+    if (!worldPoint) return null;
+
+    const elements = getElements();
+    const orderedElements = getOrderedElements(elements);
+    const canvasInteraction = getCanvasInteractionAtWorldPoint(worldPoint);
+    const canvasElement = elements.find((element) => element.id === canvasInteraction?.elementId);
+    const canvasIndex = canvasElement ? orderedElements.indexOf(canvasElement) : -1;
+    const contentLayer = getContentLayer();
+
+    for (const webpageElement of [...orderedElements].reverse()) {
+      if (webpageElement?.type !== "webpage") continue;
+      const node = contentLayer.findOne(`#${webpageElement.id}`);
+      const box = node?.getClientRect?.({ relativeTo: contentLayer });
+      if (!box || !pointHitsSelectionBounds(worldPoint, [box], 0)) continue;
+
+      const webpageIndex = orderedElements.indexOf(webpageElement);
+      const canvasIsAboveWebpage = canvasElement && webpageIndex >= 0
+        ? canvasIndex > webpageIndex
+        : Boolean(canvasInteraction?.blocksWebpage);
+      return {
+        blocksWebpage: Boolean(canvasInteraction?.blocksWebpage && canvasIsAboveWebpage),
+        canvasElementId: canvasInteraction?.elementId ?? null,
+        elementId: webpageElement.id,
+      };
+    }
+
+    return null;
   }
 
   function getSelectableElementIdAtWorldPoint(worldPoint, {
@@ -83,10 +139,12 @@ export function createSelectionHitQuery({
 
   return {
     expandGroupedIds,
+    getCanvasInteractionAtWorldPoint,
     getElementIdAtPointer,
     getElementIdFromNode,
     getNearbySelectedElementId,
     getSelectableElementIdAtWorldPoint,
+    getWebpageInteractionAtWorldPoint,
     isElementLocked,
   };
 }

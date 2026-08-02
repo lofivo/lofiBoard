@@ -34,9 +34,11 @@ function createHarness(overrides = {}) {
     ["locked", { getClientRect: vi.fn(() => ({ x: 100, y: 100, width: 40, height: 40 })) }],
     ["webpage", { getClientRect: vi.fn(() => ({ x: 200, y: 200, width: 80, height: 60 })) }],
   ]);
+  const nativeCanvas = { style: { setProperty: vi.fn() } };
   const layer = {
     add: vi.fn(),
     batchDraw: vi.fn(),
+    getNativeCanvasElement: vi.fn(() => nativeCanvas),
   };
   const contentLayer = {
     findOne: vi.fn((selector) => nodes.get(selector.slice(1)) ?? null),
@@ -59,18 +61,19 @@ function createHarness(overrides = {}) {
     getCurrentTool: () => overrides.currentTool ?? "select",
     isCanvasInteractionActive: () => overrides.active ?? false,
   });
-  return { controller, contentLayer, layer, stage };
+  return { controller, contentLayer, layer, nativeCanvas, stage };
 }
 
 describe("canvas interaction shield", () => {
   it("covers the union of selected unlocked canvas elements, excluding webpages and locked items", () => {
-    const { controller, layer } = createHarness();
+    const { controller, layer, nativeCanvas } = createHarness();
 
     controller.sync();
 
     const shield = layer.add.mock.calls[0][0];
     expect(shield.attrs).toMatchObject({ x: 10, y: 20, width: 40, height: 50, visible: true });
     expect(controller.isSelectionShieldTarget(shield)).toBe(true);
+    expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "auto");
     expect(layer.batchDraw).toHaveBeenCalled();
   });
 
@@ -84,20 +87,22 @@ describe("canvas interaction shield", () => {
   });
 
   it("hides the shield when no unlocked canvas selection can be dragged", () => {
-    const { controller, layer } = createHarness({
+    const { controller, layer, nativeCanvas } = createHarness({
       selectedIds: ["locked", "webpage"],
     });
 
     controller.sync();
 
     expect(layer.add).not.toHaveBeenCalled();
+    expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "none");
   });
 
   it("hides the shield outside the select tool", () => {
-    const { controller, layer } = createHarness({ currentTool: "pen" });
+    const { controller, layer, nativeCanvas } = createHarness({ currentTool: "pen" });
 
     controller.sync();
 
     expect(layer.add).not.toHaveBeenCalled();
+    expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "auto");
   });
 });

@@ -47,9 +47,12 @@ export function createLayeredContentController({
     const activeCount = getCanvasBandCount(currentElements);
     ensureCanvasLayers(activeCount);
 
+    const occupiedCanvasBands = new Set([0]);
     elementBandIndexes.clear();
     for (const element of currentElements) {
-      elementBandIndexes.set(element.id, getCanvasBandIndex(currentElements, element.id));
+      const bandIndex = getCanvasBandIndex(currentElements, element.id);
+      elementBandIndexes.set(element.id, bandIndex);
+      if (element?.type !== "webpage") occupiedCanvasBands.add(bandIndex);
     }
 
     const orderedStageLayers = [...canvasLayers, interactionLayer, overlayLayer];
@@ -60,11 +63,12 @@ export function createLayeredContentController({
     });
 
     canvasLayers.forEach((layer, index) => {
-      const active = index < activeCount;
+      const active = index < activeCount && occupiedCanvasBands.has(index);
       layer.visible(active);
       layer.listening(active);
       const canvas = layer.getNativeCanvasElement?.();
       canvas?.style?.setProperty("z-index", String(getCanvasStackZIndex(index)));
+      canvas?.style?.setProperty("pointer-events", active ? "auto" : "none");
     });
 
     const interactionZIndex = getCanvasStackZIndex(canvasLayers.length) + 1;

@@ -71,6 +71,7 @@ function createHarness(overrides = {}) {
     getElementIdFromStageIntersection: vi.fn(() => "text_1"),
     getNearbySelectedElementId: vi.fn(() => null),
     getSelectableElementIdAtWorldPoint: vi.fn(() => null),
+    getWebpageInteractionAtWorldPoint: vi.fn(() => null),
     handleLinearPointerMove: vi.fn(() => false),
     handleLinearPointerUp: vi.fn(() => false),
     hideBinaryTreeControls: vi.fn(),
@@ -172,6 +173,7 @@ function createHarness(overrides = {}) {
     getNearbySelectedElementId: callbacks.getNearbySelectedElementId,
     getSelectableElementIdAtWorldPoint: callbacks.getSelectableElementIdAtWorldPoint,
     getSelectedIds: () => selectedIds,
+    getWebpageInteractionAtWorldPoint: callbacks.getWebpageInteractionAtWorldPoint,
     getWorldPoint: () => stage.worldPoint,
     handleLinearPointerMove: callbacks.handleLinearPointerMove,
     handleLinearPointerUp: callbacks.handleLinearPointerUp,
@@ -500,6 +502,69 @@ describe("stage-pointer-controller", () => {
       { fallbackNode: event.target, excludeTypes: ["webpage"] },
     );
     expect(selectionDragController.beginSelectionDrag).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("does not clear selection or start a marquee from webpage content", () => {
+    const { callbacks, controller, draftInteractionController, selectionDragController } = createHarness({
+      selectedIds: ["text_1"],
+      elements: [
+        { id: "webpage_1", type: "webpage", zIndex: 0 },
+        { id: "text_1", type: "text", zIndex: 1 },
+      ],
+      callbacks: {
+        getWebpageInteractionAtWorldPoint: vi.fn(() => ({
+          blocksWebpage: false,
+          elementId: "webpage_1",
+        })),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: { id: "stage" } }));
+
+    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(callbacks.enterInteraction).not.toHaveBeenCalledWith(SM.SELECTING);
+    expect(draftInteractionController.startSelectionDraft).not.toHaveBeenCalled();
+    expect(selectionDragController.beginSelectionDrag).not.toHaveBeenCalled();
+    expect(callbacks.selectElementById).not.toHaveBeenCalled();
+    expect(callbacks.selectIds).not.toHaveBeenCalled();
+    expect(callbacks.getWebpageInteractionAtWorldPoint).toHaveBeenCalledWith({ x: 10, y: 20 });
+  });
+
+  it("keeps a real higher canvas hit selectable inside a webpage", () => {
+    const { callbacks, controller } = createHarness({
+      selectedIds: [],
+      elements: [
+        { id: "webpage_1", type: "webpage", zIndex: 0 },
+        { id: "stroke_1", type: "stroke", zIndex: 1 },
+      ],
+      callbacks: {
+        getWebpageInteractionAtWorldPoint: vi.fn(() => ({
+          blocksWebpage: true,
+          canvasElementId: "stroke_1",
+          elementId: "webpage_1",
+        })),
+      },
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: { id: "stage" } }));
+
+    expect(callbacks.selectElementById).toHaveBeenCalledWith("stroke_1", false);
+    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+  });
+
+  it("ignores a webpage placeholder target even when no overlay hit state is available", () => {
+    const { callbacks, controller, draftInteractionController } = createHarness({
+      selectedIds: ["text_1"],
+      elements: [
+        { id: "webpage_1", type: "webpage", zIndex: 0 },
+        { id: "text_1", type: "text", zIndex: 1 },
+      ],
+    });
+
+    controller.handlePointerDown(createKonvaEvent({ target: { id: "webpage_1" } }));
+
+    expect(callbacks.clearSelection).not.toHaveBeenCalled();
+    expect(draftInteractionController.startSelectionDraft).not.toHaveBeenCalled();
   });
 
   it("lets graph node pointerdown flow to the graph node drag handler", () => {

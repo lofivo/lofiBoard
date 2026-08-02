@@ -51,6 +51,7 @@ export function createStagePointerController({
   getNearbySelectedElementId = () => null,
   getSelectableElementIdAtWorldPoint = () => null,
   getSelectedIds = () => [],
+  getWebpageInteractionAtWorldPoint = () => null,
   getWorldPoint = () => getWorldPointer(stage),
   handleLinearPointerMove = () => false,
   handleLinearPointerUp = () => false,
@@ -507,10 +508,26 @@ export function createStagePointerController({
       return true;
     }
     const rawTargetElement = getElementIdFromNode(event.target);
-    const targetElement = getSelectableElementIdAtWorldPoint(worldPoint, {
-      fallbackNode: event.target,
-      excludeTypes: ["webpage"],
-    });
+    const rawTarget = getElements().find((element) => element.id === rawTargetElement);
+    const webpageInteraction = getCurrentTool() === TOOLS.SELECT
+      ? getWebpageInteractionAtWorldPoint(worldPoint)
+      : null;
+    if (rawTarget?.type === "webpage" && !webpageInteraction?.blocksWebpage) {
+      return true;
+    }
+    if (webpageInteraction?.elementId && !webpageInteraction.blocksWebpage) {
+      return true;
+    }
+    const actualCanvasTargetId = webpageInteraction?.blocksWebpage
+      ? webpageInteraction.canvasElementId
+      : null;
+    const targetElement = actualCanvasTargetId ?? getSelectableElementIdAtWorldPoint(
+      worldPoint,
+      {
+        fallbackNode: event.target,
+        excludeTypes: ["webpage"],
+      },
+    );
     if (targetElement) {
       const element = getElements().find((item) => item.id === targetElement);
       const targetIds = expandGroupedIds([targetElement]);
