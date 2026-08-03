@@ -26,7 +26,7 @@ export function createSelectionDragController({
   syncTextOverlays = () => {},
   syncWebpageOverlays = () => {},
   transformer,
-  updateTreeControlsPosition = () => {},
+  updateStructureControlsPosition = () => {},
 } = {}) {
   let selectionDrag = null;
   let nodeDragSelection = null;
@@ -126,7 +126,7 @@ export function createSelectionDragController({
     overlayLayer?.batchDraw?.();
     syncTextOverlays();
     syncWebpageOverlays();
-    updateTreeControlsPosition();
+    updateStructureControlsPosition();
     return true;
   }
 
@@ -281,7 +281,7 @@ export function createSelectionDragController({
     }));
     transformer.forceUpdate();
     contentLayer.batchDraw();
-    updateTreeControlsPosition();
+    updateStructureControlsPosition();
     syncTextOverlays();
     syncWebpageOverlays();
     return true;

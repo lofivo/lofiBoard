@@ -55,7 +55,7 @@ function createHarness(overrides = {}) {
     syncNodeToElement: vi.fn(),
     syncTextOverlays: vi.fn(),
     syncWebpageOverlays: vi.fn(),
-    updateTreeControlsPosition: vi.fn(),
+    updateStructureControlsPosition: vi.fn(),
     ...overrides.callbacks,
   };
   const contentLayer = {
@@ -92,7 +92,7 @@ function createHarness(overrides = {}) {
     syncTextOverlays: callbacks.syncTextOverlays,
     syncWebpageOverlays: callbacks.syncWebpageOverlays,
     transformer,
-    updateTreeControlsPosition: callbacks.updateTreeControlsPosition,
+    updateStructureControlsPosition: callbacks.updateStructureControlsPosition,
     ...overrides.controller,
   });
   return { callbacks, contentLayer, controller, nodes, state, structureInteraction, transformer };
@@ -119,7 +119,7 @@ describe("drag-controller", () => {
     expect(contentLayer.batchDraw).toHaveBeenCalled();
     expect(nodes["#shape_1"].position).toHaveBeenCalledWith({ x: 5, y: 7 });
     expect(nodes["#tree_1"].position).toHaveBeenCalledWith({ x: 15, y: 17 });
-    expect(callbacks.updateTreeControlsPosition).toHaveBeenCalled();
+    expect(callbacks.updateStructureControlsPosition).toHaveBeenCalled();
     expect(callbacks.setSuppressNextSelectionClick).toHaveBeenCalledWith(true);
     expect(callbacks.suppressNextLinearItemSelect).toHaveBeenCalledWith("array_1");
     expect(structureInteraction.consumeSuppressedBinaryTreeNodeClick("tree_1")).toBe(true);

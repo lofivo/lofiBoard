@@ -705,7 +705,11 @@ let suppressSelectionDragOnce = false;
     syncTextOverlays,
     syncWebpageOverlays: () => webpageOverlayController.sync(),
     transformer,
-    updateTreeControlsPosition: () => structureControlsPositionController.updateTreeControlsPosition(),
+    updateStructureControlsPosition: () => {
+      structureControlsPositionController.updateLinearItemControlsPosition();
+      structureControlsPositionController.updateTreeControlsPosition();
+      structureControlsPositionController.updateGraphNodeControlsPosition();
+    },
   });
 
   const {

@@ -1,3 +1,5 @@
+import { STRUCTURE_ELEMENT_TYPES } from "../../structures/types.js";
+
 export function createCanvasInteractionShieldController({
   Konva,
   layer,
@@ -21,8 +23,13 @@ export function createCanvasInteractionShieldController({
     return getElements().filter((element) => (
       selectedIds.has(element?.id)
       && element?.type !== "webpage"
+      && !isStructureElementType(element?.type)
       && !isElementLocked(element.id)
     ));
+  }
+
+  function isStructureElementType(type) {
+    return Object.values(STRUCTURE_ELEMENT_TYPES).includes(type);
   }
 
   function getSelectionBounds(elements) {

@@ -105,4 +105,45 @@ describe("canvas interaction shield", () => {
     expect(layer.add).not.toHaveBeenCalled();
     expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "auto");
   });
+
+  it("excludes selected structure elements so internal item hits stay interactive", () => {
+    const { controller, layer, nativeCanvas } = createHarness({
+      elements: [
+        { id: "array_1", type: "array-structure", x: 0, y: 0 },
+        { id: "stroke", type: "stroke", x: 10, y: 10 },
+      ],
+      selectedIds: ["array_1", "stroke"],
+      nodes: new Map([
+        ["array_1", { getClientRect: vi.fn(() => ({ x: 0, y: 0, width: 200, height: 80 })) }],
+        ["stroke", { getClientRect: vi.fn(() => ({ x: 10, y: 20, width: 40, height: 50 })) }],
+      ]),
+    });
+
+    controller.sync();
+
+    const shield = layer.add.mock.calls[0][0];
+    // Only the non-structure stroke contributes to shield bounds.
+    expect(shield.attrs).toMatchObject({ x: 10, y: 20, width: 40, height: 50, visible: true });
+    expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "auto");
+  });
+
+  it("hides the shield when only structure elements are selected", () => {
+    const { controller, layer, nativeCanvas } = createHarness({
+      elements: [
+        { id: "array_1", type: "array-structure", x: 0, y: 0 },
+        { id: "tree_1", type: "tree-structure", x: 40, y: 40 },
+      ],
+      selectedIds: ["array_1", "tree_1"],
+      nodes: new Map([
+        ["array_1", { getClientRect: vi.fn(() => ({ x: 0, y: 0, width: 200, height: 80 })) }],
+        ["tree_1", { getClientRect: vi.fn(() => ({ x: 40, y: 40, width: 120, height: 120 })) }],
+      ]),
+    });
+
+    controller.sync();
+
+    expect(layer.add).not.toHaveBeenCalled();
+    expect(nativeCanvas.style.setProperty).toHaveBeenCalledWith("pointer-events", "none");
+  });
+
 });
