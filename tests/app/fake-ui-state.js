@@ -7,6 +7,8 @@ export function createFakeUiState(overrides = {}) {
     tool: "pen",
     keepToolActive: false,
     zoom: 1,
+    canUndo: false,
+    canRedo: false,
     backgroundMode: "plain",
     fileName: "未命名白板",
     status: "就绪",

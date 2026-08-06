@@ -1893,6 +1893,8 @@ let suppressSelectionDragOnce = false;
       tool: currentTool,
       keepToolActive: toolController.keepToolActive,
       zoom: stage.scaleX(),
+      canUndo: boardSession.getHistory().canUndo?.() ?? false,
+      canRedo: boardSession.getHistory().canRedo?.() ?? false,
       backgroundMode: board.canvas.backgroundMode,
       fileName: activeFileLabel.textContent,
       status: status.textContent,

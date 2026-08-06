@@ -10,9 +10,9 @@ vi.mock("@douyinfe/semi-ui", async () => {
   const passthrough = ({ children }) => h("span", null, children);
 
   return {
-    Button: ({ "aria-label": ariaLabel, icon, children, onClick, style }) => h(
+    Button: ({ "aria-label": ariaLabel, children, disabled, icon, onClick, style, title }) => h(
       "button",
-      { "aria-label": ariaLabel, onClick, style },
+      { "aria-label": ariaLabel, disabled, onClick, style, title },
       icon,
       children,
     ),
@@ -33,6 +33,8 @@ vi.mock("@douyinfe/semi-icons", () => {
     IconGridStroked: () => h("i"),
     IconMinus: () => h("i"),
     IconPlus: () => h("i"),
+    IconRedo: () => h("i"),
+    IconUndo: () => h("i"),
   };
 });
 
@@ -126,6 +128,41 @@ describe("浮层 chrome 设计令牌", () => {
 
     expect(radii.length).toBeGreaterThan(0);
     expect([...new Set(radii)].filter((value) => !allowed.has(value))).toEqual([]);
+  });
+
+  it("在缩放控件左侧提供可用的撤销和重做按钮", () => {
+    const runAction = vi.fn();
+    const host = render(<StatusBar />, {
+      statusMessage: "就绪",
+      zoomPercent: 100,
+      canUndo: true,
+      canRedo: true,
+      runAction,
+    });
+    const buttons = [...host.querySelectorAll("footer > div button")];
+
+    expect(buttons.slice(0, 2).map((button) => button.getAttribute("aria-label")))
+      .toEqual(["撤销", "重做"]);
+    expect(buttons[0].title).toBe("撤销");
+    expect(buttons[1].title).toBe("重做");
+
+    act(() => buttons[0].click());
+    act(() => buttons[1].click());
+    expect(runAction).toHaveBeenNthCalledWith(1, "undo");
+    expect(runAction).toHaveBeenNthCalledWith(2, "redo");
+  });
+
+  it("没有对应历史记录时禁用撤销和重做", () => {
+    const host = render(<StatusBar />, {
+      statusMessage: "就绪",
+      zoomPercent: 100,
+      canUndo: false,
+      canRedo: false,
+    });
+    const buttons = [...host.querySelectorAll("footer > div button")];
+
+    expect(buttons[0].disabled).toBe(true);
+    expect(buttons[1].disabled).toBe(true);
   });
 
   it("图层选中态使用主色，不引入第二个强调色", () => {

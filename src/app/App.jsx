@@ -37,6 +37,8 @@ export default function App() {
   const [currentTool, setCurrentTool] = useState(TOOLS.PEN);
   const [keepToolActive, setKeepToolActive] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [backgroundMode, setBackgroundModeState] = useState('plain');
   const [stylePanelTitle, setStylePanelTitle] = useState('属性');
   const [panelMode, setPanelMode] = useState('hidden');
@@ -161,6 +163,8 @@ export default function App() {
       syncValue(setCurrentTool, state.tool);
       syncValue(setKeepToolActive, state.keepToolActive);
       setCurrentZoom((prev) => (Math.abs(prev - state.zoom) > 0.001 ? state.zoom : prev));
+      syncValue(setCanUndo, state.canUndo);
+      syncValue(setCanRedo, state.canRedo);
       syncValue(setBackgroundModeState, state.backgroundMode);
       syncValue(setFileName, state.fileName);
       syncValue(setStylePanelTitle, state.stylePanelTitle);
@@ -438,7 +442,7 @@ export default function App() {
   const zoomPercent = Math.round(currentZoom * 100);
 
   const contextValue = useMemo(() => ({
-    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
+    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent, canUndo, canRedo,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected, treeKind, matrixStructure,
@@ -479,7 +483,7 @@ export default function App() {
     setCoordinateFunctions: setCoordinateFunctionsSynced,
     setShapePopoverVisible, setStructurePanelVisible,
   }), [
-    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent,
+    statusMessage, fileName, currentTool, keepToolActive, currentZoom, zoomPercent, canUndo, canRedo,
     backgroundMode, stylePanelCollapsed, stylePanelTitle, panelMode, activeShape,
     layerPanelCollapsed, layers, structureSelection, shapePopoverVisible, structurePanelVisible,
     graphDirected, treeKind, matrixStructure,

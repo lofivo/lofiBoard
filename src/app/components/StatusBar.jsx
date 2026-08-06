@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Dropdown } from '@douyinfe/semi-ui';
-import { IconMinus, IconPlus } from '@douyinfe/semi-icons';
+import { IconMinus, IconPlus, IconRedo, IconUndo } from '@douyinfe/semi-icons';
 import { useWhiteboardContext } from '../WhiteboardContext';
 import { GLASS, RADIUS, TEXT } from '../../ui/tokens.js';
 
@@ -30,6 +30,14 @@ export default function StatusBar() {
         ...GLASS, borderRadius: RADIUS.md, padding: 2,
         display: 'flex', alignItems: 'center', gap: 0, pointerEvents: 'auto',
       }}>
+        <Button theme="borderless" type="tertiary" size="small" icon={<IconUndo />}
+          onClick={() => ctx.runAction?.('undo')} disabled={!ctx.canUndo}
+          aria-label="撤销" title="撤销"
+          style={{ width: 30, height: 30, minWidth: 30, borderRadius: RADIUS.sm }} />
+        <Button theme="borderless" type="tertiary" size="small" icon={<IconRedo />}
+          onClick={() => ctx.runAction?.('redo')} disabled={!ctx.canRedo}
+          aria-label="重做" title="重做"
+          style={{ width: 30, height: 30, minWidth: 30, borderRadius: RADIUS.sm }} />
         <Button theme="borderless" type="tertiary" size="small" icon={<IconMinus />}
           onClick={() => ctx.zoomBy?.(-1)} aria-label="缩小"
           style={{ width: 30, height: 30, minWidth: 30, borderRadius: RADIUS.sm }} />

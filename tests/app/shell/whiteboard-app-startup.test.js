@@ -863,6 +863,8 @@ describe("whiteboard app startup", () => {
       expect(Object.keys(state).sort()).toEqual([
         "activeShape",
         "backgroundMode",
+        "canRedo",
+        "canUndo",
         "fileName",
         "graphDirected",
         "keepToolActive",
