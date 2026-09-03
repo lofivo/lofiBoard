@@ -1,5 +1,7 @@
 # lofiBoard
 
+vibe的💩，自用 https://board.lofivo.site
+
 一个离线优先的可编辑网页白板，面向个人记录、讲解和数据结构演示。应用基于 React、Semi Design、Konva 和 Vite 构建，画板内容保存在浏览器本地或 `.lofibrd` JSON 文件中。
 
 当前功能覆盖无限画布、对象编辑、压感画笔、双橡皮、文字/LaTeX、便签、图片、基础图形、坐标系、数据结构可视化、自动草稿、背景切换和 PNG 导出。
