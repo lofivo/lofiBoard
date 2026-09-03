@@ -167,3 +167,7 @@ sudo systemctl reload nginx
 - [实现文档入口](docs/agents/implementation/README.md)：架构、代码地图、状态持久化、交互流程、结构算法和测试导航。
 - [架构决策](docs/adr/)：已经接受且需要长期遵守的设计决策。
 - [部署说明](docs/deployment.md)：静态托管、Nginx 反代和 systemd 配置。
+
+## 许可证
+
+[MIT](LICENSE)
